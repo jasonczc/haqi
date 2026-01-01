@@ -5,10 +5,9 @@ title: HAPI Documentation
 
 <script setup>
 import { onMounted } from 'vue'
-import { useRouter } from 'vitepress'
+import { withBase } from 'vitepress'
 
 onMounted(() => {
-  const router = useRouter()
-  router.go('/guide/quick-start')
+  window.location.replace(withBase('/guide/quick-start'))
 })
 </script>
