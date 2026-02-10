@@ -234,6 +234,45 @@ function FileListSkeleton(props: { label: string; rows?: number }) {
     )
 }
 
+type GitFileGroup = {
+    repo: string | null
+    files: GitFileStatus[]
+}
+
+function groupGitFilesByRepo(files: GitFileStatus[], repoOrder: string[]): GitFileGroup[] {
+    const groups = new Map<string, GitFileGroup>()
+
+    for (const file of files) {
+        const key = file.repo ?? ''
+        const existing = groups.get(key)
+        if (existing) {
+            existing.files.push(file)
+            continue
+        }
+
+        groups.set(key, {
+            repo: file.repo ?? null,
+            files: [file]
+        })
+    }
+
+    const orderByRepo = new Map(repoOrder.map((name, index) => [name, index]))
+
+    return Array.from(groups.values()).sort((a, b) => {
+        const orderA = a.repo ? (orderByRepo.get(a.repo) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER
+        const orderB = b.repo ? (orderByRepo.get(b.repo) ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER
+
+        if (orderA !== orderB) {
+            return orderA - orderB
+        }
+        return (a.repo ?? '').localeCompare(b.repo ?? '')
+    })
+}
+
+function formatRepoGroupLabel(repo: string | null): string {
+    return repo ?? 'project root'
+}
+
 export default function FilesPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
@@ -277,6 +316,19 @@ export default function FilesPage() {
 
     const repoSummaries = gitStatus?.repos ?? []
     const isAggregatedRepoView = repoSummaries.length > 0
+    const repoOrder = useMemo(() => repoSummaries.map((repo) => repo.name), [repoSummaries])
+    const stagedGroups = useMemo(
+        () => groupGitFilesByRepo(gitStatus?.stagedFiles ?? [], repoOrder),
+        [gitStatus?.stagedFiles, repoOrder]
+    )
+    const unstagedGroups = useMemo(
+        () => groupGitFilesByRepo(gitStatus?.unstagedFiles ?? [], repoOrder),
+        [gitStatus?.unstagedFiles, repoOrder]
+    )
+    const showRepoGroupHeaders = useMemo(
+        () => isAggregatedRepoView || [...stagedGroups, ...unstagedGroups].some((group) => group.repo !== null),
+        [isAggregatedRepoView, stagedGroups, unstagedGroups]
+    )
     const branchLabel = isAggregatedRepoView
         ? `${repoSummaries.length} ${repoSummaries.length === 1 ? 'repository' : 'repositories'}`
         : (gitStatus?.branch ?? 'detached')
@@ -457,13 +509,26 @@ export default function FilesPage() {
                                     <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-staged-color)]">
                                         Staged Changes ({gitStatus.stagedFiles.length})
                                     </div>
-                                    {gitStatus.stagedFiles.map((file, index) => (
-                                        <GitFileRow
-                                            key={`staged-${file.fullPath}-${index}`}
-                                            file={file}
-                                            onOpen={() => handleOpenFile(file.fullPath, file.isStaged)}
-                                            showDivider={index < gitStatus.stagedFiles.length - 1 || gitStatus.unstagedFiles.length > 0}
-                                        />
+                                    {stagedGroups.map((group, groupIndex) => (
+                                        <div key={`staged-group-${group.repo ?? 'root'}-${groupIndex}`}>
+                                            {showRepoGroupHeaders ? (
+                                                <div className="border-b border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--app-hint)]">
+                                                    {formatRepoGroupLabel(group.repo)} ({group.files.length})
+                                                </div>
+                                            ) : null}
+                                            {group.files.map((file, fileIndex) => {
+                                                const isLastInStagedSection = groupIndex === stagedGroups.length - 1
+                                                    && fileIndex === group.files.length - 1
+                                                return (
+                                                    <GitFileRow
+                                                        key={`staged-${file.fullPath}-${fileIndex}`}
+                                                        file={file}
+                                                        onOpen={() => handleOpenFile(file.fullPath, file.isStaged)}
+                                                        showDivider={!isLastInStagedSection || gitStatus.unstagedFiles.length > 0}
+                                                    />
+                                                )
+                                            })}
+                                        </div>
                                     ))}
                                 </div>
                             ) : null}
@@ -473,13 +538,26 @@ export default function FilesPage() {
                                     <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-unstaged-color)]">
                                         Unstaged Changes ({gitStatus.unstagedFiles.length})
                                     </div>
-                                    {gitStatus.unstagedFiles.map((file, index) => (
-                                        <GitFileRow
-                                            key={`unstaged-${file.fullPath}-${index}`}
-                                            file={file}
-                                            onOpen={() => handleOpenFile(file.fullPath, file.isStaged)}
-                                            showDivider={index < gitStatus.unstagedFiles.length - 1}
-                                        />
+                                    {unstagedGroups.map((group, groupIndex) => (
+                                        <div key={`unstaged-group-${group.repo ?? 'root'}-${groupIndex}`}>
+                                            {showRepoGroupHeaders ? (
+                                                <div className="border-b border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--app-hint)]">
+                                                    {formatRepoGroupLabel(group.repo)} ({group.files.length})
+                                                </div>
+                                            ) : null}
+                                            {group.files.map((file, fileIndex) => {
+                                                const isLastInUnstagedSection = groupIndex === unstagedGroups.length - 1
+                                                    && fileIndex === group.files.length - 1
+                                                return (
+                                                    <GitFileRow
+                                                        key={`unstaged-${file.fullPath}-${fileIndex}`}
+                                                        file={file}
+                                                        onOpen={() => handleOpenFile(file.fullPath, file.isStaged)}
+                                                        showDivider={!isLastInUnstagedSection}
+                                                    />
+                                                )
+                                            })}
+                                        </div>
                                     ))}
                                 </div>
                             ) : null}

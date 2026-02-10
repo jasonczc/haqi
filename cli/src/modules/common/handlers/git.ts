@@ -12,6 +12,8 @@ const DISCOVERY_CACHE_TTL_MS = 3_000
 const MAX_DISCOVERY_DEPTH = 4
 const MAX_DISCOVERY_REPOS = 64
 const MAX_DISCOVERY_DIRECTORIES = 2_000
+const HAPI_REPO_SECTION_PREFIX = '@@HAPI_REPO '
+const HAPI_REPO_SECTION_END = '@@HAPI_REPO_END'
 const SKIPPED_DIRECTORY_NAMES = new Set([
     '.git',
     'node_modules',
@@ -134,6 +136,15 @@ function toPosixPath(value: string): string {
     return value.split(sep).join('/')
 }
 
+function wrapRepoSectionOutput(repoName: string, output: string): string {
+    const encodedRepo = encodeURIComponent(repoName)
+    const body = output.trim()
+    if (!body) {
+        return `${HAPI_REPO_SECTION_PREFIX}${encodedRepo}\n${HAPI_REPO_SECTION_END}`
+    }
+    return `${HAPI_REPO_SECTION_PREFIX}${encodedRepo}\n${body}\n${HAPI_REPO_SECTION_END}`
+}
+
 function shouldSkipDirectory(name: string): boolean {
     if (name === '.git') return true
     if (SKIPPED_DIRECTORY_NAMES.has(name)) return true
@@ -199,117 +210,6 @@ async function discoverNestedGitRepos(baseCwd: string): Promise<DiscoveredGitRep
     return discovered
 }
 
-function findNthSpace(value: string, spaceIndex: number): number {
-    let seen = 0
-    for (let index = 0; index < value.length; index += 1) {
-        if (value[index] !== ' ') continue
-        seen += 1
-        if (seen === spaceIndex) return index
-    }
-    return -1
-}
-
-function prefixPathToken(pathToken: string, prefix: string): string {
-    if (!prefix) return pathToken
-    if (!pathToken) return pathToken
-
-    if (pathToken.startsWith('"') && pathToken.endsWith('"') && pathToken.length >= 2) {
-        const escapedPrefix = prefix.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-        const innerPath = pathToken.slice(1, -1)
-        return `"${escapedPrefix}/${innerPath}"`
-    }
-
-    return `${prefix}/${pathToken}`
-}
-
-function prefixStatusLine(line: string, prefix: string): string {
-    if (!line) return line
-    if (line.startsWith('# ')) return ''
-
-    if (line.startsWith('? ')) {
-        return `? ${prefixPathToken(line.slice(2), prefix)}`
-    }
-
-    if (line.startsWith('! ')) {
-        return `! ${prefixPathToken(line.slice(2), prefix)}`
-    }
-
-    if (line.startsWith('1 ')) {
-        const pathStart = findNthSpace(line, 8)
-        if (pathStart === -1) return line
-        const originalPath = line.slice(pathStart + 1)
-        return `${line.slice(0, pathStart + 1)}${prefixPathToken(originalPath, prefix)}`
-    }
-
-    if (line.startsWith('u ')) {
-        const pathStart = findNthSpace(line, 9)
-        if (pathStart === -1) return line
-        const originalPath = line.slice(pathStart + 1)
-        return `${line.slice(0, pathStart + 1)}${prefixPathToken(originalPath, prefix)}`
-    }
-
-    if (line.startsWith('2 ')) {
-        const pathStart = findNthSpace(line, 8)
-        if (pathStart === -1) return line
-        const renamePart = line.slice(pathStart + 1)
-        const tabIndex = renamePart.indexOf('\t')
-        if (tabIndex === -1) return line
-        const oldPath = renamePart.slice(0, tabIndex)
-        const newPath = renamePart.slice(tabIndex + 1)
-        return `${line.slice(0, pathStart + 1)}${prefixPathToken(oldPath, prefix)}\t${prefixPathToken(newPath, prefix)}`
-    }
-
-    return line
-}
-
-function prefixStatusOutput(statusOutput: string, prefix: string): string {
-    const lines = statusOutput
-        .split('\n')
-        .map((line) => prefixStatusLine(line, prefix))
-        .filter((line) => line.length > 0)
-    return lines.join('\n')
-}
-
-function prefixNumstatPathToken(pathToken: string, prefix: string): string {
-    if (!prefix) return pathToken
-
-    const trimmed = pathToken.trim()
-    if (trimmed.includes('{') && trimmed.includes('=>') && trimmed.includes('}')) {
-        return prefixPathToken(pathToken, prefix)
-    }
-
-    if (trimmed.includes('=>')) {
-        const parts = trimmed.split(/\s*=>\s*/)
-        const oldPath = parts[0]?.trim()
-        const newPath = parts[parts.length - 1]?.trim()
-        if (oldPath && newPath) {
-            return `${prefixPathToken(oldPath, prefix)} => ${prefixPathToken(newPath, prefix)}`
-        }
-    }
-
-    return prefixPathToken(pathToken, prefix)
-}
-
-function prefixNumstatLine(line: string, prefix: string): string {
-    if (!line) return line
-    const firstTab = line.indexOf('\t')
-    if (firstTab === -1) return line
-    const secondTab = line.indexOf('\t', firstTab + 1)
-    if (secondTab === -1) return line
-
-    const pathToken = line.slice(secondTab + 1)
-    const prefixedPath = prefixNumstatPathToken(pathToken, prefix)
-    return `${line.slice(0, secondTab + 1)}${prefixedPath}`
-}
-
-function prefixNumstatOutput(numstatOutput: string, prefix: string): string {
-    return numstatOutput
-        .split('\n')
-        .map((line) => prefixNumstatLine(line, prefix))
-        .filter((line) => line.length > 0)
-        .join('\n')
-}
-
 function isPathInside(targetPath: string, parentPath: string): boolean {
     const resolvedTarget = resolve(targetPath)
     const resolvedParent = resolve(parentPath)
@@ -356,8 +256,7 @@ export function registerGitHandlers(rpcHandlerManager: RpcHandlerManager, workin
             }
 
             hasSuccess = true
-            const transformed = prefixStatusOutput(result.stdout ?? '', repo.relativePath)
-            if (transformed) outputs.push(transformed)
+            outputs.push(wrapRepoSectionOutput(repo.relativePath, result.stdout ?? ''))
         }
 
         if (!hasSuccess) {
@@ -396,8 +295,7 @@ export function registerGitHandlers(rpcHandlerManager: RpcHandlerManager, workin
             }
 
             hasSuccess = true
-            const transformed = prefixNumstatOutput(result.stdout ?? '', repo.relativePath)
-            if (transformed) outputs.push(transformed)
+            outputs.push(wrapRepoSectionOutput(repo.relativePath, result.stdout ?? ''))
         }
 
         if (!hasSuccess) {

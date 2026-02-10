@@ -75,16 +75,20 @@ describe('git RPC handlers', () => {
 
         const statusResult = await callGitHandler(rpc, 'git-status', { cwd: rootDir })
         expect(statusResult.success).toBe(true)
-        expect(statusResult.stdout ?? '').toContain('project-a/tracked.txt')
-        expect(statusResult.stdout ?? '').toContain('? project-a/untracked.txt')
+        expect(statusResult.stdout ?? '').toContain('@@HAPI_REPO project-a')
+        expect(statusResult.stdout ?? '').toContain(' tracked.txt')
+        expect(statusResult.stdout ?? '').toContain('? untracked.txt')
+        expect(statusResult.stdout ?? '').toContain('@@HAPI_REPO_END')
 
         const numstatResult = await callGitHandler(rpc, 'git-diff-numstat', { cwd: rootDir, staged: false })
         expect(numstatResult.success).toBe(true)
-        expect(numstatResult.stdout ?? '').toContain('project-a/tracked.txt')
+        expect(numstatResult.stdout ?? '').toContain('@@HAPI_REPO project-a')
+        expect(numstatResult.stdout ?? '').toContain('\ttracked.txt')
 
         const stagedNumstatResult = await callGitHandler(rpc, 'git-diff-numstat', { cwd: rootDir, staged: true })
         expect(stagedNumstatResult.success).toBe(true)
-        expect(stagedNumstatResult.stdout ?? '').toContain('project-a/tracked.txt')
+        expect(stagedNumstatResult.stdout ?? '').toContain('@@HAPI_REPO project-a')
+        expect(stagedNumstatResult.stdout ?? '').toContain('\ttracked.txt')
 
         const fileDiffResult = await callGitHandler(rpc, 'git-diff-file', {
             cwd: rootDir,
