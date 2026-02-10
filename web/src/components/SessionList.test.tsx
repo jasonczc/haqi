@@ -98,4 +98,44 @@ describe('SessionList project quick-create action', () => {
 
         expect(view.queryByRole('button', { name: 'New Session in this project' })).not.toBeInTheDocument()
     })
+
+    it('auto-collapses offline sessions and reveals them on demand', () => {
+        renderWithProviders(
+            <SessionList
+                sessions={[
+                    createSession({
+                        id: 'online-1',
+                        active: true,
+                        metadata: {
+                            path: '/repo/demo',
+                            name: 'Online Session',
+                            flavor: 'codex'
+                        }
+                    }),
+                    createSession({
+                        id: 'offline-1',
+                        active: false,
+                        metadata: {
+                            path: '/repo/demo',
+                            name: 'Offline Session',
+                            flavor: 'codex'
+                        }
+                    })
+                ]}
+                onSelect={vi.fn()}
+                onNewSession={vi.fn()}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                renderHeader={false}
+                api={null}
+            />
+        )
+
+        expect(screen.getByText('Online Session')).toBeInTheDocument()
+        expect(screen.queryByText('Offline Session')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('button', { name: /offline/i }))
+
+        expect(screen.getByText('Offline Session')).toBeInTheDocument()
+    })
 })

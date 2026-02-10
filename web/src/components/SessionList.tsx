@@ -37,6 +37,12 @@ type SessionListRow =
         isCollapsed: boolean
     }
     | {
+        type: 'offline-section'
+        group: SessionGroup
+        offlineCount: number
+        isCollapsed: boolean
+    }
+    | {
         type: 'session'
         session: SessionSummary
     }
@@ -94,16 +100,60 @@ function getGroupMachineId(group: SessionGroup): string | undefined {
     return group.sessions.find((session) => session.metadata?.machineId)?.metadata?.machineId
 }
 
+function pruneCollapseOverrides(
+    overrides: Map<string, boolean>,
+    knownGroups: Set<string>
+): Map<string, boolean> {
+    if (overrides.size === 0) return overrides
+    const next = new Map(overrides)
+    let changed = false
+    for (const directory of next.keys()) {
+        if (!knownGroups.has(directory)) {
+            next.delete(directory)
+            changed = true
+        }
+    }
+    return changed ? next : overrides
+}
+
 function flattenSessionRows(
     groups: SessionGroup[],
-    isGroupCollapsed: (group: SessionGroup) => boolean
+    isGroupCollapsed: (group: SessionGroup) => boolean,
+    isOfflineCollapsed: (directory: string) => boolean
 ): SessionListRow[] {
     const rows: SessionListRow[] = []
     for (const group of groups) {
         const collapsed = isGroupCollapsed(group)
         rows.push({ type: 'group', group, isCollapsed: collapsed })
         if (collapsed) continue
-        for (const session of group.sessions) {
+
+        const onlineSessions = group.sessions.filter((session) => session.active)
+        const offlineSessions = group.sessions.filter((session) => !session.active)
+
+        for (const session of onlineSessions) {
+            rows.push({
+                type: 'session',
+                session
+            })
+        }
+
+        if (offlineSessions.length === 0) {
+            continue
+        }
+
+        const offlineCollapsed = isOfflineCollapsed(group.directory)
+        rows.push({
+            type: 'offline-section',
+            group,
+            offlineCount: offlineSessions.length,
+            isCollapsed: offlineCollapsed
+        })
+
+        if (offlineCollapsed) {
+            continue
+        }
+
+        for (const session of offlineSessions) {
             rows.push({
                 type: 'session',
                 session
@@ -447,6 +497,34 @@ function SessionGroupRow(props: {
     )
 }
 
+function OfflineSectionRow(props: {
+    directory: string
+    count: number
+    isCollapsed: boolean
+    density: SessionListDensity
+    onToggleGroup: (directory: string, isCollapsed: boolean) => void
+}) {
+    const { t } = useTranslation()
+    const { directory, count, isCollapsed, density, onToggleGroup } = props
+
+    return (
+        <button
+            type="button"
+            onClick={() => onToggleGroup(directory, isCollapsed)}
+            className={`flex w-full items-center gap-2 border-b border-[var(--app-divider)] text-left text-xs text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}
+        >
+            <ChevronIcon
+                className="h-3.5 w-3.5 text-[var(--app-hint)]"
+                collapsed={isCollapsed}
+            />
+            <span className="uppercase tracking-wide">{t('misc.offline')}</span>
+            <span className="text-[var(--app-hint)]">
+                ({count})
+            </span>
+        </button>
+    )
+}
+
 export function SessionList(props: {
     sessions: SessionSummary[]
     onSelect: (sessionId: string) => void
@@ -470,6 +548,9 @@ export function SessionList(props: {
     )
     const [groupOrder, setGroupOrder] = useState<string[]>(() => loadSessionGroupOrder())
     const [collapseOverrides, setCollapseOverrides] = useState<Map<string, boolean>>(
+        () => new Map()
+    )
+    const [offlineCollapseOverrides, setOfflineCollapseOverrides] = useState<Map<string, boolean>>(
         () => new Map()
     )
     const groups = useMemo(
@@ -513,6 +594,11 @@ export function SessionList(props: {
         if (override !== undefined) return override
         return !group.hasActiveSession
     }
+    const isOfflineCollapsed = (directory: string): boolean => {
+        const override = offlineCollapseOverrides.get(directory)
+        if (override !== undefined) return override
+        return true
+    }
 
     const toggleGroup = (directory: string, isCollapsed: boolean) => {
         setCollapseOverrides(prev => {
@@ -521,21 +607,18 @@ export function SessionList(props: {
             return next
         })
     }
+    const toggleOfflineGroup = (directory: string, isCollapsed: boolean) => {
+        setOfflineCollapseOverrides((prev) => {
+            const next = new Map(prev)
+            next.set(directory, !isCollapsed)
+            return next
+        })
+    }
 
     useEffect(() => {
-        setCollapseOverrides(prev => {
-            if (prev.size === 0) return prev
-            const next = new Map(prev)
-            const knownGroups = new Set(groups.map(group => group.directory))
-            let changed = false
-            for (const directory of next.keys()) {
-                if (!knownGroups.has(directory)) {
-                    next.delete(directory)
-                    changed = true
-                }
-            }
-            return changed ? next : prev
-        })
+        const knownGroups = new Set(groups.map(group => group.directory))
+        setCollapseOverrides((prev) => pruneCollapseOverrides(prev, knownGroups))
+        setOfflineCollapseOverrides((prev) => pruneCollapseOverrides(prev, knownGroups))
     }, [groups])
 
     const handleGroupDragEnd = ({ active, over }: DragEndEvent) => {
@@ -549,8 +632,8 @@ export function SessionList(props: {
     }
 
     const rows = useMemo(
-        () => flattenSessionRows(groups, isGroupCollapsed),
-        [groups, collapseOverrides]
+        () => flattenSessionRows(groups, isGroupCollapsed, isOfflineCollapsed),
+        [groups, collapseOverrides, offlineCollapseOverrides]
     )
 
     return (
@@ -592,6 +675,8 @@ export function SessionList(props: {
                             computeItemKey={(_, row) => (
                                 row.type === 'group'
                                     ? `group:${row.group.directory}`
+                                    : row.type === 'offline-section'
+                                        ? `offline:${row.group.directory}`
                                     : `session:${row.session.id}`
                             )}
                             itemContent={(_, row) => {
@@ -603,6 +688,18 @@ export function SessionList(props: {
                                             density={density}
                                             onToggleGroup={toggleGroup}
                                             onCreateInGroup={props.onNewSession}
+                                        />
+                                    )
+                                }
+
+                                if (row.type === 'offline-section') {
+                                    return (
+                                        <OfflineSectionRow
+                                            directory={row.group.directory}
+                                            count={row.offlineCount}
+                                            isCollapsed={row.isCollapsed}
+                                            density={density}
+                                            onToggleGroup={toggleOfflineGroup}
                                         />
                                     )
                                 }
