@@ -171,7 +171,14 @@ function GitFileRow(props: {
             <FileIcon fileName={props.file.fileName} size={22} />
             <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{props.file.fileName}</div>
-                <div className="truncate text-xs text-[var(--app-hint)]">{subtitle}</div>
+                <div className="min-w-0 flex items-center gap-1 text-xs text-[var(--app-hint)]">
+                    {props.file.repo ? (
+                        <span className="shrink-0 rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--app-fg)]">
+                            {props.file.repo}
+                        </span>
+                    ) : null}
+                    <span className="truncate">{subtitle}</span>
+                </div>
             </div>
             <div className="flex items-center gap-2">
                 <LineChanges added={props.file.linesAdded} removed={props.file.linesRemoved} />
@@ -268,7 +275,11 @@ export default function FilesPage() {
         })
     }, [activeTab, navigate, sessionId])
 
-    const branchLabel = gitStatus?.branch ?? 'detached'
+    const repoSummaries = gitStatus?.repos ?? []
+    const isAggregatedRepoView = repoSummaries.length > 0
+    const branchLabel = isAggregatedRepoView
+        ? `${repoSummaries.length} ${repoSummaries.length === 1 ? 'repository' : 'repositories'}`
+        : (gitStatus?.branch ?? 'detached')
     const subtitle = session?.metadata?.path ?? sessionId
     const showGitErrorBanner = Boolean(gitError)
     const rootLabel = useMemo(() => {
@@ -386,6 +397,18 @@ export default function FilesPage() {
                         <div className="text-xs text-[var(--app-hint)]">
                             {gitStatus.totalStaged} staged, {gitStatus.totalUnstaged} unstaged
                         </div>
+                        {isAggregatedRepoView ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                                {repoSummaries.map((repo) => (
+                                    <span
+                                        key={`${repo.name}-${repo.branch ?? 'detached'}`}
+                                        className="rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                    >
+                                        {repo.branch ? `${repo.name} · ${repo.branch}` : repo.name}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
                 </div>
             ) : null}

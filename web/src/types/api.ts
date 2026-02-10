@@ -133,6 +133,7 @@ export type GitFileStatus = {
     fileName: string
     filePath: string
     fullPath: string
+    repo?: string
     status: 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflicted'
     isStaged: boolean
     linesAdded: number
@@ -140,10 +141,16 @@ export type GitFileStatus = {
     oldPath?: string
 }
 
+export type GitRepoStatus = {
+    name: string
+    branch: string | null
+}
+
 export type GitStatusFiles = {
     stagedFiles: GitFileStatus[]
     unstagedFiles: GitFileStatus[]
     branch: string | null
+    repos: GitRepoStatus[]
     totalStaged: number
     totalUnstaged: number
 }

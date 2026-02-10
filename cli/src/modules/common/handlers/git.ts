@@ -1,10 +1,31 @@
 import { execFile, type ExecFileOptions } from 'child_process'
+import { lstat, readdir } from 'fs/promises'
+import { isAbsolute, join, relative, resolve, sep } from 'path'
 import { promisify } from 'util'
 import type { RpcHandlerManager } from '@/api/rpc/RpcHandlerManager'
 import { validatePath } from '../pathSecurity'
 import { rpcError } from '../rpcResponses'
 
 const execFileAsync = promisify(execFile)
+const GIT_STATUS_ARGS = ['status', '--porcelain=v2', '--branch', '--untracked-files=all']
+const DISCOVERY_CACHE_TTL_MS = 3_000
+const MAX_DISCOVERY_DEPTH = 4
+const MAX_DISCOVERY_REPOS = 64
+const MAX_DISCOVERY_DIRECTORIES = 2_000
+const SKIPPED_DIRECTORY_NAMES = new Set([
+    '.git',
+    'node_modules',
+    '.idea',
+    '.vscode',
+    'dist',
+    'build',
+    'target',
+    '.next',
+    '.cache',
+    '.turbo',
+    '.pnpm-store',
+    'coverage'
+])
 
 interface GitStatusRequest {
     cwd?: string
@@ -30,6 +51,16 @@ interface GitCommandResponse {
     stderr?: string
     exitCode?: number
     error?: string
+}
+
+interface DiscoveredGitRepo {
+    absolutePath: string
+    relativePath: string
+}
+
+interface RepoDiscoveryCacheEntry {
+    expiresAt: number
+    repos: DiscoveredGitRepo[]
 }
 
 function resolveCwd(requestedCwd: string | undefined, workingDirectory: string): { cwd: string; error?: string } {
@@ -90,17 +121,346 @@ async function runGitCommand(
     }
 }
 
+function shouldFallbackToNestedRepos(response: GitCommandResponse): boolean {
+    if (response.success) return false
+    const details = `${response.error ?? ''}\n${response.stderr ?? ''}`.toLowerCase()
+    return details.includes('not a git repository')
+        || details.includes('use --no-index to compare two paths outside a working tree')
+        || details.includes('usage: git diff --no-index')
+        || details.includes('unknown option `cached`')
+}
+
+function toPosixPath(value: string): string {
+    return value.split(sep).join('/')
+}
+
+function shouldSkipDirectory(name: string): boolean {
+    if (name === '.git') return true
+    if (SKIPPED_DIRECTORY_NAMES.has(name)) return true
+    return name.startsWith('.')
+}
+
+async function hasGitMetadata(dirPath: string): Promise<boolean> {
+    try {
+        const gitMetaPath = join(dirPath, '.git')
+        const stats = await lstat(gitMetaPath)
+        return stats.isDirectory() || stats.isFile()
+    } catch {
+        return false
+    }
+}
+
+async function discoverNestedGitRepos(baseCwd: string): Promise<DiscoveredGitRepo[]> {
+    const queue: Array<{ path: string; depth: number }> = [{ path: baseCwd, depth: 0 }]
+    const discovered: DiscoveredGitRepo[] = []
+    let scannedDirectories = 0
+
+    for (let index = 0; index < queue.length; index += 1) {
+        if (discovered.length >= MAX_DISCOVERY_REPOS) break
+        if (scannedDirectories >= MAX_DISCOVERY_DIRECTORIES) break
+
+        const current = queue[index]
+        if (!current) break
+        scannedDirectories += 1
+
+        if (current.depth > 0 && await hasGitMetadata(current.path)) {
+            const relPath = toPosixPath(relative(baseCwd, current.path))
+            if (relPath && !relPath.startsWith('..')) {
+                discovered.push({
+                    absolutePath: current.path,
+                    relativePath: relPath
+                })
+            }
+            continue
+        }
+
+        if (current.depth >= MAX_DISCOVERY_DEPTH) {
+            continue
+        }
+
+        let entries: Array<{ name: string; isDirectory: () => boolean }> = []
+        try {
+            entries = await readdir(current.path, { withFileTypes: true, encoding: 'utf8' })
+        } catch {
+            continue
+        }
+
+        for (const entry of entries) {
+            if (!entry.isDirectory()) continue
+            if (shouldSkipDirectory(entry.name)) continue
+            queue.push({
+                path: join(current.path, entry.name),
+                depth: current.depth + 1
+            })
+        }
+    }
+
+    discovered.sort((a, b) => a.relativePath.localeCompare(b.relativePath))
+    return discovered
+}
+
+function findNthSpace(value: string, spaceIndex: number): number {
+    let seen = 0
+    for (let index = 0; index < value.length; index += 1) {
+        if (value[index] !== ' ') continue
+        seen += 1
+        if (seen === spaceIndex) return index
+    }
+    return -1
+}
+
+function prefixPathToken(pathToken: string, prefix: string): string {
+    if (!prefix) return pathToken
+    if (!pathToken) return pathToken
+
+    if (pathToken.startsWith('"') && pathToken.endsWith('"') && pathToken.length >= 2) {
+        const escapedPrefix = prefix.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+        const innerPath = pathToken.slice(1, -1)
+        return `"${escapedPrefix}/${innerPath}"`
+    }
+
+    return `${prefix}/${pathToken}`
+}
+
+function prefixStatusLine(line: string, prefix: string): string {
+    if (!line) return line
+    if (line.startsWith('# ')) return ''
+
+    if (line.startsWith('? ')) {
+        return `? ${prefixPathToken(line.slice(2), prefix)}`
+    }
+
+    if (line.startsWith('! ')) {
+        return `! ${prefixPathToken(line.slice(2), prefix)}`
+    }
+
+    if (line.startsWith('1 ')) {
+        const pathStart = findNthSpace(line, 8)
+        if (pathStart === -1) return line
+        const originalPath = line.slice(pathStart + 1)
+        return `${line.slice(0, pathStart + 1)}${prefixPathToken(originalPath, prefix)}`
+    }
+
+    if (line.startsWith('u ')) {
+        const pathStart = findNthSpace(line, 9)
+        if (pathStart === -1) return line
+        const originalPath = line.slice(pathStart + 1)
+        return `${line.slice(0, pathStart + 1)}${prefixPathToken(originalPath, prefix)}`
+    }
+
+    if (line.startsWith('2 ')) {
+        const pathStart = findNthSpace(line, 8)
+        if (pathStart === -1) return line
+        const renamePart = line.slice(pathStart + 1)
+        const tabIndex = renamePart.indexOf('\t')
+        if (tabIndex === -1) return line
+        const oldPath = renamePart.slice(0, tabIndex)
+        const newPath = renamePart.slice(tabIndex + 1)
+        return `${line.slice(0, pathStart + 1)}${prefixPathToken(oldPath, prefix)}\t${prefixPathToken(newPath, prefix)}`
+    }
+
+    return line
+}
+
+function prefixStatusOutput(statusOutput: string, prefix: string): string {
+    const lines = statusOutput
+        .split('\n')
+        .map((line) => prefixStatusLine(line, prefix))
+        .filter((line) => line.length > 0)
+    return lines.join('\n')
+}
+
+function prefixNumstatPathToken(pathToken: string, prefix: string): string {
+    if (!prefix) return pathToken
+
+    const trimmed = pathToken.trim()
+    if (trimmed.includes('{') && trimmed.includes('=>') && trimmed.includes('}')) {
+        return prefixPathToken(pathToken, prefix)
+    }
+
+    if (trimmed.includes('=>')) {
+        const parts = trimmed.split(/\s*=>\s*/)
+        const oldPath = parts[0]?.trim()
+        const newPath = parts[parts.length - 1]?.trim()
+        if (oldPath && newPath) {
+            return `${prefixPathToken(oldPath, prefix)} => ${prefixPathToken(newPath, prefix)}`
+        }
+    }
+
+    return prefixPathToken(pathToken, prefix)
+}
+
+function prefixNumstatLine(line: string, prefix: string): string {
+    if (!line) return line
+    const firstTab = line.indexOf('\t')
+    if (firstTab === -1) return line
+    const secondTab = line.indexOf('\t', firstTab + 1)
+    if (secondTab === -1) return line
+
+    const pathToken = line.slice(secondTab + 1)
+    const prefixedPath = prefixNumstatPathToken(pathToken, prefix)
+    return `${line.slice(0, secondTab + 1)}${prefixedPath}`
+}
+
+function prefixNumstatOutput(numstatOutput: string, prefix: string): string {
+    return numstatOutput
+        .split('\n')
+        .map((line) => prefixNumstatLine(line, prefix))
+        .filter((line) => line.length > 0)
+        .join('\n')
+}
+
+function isPathInside(targetPath: string, parentPath: string): boolean {
+    const resolvedTarget = resolve(targetPath)
+    const resolvedParent = resolve(parentPath)
+    const rel = relative(resolvedParent, resolvedTarget)
+    if (!rel) return true
+    if (rel.startsWith('..')) return false
+    if (isAbsolute(rel)) return false
+    return true
+}
+
 export function registerGitHandlers(rpcHandlerManager: RpcHandlerManager, workingDirectory: string): void {
+    const repoDiscoveryCache = new Map<string, RepoDiscoveryCacheEntry>()
+
+    const getNestedRepos = async (baseCwd: string): Promise<DiscoveredGitRepo[]> => {
+        const cached = repoDiscoveryCache.get(baseCwd)
+        const now = Date.now()
+        if (cached && cached.expiresAt > now) {
+            return cached.repos
+        }
+
+        const repos = await discoverNestedGitRepos(baseCwd)
+        repoDiscoveryCache.set(baseCwd, {
+            repos,
+            expiresAt: now + DISCOVERY_CACHE_TTL_MS
+        })
+        return repos
+    }
+
+    const runNestedStatusFallback = async (baseCwd: string, timeout?: number): Promise<GitCommandResponse> => {
+        const repos = await getNestedRepos(baseCwd)
+        if (repos.length === 0) {
+            return rpcError('Not a git repository and no nested git repositories were found')
+        }
+
+        const outputs: string[] = []
+        const errors: string[] = []
+        let hasSuccess = false
+
+        for (const repo of repos) {
+            const result = await runGitCommand(GIT_STATUS_ARGS, repo.absolutePath, timeout)
+            if (!result.success) {
+                errors.push(`[${repo.relativePath}] ${result.error ?? result.stderr ?? 'status failed'}`)
+                continue
+            }
+
+            hasSuccess = true
+            const transformed = prefixStatusOutput(result.stdout ?? '', repo.relativePath)
+            if (transformed) outputs.push(transformed)
+        }
+
+        if (!hasSuccess) {
+            const fallbackError = errors[0] ?? 'Nested git status unavailable'
+            return rpcError(fallbackError, { stderr: errors.join('\n') })
+        }
+
+        return {
+            success: true,
+            stdout: outputs.join('\n'),
+            stderr: errors.join('\n'),
+            exitCode: 0
+        }
+    }
+
+    const runNestedNumstatFallback = async (
+        baseCwd: string,
+        staged: boolean,
+        timeout?: number
+    ): Promise<GitCommandResponse> => {
+        const repos = await getNestedRepos(baseCwd)
+        if (repos.length === 0) {
+            return rpcError('Not a git repository and no nested git repositories were found')
+        }
+
+        const args = staged ? ['diff', '--cached', '--numstat'] : ['diff', '--numstat']
+        const outputs: string[] = []
+        const errors: string[] = []
+        let hasSuccess = false
+
+        for (const repo of repos) {
+            const result = await runGitCommand(args, repo.absolutePath, timeout)
+            if (!result.success) {
+                errors.push(`[${repo.relativePath}] ${result.error ?? result.stderr ?? 'diff failed'}`)
+                continue
+            }
+
+            hasSuccess = true
+            const transformed = prefixNumstatOutput(result.stdout ?? '', repo.relativePath)
+            if (transformed) outputs.push(transformed)
+        }
+
+        if (!hasSuccess) {
+            const fallbackError = errors[0] ?? 'Nested git diff unavailable'
+            return rpcError(fallbackError, { stderr: errors.join('\n') })
+        }
+
+        return {
+            success: true,
+            stdout: outputs.join('\n'),
+            stderr: errors.join('\n'),
+            exitCode: 0
+        }
+    }
+
+    const runNestedDiffFileFallback = async (
+        baseCwd: string,
+        filePath: string,
+        staged: boolean | undefined,
+        timeout?: number
+    ): Promise<GitCommandResponse> => {
+        const repos = await getNestedRepos(baseCwd)
+        if (repos.length === 0) {
+            return rpcError('Not a git repository and no nested git repositories were found')
+        }
+
+        const absoluteFilePath = resolve(baseCwd, filePath)
+        const matchingRepos = repos
+            .filter((repo) => isPathInside(absoluteFilePath, repo.absolutePath))
+            .sort((a, b) => b.absolutePath.length - a.absolutePath.length)
+        const targetRepo = matchingRepos[0]
+        if (!targetRepo) {
+            return rpcError(`File '${filePath}' is not inside a nested git repository`)
+        }
+
+        const repoRelativePath = relative(targetRepo.absolutePath, absoluteFilePath)
+        if (!repoRelativePath || repoRelativePath.startsWith('..') || isAbsolute(repoRelativePath)) {
+            return rpcError(`Invalid git diff file path '${filePath}'`)
+        }
+
+        const args = staged
+            ? ['diff', '--cached', '--no-ext-diff', '--', repoRelativePath]
+            : ['diff', '--no-ext-diff', '--', repoRelativePath]
+
+        return await runGitCommand(args, targetRepo.absolutePath, timeout)
+    }
+
     rpcHandlerManager.registerHandler<GitStatusRequest, GitCommandResponse>('git-status', async (data) => {
         const resolved = resolveCwd(data.cwd, workingDirectory)
         if (resolved.error) {
             return rpcError(resolved.error)
         }
-        return await runGitCommand(
-            ['status', '--porcelain=v2', '--branch', '--untracked-files=all'],
+
+        const result = await runGitCommand(
+            GIT_STATUS_ARGS,
             resolved.cwd,
             data.timeout
         )
+        if (result.success || !shouldFallbackToNestedRepos(result)) {
+            return result
+        }
+
+        return await runNestedStatusFallback(resolved.cwd, data.timeout)
     })
 
     rpcHandlerManager.registerHandler<GitDiffNumstatRequest, GitCommandResponse>('git-diff-numstat', async (data) => {
@@ -111,7 +471,12 @@ export function registerGitHandlers(rpcHandlerManager: RpcHandlerManager, workin
         const args = data.staged
             ? ['diff', '--cached', '--numstat']
             : ['diff', '--numstat']
-        return await runGitCommand(args, resolved.cwd, data.timeout)
+        const result = await runGitCommand(args, resolved.cwd, data.timeout)
+        if (result.success || !shouldFallbackToNestedRepos(result)) {
+            return result
+        }
+
+        return await runNestedNumstatFallback(resolved.cwd, data.staged === true, data.timeout)
     })
 
     rpcHandlerManager.registerHandler<GitDiffFileRequest, GitCommandResponse>('git-diff-file', async (data) => {
@@ -127,6 +492,11 @@ export function registerGitHandlers(rpcHandlerManager: RpcHandlerManager, workin
         const args = data.staged
             ? ['diff', '--cached', '--no-ext-diff', '--', data.filePath]
             : ['diff', '--no-ext-diff', '--', data.filePath]
-        return await runGitCommand(args, resolved.cwd, data.timeout)
+        const result = await runGitCommand(args, resolved.cwd, data.timeout)
+        if (result.success || !shouldFallbackToNestedRepos(result)) {
+            return result
+        }
+
+        return await runNestedDiffFileFallback(resolved.cwd, data.filePath, data.staged, data.timeout)
     })
 }

@@ -1,4 +1,4 @@
-import type { GitFileStatus, GitStatusFiles } from '@/types/api'
+import type { GitFileStatus, GitRepoStatus, GitStatusFiles } from '@/types/api'
 
 export type GitFileEntryV2 = {
     path: string
@@ -50,6 +50,91 @@ const UNTRACKED_REGEX = /^\? (.+)$/
 const IGNORED_REGEX = /^! (.+)$/
 
 const NUMSTAT_REGEX = /^(\d+|-)\t(\d+|-)\t(.*)$/
+const HAPI_REPO_SECTION_PREFIX = '@@HAPI_REPO '
+const HAPI_REPO_SECTION_END = '@@HAPI_REPO_END'
+
+type RepoScopedOutput = {
+    repo: string | null
+    output: string
+}
+
+function decodeRepoSectionName(name: string): string {
+    try {
+        return decodeURIComponent(name)
+    } catch {
+        return name
+    }
+}
+
+function splitRepoSections(rawOutput: string): RepoScopedOutput[] {
+    const lines = rawOutput.split('\n')
+    const sections: RepoScopedOutput[] = []
+    let currentRepo: string | null = null
+    let currentLines: string[] = []
+    let hasMarkers = false
+
+    const flushCurrentSection = () => {
+        if (currentRepo === null) return
+        sections.push({
+            repo: currentRepo,
+            output: currentLines.join('\n').trim()
+        })
+        currentRepo = null
+        currentLines = []
+    }
+
+    for (const line of lines) {
+        if (line.startsWith(HAPI_REPO_SECTION_PREFIX)) {
+            hasMarkers = true
+            flushCurrentSection()
+            const encodedRepo = line.slice(HAPI_REPO_SECTION_PREFIX.length).trim()
+            currentRepo = decodeRepoSectionName(encodedRepo)
+            currentLines = []
+            continue
+        }
+        if (line.trim() === HAPI_REPO_SECTION_END) {
+            hasMarkers = true
+            flushCurrentSection()
+            continue
+        }
+
+        if (currentRepo !== null) {
+            currentLines.push(line)
+            continue
+        }
+
+        if (!hasMarkers) {
+            currentLines.push(line)
+        }
+    }
+
+    if (hasMarkers) {
+        flushCurrentSection()
+        return sections
+    }
+
+    return [{
+        repo: null,
+        output: rawOutput.trim()
+    }]
+}
+
+function getRepoKey(repo: string | null): string {
+    return repo ?? ''
+}
+
+function buildRepoOutputMap(sections: RepoScopedOutput[]): Record<string, string> {
+    const result: Record<string, string> = {}
+    for (const section of sections) {
+        result[getRepoKey(section.repo)] = section.output
+    }
+    return result
+}
+
+function withRepoPrefix(repo: string | null, filePath: string): string {
+    if (!repo) return filePath
+    return `${repo}/${filePath}`
+}
 
 export function parseStatusSummaryV2(statusOutput: string): GitStatusSummaryV2 {
     const lines = statusOutput.trim().split('\n').filter((line) => line.length > 0)
@@ -200,78 +285,100 @@ export function buildGitStatusFiles(
     unstagedDiffOutput: string,
     stagedDiffOutput: string
 ): GitStatusFiles {
-    const statusSummary = parseStatusSummaryV2(statusOutput)
-    const branchName = getCurrentBranchV2(statusSummary)
-
-    const unstagedDiff = parseNumStat(unstagedDiffOutput)
-    const stagedDiff = parseNumStat(stagedDiffOutput)
-    const unstagedStats = createDiffStatsMap(unstagedDiff)
-    const stagedStats = createDiffStatsMap(stagedDiff)
-
     const stagedFiles: GitFileStatus[] = []
     const unstagedFiles: GitFileStatus[] = []
+    const repos: GitRepoStatus[] = []
+    const statusSections = splitRepoSections(statusOutput)
+    const unstagedDiffByRepo = buildRepoOutputMap(splitRepoSections(unstagedDiffOutput))
+    const stagedDiffByRepo = buildRepoOutputMap(splitRepoSections(stagedDiffOutput))
+    const hasMultiRepoMetadata = statusSections.some((section) => section.repo !== null)
+    let branchName: string | null = null
 
-    for (const file of statusSummary.files) {
-        const parts = file.path.split('/')
-        const fileName = parts[parts.length - 1] || file.path
-        const filePath = parts.slice(0, -1).join('/')
-
-        if (file.index !== ' ' && file.index !== '.' && file.index !== '?') {
-            const status = getFileStatus(file.index)
-            const stats = stagedStats[file.path] ?? { added: 0, removed: 0, binary: false }
-            stagedFiles.push({
-                fileName,
-                filePath,
-                fullPath: file.path,
-                status,
-                isStaged: true,
-                linesAdded: stats.added,
-                linesRemoved: stats.removed,
-                oldPath: file.from
+    for (const section of statusSections) {
+        const statusSummary = parseStatusSummaryV2(section.output)
+        const currentBranch = getCurrentBranchV2(statusSummary)
+        if (section.repo) {
+            repos.push({
+                name: section.repo,
+                branch: currentBranch
             })
+        } else if (!hasMultiRepoMetadata) {
+            branchName = currentBranch
         }
 
-        if (file.workingDir !== ' ' && file.workingDir !== '.') {
-            const status = getFileStatus(file.workingDir)
-            const stats = unstagedStats[file.path] ?? { added: 0, removed: 0, binary: false }
+        const stagedDiff = parseNumStat(stagedDiffByRepo[getRepoKey(section.repo)] ?? '')
+        const unstagedDiff = parseNumStat(unstagedDiffByRepo[getRepoKey(section.repo)] ?? '')
+        const stagedStats = createDiffStatsMap(stagedDiff)
+        const unstagedStats = createDiffStatsMap(unstagedDiff)
+
+        for (const file of statusSummary.files) {
+            const parts = file.path.split('/')
+            const fileName = parts[parts.length - 1] || file.path
+            const filePath = parts.slice(0, -1).join('/')
+            const fullPath = withRepoPrefix(section.repo, file.path)
+            const oldPath = file.from ? withRepoPrefix(section.repo, file.from) : undefined
+
+            if (file.index !== ' ' && file.index !== '.' && file.index !== '?') {
+                const status = getFileStatus(file.index)
+                const stats = stagedStats[file.path] ?? { added: 0, removed: 0, binary: false }
+                stagedFiles.push({
+                    fileName,
+                    filePath,
+                    fullPath,
+                    repo: section.repo ?? undefined,
+                    status,
+                    isStaged: true,
+                    linesAdded: stats.added,
+                    linesRemoved: stats.removed,
+                    oldPath
+                })
+            }
+
+            if (file.workingDir !== ' ' && file.workingDir !== '.') {
+                const status = getFileStatus(file.workingDir)
+                const stats = unstagedStats[file.path] ?? { added: 0, removed: 0, binary: false }
+                unstagedFiles.push({
+                    fileName,
+                    filePath,
+                    fullPath,
+                    repo: section.repo ?? undefined,
+                    status,
+                    isStaged: false,
+                    linesAdded: stats.added,
+                    linesRemoved: stats.removed,
+                    oldPath
+                })
+            }
+        }
+
+        for (const untrackedPath of statusSummary.notAdded) {
+            const cleanPath = untrackedPath.endsWith('/') ? untrackedPath.slice(0, -1) : untrackedPath
+            const parts = cleanPath.split('/')
+            const fileName = parts[parts.length - 1] || cleanPath
+            const filePath = parts.slice(0, -1).join('/')
+
+            if (untrackedPath.endsWith('/')) {
+                continue
+            }
+
             unstagedFiles.push({
                 fileName,
                 filePath,
-                fullPath: file.path,
-                status,
+                fullPath: withRepoPrefix(section.repo, cleanPath),
+                repo: section.repo ?? undefined,
+                status: 'untracked',
                 isStaged: false,
-                linesAdded: stats.added,
-                linesRemoved: stats.removed,
-                oldPath: file.from
+                linesAdded: 0,
+                linesRemoved: 0
             })
         }
-    }
-
-    for (const untrackedPath of statusSummary.notAdded) {
-        const cleanPath = untrackedPath.endsWith('/') ? untrackedPath.slice(0, -1) : untrackedPath
-        const parts = cleanPath.split('/')
-        const fileName = parts[parts.length - 1] || cleanPath
-        const filePath = parts.slice(0, -1).join('/')
-
-        if (untrackedPath.endsWith('/')) {
-            continue
-        }
-
-        unstagedFiles.push({
-            fileName,
-            filePath,
-            fullPath: cleanPath,
-            status: 'untracked',
-            isStaged: false,
-            linesAdded: 0,
-            linesRemoved: 0
-        })
     }
 
     return {
         stagedFiles,
         unstagedFiles,
-        branch: branchName,
+        branch: hasMultiRepoMetadata ? null : branchName,
+        repos,
         totalStaged: stagedFiles.length,
         totalUnstaged: unstagedFiles.length
     }

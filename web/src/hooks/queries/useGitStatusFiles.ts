@@ -38,10 +38,17 @@ export function useGitStatusFiles(api: ApiClient | null, sessionId: string | nul
             )
 
             const errors: string[] = []
-            if (!unstagedResult.success) {
+            if ((statusResult.stderr ?? '').trim().length > 0) {
+                errors.push(`Git status warnings: ${statusResult.stderr?.trim()}`)
+            }
+            if (unstagedResult.success && (unstagedResult.stderr ?? '').trim().length > 0) {
+                errors.push(`Unstaged diff warnings: ${unstagedResult.stderr?.trim()}`)
+            } else if (!unstagedResult.success) {
                 errors.push(`Unstaged diff unavailable: ${unstagedResult.error ?? unstagedResult.stderr ?? 'unknown error'}`)
             }
-            if (!stagedResult.success) {
+            if (stagedResult.success && (stagedResult.stderr ?? '').trim().length > 0) {
+                errors.push(`Staged diff warnings: ${stagedResult.stderr?.trim()}`)
+            } else if (!stagedResult.success) {
                 errors.push(`Staged diff unavailable: ${stagedResult.error ?? stagedResult.stderr ?? 'unknown error'}`)
             }
 
