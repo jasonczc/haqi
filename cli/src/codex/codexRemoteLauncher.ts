@@ -167,6 +167,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         };
 
         const permissionHandler = new CodexPermissionHandler(session.client, {
+            getPermissionMode: () => session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined,
             onRequest: ({ id, toolName, input }) => {
                 const inputRecord = input && typeof input === 'object' ? input as Record<string, unknown> : {};
                 const message = typeof inputRecord.message === 'string' ? inputRecord.message : undefined;

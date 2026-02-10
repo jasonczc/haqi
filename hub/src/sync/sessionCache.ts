@@ -159,7 +159,11 @@ export class SessionCache {
         session.thinking = Boolean(payload.thinking)
         session.thinkingAt = t
         if (payload.permissionMode !== undefined) {
-            session.permissionMode = payload.permissionMode
+            const preserveAutoApproveMode = session.permissionMode === 'auto-approve'
+                && payload.permissionMode !== 'auto-approve'
+            if (!preserveAutoApproveMode) {
+                session.permissionMode = payload.permissionMode
+            }
         }
         if (payload.modelMode !== undefined) {
             session.modelMode = payload.modelMode

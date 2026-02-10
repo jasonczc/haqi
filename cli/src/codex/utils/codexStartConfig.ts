@@ -9,6 +9,7 @@ function resolveApprovalPolicy(mode: EnhancedMode): CodexSessionConfig['approval
         case 'read-only': return 'never';
         case 'safe-yolo': return 'on-failure';
         case 'yolo': return 'on-failure';
+        case 'auto-approve': return 'never';
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }
@@ -21,6 +22,7 @@ function resolveSandbox(mode: EnhancedMode): CodexSessionConfig['sandbox'] {
         case 'read-only': return 'read-only';
         case 'safe-yolo': return 'workspace-write';
         case 'yolo': return 'danger-full-access';
+        case 'auto-approve': return 'danger-full-access';
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }

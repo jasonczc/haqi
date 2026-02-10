@@ -7,6 +7,7 @@
 
 import { logger } from "@/ui/logger";
 import { ApiSessionClient } from "@/api/apiSession";
+import type { CodexPermissionMode } from "@hapi/protocol/types";
 import {
     BasePermissionHandler,
     type PendingPermissionRequest,
@@ -26,6 +27,7 @@ interface PermissionResult {
 }
 
 type CodexPermissionHandlerOptions = {
+    getPermissionMode?: () => CodexPermissionMode | undefined;
     onRequest?: (request: { id: string; toolName: string; input: unknown }) => void;
     onComplete?: (result: {
         id: string;
@@ -58,6 +60,38 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
         toolName: string,
         input: unknown
     ): Promise<PermissionResult> {
+        const mode = this.options?.getPermissionMode?.();
+        if (mode === 'auto-approve') {
+            const result: PermissionResult = {
+                decision: 'approved'
+            };
+            const completedAt = Date.now();
+            this.client.updateAgentState((currentState) => ({
+                ...currentState,
+                completedRequests: {
+                    ...currentState.completedRequests,
+                    [toolCallId]: {
+                        tool: toolName,
+                        arguments: input,
+                        createdAt: completedAt,
+                        completedAt,
+                        status: 'approved',
+                        mode,
+                        decision: result.decision
+                    }
+                }
+            }));
+            this.options?.onComplete?.({
+                id: toolCallId,
+                toolName,
+                input,
+                approved: true,
+                decision: result.decision
+            });
+            logger.debug(`[Codex] Auto-approved permission for tool: ${toolName} (${toolCallId}) mode=${mode}`);
+            return result;
+        }
+
         return new Promise<PermissionResult>((resolve, reject) => {
             // Store the pending request
             this.addPendingRequest(toolCallId, toolName, input, { resolve, reject });

@@ -48,6 +48,7 @@ export class SyncEngine {
     private readonly machineCache: MachineCache
     private readonly messageService: MessageService
     private readonly rpcGateway: RpcGateway
+    private readonly autoApprovalInFlight: Set<string> = new Set()
     private inactivityTimer: NodeJS.Timeout | null = null
 
     constructor(
@@ -163,7 +164,10 @@ export class SyncEngine {
 
     handleRealtimeEvent(event: SyncEvent): void {
         if (event.type === 'session-updated' && event.sessionId) {
-            this.sessionCache.refreshSession(event.sessionId)
+            const refreshed = this.sessionCache.refreshSession(event.sessionId)
+            if (refreshed?.permissionMode === 'auto-approve') {
+                void this.maybeAutoApprovePendingRequests(event.sessionId)
+            }
             return
         }
 
@@ -190,6 +194,10 @@ export class SyncEngine {
         modelMode?: ModelMode
     }): void {
         this.sessionCache.handleSessionAlive(payload)
+        const session = this.getSession(payload.sid)
+        if (session?.permissionMode === 'auto-approve') {
+            void this.maybeAutoApprovePendingRequests(payload.sid)
+        }
     }
 
     handleSessionEnd(payload: { sid: string; time: number }): void {
@@ -284,17 +292,91 @@ export class SyncEngine {
             modelMode?: ModelMode
         }
     ): Promise<void> {
-        const result = await this.rpcGateway.requestSessionConfig(sessionId, config)
-        if (!result || typeof result !== 'object') {
-            throw new Error('Invalid response from session config RPC')
-        }
-        const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } }
-        const applied = obj.applied
-        if (!applied || typeof applied !== 'object') {
-            throw new Error('Missing applied session config')
+        let applied: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } | undefined
+
+        try {
+            const result = await this.rpcGateway.requestSessionConfig(sessionId, config)
+            if (!result || typeof result !== 'object') {
+                throw new Error('Invalid response from session config RPC')
+            }
+            const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } }
+            const fromRpc = obj.applied
+            if (!fromRpc || typeof fromRpc !== 'object') {
+                throw new Error('Missing applied session config')
+            }
+            applied = fromRpc
+        } catch (error) {
+            if (!this.shouldFallbackSessionConfig(sessionId, config, error)) {
+                throw error
+            }
+            applied = {
+                permissionMode: config.permissionMode,
+                modelMode: config.modelMode
+            }
         }
 
         this.sessionCache.applySessionConfig(sessionId, applied)
+        if (applied.permissionMode === 'auto-approve') {
+            void this.maybeAutoApprovePendingRequests(sessionId)
+        }
+    }
+
+    private shouldFallbackSessionConfig(
+        sessionId: string,
+        config: { permissionMode?: PermissionMode; modelMode?: ModelMode },
+        error: unknown
+    ): boolean {
+        if (config.permissionMode !== 'auto-approve') {
+            return false
+        }
+
+        const message = error instanceof Error ? error.message : ''
+        if (message !== 'Missing applied session config' && message !== 'Invalid response from session config RPC') {
+            return false
+        }
+
+        const session = this.getSession(sessionId)
+        return session?.metadata?.flavor === 'codex'
+    }
+
+    private async maybeAutoApprovePendingRequests(sessionId: string): Promise<void> {
+        const session = this.getSession(sessionId)
+        if (!session || session.permissionMode !== 'auto-approve') {
+            return
+        }
+
+        const requests = session.agentState?.requests
+        if (!requests || typeof requests !== 'object') {
+            return
+        }
+        const completedRequests = session.agentState?.completedRequests
+
+        for (const requestId of Object.keys(requests)) {
+            if (completedRequests && requestId in completedRequests) {
+                continue
+            }
+
+            const lockKey = `${sessionId}:${requestId}`
+            if (this.autoApprovalInFlight.has(lockKey)) {
+                continue
+            }
+
+            this.autoApprovalInFlight.add(lockKey)
+            try {
+                await this.rpcGateway.approvePermission(
+                    sessionId,
+                    requestId,
+                    undefined,
+                    undefined,
+                    'approved'
+                )
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error)
+                console.warn(`[SyncEngine] Failed to auto-approve request ${requestId} for ${sessionId}: ${message}`)
+            } finally {
+                this.autoApprovalInFlight.delete(lockKey)
+            }
+        }
     }
 
     async spawnSession(

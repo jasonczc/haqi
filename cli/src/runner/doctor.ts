@@ -44,7 +44,7 @@ export async function findAllHappyProcesses(): Promise<Array<{ pid: number, comm
         type = isDevMode ? 'dev-runner-spawned' : 'runner-spawned-session';
       } else if (cmd.includes('doctor')) {
         type = isDevMode ? 'dev-doctor' : 'doctor';
-      } else if (cmd.includes('--yolo')) {
+      } else if (cmd.includes('--yolo') || cmd.includes('--auto-approve')) {
         type = 'dev-session';
       } else {
         type = isDevMode ? 'dev-related' : 'user-session';

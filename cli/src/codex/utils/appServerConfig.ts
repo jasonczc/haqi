@@ -16,6 +16,7 @@ function resolveApprovalPolicy(mode: EnhancedMode): ApprovalPolicy {
         case 'read-only': return 'never';
         case 'safe-yolo': return 'on-failure';
         case 'yolo': return 'on-failure';
+        case 'auto-approve': return 'never';
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }
@@ -28,6 +29,7 @@ function resolveSandbox(mode: EnhancedMode): SandboxMode {
         case 'read-only': return 'read-only';
         case 'safe-yolo': return 'workspace-write';
         case 'yolo': return 'danger-full-access';
+        case 'auto-approve': return 'danger-full-access';
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }
@@ -40,6 +42,7 @@ function resolveSandboxPolicy(mode: EnhancedMode): SandboxPolicy {
         case 'read-only': return { type: 'readOnly' };
         case 'safe-yolo': return { type: 'workspaceWrite' };
         case 'yolo': return { type: 'dangerFullAccess' };
+        case 'auto-approve': return { type: 'dangerFullAccess' };
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }

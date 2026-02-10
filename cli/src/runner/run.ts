@@ -343,7 +343,11 @@ export async function startRunner(): Promise<void> {
           args.push('--model', options.model);
         }
         if (yolo) {
-          args.push('--yolo');
+          if (agent === 'codex') {
+            args.push('--auto-approve');
+          } else {
+            args.push('--yolo');
+          }
         }
 
         // sessionId reserved for future use

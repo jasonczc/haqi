@@ -35,6 +35,19 @@ describe('buildCodexStartConfig', () => {
         expect(config['approval-policy']).toBe('on-failure');
     });
 
+    it('uses never approval for auto-approve mode', () => {
+        const config = buildCodexStartConfig({
+            message: 'hello',
+            mode: { permissionMode: 'auto-approve' },
+            first: false,
+            mcpServers,
+            cliOverrides: { sandbox: 'read-only', approvalPolicy: 'on-request' }
+        });
+
+        expect(config.sandbox).toBe('danger-full-access');
+        expect(config['approval-policy']).toBe('never');
+    });
+
     it('passes model when provided', () => {
         const config = buildCodexStartConfig({
             message: 'hello',

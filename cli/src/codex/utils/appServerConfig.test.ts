@@ -34,6 +34,17 @@ describe('appServerConfig', () => {
         expect(params.approvalPolicy).toBe('on-failure');
     });
 
+    it('uses never approval in auto-approve mode for thread start', () => {
+        const params = buildThreadStartParams({
+            mode: { permissionMode: 'auto-approve' },
+            mcpServers,
+            cliOverrides: { sandbox: 'read-only', approvalPolicy: 'on-request' }
+        });
+
+        expect(params.sandbox).toBe('danger-full-access');
+        expect(params.approvalPolicy).toBe('never');
+    });
+
     it('builds turn params with mode defaults', () => {
         const params = buildTurnStartParams({
             threadId: 'thread-1',
@@ -81,6 +92,18 @@ describe('appServerConfig', () => {
 
         expect(params.approvalPolicy).toBe('on-failure');
         expect(params.sandboxPolicy).toEqual({ type: 'workspaceWrite' });
+    });
+
+    it('uses never approval in auto-approve mode for turns', () => {
+        const params = buildTurnStartParams({
+            threadId: 'thread-1',
+            message: 'hello',
+            mode: { permissionMode: 'auto-approve' },
+            cliOverrides: { sandbox: 'read-only', approvalPolicy: 'on-request' }
+        });
+
+        expect(params.approvalPolicy).toBe('never');
+        expect(params.sandboxPolicy).toEqual({ type: 'dangerFullAccess' });
     });
 
     it('prefers turn overrides', () => {
