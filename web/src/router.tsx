@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, type CSSProperties } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     Navigate,
@@ -32,6 +32,7 @@ import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
 import { fetchLatestMessages, seedMessageWindowFromSession } from '@/lib/message-window-store'
 import { useSessionListDensity } from '@/hooks/useSessionListDensity'
+import { useSessionSidebarWidth } from '@/hooks/useSessionSidebarWidth'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import TerminalPage from '@/routes/sessions/terminal'
@@ -143,6 +144,7 @@ function SessionsPage() {
     const { t } = useTranslation()
     const { sessions, isLoading, error, refetch } = useSessions(api)
     const { density, toggleDensity } = useSessionListDensity()
+    const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
 
     const handleRefresh = useCallback(() => {
         void refetch()
@@ -162,11 +164,13 @@ function SessionsPage() {
     const toggleDensityLabel = density === 'comfortable'
         ? t('sessions.display.toggleToCompact')
         : t('sessions.display.toggleToComfortable')
+    const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
 
     return (
         <div className="flex h-full min-h-0">
             <div
-                className={`${isSessionsIndex ? 'flex' : 'hidden lg:flex'} w-full lg:w-[420px] xl:w-[480px] shrink-0 flex-col bg-[var(--app-bg)] lg:border-r lg:border-[var(--app-divider)]`}
+                className={`${isSessionsIndex ? 'flex' : 'hidden lg:flex'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--app-bg)] lg:border-r lg:border-[var(--app-divider)]`}
+                style={sidebarStyle}
             >
                 <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
                     <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-2">
@@ -224,6 +228,19 @@ function SessionsPage() {
                         density={density}
                     />
                 </div>
+            </div>
+
+            <div
+                className="group relative hidden w-2 shrink-0 cursor-col-resize lg:block"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('sessions.sidebar.resize')}
+                title={t('sessions.sidebar.resize')}
+                onPointerDown={startSidebarResize}
+            >
+                <div
+                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
+                />
             </div>
 
             <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>

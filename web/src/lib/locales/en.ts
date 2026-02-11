@@ -44,6 +44,7 @@ export default {
   'sessions.newInProject': 'New Session in this project',
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
+  'sessions.sidebar.resize': 'Resize sidebar',
 
   // Session list
   'session.item.path': 'path',

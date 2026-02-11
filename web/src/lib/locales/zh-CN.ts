@@ -44,6 +44,7 @@ export default {
   'sessions.newInProject': '在此项目中新建会话',
   'sessions.display.toggleToCompact': '切换到紧凑视图',
   'sessions.display.toggleToComfortable': '切换到舒适视图',
+  'sessions.sidebar.resize': '调整侧边栏宽度',
 
   // Session list
   'session.item.path': '路径',
