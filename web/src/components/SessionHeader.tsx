@@ -42,6 +42,26 @@ function FilesIcon(props: { className?: string }) {
     )
 }
 
+function SidebarIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18" />
+        </svg>
+    )
+}
+
 function MoreVerticalIcon(props: { className?: string }) {
     return (
         <svg
@@ -62,6 +82,8 @@ function MoreVerticalIcon(props: { className?: string }) {
 export function SessionHeader(props: {
     session: Session
     onBack: () => void
+    onToggleSidebar?: () => void
+    sidebarVisible?: boolean
     onViewFiles?: () => void
     api: ApiClient | null
     onSessionDeleted?: () => void
@@ -70,6 +92,9 @@ export function SessionHeader(props: {
     const { session, api, onSessionDeleted } = props
     const title = useMemo(() => getSessionTitle(session), [session])
     const worktreeBranch = session.metadata?.worktree?.branch
+    const sidebarToggleLabel = props.sidebarVisible
+        ? t('sessions.sidebar.hideDesktop')
+        : t('sessions.sidebar.showDesktop')
 
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -107,26 +132,40 @@ export function SessionHeader(props: {
         <>
             <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
                 <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3">
-                    {/* Back button */}
-                    <button
-                        type="button"
-                        onClick={props.onBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
+                    <div className="flex items-center gap-1">
+                        {/* Back button */}
+                        <button
+                            type="button"
+                            onClick={props.onBack}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                         >
-                            <polyline points="15 18 9 12 15 6" />
-                        </svg>
-                    </button>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            >
+                                <polyline points="15 18 9 12 15 6" />
+                            </svg>
+                        </button>
+
+                        {props.onToggleSidebar ? (
+                            <button
+                                type="button"
+                                onClick={props.onToggleSidebar}
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                title={sidebarToggleLabel}
+                                aria-label={sidebarToggleLabel}
+                            >
+                                <SidebarIcon />
+                            </button>
+                        ) : null}
+                    </div>
 
                     {/* Session info - two lines: title and path */}
                     <div className="min-w-0 flex-1">

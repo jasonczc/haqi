@@ -37,6 +37,8 @@ export function SessionChat(props: {
     onAtBottomChange: (atBottom: boolean) => void
     onRetryMessage?: (localId: string) => void
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
+    onToggleSidebar?: () => void
+    sidebarVisible?: boolean
 }) {
     const { haptic } = usePlatform()
     const navigate = useNavigate()
@@ -269,6 +271,8 @@ export function SessionChat(props: {
             <SessionHeader
                 session={props.session}
                 onBack={props.onBack}
+                onToggleSidebar={props.onToggleSidebar}
+                sidebarVisible={props.sidebarVisible}
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 api={props.api}
                 onSessionDeleted={props.onBack}

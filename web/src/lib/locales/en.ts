@@ -45,6 +45,10 @@ export default {
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
   'sessions.sidebar.resize': 'Resize sidebar',
+  'sessions.sidebar.open': 'Open sessions sidebar',
+  'sessions.sidebar.close': 'Close sessions sidebar',
+  'sessions.sidebar.hideDesktop': 'Hide sessions sidebar',
+  'sessions.sidebar.showDesktop': 'Show sessions sidebar',
 
   // Session list
   'session.item.path': 'path',

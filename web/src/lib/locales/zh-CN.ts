@@ -45,6 +45,10 @@ export default {
   'sessions.display.toggleToCompact': '切换到紧凑视图',
   'sessions.display.toggleToComfortable': '切换到舒适视图',
   'sessions.sidebar.resize': '调整侧边栏宽度',
+  'sessions.sidebar.open': '打开会话侧边栏',
+  'sessions.sidebar.close': '关闭会话侧边栏',
+  'sessions.sidebar.hideDesktop': '隐藏会话侧边栏',
+  'sessions.sidebar.showDesktop': '显示会话侧边栏',
 
   // Session list
   'session.item.path': '路径',

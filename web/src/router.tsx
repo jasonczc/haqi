@@ -1,4 +1,4 @@
-import { useCallback, type CSSProperties } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type CSSProperties } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     Navigate,
@@ -33,6 +33,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { fetchLatestMessages, seedMessageWindowFromSession } from '@/lib/message-window-store'
 import { useSessionListDensity } from '@/hooks/useSessionListDensity'
 import { useSessionSidebarWidth } from '@/hooks/useSessionSidebarWidth'
+import { useSessionSidebarVisibility } from '@/hooks/useSessionSidebarVisibility'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import TerminalPage from '@/routes/sessions/terminal'
@@ -118,9 +119,60 @@ function DensityIcon(props: { className?: string }) {
     )
 }
 
+function SidebarIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18" />
+        </svg>
+    )
+}
+
+function CloseIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+    )
+}
+
 type NewSessionSearch = {
     directory?: string
     machineId?: string
+}
+
+type SessionsLayoutContextValue = {
+    toggleSidebarFromHeader: () => void
+    showDesktopSidebar: boolean
+}
+
+const SessionsLayoutContext = createContext<SessionsLayoutContextValue | null>(null)
+
+function useSessionsLayoutContext() {
+    return useContext(SessionsLayoutContext)
 }
 
 function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
@@ -145,12 +197,15 @@ function SessionsPage() {
     const { sessions, isLoading, error, refetch } = useSessions(api)
     const { density, toggleDensity } = useSessionListDensity()
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
+    const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
     const handleRefresh = useCallback(() => {
         void refetch()
     }, [refetch])
 
     const openNewSession = useCallback((preset?: NewSessionPreset) => {
+        setMobileSidebarOpen(false)
         navigate({
             to: '/sessions/new',
             search: toNewSessionSearch(preset)
@@ -159,25 +214,98 @@ function SessionsPage() {
 
     const projectCount = new Set(sessions.map(s => s.metadata?.worktree?.basePath ?? s.metadata?.path ?? 'Other')).size
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
+    const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
     const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
+    const isSessionChatRoute = Boolean(chatRouteMatch && chatRouteMatch.sessionId !== 'new')
     const isSessionsIndex = pathname === '/sessions' || pathname === '/sessions/'
+    const showDesktopSidebar = isSessionsIndex || !desktopSidebarHidden
     const toggleDensityLabel = density === 'comfortable'
         ? t('sessions.display.toggleToCompact')
         : t('sessions.display.toggleToComfortable')
+    const desktopSidebarToggleLabel = showDesktopSidebar
+        ? t('sessions.sidebar.hideDesktop')
+        : t('sessions.sidebar.showDesktop')
     const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
 
-    return (
-        <div className="flex h-full min-h-0">
-            <div
-                className={`${isSessionsIndex ? 'flex' : 'hidden lg:flex'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--app-bg)] lg:border-r lg:border-[var(--app-divider)]`}
-                style={sidebarStyle}
-            >
+    useEffect(() => {
+        if (isSessionsIndex) {
+            setMobileSidebarOpen(false)
+        }
+    }, [isSessionsIndex])
+
+    useEffect(() => {
+        if (isSessionsIndex && desktopSidebarHidden) {
+            setDesktopSidebarHidden(false)
+        }
+    }, [isSessionsIndex, desktopSidebarHidden, setDesktopSidebarHidden])
+
+    useEffect(() => {
+        if (!mobileSidebarOpen) return
+        const previousOverflow = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+
+        const handleResize = () => {
+            if (window.innerWidth >= 1024) {
+                setMobileSidebarOpen(false)
+            }
+        }
+
+        window.addEventListener('resize', handleResize)
+        return () => {
+            window.removeEventListener('resize', handleResize)
+            document.body.style.overflow = previousOverflow
+        }
+    }, [mobileSidebarOpen])
+
+    const selectSession = useCallback((sessionId: string) => {
+        setMobileSidebarOpen(false)
+        navigate({
+            to: '/sessions/$sessionId',
+            params: { sessionId },
+        })
+    }, [navigate])
+
+    const openSidebarOnMobile = useCallback(() => {
+        setMobileSidebarOpen(true)
+    }, [])
+
+    const closeSidebarOnMobile = useCallback(() => {
+        setMobileSidebarOpen(false)
+    }, [])
+
+    const toggleSidebarFromHeader = useCallback(() => {
+        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+            toggleDesktopSidebar()
+            return
+        }
+        setMobileSidebarOpen(true)
+    }, [toggleDesktopSidebar])
+
+    const renderSidebarContent = (options?: { inDrawer?: boolean; onClose?: () => void }) => {
+        const inDrawer = options?.inDrawer === true
+        const onClose = options?.onClose
+
+        return (
+            <>
                 <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
                     <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-2">
-                        <div className="text-xs text-[var(--app-hint)]">
-                            {t('sessions.count', { n: sessions.length, m: projectCount })}
+                        <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="text-xs text-[var(--app-hint)]">
+                                {t('sessions.count', { n: sessions.length, m: projectCount })}
+                            </div>
+                            {!isSessionsIndex ? (
+                                <button
+                                    type="button"
+                                    onClick={toggleDesktopSidebar}
+                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                    title={desktopSidebarToggleLabel}
+                                    aria-label={desktopSidebarToggleLabel}
+                                >
+                                    <SidebarIcon className="h-4 w-4" />
+                                </button>
+                            ) : null}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5">
                             <button
                                 type="button"
                                 onClick={toggleDensity}
@@ -203,6 +331,20 @@ function SessionsPage() {
                             >
                                 <PlusIcon className="h-5 w-5" />
                             </button>
+                            {inDrawer && onClose ? (
+                                <>
+                                    <span className="mx-0.5 h-5 w-px bg-[var(--app-divider)]" aria-hidden="true" />
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                        title={t('sessions.sidebar.close')}
+                                        aria-label={t('sessions.sidebar.close')}
+                                    >
+                                        <CloseIcon className="h-4 w-4" />
+                                    </button>
+                                </>
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -216,10 +358,7 @@ function SessionsPage() {
                     <SessionList
                         sessions={sessions}
                         selectedSessionId={selectedSessionId}
-                        onSelect={(sessionId) => navigate({
-                            to: '/sessions/$sessionId',
-                            params: { sessionId },
-                        })}
+                        onSelect={selectSession}
                         onNewSession={openNewSession}
                         onRefresh={handleRefresh}
                         isLoading={isLoading}
@@ -228,27 +367,78 @@ function SessionsPage() {
                         density={density}
                     />
                 </div>
-            </div>
+            </>
+        )
+    }
 
-            <div
-                className="group relative hidden w-2 shrink-0 cursor-col-resize lg:block"
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('sessions.sidebar.resize')}
-                title={t('sessions.sidebar.resize')}
-                onPointerDown={startSidebarResize}
-            >
+    return (
+        <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar }}>
+            <div className="flex h-full min-h-0">
                 <div
-                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
-                />
-            </div>
+                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--app-bg)] lg:border-r lg:border-[var(--app-divider)]`}
+                    style={sidebarStyle}
+                >
+                    {renderSidebarContent()}
+                </div>
 
-            <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
-                <div className="flex-1 min-h-0">
-                    <Outlet />
+                <div
+                    className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={t('sessions.sidebar.resize')}
+                    title={t('sessions.sidebar.resize')}
+                    onPointerDown={startSidebarResize}
+                >
+                    <div
+                        className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
+                    />
+                </div>
+
+                {!isSessionsIndex && !showDesktopSidebar && !isSessionChatRoute ? (
+                    <button
+                        type="button"
+                        onClick={toggleDesktopSidebar}
+                        className="fixed left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 hidden h-10 w-10 items-center justify-center rounded-full border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] shadow-sm transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:flex"
+                        title={t('sessions.sidebar.showDesktop')}
+                        aria-label={t('sessions.sidebar.showDesktop')}
+                    >
+                        <SidebarIcon className="h-5 w-5" />
+                    </button>
+                ) : null}
+
+                {!isSessionsIndex && !isSessionChatRoute ? (
+                    <button
+                        type="button"
+                        onClick={openSidebarOnMobile}
+                        className="fixed left-3 top-[calc(4rem+env(safe-area-inset-top))] z-30 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] shadow-sm transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:hidden"
+                        title={t('sessions.sidebar.open')}
+                        aria-label={t('sessions.sidebar.open')}
+                    >
+                        <SidebarIcon className="h-5 w-5" />
+                    </button>
+                ) : null}
+
+                {mobileSidebarOpen ? (
+                    <div className="fixed inset-0 z-40 flex lg:hidden">
+                        <button
+                            type="button"
+                            onClick={closeSidebarOnMobile}
+                            className="absolute inset-0 bg-black/35"
+                            aria-label={t('sessions.sidebar.close')}
+                        />
+                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
+                            {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
+                        </div>
+                    </div>
+                ) : null}
+
+                <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
+                    <div className="flex-1 min-h-0">
+                        <Outlet />
+                    </div>
                 </div>
             </div>
-        </div>
+        </SessionsLayoutContext.Provider>
     )
 }
 
@@ -263,6 +453,7 @@ function SessionPage() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const { addToast } = useToast()
+    const sessionsLayout = useSessionsLayoutContext()
     const { sessionId } = useParams({ from: '/sessions/$sessionId' })
     const {
         session,
@@ -392,6 +583,8 @@ function SessionPage() {
             onAtBottomChange={setAtBottom}
             onRetryMessage={retryMessage}
             autocompleteSuggestions={getAutocompleteSuggestions}
+            onToggleSidebar={sessionsLayout?.toggleSidebarFromHeader}
+            sidebarVisible={sessionsLayout?.showDesktopSidebar ?? false}
         />
     )
 }
