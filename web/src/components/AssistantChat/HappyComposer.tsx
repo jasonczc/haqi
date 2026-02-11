@@ -35,8 +35,36 @@ export interface TextInputState {
 }
 
 const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
+const COMPOSER_DRAFT_STORAGE_PREFIX = 'hapi:sessionComposerDraft:'
+
+function getComposerDraftStorageKey(sessionId: string): string {
+    return `${COMPOSER_DRAFT_STORAGE_PREFIX}${sessionId}`
+}
+
+function readComposerDraft(sessionId: string): string | null {
+    if (typeof window === 'undefined') return null
+    try {
+        return localStorage.getItem(getComposerDraftStorageKey(sessionId))
+    } catch {
+        return null
+    }
+}
+
+function writeComposerDraft(sessionId: string, text: string): void {
+    if (typeof window === 'undefined') return
+    try {
+        const key = getComposerDraftStorageKey(sessionId)
+        if (text.length === 0) {
+            localStorage.removeItem(key)
+            return
+        }
+        localStorage.setItem(key, text)
+    } catch {
+    }
+}
 
 export function HappyComposer(props: {
+    sessionId: string
     disabled?: boolean
     permissionMode?: PermissionMode
     modelMode?: ModelMode
@@ -61,6 +89,7 @@ export function HappyComposer(props: {
 }) {
     const { t } = useTranslation()
     const {
+        sessionId,
         disabled = false,
         permissionMode: rawPermissionMode,
         modelMode: rawModelMode,
@@ -120,6 +149,27 @@ export function HappyComposer(props: {
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
+    const pendingDraftRestoreRef = useRef<{ sessionId: string; text: string } | null>(null)
+
+    useEffect(() => {
+        const restoredDraft = readComposerDraft(sessionId) ?? ''
+        pendingDraftRestoreRef.current = { sessionId, text: restoredDraft }
+
+        if (composerText !== restoredDraft) {
+            api.composer().setText(restoredDraft)
+        }
+    }, [api, sessionId])
+
+    useEffect(() => {
+        const pendingRestore = pendingDraftRestoreRef.current
+        if (pendingRestore && pendingRestore.sessionId === sessionId) {
+            if (composerText !== pendingRestore.text) {
+                return
+            }
+            pendingDraftRestoreRef.current = null
+        }
+        writeComposerDraft(sessionId, composerText)
+    }, [sessionId, composerText])
 
     useEffect(() => {
         setInputState((prev) => {
