@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
+import { ThreadPrimitive } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { SessionMetadataSummary } from '@/types/api'
 import { HappyChatProvider } from '@/components/AssistantChat/context'
@@ -64,22 +64,8 @@ function HistoryLoadingIndicator() {
 }
 
 function ThreadMessagesList() {
-    const messages = useAssistantState(({ thread }) => thread.messages)
-
-    if (messages.length === 0) {
-        return null
-    }
-
     return (
-        <>
-            {messages.map((message, index) => (
-                <ThreadPrimitive.MessageByIndex
-                    key={message.id}
-                    index={index}
-                    components={THREAD_MESSAGE_COMPONENTS}
-                />
-            ))}
-        </>
+        <ThreadPrimitive.Messages components={THREAD_MESSAGE_COMPONENTS} />
     )
 }
 
