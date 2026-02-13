@@ -22,6 +22,10 @@ vi.mock('@/hooks/useFontScale', () => ({
     ],
 }))
 
+vi.mock('@/hooks/useTheme', () => ({
+    useThemePreference: () => ({ themePreference: 'system', setThemePreference: vi.fn() }),
+}))
+
 // Mock languages
 vi.mock('@/lib/languages', () => ({
     getElevenLabsSupportedLanguages: () => [
@@ -79,6 +83,11 @@ describe('SettingsPage', () => {
         expect(screen.getAllByText(String(PROTOCOL_VERSION)).length).toBeGreaterThanOrEqual(1)
     })
 
+    it('displays the Theme setting', () => {
+        renderWithProviders(<SettingsPage />)
+        expect(screen.getAllByText('Theme').length).toBeGreaterThanOrEqual(1)
+    })
+
     it('displays the website link with correct URL and security attributes', () => {
         renderWithProviders(<SettingsPage />)
         expect(screen.getAllByText('Website').length).toBeGreaterThanOrEqual(1)
@@ -93,6 +102,8 @@ describe('SettingsPage', () => {
     it('uses correct i18n keys for About section', () => {
         const spyT = renderWithSpyT(<SettingsPage />)
         const calledKeys = spyT.mock.calls.map((call) => call[0])
+        expect(calledKeys).toContain('settings.display.theme')
+        expect(calledKeys).toContain('settings.display.theme.system')
         expect(calledKeys).toContain('settings.about.title')
         expect(calledKeys).toContain('settings.about.website')
         expect(calledKeys).toContain('settings.about.appVersion')

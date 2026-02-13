@@ -2,37 +2,69 @@ import { useSyncExternalStore } from 'react'
 import { getTelegramWebApp } from './useTelegram'
 
 type ColorScheme = 'light' | 'dark'
+export type ThemePreference = 'system' | 'light' | 'dark'
 
-function getColorScheme(): ColorScheme {
-    const tg = getTelegramWebApp()
-    if (tg?.colorScheme) {
-        return tg.colorScheme === 'dark' ? 'dark' : 'light'
+const THEME_PREFERENCE_STORAGE_KEY = 'hapi-theme'
+
+export function normalizeThemePreference(value: string | null): ThemePreference {
+    if (value === 'light' || value === 'dark' || value === 'system') {
+        return value
     }
+    return 'system'
+}
 
-    // Fallback to system preference for browser environment
-    if (typeof window !== 'undefined' && window.matchMedia) {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+function getStoredThemePreference(): ThemePreference {
+    if (typeof window === 'undefined') return 'system'
+    return normalizeThemePreference(window.localStorage.getItem(THEME_PREFERENCE_STORAGE_KEY))
+}
+
+function saveThemePreference(preference: ThemePreference): void {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(THEME_PREFERENCE_STORAGE_KEY, preference)
+}
+
+function getSystemColorScheme(): ColorScheme {
+    if (typeof window !== 'undefined') {
+        const tg = getTelegramWebApp()
+        if (tg?.colorScheme) {
+            return tg.colorScheme === 'dark' ? 'dark' : 'light'
+        }
+
+        if (window.matchMedia) {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        }
     }
 
     return 'light'
 }
 
+function resolveColorScheme(preference: ThemePreference): ColorScheme {
+    if (preference === 'light' || preference === 'dark') {
+        return preference
+    }
+    return getSystemColorScheme()
+}
+
 function isIOS(): boolean {
+    if (typeof navigator === 'undefined') return false
     return /iPad|iPhone|iPod/.test(navigator.userAgent)
 }
 
 function applyTheme(scheme: ColorScheme): void {
+    if (typeof document === 'undefined') return
     document.documentElement.setAttribute('data-theme', scheme)
 }
 
 function applyPlatform(): void {
+    if (typeof document === 'undefined') return
     if (isIOS()) {
         document.documentElement.classList.add('ios')
     }
 }
 
 // External store for theme state
-let currentScheme: ColorScheme = getColorScheme()
+let currentPreference: ThemePreference = getStoredThemePreference()
+let currentScheme: ColorScheme = resolveColorScheme(currentPreference)
 const listeners = new Set<() => void>()
 
 // Apply theme immediately at module load (before React renders)
@@ -43,16 +75,45 @@ function subscribe(callback: () => void): () => void {
     return () => listeners.delete(callback)
 }
 
-function getSnapshot(): ColorScheme {
+function getColorSchemeSnapshot(): ColorScheme {
     return currentScheme
 }
 
-function updateScheme(): void {
-    const newScheme = getColorScheme()
-    if (newScheme !== currentScheme) {
-        currentScheme = newScheme
-        applyTheme(newScheme)
-        listeners.forEach((cb) => cb())
+function getThemePreferenceSnapshot(): ThemePreference {
+    return currentPreference
+}
+
+function notifyListeners(): void {
+    listeners.forEach((cb) => cb())
+}
+
+function updateScheme(nextScheme: ColorScheme): boolean {
+    if (nextScheme !== currentScheme) {
+        currentScheme = nextScheme
+        applyTheme(nextScheme)
+        return true
+    }
+    return false
+}
+
+function updateSchemeFromSystem(): void {
+    if (currentPreference !== 'system') return
+    if (updateScheme(resolveColorScheme('system'))) {
+        notifyListeners()
+    }
+}
+
+export function setThemePreference(preference: ThemePreference): void {
+    const normalizedPreference = normalizeThemePreference(preference)
+    const previousPreference = currentPreference
+    const previousScheme = currentScheme
+
+    currentPreference = normalizedPreference
+    saveThemePreference(normalizedPreference)
+    updateScheme(resolveColorScheme(normalizedPreference))
+
+    if (previousPreference !== currentPreference || previousScheme !== currentScheme) {
+        notifyListeners()
     }
 }
 
@@ -60,7 +121,7 @@ function updateScheme(): void {
 let listenersInitialized = false
 
 export function useTheme(): { colorScheme: ColorScheme; isDark: boolean } {
-    const colorScheme = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
+    const colorScheme = useSyncExternalStore(subscribe, getColorSchemeSnapshot, getColorSchemeSnapshot)
 
     return {
         colorScheme,
@@ -68,22 +129,42 @@ export function useTheme(): { colorScheme: ColorScheme; isDark: boolean } {
     }
 }
 
+export function useThemePreference(): {
+    themePreference: ThemePreference
+    setThemePreference: (preference: ThemePreference) => void
+} {
+    const themePreference = useSyncExternalStore(subscribe, getThemePreferenceSnapshot, getThemePreferenceSnapshot)
+
+    return {
+        themePreference,
+        setThemePreference,
+    }
+}
+
 // Call this once at app startup to ensure theme is applied and listeners attached
 export function initializeTheme(): void {
-    currentScheme = getColorScheme()
+    currentPreference = getStoredThemePreference()
+    currentScheme = resolveColorScheme(currentPreference)
     applyTheme(currentScheme)
+    applyPlatform()
 
     // Set up listeners only once (after SDK may have loaded)
     if (!listenersInitialized) {
         listenersInitialized = true
-        const tg = getTelegramWebApp()
+        const tg = typeof window !== 'undefined' ? getTelegramWebApp() : null
         if (tg?.onEvent) {
             // Telegram theme changes
-            tg.onEvent('themeChanged', updateScheme)
-        } else if (typeof window !== 'undefined' && window.matchMedia) {
+            tg.onEvent('themeChanged', updateSchemeFromSystem)
+        }
+
+        if (typeof window !== 'undefined' && window.matchMedia) {
             // Browser system preference changes
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-            mediaQuery.addEventListener('change', updateScheme)
+            if (typeof mediaQuery.addEventListener === 'function') {
+                mediaQuery.addEventListener('change', updateSchemeFromSystem)
+            } else {
+                mediaQuery.addListener(updateSchemeFromSystem)
+            }
         }
     }
 }
