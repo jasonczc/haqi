@@ -2,12 +2,14 @@ import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { SessionMetadataSummary } from '@/types/api'
+import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 
 export type HappyChatContextValue = {
     api: ApiClient
     sessionId: string
     metadata: SessionMetadataSummary | null
     disabled: boolean
+    density: SessionListDensity
     onRefresh: () => void
     onRetryMessage?: (localId: string) => void
 }

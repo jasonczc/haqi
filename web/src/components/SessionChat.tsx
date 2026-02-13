@@ -15,6 +15,7 @@ import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { useVoiceOptional } from '@/lib/voice-context'
 import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
 
@@ -39,6 +40,7 @@ export function SessionChat(props: {
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
     onToggleSidebar?: () => void
     sidebarVisible?: boolean
+    density?: SessionListDensity
 }) {
     const { haptic } = usePlatform()
     const navigate = useNavigate()
@@ -308,6 +310,7 @@ export function SessionChat(props: {
                         normalizedMessagesCount={normalizedMessages.length}
                         messagesVersion={props.messagesVersion}
                         forceScrollToken={forceScrollToken}
+                        density={props.density ?? 'comfortable'}
                     />
 
                     <HappyComposer

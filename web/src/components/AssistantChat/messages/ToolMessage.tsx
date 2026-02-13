@@ -10,6 +10,7 @@ import { MessageStatusIndicator } from '@/components/AssistantChat/messages/Mess
 import { ToolCard } from '@/components/ToolCard/ToolCard'
 import { useHappyChatContext } from '@/components/AssistantChat/context'
 import { CliOutputBlock } from '@/components/CliOutputBlock'
+import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 
 function isToolCallBlock(value: unknown): value is ToolCallBlock {
     if (!isObject(value)) return false
@@ -47,11 +48,13 @@ function splitTaskChildren(block: ToolCallBlock): { pending: ChatBlock[]; rest: 
 
 function HappyNestedBlockList(props: {
     blocks: ChatBlock[]
+    density: SessionListDensity
 }) {
     const ctx = useHappyChatContext()
+    const isCompact = props.density === 'compact'
 
     return (
-        <div className="flex flex-col gap-3">
+        <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
             {props.blocks.map((block) => {
                 if (block.kind === 'user-text') {
                     const userBubbleClass = 'w-fit max-w-[92%] ml-auto rounded-xl bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] shadow-sm'
@@ -113,7 +116,7 @@ function HappyNestedBlockList(props: {
                     const taskChildren = isTask ? splitTaskChildren(block) : null
 
                     return (
-                        <div key={`tool:${block.id}`} className="py-1">
+                        <div key={`tool:${block.id}`} className={isCompact ? 'py-0.5' : 'py-1'}>
                             <ToolCard
                                 api={ctx.api}
                                 sessionId={ctx.sessionId}
@@ -121,29 +124,30 @@ function HappyNestedBlockList(props: {
                                 disabled={ctx.disabled}
                                 onDone={ctx.onRefresh}
                                 block={block}
+                                density={props.density}
                             />
                             {block.children.length > 0 ? (
                                 isTask ? (
                                     <>
                                         {taskChildren && taskChildren.pending.length > 0 ? (
-                                            <div className="mt-2 pl-3">
-                                                <HappyNestedBlockList blocks={taskChildren.pending} />
+                                            <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                                                <HappyNestedBlockList blocks={taskChildren.pending} density={props.density} />
                                             </div>
                                         ) : null}
                                         {taskChildren && taskChildren.rest.length > 0 ? (
-                                            <details className="mt-2">
+                                            <details className={isCompact ? 'mt-1.5' : 'mt-2'}>
                                                 <summary className="cursor-pointer text-xs text-[var(--app-hint)]">
                                                     Task details ({taskChildren.rest.length})
                                                 </summary>
-                                                <div className="mt-2 pl-3">
-                                                    <HappyNestedBlockList blocks={taskChildren.rest} />
+                                                <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                                                    <HappyNestedBlockList blocks={taskChildren.rest} density={props.density} />
                                                 </div>
                                             </details>
                                         ) : null}
                                     </>
                                 ) : (
-                                    <div className="mt-2 pl-3">
-                                        <HappyNestedBlockList blocks={block.children} />
+                                    <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                                        <HappyNestedBlockList blocks={block.children} density={props.density} />
                                     </div>
                                 )
                             ) : null}
@@ -160,6 +164,7 @@ function HappyNestedBlockList(props: {
 export function HappyToolMessage(props: ToolCallMessagePartProps) {
     const ctx = useHappyChatContext()
     const artifact = props.artifact
+    const isCompact = ctx.density === 'compact'
 
     if (!isToolCallBlock(artifact)) {
         const argsText = typeof props.argsText === 'string' ? props.argsText.trim() : ''
@@ -168,8 +173,8 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
         const resultText = hasResult ? safeStringify(props.result) : ''
 
         return (
-            <div className="py-1 min-w-0 max-w-full overflow-x-hidden">
-                <div className="rounded-xl bg-[var(--app-secondary-bg)] p-3 shadow-sm">
+            <div className={`${isCompact ? 'py-0.5' : 'py-1'} min-w-0 max-w-full overflow-x-hidden`}>
+                <div className={`rounded-xl bg-[var(--app-secondary-bg)] shadow-sm ${isCompact ? 'p-2.5' : 'p-3'}`}>
                     <div className="flex items-center gap-2 text-xs">
                         <div className="font-mono text-[var(--app-hint)]">
                             Tool: {props.toolName}
@@ -183,13 +188,13 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
                     </div>
 
                     {hasArgsText ? (
-                        <div className="mt-2">
+                        <div className={isCompact ? 'mt-1.5' : 'mt-2'}>
                             <CodeBlock code={argsText} language="json" />
                         </div>
                     ) : null}
 
                     {hasResult ? (
-                        <div className="mt-2">
+                        <div className={isCompact ? 'mt-1.5' : 'mt-2'}>
                             <CodeBlock code={resultText} language={typeof props.result === 'string' ? 'text' : 'json'} />
                         </div>
                     ) : null}
@@ -203,7 +208,7 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
     const taskChildren = isTask ? splitTaskChildren(block) : null
 
     return (
-        <div className="py-1 min-w-0 max-w-full overflow-x-hidden">
+        <div className={`${isCompact ? 'py-0.5' : 'py-1'} min-w-0 max-w-full overflow-x-hidden`}>
             <ToolCard
                 api={ctx.api}
                 sessionId={ctx.sessionId}
@@ -211,29 +216,30 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
                 disabled={ctx.disabled}
                 onDone={ctx.onRefresh}
                 block={block}
+                density={ctx.density}
             />
             {block.children.length > 0 ? (
                 isTask ? (
                     <>
                         {taskChildren && taskChildren.pending.length > 0 ? (
-                            <div className="mt-2 pl-3">
-                                <HappyNestedBlockList blocks={taskChildren.pending} />
+                            <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                                <HappyNestedBlockList blocks={taskChildren.pending} density={ctx.density} />
                             </div>
                         ) : null}
                         {taskChildren && taskChildren.rest.length > 0 ? (
-                            <details className="mt-2">
+                            <details className={isCompact ? 'mt-1.5' : 'mt-2'}>
                                 <summary className="cursor-pointer text-xs text-[var(--app-hint)]">
                                     Task details ({taskChildren.rest.length})
                                 </summary>
-                                <div className="mt-2 pl-3">
-                                    <HappyNestedBlockList blocks={taskChildren.rest} />
+                                <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                                    <HappyNestedBlockList blocks={taskChildren.rest} density={ctx.density} />
                                 </div>
                             </details>
                         ) : null}
                     </>
                 ) : (
-                    <div className="mt-2 pl-3">
-                        <HappyNestedBlockList blocks={block.children} />
+                    <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                        <HappyNestedBlockList blocks={block.children} density={ctx.density} />
                     </div>
                 )
             ) : null}

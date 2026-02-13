@@ -15,20 +15,40 @@ Run official Claude Code / Codex / Gemini / OpenCode sessions locally and contro
 
 ## Branch-only features（本分支独有功能）
 
-This branch includes several UI and local-dev enhancements on top of upstream:
+This branch includes a focused set of web UX upgrades. Based on the commit history, the optimizations are grouped as follows:
+
+### 1) Session Sidebar / 项目会话侧边栏
 
 - **Project-level quick create (+)**  
-  Add a new session directly under an existing project entry in the sidebar.
+  Add a new session directly under an existing project entry.
+- **Density switch (comfortable / compact)**  
+  Sidebar list can switch between two densities.
+- **Desktop resizable sidebar**  
+  VSCode-like drag-to-resize splitter behavior.
+- **Responsive sidebar behavior**
+  - Desktop supports show/hide.
+  - Mobile uses drawer-style interaction with improved controls.
+- **Project reorder by drag-and-drop (persisted)**
+  - No dedicated handle button required.
+  - Desktop direct drag; mobile long-press drag.
+  - Order is persisted locally.
+- **Virtualized session list**
+  Better performance and smoother rendering with many items.
 
-- **Sidebar display density modes**  
-  Switch between **comfortable** and **compact** list density to fit different screen sizes and information density preferences.
+### 2) Chat History Loading / 聊天历史加载体验
 
-- **Responsive, resizable sidebar (desktop + mobile)**  
-  - Desktop: support **show/hide** and **drag-to-resize** (VSCode-like splitter interaction).  
-  - Mobile: use **drawer-style sidebar** with optimized top-right action layout and better touch ergonomics.
+- **Stabilized auto-load scroll retention**
+  Loading older messages keeps viewport position stable.
+- **Reduced jump-to-top behavior across batches**
+  Improved continuity while scrolling through long history.
+- **History loading feedback + behavior tuning**
+  Better loading-state handling during top-triggered history fetch.
 
-- **Header-integrated sidebar toggle**  
-  Sidebar toggle entry is available in the chat header (next to back button), making navigation and layout control more coordinated.
+### 3) Quality & Test Coverage / 质量与测试
+
+- Added targeted tests for:
+  - **history scroll retention logic**
+  - **project group reorder helpers**
 
 ## Demo
 

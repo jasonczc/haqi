@@ -8,6 +8,7 @@ import { HappyUserMessage } from '@/components/AssistantChat/messages/UserMessag
 import { HappySystemMessage } from '@/components/AssistantChat/messages/SystemMessage'
 import { restoreScrollTopByDelta, shouldTriggerLoadOlder } from '@/components/AssistantChat/historyScroll'
 import { Spinner } from '@/components/Spinner'
+import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { useTranslation } from '@/lib/use-translation'
 
 function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void }) {
@@ -107,6 +108,7 @@ export function HappyThread(props: {
     normalizedMessagesCount: number
     messagesVersion: number
     forceScrollToken: number
+    density: SessionListDensity
 }) {
     const { t } = useTranslation()
     const viewportRef = useRef<HTMLDivElement | null>(null)
@@ -395,6 +397,7 @@ export function HappyThread(props: {
     }, [props.isLoadingMoreMessages, showHistoryLoadingHint])
 
     const showSkeleton = props.isLoadingMessages && props.rawMessagesCount === 0 && props.pendingCount === 0
+    const isCompact = props.density === 'compact'
 
     return (
         <HappyChatProvider value={{
@@ -402,6 +405,7 @@ export function HappyThread(props: {
             sessionId: props.sessionId,
             metadata: props.metadata,
             disabled: props.disabled,
+            density: props.density,
             onRefresh: props.onRefresh,
             onRetryMessage: props.onRetryMessage
         }}>
@@ -411,7 +415,7 @@ export function HappyThread(props: {
                 ) : null}
                 <ThreadPrimitive.Viewport asChild autoScroll={autoScrollEnabled}>
                     <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-                        <div className="mx-auto w-full max-w-content min-w-0 p-3">
+                        <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
                             {showSkeleton ? (
                                 <MessageSkeleton />
                             ) : (
@@ -438,7 +442,7 @@ export function HappyThread(props: {
                                     ) : null}
                                 </>
                             )}
-                            <div className="flex flex-col gap-3">
+                            <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
                                 <ThreadMessagesList />
                             </div>
                         </div>

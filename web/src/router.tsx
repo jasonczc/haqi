@@ -31,7 +31,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
 import { fetchLatestMessages, seedMessageWindowFromSession } from '@/lib/message-window-store'
-import { useSessionListDensity } from '@/hooks/useSessionListDensity'
+import { useSessionListDensity, type SessionListDensity } from '@/hooks/useSessionListDensity'
 import { useSessionSidebarWidth } from '@/hooks/useSessionSidebarWidth'
 import { useSessionSidebarVisibility } from '@/hooks/useSessionSidebarVisibility'
 import FilesPage from '@/routes/sessions/files'
@@ -167,6 +167,7 @@ type NewSessionSearch = {
 type SessionsLayoutContextValue = {
     toggleSidebarFromHeader: () => void
     showDesktopSidebar: boolean
+    density: SessionListDensity
 }
 
 const SessionsLayoutContext = createContext<SessionsLayoutContextValue | null>(null)
@@ -374,7 +375,7 @@ function SessionsPage() {
     }
 
     return (
-        <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar }}>
+        <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
             <div className="flex h-full min-h-0">
                 <div
                     className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--app-bg)] lg:border-r lg:border-[var(--app-divider)]`}
@@ -456,6 +457,7 @@ function SessionPage() {
     const queryClient = useQueryClient()
     const { addToast } = useToast()
     const sessionsLayout = useSessionsLayoutContext()
+    const density = sessionsLayout?.density ?? 'comfortable'
     const { sessionId } = useParams({ from: '/sessions/$sessionId' })
     const {
         session,
@@ -587,6 +589,7 @@ function SessionPage() {
             autocompleteSuggestions={getAutocompleteSuggestions}
             onToggleSidebar={sessionsLayout?.toggleSidebarFromHeader}
             sidebarVisible={sessionsLayout?.showDesktopSidebar ?? false}
+            density={density}
         />
     )
 }
