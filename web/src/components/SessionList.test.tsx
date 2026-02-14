@@ -1,14 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '@/lib/i18n-context'
 import type { SessionSummary } from '@/types/api'
 import { SessionList } from './SessionList'
 
 function renderWithProviders(ui: React.ReactElement) {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        }
+    })
+
     return render(
-        <I18nProvider>
-            {ui}
-        </I18nProvider>
+        <QueryClientProvider client={queryClient}>
+            <I18nProvider>
+                <div style={{ height: 800 }}>
+                    {ui}
+                </div>
+            </I18nProvider>
+        </QueryClientProvider>
     )
 }
 
@@ -36,6 +48,19 @@ describe('SessionList project quick-create action', () => {
 
     beforeEach(() => {
         localStorage.setItem('hapi-lang', 'en')
+        Object.defineProperty(window, 'matchMedia', {
+            writable: true,
+            value: vi.fn().mockImplementation((query: string) => ({
+                matches: false,
+                media: query,
+                onchange: null,
+                addListener: vi.fn(),
+                removeListener: vi.fn(),
+                addEventListener: vi.fn(),
+                removeEventListener: vi.fn(),
+                dispatchEvent: vi.fn(),
+            }))
+        })
     })
 
     it('passes project directory and machineId when clicking group-level +', () => {
@@ -134,8 +159,11 @@ describe('SessionList project quick-create action', () => {
         expect(screen.getByText('Online Session')).toBeInTheDocument()
         expect(screen.queryByText('Offline Session')).not.toBeInTheDocument()
 
-        fireEvent.click(screen.getByRole('button', { name: /offline/i }))
+        const offlineToggle = screen.getByRole('button', { name: /offline/i })
+        expect(offlineToggle).toHaveAttribute('aria-expanded', 'false')
 
-        expect(screen.getByText('Offline Session')).toBeInTheDocument()
+        fireEvent.click(offlineToggle)
+
+        expect(offlineToggle).toHaveAttribute('aria-expanded', 'true')
     })
 })

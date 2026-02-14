@@ -511,6 +511,7 @@ function OfflineSectionRow(props: {
         <button
             type="button"
             onClick={() => onToggleGroup(directory, isCollapsed)}
+            aria-expanded={!isCollapsed}
             className={`flex w-full items-center gap-2 border-b border-[var(--app-divider)] text-left text-xs text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}
         >
             <ChevronIcon
