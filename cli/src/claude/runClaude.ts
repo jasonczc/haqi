@@ -309,6 +309,13 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         return { applied: { permissionMode: currentPermissionMode, modelMode: currentModelMode } };
     });
 
+    const allowedTools = Array.from(new Set(
+        happyServer.toolNames.flatMap((toolName) => [
+            `mcp__haqi__${toolName}`,
+            `mcp__hapi__${toolName}`
+        ])
+    ));
+
     let loopError: unknown = null;
     let loopFailed = false;
     try {
@@ -319,13 +326,17 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             startingMode,
             messageQueue,
             api,
-            allowedTools: happyServer.toolNames.map(toolName => `mcp__hapi__${toolName}`),
+            allowedTools,
             onModeChange: createModeChangeHandler(session),
             onSessionReady: (sessionInstance) => {
                 currentSessionRef.current = sessionInstance;
                 syncSessionModes();
             },
             mcpServers: {
+                'haqi': {
+                    type: 'http' as const,
+                    url: happyServer.url,
+                },
                 'hapi': {
                     type: 'http' as const,
                     url: happyServer.url,

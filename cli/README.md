@@ -1,10 +1,10 @@
-# hapi CLI
+# haqi CLI
 
-Run Claude Code, Codex, Gemini, or OpenCode sessions from your terminal and control them remotely through the hapi hub.
+Run Claude Code, Codex, Gemini, or OpenCode sessions from your terminal and control them remotely through the haqi hub.
 
 ## What it does
 
-- Starts Claude Code sessions and registers them with hapi-hub.
+- Starts Claude Code sessions and registers them with haqi-hub.
 - Starts Codex mode for OpenAI-based sessions.
 - Starts Gemini mode via ACP (Anthropic Code Plugins).
 - Starts OpenCode mode via ACP and its plugin hook system.
@@ -15,53 +15,53 @@ Run Claude Code, Codex, Gemini, or OpenCode sessions from your terminal and cont
 ## Typical flow
 
 1. Start the hub and set env vars (see ../hub/README.md).
-2. Set the same CLI_API_TOKEN on this machine or run `hapi auth login`.
-3. Run `hapi` to start a session.
+2. Set the same CLI_API_TOKEN on this machine or run `haqi auth login`.
+3. Run `haqi` to start a session.
 4. Use the web app or Telegram Mini App to monitor and control.
 
 ## Commands
 
 ### Session commands
 
-- `hapi` - Start a Claude Code session (passes through Claude CLI flags). See `src/index.ts`.
-- `hapi codex` - Start Codex mode. See `src/codex/runCodex.ts`.
-- `hapi codex resume <sessionId>` - Resume existing Codex session.
-- `hapi gemini` - Start Gemini mode via ACP. See `src/agent/runners/runAgentSession.ts`.
+- `haqi` - Start a Claude Code session (passes through Claude CLI flags). See `src/index.ts`.
+- `haqi codex` - Start Codex mode. See `src/codex/runCodex.ts`.
+- `haqi codex resume <sessionId>` - Resume existing Codex session.
+- `haqi gemini` - Start Gemini mode via ACP. See `src/agent/runners/runAgentSession.ts`.
   Note: Gemini runs in remote mode only; it waits for messages from the hub UI/Telegram.
-- `hapi opencode` - Start OpenCode mode via ACP. See `src/opencode/runOpencode.ts`.
+- `haqi opencode` - Start OpenCode mode via ACP. See `src/opencode/runOpencode.ts`.
   Note: OpenCode supports local and remote modes; local mode streams via OpenCode plugins.
 
 ### Authentication
 
-- `hapi auth status` - Show authentication configuration and token source.
-- `hapi auth login` - Interactively enter and save CLI_API_TOKEN.
-- `hapi auth logout` - Clear saved credentials.
+- `haqi auth status` - Show authentication configuration and token source.
+- `haqi auth login` - Interactively enter and save CLI_API_TOKEN.
+- `haqi auth logout` - Clear saved credentials.
 
 See `src/commands/auth.ts`.
 
 ### Runner management
 
-- `hapi runner start` - Start runner as detached process.
-- `hapi runner stop` - Stop runner gracefully.
-- `hapi runner status` - Show runner diagnostics.
-- `hapi runner list` - List active sessions managed by runner.
-- `hapi runner stop-session <sessionId>` - Terminate specific session.
-- `hapi runner logs` - Print path to latest runner log file.
+- `haqi runner start` - Start runner as detached process.
+- `haqi runner stop` - Stop runner gracefully.
+- `haqi runner status` - Show runner diagnostics.
+- `haqi runner list` - List active sessions managed by runner.
+- `haqi runner stop-session <sessionId>` - Terminate specific session.
+- `haqi runner logs` - Print path to latest runner log file.
 
 See `src/runner/run.ts`.
 
 ### Diagnostics
 
-- `hapi doctor` - Show full diagnostics (version, runner status, logs, processes).
-- `hapi doctor clean` - Kill runaway HAPI processes.
+- `haqi doctor` - Show full diagnostics (version, runner status, logs, processes).
+- `haqi doctor clean` - Kill runaway HAQI processes.
 
 See `src/ui/doctor.ts`.
 
 ### Other
 
-- `hapi mcp` - Start MCP stdio bridge. See `src/codex/happyMcpStdioBridge.ts`.
-- `hapi hub` - Start the bundled hub (single binary workflow).
-- `hapi server` - Alias for `hapi hub`.
+- `haqi mcp` - Start MCP stdio bridge. See `src/codex/happyMcpStdioBridge.ts`.
+- `haqi hub` - Start the bundled hub (single binary workflow).
+- `haqi server` - Alias for `haqi hub`.
 
 ## Configuration
 
@@ -77,7 +77,7 @@ See `src/configuration.ts` for all options.
 - `HAPI_HOME` - Config/data directory (default: ~/.hapi).
 - `HAPI_EXPERIMENTAL` - Enable experimental features (true/1/yes).
 - `HAPI_CLAUDE_PATH` - Path to a specific `claude` executable.
-- `HAPI_HTTP_MCP_URL` - Default MCP target for `hapi mcp`.
+- `HAPI_HTTP_MCP_URL` - Default MCP target for `haqi mcp`.
 
 ### Runner
 

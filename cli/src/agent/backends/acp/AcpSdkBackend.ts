@@ -60,7 +60,7 @@ export class AcpSdkBackend implements AgentBackend {
                     terminal: false
                 },
                 clientInfo: {
-                    name: 'hapi',
+                    name: 'haqi',
                     version: packageJson.version
                 }
             }),

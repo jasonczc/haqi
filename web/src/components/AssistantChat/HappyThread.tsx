@@ -50,15 +50,39 @@ function MessageSkeleton() {
     )
 }
 
-function HistoryLoadingIndicator() {
+function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onLoadMore: () => void }) {
     const { t } = useTranslation()
 
-    return (
-        <div className="pointer-events-none absolute inset-x-0 top-2 z-20 flex justify-center">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-transparent bg-[var(--app-button)] px-2.5 py-1 text-xs text-[var(--app-button-text)] shadow-md">
-                <Spinner size="sm" label={null} className="text-current" />
-                {t('misc.loadingHistory')}
+    if (!props.loading && !props.hasMore) {
+        return null
+    }
+
+    const controlClass = 'mx-auto inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs shadow-sm'
+
+    if (props.loading) {
+        return (
+            <div className="mb-2 py-1">
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className={`${controlClass} border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)]`}
+                >
+                    <Spinner size="sm" label={null} className="text-current" />
+                    {t('misc.loadingHistory')}
+                </div>
             </div>
+        )
+    }
+
+    return (
+        <div className="mb-2 py-1">
+            <button
+                type="button"
+                onClick={props.onLoadMore}
+                className={`${controlClass} border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]`}
+            >
+                {t('misc.loadOlder')}
+            </button>
         </div>
     )
 }
@@ -384,6 +408,7 @@ export function HappyThread(props: {
 
     const showSkeleton = props.isLoadingMessages && props.rawMessagesCount === 0 && props.pendingCount === 0
     const isCompact = props.density === 'compact'
+    const isHistoryLoading = showHistoryLoadingHint || props.isLoadingMoreMessages
 
     return (
         <HappyChatProvider value={{
@@ -396,9 +421,6 @@ export function HappyThread(props: {
             onRetryMessage: props.onRetryMessage
         }}>
             <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
-                {showHistoryLoadingHint || props.isLoadingMoreMessages ? (
-                    <HistoryLoadingIndicator />
-                ) : null}
                 <ThreadPrimitive.Viewport asChild autoScroll={autoScrollEnabled}>
                     <div ref={viewportRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
                         <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
@@ -406,18 +428,15 @@ export function HappyThread(props: {
                                 <MessageSkeleton />
                             ) : (
                                 <>
+                                    <HistoryLoadMoreControl
+                                        loading={isHistoryLoading}
+                                        hasMore={props.hasMoreMessages}
+                                        onLoadMore={handleLoadMore}
+                                    />
+
                                     {props.messagesWarning ? (
                                         <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs">
                                             {props.messagesWarning}
-                                        </div>
-                                    ) : null}
-
-                                    {props.hasMoreMessages && !props.isLoadingMessages && props.isLoadingMoreMessages ? (
-                                        <div className="mb-2 py-1">
-                                            <div className="mx-auto inline-flex items-center gap-1.5 rounded-full border border-[var(--app-divider)] px-2.5 py-1 text-xs text-[var(--app-hint)]">
-                                                <Spinner size="sm" label={null} className="text-current" />
-                                                {t('misc.loadingHistory')}
-                                            </div>
                                         </div>
                                     ) : null}
 

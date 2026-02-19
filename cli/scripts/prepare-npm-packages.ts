@@ -124,8 +124,11 @@ function generateMainPackageJson(
         homepage: mainPkg.homepage,
         bugs: mainPkg.bugs,
         repository: mainPkg.repository,
-        bin: mainPkg.bin ?? { hapi: 'bin/hapi.cjs' },
-        files: ['bin/hapi.cjs', 'NOTICE'],
+        bin: mainPkg.bin ?? {
+            haqi: 'bin/haqi.cjs',
+            hapi: 'bin/hapi.cjs'
+        },
+        files: ['bin/haqi.cjs', 'bin/hapi.cjs', 'NOTICE'],
         optionalDependencies
     };
 }
@@ -141,10 +144,13 @@ function prepareMainPackage(
 
     mkdirSync(binDir, { recursive: true });
 
-    const srcBin = join(projectRoot, 'bin', 'hapi.cjs');
-    const destBin = join(binDir, 'hapi.cjs');
-    copyFileSync(srcBin, destBin);
-    chmodSync(destBin, 0o755);
+    const wrapperNames = ['haqi.cjs', 'hapi.cjs'] as const;
+    for (const wrapperName of wrapperNames) {
+        const srcBin = join(projectRoot, 'bin', wrapperName);
+        const destBin = join(binDir, wrapperName);
+        copyFileSync(srcBin, destBin);
+        chmodSync(destBin, 0o755);
+    }
 
     const srcNotice = join(projectRoot, 'NOTICE');
     const destNotice = join(mainDir, 'NOTICE');

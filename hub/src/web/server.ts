@@ -104,9 +104,9 @@ function createWebApp(options: {
         app.get('/', (c) => {
             return c.html(`<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>HAPI Hub</title></head>
+<head><meta charset="utf-8"><title>HAQI Hub</title></head>
 <body style="font-family: system-ui; padding: 2rem; max-width: 600px;">
-<h1>HAPI Hub</h1>
+<h1>HAQI Hub</h1>
 <p>This hub is running in relay mode. Please use the official web app:</p>
 <p><a href="${officialUrl}">${officialUrl}</a></p>
 <details>

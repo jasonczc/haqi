@@ -144,7 +144,7 @@ cmd_stop() {
     fi
 
     pkill -f "src/index.ts server" 2>/dev/null || true
-    pkill -f "/bin/hapi server" 2>/dev/null || true
+    pkill -f "/bin/haqi server" 2>/dev/null || true
 
     local port_pid
     port_pid="$(server_port_pid || true)"
@@ -167,7 +167,7 @@ cmd_restart() {
 
 cmd_status() {
     local version
-    version="$(cd "${CLI_DIR}" && "${BUN_BIN}" src/index.ts --version | sed -n 's/^hapi version: //p')"
+    version="$(cd "${CLI_DIR}" && "${BUN_BIN}" src/index.ts --version | sed -n 's/^haqi version: //p')"
     echo "📌 本地源码 CLI 版本: ${version:-unknown}"
 
     if [ -f "${RUNNER_STATE_FILE}" ]; then

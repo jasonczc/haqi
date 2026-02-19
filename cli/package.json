@@ -13,9 +13,11 @@
     "directory": "cli"
   },
   "bin": {
+    "haqi": "bin/haqi.cjs",
     "hapi": "bin/hapi.cjs"
   },
   "files": [
+    "bin/haqi.cjs",
     "bin/hapi.cjs",
     "NOTICE"
   ],
@@ -33,7 +35,7 @@
     "@twsxtd/hapi-win32-x64": "0.15.2"
   },
   "scripts": {
-    "postinstall": "node -e \"try{require('fs').chmodSync(require('path').join(__dirname,'bin','hapi.cjs'),0o755)}catch(e){}\"",
+    "postinstall": "node -e \"try{const fs=require('fs');const p=require('path');for(const name of ['haqi.cjs','hapi.cjs']){try{fs.chmodSync(p.join(__dirname,'bin',name),0o755)}catch(_){}}}catch(e){}\"",
     "typecheck": "tsc --noEmit",
     "build:exe": "bun run scripts/build-executable.ts",
     "build:exe:all": "bun run scripts/build-executable.ts --all",

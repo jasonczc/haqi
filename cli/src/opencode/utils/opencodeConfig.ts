@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const CONFIG_FILENAME = 'opencode.json';
-const INSTRUCTIONS_FILENAME = 'hapi-instructions.md';
+const INSTRUCTIONS_FILENAME = 'haqi-instructions.md';
 
 interface McpServerEntry {
     command: string;
@@ -49,6 +49,11 @@ export function ensureOpencodeConfig(
     const config: OpencodeConfig = {
         $schema: 'https://opencode.ai/config.json',
         mcp: {
+            haqi: {
+                type: 'local',
+                command: [mcpServer.command, ...mcpServer.args],
+                enabled: true
+            },
             hapi: {
                 type: 'local',
                 command: [mcpServer.command, ...mcpServer.args],

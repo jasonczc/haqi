@@ -1,6 +1,6 @@
-# hapi-hub
+# haqi-hub
 
-Telegram bot + HTTP API + realtime updates for hapi hub.
+Telegram bot + HTTP API + realtime updates for haqi hub.
 
 ## What it does
 
@@ -51,10 +51,10 @@ export TELEGRAM_BOT_TOKEN="..."
 export CLI_API_TOKEN="shared-secret"
 export HAPI_PUBLIC_URL="https://your-domain.example"
 
-hapi hub
+haqi hub
 ```
 
-`hapi server` remains supported as an alias.
+`haqi server` remains supported as an alias.
 
 If you only need web + CLI, you can omit TELEGRAM_BOT_TOKEN.
 To enable Telegram, set TELEGRAM_BOT_TOKEN and HAPI_PUBLIC_URL, start the hub, open `/app`
@@ -252,6 +252,6 @@ The web UI can be hosted separately from the hub (for example on GitHub Pages or
 
 1. Build and deploy `web/dist` from the repo root.
 2. Set `CORS_ORIGINS` (or `HAPI_PUBLIC_URL`) to the static host origin.
-3. Open the static site, click the Hub button on the login screen, and enter the hapi hub origin.
+3. Open the static site, click the Hub button on the login screen, and enter the haqi hub origin.
 
 Leaving the hub override empty preserves the default same-origin behavior when the hub serves the web assets directly.

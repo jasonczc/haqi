@@ -1,5 +1,5 @@
 /**
- * HAPI Hub - Main Entry Point
+ * HAQI Hub - Main Entry Point
  *
  * Provides:
  * - Web app + HTTP API
@@ -106,7 +106,7 @@ let notificationHub: NotificationHub | null = null
 let tunnelManager: TunnelManager | null = null
 
 async function main() {
-    console.log('HAPI Hub starting...')
+    console.log('HAQI Hub starting...')
 
     // Load configuration (async - loads from env/file with persistence)
     const relayApiDomain = process.env.HAPI_RELAY_API || 'relay.hapi.run'
@@ -288,7 +288,7 @@ async function main() {
         void announceTunnelAccess()
     }
     console.log('')
-    console.log('HAPI Hub is ready!')
+    console.log('HAQI Hub is ready!')
 
     // Handle shutdown
     const shutdown = async () => {

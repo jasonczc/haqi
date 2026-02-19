@@ -2,7 +2,7 @@
  * Doctor command implementation
  * 
  * Provides comprehensive diagnostics and troubleshooting information
- * for hapi CLI including configuration, runner status, logs, and links
+ * for haqi CLI including configuration, runner status, logs, and links
  */
 
 import chalk from 'chalk'
@@ -78,13 +78,13 @@ export async function runDoctorCommand(filter?: 'all' | 'runner'): Promise<void>
         filter = 'all';
     }
     
-    console.log(chalk.bold.cyan('\n🩺 hapi CLI Doctor\n'));
+    console.log(chalk.bold.cyan('\n🩺 haqi CLI Doctor\n'));
 
     // For 'all' filter, show everything. For 'runner', only show runner-related info
     if (filter === 'all') {
         // Version and basic info
         console.log(chalk.bold('📋 Basic Information'));
-        console.log(`hapi CLI Version: ${chalk.green(packageJson.version)}`);
+        console.log(`haqi CLI Version: ${chalk.green(packageJson.version)}`);
         console.log(`Platform: ${chalk.green(process.platform)} ${process.arch}`);
         console.log(`Node.js Version: ${chalk.green(process.version)}`);
         console.log('');
@@ -106,7 +106,7 @@ export async function runDoctorCommand(filter?: 'all' | 'runner'): Promise<void>
 
         // Configuration
         console.log(chalk.bold('⚙️  Configuration'));
-        console.log(`hapi Home: ${chalk.blue(configuration.happyHomeDir)}`);
+        console.log(`haqi Home: ${chalk.blue(configuration.happyHomeDir)}`);
         console.log(`Bot URL: ${chalk.blue(configuration.apiUrl)}`);
         console.log(`Logs Dir: ${chalk.blue(configuration.logsDir)}`);
 
@@ -144,7 +144,7 @@ export async function runDoctorCommand(filter?: 'all' | 'runner'): Promise<void>
             console.log(chalk.green(`✓ CLI_API_TOKEN is set (from ${tokenSource})`));
         } else {
             console.log(chalk.red('❌ CLI_API_TOKEN is not set'));
-            console.log(chalk.gray('  Run `hapi auth login` to configure or set CLI_API_TOKEN env var'));
+            console.log(chalk.gray('  Run `haqi auth login` to configure or set CLI_API_TOKEN env var'));
         }
 
     }
@@ -179,7 +179,7 @@ export async function runDoctorCommand(filter?: 'all' | 'runner'): Promise<void>
         // All hapi processes
         const allProcesses = await findAllHappyProcesses();
         if (allProcesses.length > 0) {
-            console.log(chalk.bold('\n🔍 All hapi CLI Processes'));
+            console.log(chalk.bold('\n🔍 All haqi CLI Processes'));
 
             // Group by type
             const grouped = allProcesses.reduce((groups, process) => {
@@ -219,7 +219,7 @@ export async function runDoctorCommand(filter?: 'all' | 'runner'): Promise<void>
 
         if (filter === 'all' && allProcesses.length > 1) { // More than just current process
             console.log(chalk.bold('\n💡 Process Management'));
-            console.log(chalk.gray('To clean up runaway processes: hapi doctor clean'));
+            console.log(chalk.gray('To clean up runaway processes: haqi doctor clean'));
         }
     } catch (error) {
         console.log(chalk.red('❌ Error checking runner status'));

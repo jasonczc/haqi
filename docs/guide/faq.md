@@ -2,19 +2,19 @@
 
 ## General
 
-### What is HAPI?
+### What is HAQI?
 
-HAPI is a local-first, self-hosted platform for running and controlling AI coding agents (Claude Code, Codex, Gemini, OpenCode) remotely. It lets you start coding sessions on your computer and monitor/control them from your phone.
+HAQI is a local-first, self-hosted platform for running and controlling AI coding agents (Claude Code, Codex, Gemini, OpenCode) remotely. It lets you start coding sessions on your computer and monitor/control them from your phone.
 
-### What does HAPI stand for?
+### What does HAQI stand for?
 
-HAPI (哈皮) is a Chinese transliteration of "Happy", reflecting the project's goal of making AI coding assistance a happier experience by freeing you from the terminal.
+HAQI (哈皮) is a Chinese transliteration of "Happy", reflecting the project's goal of making AI coding assistance a happier experience by freeing you from the terminal.
 
-### Is HAPI free?
+### Is HAQI free?
 
-Yes, HAPI is open source and free to use under the AGPL-3.0-only license.
+Yes, HAQI is open source and free to use under the AGPL-3.0-only license.
 
-### What AI agents does HAPI support?
+### What AI agents does HAQI support?
 
 - **Claude Code** (recommended)
 - **OpenAI Codex**
@@ -25,11 +25,11 @@ Yes, HAPI is open source and free to use under the AGPL-3.0-only license.
 
 ### Do I need a hub?
 
-HAPI includes an embedded hub. Just run `hapi hub` on your machine - no external hub required.
+HAQI includes an embedded hub. Just run `haqi hub` on your machine - no external hub required.
 
-`hapi server` remains supported as an alias.
+`haqi server` remains supported as an alias.
 
-### How do I access HAPI from my phone?
+### How do I access HAQI from my phone?
 
 For local network access:
 ```
@@ -53,7 +53,7 @@ It's auto-generated on first hub start and saved to `~/.hapi/settings.json`.
 
 Yes. We support lightweight multi-account access via namespaces for shared team hubs. See [Namespace (Advanced)](./namespace.md).
 
-### Can I use HAPI without Telegram?
+### Can I use HAQI without Telegram?
 
 Yes. Telegram is optional. You can use the web app directly in any browser or install it as a PWA.
 
@@ -62,13 +62,13 @@ Yes. Telegram is optional. You can use the web app directly in any browser or in
 ### How do I approve permissions remotely?
 
 1. When your AI agent requests permission (e.g., to edit a file), you'll see a notification
-2. Open HAPI on your phone
+2. Open HAQI on your phone
 3. Navigate to the active session
 4. Approve or deny the pending permission
 
 ### How do I receive notifications?
 
-HAPI supports two methods:
+HAQI supports two methods:
 
 1. **PWA Push Notifications** - Enable when prompted, works even when app is closed
 2. **Telegram Bot** - See [Telegram Setup](./installation.md#telegram-setup)
@@ -77,7 +77,7 @@ HAPI supports two methods:
 
 Yes, with runner mode:
 
-1. Run `hapi runner start` on your computer
+1. Run `haqi runner start` on your computer
 2. Your machine appears in the "Machines" list in the web app
 3. Tap to spawn new sessions from anywhere
 
@@ -104,7 +104,7 @@ Set `ELEVENLABS_API_KEY`, open a session in the web app, and click the microphon
 
 ### Is my data safe?
 
-Yes. HAPI is local-first:
+Yes. HAQI is local-first:
 - All data stays on your machine
 - Nothing is uploaded to external servers
 - The database is stored locally in `~/.hapi/`
@@ -113,7 +113,7 @@ Yes. HAPI is local-first:
 
 The auto-generated token is 256-bit (cryptographically secure). For external access, always use HTTPS via a tunnel.
 
-### Can others access my HAPI instance?
+### Can others access my HAQI instance?
 
 Only if they have your access token. For additional security:
 - Use a strong, unique token
@@ -124,13 +124,13 @@ Only if they have your access token. For additional security:
 
 ### "Connection refused" error
 
-- Ensure hub is running: `hapi hub`
+- Ensure hub is running: `haqi hub`
 - Check firewall allows port 3006
 - Verify `HAPI_API_URL` is correct
 
 ### "Invalid token" error
 
-- Re-run `hapi auth login`
+- Re-run `haqi auth login`
 - Check token matches in CLI and hub
 - Verify `~/.hapi/settings.json` has correct `cliApiToken`
 
@@ -138,13 +138,13 @@ Only if they have your access token. For additional security:
 
 ```bash
 # Check status
-hapi runner status
+haqi runner status
 
 # Clear stale lock file
 rm ~/.hapi/runner.state.json.lock
 
 # Check logs
-hapi runner logs
+haqi runner logs
 ```
 
 ### Claude Code not found
@@ -159,27 +159,27 @@ export HAPI_CLAUDE_PATH=/path/to/claude
 ### How do I run diagnostics?
 
 ```bash
-hapi doctor
+haqi doctor
 ```
 
 This checks hub connectivity, token validity, agent availability, and more.
 
 ## Comparison
 
-### HAPI vs Happy
+### HAQI vs Happy
 
-| Aspect | Happy | HAPI |
+| Aspect | Happy | HAQI |
 |--------|-------|------|
 | Design | Cloud-first | Local-first |
 | Users | Multi-user | Single user |
 | Deployment | Multiple services | Single binary |
 | Data | Encrypted on server | Never leaves your machine |
 
-See [Why HAPI](./why-hapi.md) for detailed comparison.
+See [Why HAQI](./why-hapi.md) for detailed comparison.
 
-### HAPI vs running Claude Code directly
+### HAQI vs running Claude Code directly
 
-| Feature | Claude Code | HAPI + Claude Code |
+| Feature | Claude Code | HAQI + Claude Code |
 |---------|-------------|-------------------|
 | Remote access | No | Yes |
 | Mobile control | No | Yes |

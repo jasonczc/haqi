@@ -9,7 +9,7 @@ export default {
   'loading.machines': 'Loading machines…',
 
   // Login / Auth
-  'login.title': 'HAPI',
+  'login.title': 'HAQI',
   'login.subtitle': 'Vibe Coding Anytime, Anywhere',
   'login.bind.title': 'Bind Telegram',
   'login.submit': 'Sign In',
@@ -26,10 +26,10 @@ export default {
   'login.server.default': '(Default)',
   'login.server.custom': '(Custom)',
   'login.server.title': 'Hub URL',
-  'login.server.description': 'Set hapi hub origin for API and live updates.',
+  'login.server.description': 'Set haqi hub origin for API and live updates.',
   'login.server.current': 'Current:',
   'login.server.origin': 'Hub origin',
-  'login.server.placeholder': 'https://hapi.example.com',
+  'login.server.placeholder': 'https://haqi.example.com',
   'login.server.hint': 'Use http(s) only. Any path is ignored.',
   'login.server.required': 'Hub URL required. Please set it before signing in.',
   'login.server.useSameOrigin': 'Use same origin',
@@ -239,8 +239,8 @@ export default {
   'send.blocked.noConnection': 'Not connected to server',
 
   // Install prompt
-  'install.title': 'Install HAPI',
-  'install.description': 'Add HAPI to your home screen for quick access.',
+  'install.title': 'Install HAQI',
+  'install.description': 'Add HAQI to your home screen for quick access.',
   'install.button': 'Install',
 
   // Language switcher

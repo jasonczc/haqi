@@ -1,19 +1,19 @@
 /**
  * Codex-specific system prompt for local mode.
  *
- * This prompt instructs Codex to call the hapi__change_title function
+ * This prompt instructs Codex to call the haqi__change_title function
  * to set appropriate chat session titles.
  */
 
 import { trimIdent } from '@/utils/trimIdent';
 
 /**
- * Title instruction for Codex to call the hapi MCP tool.
+ * Title instruction for Codex to call the haqi MCP tool.
  * Note: Codex exposes MCP tools under the `functions.` namespace,
- * so the tool is called as `functions.hapi__change_title`.
+ * so the tool is called as `functions.haqi__change_title`.
  */
 export const TITLE_INSTRUCTION = trimIdent(`
-    Based on this message, call functions.hapi__change_title to change chat session title that would represent the current task. If chat idea would change dramatically - call this function again to update the title.
+    Based on this message, call functions.haqi__change_title to change chat session title that would represent the current task. If chat idea would change dramatically - call this function again to update the title.
 `);
 
 /**

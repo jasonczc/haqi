@@ -138,11 +138,11 @@ If testing in Telegram, set:
 bun run build:web
 ```
 
-The built assets land in `web/dist` and are served by hapi-hub. The single executable can embed these assets.
+The built assets land in `web/dist` and are served by haqi-hub. The single executable can embed these assets.
 
 ## Standalone hosting
 
-You can host `web/dist` on a static host (GitHub Pages, Cloudflare Pages) and point it at any hapi hub:
+You can host `web/dist` on a static host (GitHub Pages, Cloudflare Pages) and point it at any haqi hub:
 
 1. Build the web app. If your static host uses a subpath, set the Vite base:
 
@@ -152,6 +152,6 @@ bun run build:web -- --base /<repo>/
 
 2. Deploy `web/dist` to your static host.
 3. Set hub CORS to allow the static origin (`HAPI_PUBLIC_URL` or `CORS_ORIGINS`).
-4. Open the static site, click the top-right Hub button on the login screen, and enter the hapi hub origin.
+4. Open the static site, click the top-right Hub button on the login screen, and enter the haqi hub origin.
 
 Clear the hub override in the same dialog to return to same-origin behavior.

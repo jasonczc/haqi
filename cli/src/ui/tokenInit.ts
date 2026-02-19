@@ -36,7 +36,7 @@ export async function initializeToken(): Promise<void> {
 
     // 3. Non-TTY environment cannot prompt, fail with clear error
     if (!process.stdin.isTTY) {
-        throw new Error('CLI_API_TOKEN is required. Set it via environment variable or run `hapi auth login`.')
+        throw new Error('CLI_API_TOKEN is required. Set it via environment variable or run `haqi auth login`.')
     }
 
     // 4. Interactive prompt

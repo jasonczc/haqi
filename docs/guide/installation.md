@@ -1,6 +1,6 @@
 # Installation
 
-Install the HAPI CLI and set up the hub.
+Install the HAQI CLI and set up the hub.
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ opencode --version
 
 ## Architecture
 
-HAPI has three components:
+HAQI has three components:
 
 | Component | Role | Required |
 |-----------|------|----------|
@@ -57,20 +57,20 @@ HAPI has three components:
               └───────────┘
 ```
 
-- **CLI**: Start a session with `hapi`. The CLI wraps your AI agent and syncs with the hub.
-- **Hub**: Run `hapi hub`. Stores sessions, handles permissions, enables remote access.
-- **Runner**: Run `hapi runner start`. Lets you spawn sessions from phone/web without keeping a terminal open.
+- **CLI**: Start a session with `haqi`. The CLI wraps your AI agent and syncs with the hub.
+- **Hub**: Run `haqi hub`. Stores sessions, handles permissions, enables remote access.
+- **Runner**: Run `haqi runner start`. Lets you spawn sessions from phone/web without keeping a terminal open.
 
 ### Typical workflows
 
-**Local only**: `hapi hub` → `hapi` → work in terminal
+**Local only**: `haqi hub` → `haqi` → work in terminal
 
-**Remote access**: `hapi hub --relay` → `hapi runner start` → control from phone/web
+**Remote access**: `haqi hub --relay` → `haqi runner start` → control from phone/web
 
 ## Install the CLI
 
 ```bash
-npm install -g @twsxtd/hapi
+npm install -g @twsxtd/haqi
 ```
 
 Or with Homebrew:
@@ -85,7 +85,7 @@ brew install tiann/tap/hapi
 <summary>npx (no install)</summary>
 
 ```bash
-npx @twsxtd/hapi
+npx @twsxtd/haqi
 ```
 </details>
 
@@ -124,12 +124,12 @@ The hub can be deployed on:
 ### Default: Public Relay (recommended)
 
 ```bash
-hapi hub --relay
+haqi hub --relay
 ```
 
 The terminal displays a URL and QR code. Scan to access from anywhere.
 
-`hapi server` remains supported as an alias.
+`haqi server` remains supported as an alias.
 
 - **End-to-end encrypted** with WireGuard + TLS
 - No configuration needed
@@ -140,14 +140,14 @@ The terminal displays a URL and QR code. Scan to access from anywhere.
 ### Local Only
 
 ```bash
-hapi hub
+haqi hub
 # or
-hapi hub --no-relay
+haqi hub --no-relay
 ```
 
 The hub listens on `http://localhost:3006` by default.
 
-On first run, HAPI:
+On first run, HAQI:
 
 1. Creates `~/.hapi/`
 2. Generates a secure access token
@@ -207,7 +207,7 @@ JSON Schema: [settings.schema.json](https://hapi.run/schemas/settings.schema.jso
 
 ## CLI setup
 
-If the hub is not on localhost, set these before running `hapi`:
+If the hub is not on localhost, set these before running `haqi`:
 
 ```bash
 export HAPI_API_URL="http://your-hub:3006"
@@ -217,15 +217,15 @@ export CLI_API_TOKEN="your-token-here"
 Or use interactive login:
 
 ```bash
-hapi auth login
+haqi auth login
 ```
 
 Authentication commands:
 
 ```bash
-hapi auth status
-hapi auth login
-hapi auth logout
+haqi auth status
+haqi auth login
+haqi auth logout
 ```
 
 Each machine gets a unique ID stored in `~/.hapi/settings.json`. This allows:
@@ -245,7 +245,7 @@ If you prefer not to use the public relay (e.g., for lower latency or self-manag
 
 https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
 
-> **Note:** Cloudflare Quick Tunnels (TryCloudflare) are not supported because they [do not support SSE](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/), which HAPI uses for real-time updates. Use a Named Tunnel instead.
+> **Note:** Cloudflare Quick Tunnels (TryCloudflare) are not supported because they [do not support SSE](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/), which HAQI uses for real-time updates. Use a Named Tunnel instead.
 
 **Named tunnel setup:**
 
@@ -271,7 +271,7 @@ https://tailscale.com/download
 
 ```bash
 sudo tailscale up
-hapi hub
+haqi hub
 ```
 
 Access via your Tailscale IP:
@@ -326,7 +326,7 @@ Enable Telegram notifications and Mini App access:
 export TELEGRAM_BOT_TOKEN="your-bot-token"
 export HAPI_PUBLIC_URL="https://your-public-url"
 
-hapi hub
+haqi hub
 ```
 
 Then message your bot with `/start`, open the app, and enter your `CLI_API_TOKEN`.
@@ -341,10 +341,10 @@ Then message your bot with `/start`, open the app, and enter your `CLI_API_TOKEN
 Run a background service for remote session spawning:
 
 ```bash
-hapi runner start
-hapi runner status
-hapi runner logs
-hapi runner stop
+haqi runner start
+haqi runner status
+haqi runner logs
+haqi runner stop
 ```
 
 With the runner running:
@@ -359,14 +359,14 @@ With the runner running:
 If you prefer pm2 for process management:
 
 ```bash
-pm2 start "hapi runner start --foreground" --name hapi-runner
+pm2 start "haqi runner start --foreground" --name hapi-runner
 pm2 save
 ```
 </details>
 
 ### Background service deployment
 
-Keep HAPI running persistently so it survives terminal closes, system restarts, and continues running in the background.
+Keep HAQI running persistently so it survives terminal closes, system restarts, and continues running in the background.
 
 <details>
 <summary>Quick: nohup</summary>
@@ -375,10 +375,10 @@ Simple one-liner for quick background runs:
 
 ```bash
 # Hub
-nohup hapi hub --relay > ~/.hapi/logs/hub.log 2>&1 &
+nohup haqi hub --relay > ~/.hapi/logs/hub.log 2>&1 &
 
 # Runner
-nohup hapi runner start --foreground > ~/.hapi/logs/runner.log 2>&1 &
+nohup haqi runner start --foreground > ~/.hapi/logs/runner.log 2>&1 &
 ```
 
 View logs:
@@ -391,8 +391,8 @@ tail -f ~/.hapi/logs/runner.log
 Stop processes:
 
 ```bash
-pkill -f "hapi hub"
-pkill -f "hapi runner"
+pkill -f "haqi hub"
+pkill -f "haqi runner"
 ```
 </details>
 
@@ -406,12 +406,12 @@ pm2 provides process management with auto-restart on crashes and system reboot.
 npm install -g pm2
 
 # Start hub and runner
-pm2 start "hapi hub --relay" --name hapi-hub
-pm2 start "hapi runner start --foreground" --name hapi-runner
+pm2 start "haqi hub --relay" --name haqi-hub
+pm2 start "haqi runner start --foreground" --name hapi-runner
 
 # View status and logs
 pm2 status
-pm2 logs hapi-hub
+pm2 logs haqi-hub
 pm2 logs hapi-runner
 
 # Auto-restart on system reboot
@@ -494,9 +494,9 @@ launchctl unload ~/Library/LaunchAgents/com.hapi.runner.plist
 
 > **macOS sleep note:** macOS may suspend background processes when the display sleeps. Use `caffeinate` to prevent this:
 > ```bash
-> caffeinate -dimsu hapi hub --relay
+> caffeinate -dimsu haqi hub --relay
 > ```
-> Or run `caffeinate -dimsu` in a separate terminal while HAPI is running.
+> Or run `caffeinate -dimsu` in a separate terminal while HAQI is running.
 </details>
 
 <details>
@@ -504,16 +504,16 @@ launchctl unload ~/Library/LaunchAgents/com.hapi.runner.plist
 
 Create user-level systemd services for automatic startup.
 
-**Hub** (`~/.config/systemd/user/hapi-hub.service`):
+**Hub** (`~/.config/systemd/user/haqi-hub.service`):
 
 ```ini
 [Unit]
-Description=HAPI Hub
+Description=HAQI Hub
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/hapi hub --relay
+ExecStart=/usr/local/bin/haqi hub --relay
 Restart=always
 RestartSec=5
 
@@ -525,12 +525,12 @@ WantedBy=default.target
 
 ```ini
 [Unit]
-Description=HAPI Runner
-After=network.target hapi-hub.service
+Description=HAQI Runner
+After=network.target haqi-hub.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/hapi runner start --foreground
+ExecStart=/usr/local/bin/haqi runner start --foreground
 Restart=always
 RestartSec=5
 
@@ -545,16 +545,16 @@ Enable and start:
 systemctl --user daemon-reload
 
 # Enable (auto-start on login)
-systemctl --user enable hapi-hub
+systemctl --user enable haqi-hub
 systemctl --user enable hapi-runner
 
 # Start now
-systemctl --user start hapi-hub
+systemctl --user start haqi-hub
 systemctl --user start hapi-runner
 
 # View status/logs
-systemctl --user status hapi-hub
-journalctl --user -u hapi-hub -f
+systemctl --user status haqi-hub
+journalctl --user -u haqi-hub -f
 ```
 
 > **Persist after logout:** To keep services running even when not logged in:
@@ -572,7 +572,7 @@ Enable voice control:
 
 ```bash
 export ELEVENLABS_API_KEY="your-api-key"
-hapi hub --relay
+haqi hub --relay
 ```
 
 See [Voice Assistant](./voice-assistant.md) for usage details.

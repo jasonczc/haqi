@@ -2,12 +2,12 @@
 
 <Steps>
 
-## Install HAPI
+## Install HAQI
 
 ::: code-group
 
 ```bash [npm]
-npm install -g @twsxtd/hapi
+npm install -g @twsxtd/haqi
 ```
 
 ```bash [Homebrew]
@@ -15,7 +15,7 @@ brew install tiann/tap/hapi
 ```
 
 ```bash [npx (one-off)]
-npx @twsxtd/hapi
+npx @twsxtd/haqi
 ```
 
 :::
@@ -25,12 +25,12 @@ Other install options: [Installation](./installation.md)
 ## Start the hub
 
 ```bash
-hapi hub --relay
+haqi hub --relay
 ```
 
-On first run, HAPI prints an access token and saves it to `~/.hapi/settings.json`.
+On first run, HAQI prints an access token and saves it to `~/.hapi/settings.json`.
 
-`hapi server` remains supported as an alias.
+`haqi server` remains supported as an alias.
 
 The terminal will display a URL and QR code for remote access.
 
@@ -39,10 +39,10 @@ The terminal will display a URL and QR code for remote access.
 ## Start a coding session
 
 ```bash
-hapi
+haqi
 ```
 
-This starts Claude Code wrapped with HAPI. The session appears in the web UI.
+This starts Claude Code wrapped with HAQI. The session appears in the web UI.
 
 ## Open the UI
 
@@ -55,6 +55,6 @@ Enter your access token to log in.
 ## Next steps
 
 - [Seamless Handoff](./how-it-works.md#seamless-handoff) - Switch between terminal and phone seamlessly
-- [Hub setup](./installation.md#hub-setup) - Access HAPI from anywhere
+- [Hub setup](./installation.md#hub-setup) - Access HAQI from anywhere
 - [Notifications](./installation.md#telegram-setup) - Set up Telegram notifications
-- [Install the App](./pwa.md) - Add HAPI to your home screen
+- [Install the App](./pwa.md) - Add HAQI to your home screen

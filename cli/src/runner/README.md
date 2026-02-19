@@ -1,12 +1,12 @@
-# HAPI CLI Runner: Control Flow and Lifecycle
+# HAQI CLI Runner: Control Flow and Lifecycle
 
-The runner is a persistent background process that manages HAPI sessions, enables remote control from the mobile app, and handles auto-updates when the CLI version changes.
+The runner is a persistent background process that manages HAQI sessions, enables remote control from the mobile app, and handles auto-updates when the CLI version changes.
 
 ## 1. Runner Lifecycle
 
 ### Starting the Runner
 
-Command: `hapi runner start`
+Command: `haqi runner start`
 
 Control Flow:
 1. `src/index.ts` receives `runner start` command
@@ -26,8 +26,8 @@ Control Flow:
    - Heartbeat loop: every 60s (or `HAPI_RUNNER_HEARTBEAT_INTERVAL`) checks for version updates, prunes dead sessions, verifies PID ownership
 5. Awaits shutdown promise which resolves when:
    - OS signal received (SIGINT/SIGTERM) - source: `os-signal`
-   - HTTP `/stop` endpoint called - source: `hapi-cli`
-   - RPC `stop-runner` invoked - source: `hapi-app`
+   - HTTP `/stop` endpoint called - source: `haqi-cli`
+   - RPC `stop-runner` invoked - source: `haqi-app`
    - Uncaught exception occurs - source: `exception`
 6. On shutdown, `cleanupAndShutdown()` performs:
    - Clears heartbeat interval
@@ -62,12 +62,12 @@ Every 60 seconds (configurable via `HAPI_RUNNER_HEARTBEAT_INTERVAL`):
 
 ### Stopping the Runner
 
-Command: `hapi runner stop`
+Command: `haqi runner stop`
 
 Control Flow:
 1. `stopRunner()` in `controlClient.ts` reads runner.state.json
 2. Attempts graceful shutdown via HTTP POST to `/stop`
-3. Runner receives request, triggers shutdown with source `hapi-cli`
+3. Runner receives request, triggers shutdown with source `haqi-cli`
 4. `cleanupAndShutdown()` executes:
    - Updates backend status to "shutting-down"
    - Closes WebSocket connection
@@ -82,10 +82,10 @@ The runner supports spawning sessions with different AI agents:
 
 | Agent | Command | Token Environment |
 |-------|---------|-------------------|
-| `claude` (default) | `hapi claude` | `CLAUDE_CODE_OAUTH_TOKEN` |
-| `codex` | `hapi codex` | `CODEX_HOME` (temp directory with `auth.json`) |
-| `gemini` | `hapi gemini` | - |
-| `opencode` | `hapi opencode` | OpenCode config (no token injection) |
+| `claude` (default) | `haqi claude` | `CLAUDE_CODE_OAUTH_TOKEN` |
+| `codex` | `haqi codex` | `CODEX_HOME` (temp directory with `auth.json`) |
+| `gemini` | `haqi gemini` | - |
+| `opencode` | `haqi opencode` | OpenCode config (no token injection) |
 
 ### Token Authentication
 
@@ -104,10 +104,10 @@ Initiated by mobile app via backend RPC:
 3. `spawnSession()`:
    - Validates/creates directory (with approval flow)
    - Configures agent-specific token environment
-   - Spawns detached HAPI process with `--hapi-starting-mode remote --started-by runner`
+   - Spawns detached HAQI process with `--hapi-starting-mode remote --started-by runner`
    - Adds to `pidToTrackedSession` map
    - Sets up 15-second awaiter for session webhook
-4. New HAPI process:
+4. New HAQI process:
    - Creates session with backend, receives `happySessionId`
    - Calls `notifyRunnerSessionStarted()` to POST to runner's `/session-started`
 5. Runner updates tracking with `happySessionId`, resolves awaiter
@@ -115,9 +115,9 @@ Initiated by mobile app via backend RPC:
 
 ### Terminal-Spawned Sessions
 
-User runs `hapi` directly:
+User runs `haqi` directly:
 1. CLI auto-starts runner if configured
-2. HAPI process calls `notifyRunnerSessionStarted()`
+2. HAQI process calls `notifyRunnerSessionStarted()`
 3. Runner receives webhook, creates `TrackedSession` with `startedBy: 'hapi directly - likely by user from terminal'`
 4. Session tracked for health monitoring
 
@@ -264,14 +264,14 @@ All data is plain JSON over TLS; authentication is `CLI_API_TOKEN` (no end-to-en
 
 ### Doctor Command
 
-`hapi doctor` uses `ps aux | grep` to find all HAPI processes:
-- Production: matches `hapi` binary, `happy-coder`
+`haqi doctor` uses `ps aux | grep` to find all HAQI processes:
+- Production: matches `haqi` binary, `happy-coder`
 - Development: matches `src/index.ts` (run via `bun`)
 - Categorizes by command args: runner, runner-spawned, user-session, doctor
 
 ### Clean Runaway Processes
 
-`hapi doctor clean`:
+`haqi doctor clean`:
 1. `findRunawayHappyProcesses()` filters for likely orphans
 2. `killRunawayHappyProcesses()`:
    - Sends SIGTERM
@@ -282,7 +282,7 @@ All data is plain JSON over TLS; authentication is `CLI_API_TOKEN` (no end-to-en
 
 ### Test Environment
 - Requires `.env.integration-test`
-- Uses local hapi-hub (http://localhost:3006)
+- Uses local haqi-hub (http://localhost:3006)
 - Separate `~/.hapi-dev-test` home directory
 
 ### Key Test Scenarios
@@ -298,7 +298,7 @@ All data is plain JSON over TLS; authentication is `CLI_API_TOKEN` (no end-to-en
 
 # Machine Sync Architecture - Separated Metadata & Runner State
 
-> Direct-connect note: the "hub" is `hapi-hub`, payloads are plain JSON (no base64/encryption),
+> Direct-connect note: the "hub" is `haqi-hub`, payloads are plain JSON (no base64/encryption),
 > and authentication uses `CLI_API_TOKEN` (REST `Authorization: Bearer ...` + Socket.IO `handshake.auth.token`).
 
 ## Data Structure (Similar to Session's metadata + agentState)
@@ -321,7 +321,7 @@ interface RunnerState {
   httpPort?: number;
   startedAt?: number;
   shutdownRequestedAt?: number;
-  shutdownSource?: 'hapi-app' | 'hapi-cli' | 'os-signal' | 'exception';
+  shutdownSource?: 'haqi-app' | 'haqi-cli' | 'os-signal' | 'exception';
 }
 ```
 
@@ -409,7 +409,7 @@ socket.emit('machine-update-state', {
     "httpPort": 8080,
     "startedAt": 1703001234567,
     "shutdownRequestedAt": 1703001244567,
-    "shutdownSource": "hapi-app"
+    "shutdownSource": "haqi-app"
   },
   "expectedVersion": 1
 }, callback)
@@ -446,10 +446,10 @@ socket.emit('machine-update-metadata', {
 }, callback)
 ```
 
-## 5. Mini App RPC Calls (via hapi-hub)
+## 5. Mini App RPC Calls (via haqi-hub)
 
-The Telegram Mini App calls REST endpoints on `hapi-hub` (for example `POST /api/machines/:id/spawn`).
-`hapi-hub` then relays those requests to the runner via Socket.IO `rpc-request` on the `/cli` namespace.
+The Telegram Mini App calls REST endpoints on `haqi-hub` (for example `POST /api/machines/:id/spawn`).
+`haqi-hub` then relays those requests to the runner via Socket.IO `rpc-request` on the `/cli` namespace.
 
 RPC method naming (machine-scoped) uses a `${machineId}:` prefix, for example:
 - `${machineId}:spawn-happy-session`
