@@ -8,7 +8,7 @@ type SpawnInput = {
     directory: string
     agent?: 'claude' | 'codex' | 'gemini' | 'opencode'
     model?: string
-    thinkEffort?: 'auto' | 'low' | 'medium' | 'high'
+    thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
     yolo?: boolean
     sessionType?: 'simple' | 'worktree'
     worktreeName?: string

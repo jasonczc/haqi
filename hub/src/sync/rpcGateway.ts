@@ -114,7 +114,7 @@ export class RpcGateway {
         directory: string,
         agent: 'claude' | 'codex' | 'gemini' | 'opencode' = 'claude',
         model?: string,
-        thinkEffort?: 'auto' | 'low' | 'medium' | 'high',
+        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,

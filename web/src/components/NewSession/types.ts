@@ -1,12 +1,13 @@
 export type AgentType = 'claude' | 'codex' | 'gemini' | 'opencode'
 export type SessionType = 'simple' | 'worktree'
-export type CodexThinkEffort = 'auto' | 'low' | 'medium' | 'high'
+export type CodexThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
 
 export const CODEX_THINK_EFFORT_OPTIONS: { value: CodexThinkEffort; label: string }[] = [
     { value: 'auto', label: 'Auto' },
     { value: 'low', label: 'Low' },
     { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' }
+    { value: 'high', label: 'High' },
+    { value: 'xhigh', label: 'XHigh' }
 ]
 
 export const MODEL_OPTIONS: Record<AgentType, { value: string; label: string }[]> = {

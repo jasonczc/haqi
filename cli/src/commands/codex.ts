@@ -53,8 +53,8 @@ export const codexCommand: CommandDefinition = {
                     if (!effort) {
                         throw new Error('Missing --effort value')
                     }
-                    if (effort !== 'auto' && effort !== 'low' && effort !== 'medium' && effort !== 'high') {
-                        throw new Error('Invalid --effort value (expected auto, low, medium, or high)')
+                    if (effort !== 'auto' && effort !== 'low' && effort !== 'medium' && effort !== 'high' && effort !== 'xhigh') {
+                        throw new Error('Invalid --effort value (expected auto, low, medium, high, or xhigh)')
                     }
                     options.effort = effort
                     unknownArgs.push('--effort', effort)

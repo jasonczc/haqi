@@ -8,7 +8,7 @@ const spawnBodySchema = z.object({
     directory: z.string().min(1),
     agent: z.enum(['claude', 'codex', 'gemini', 'opencode']).optional(),
     model: z.string().optional(),
-    thinkEffort: z.enum(['auto', 'low', 'medium', 'high']).optional(),
+    thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'xhigh']).optional(),
     yolo: z.boolean().optional(),
     sessionType: z.enum(['simple', 'worktree']).optional(),
     worktreeName: z.string().optional()

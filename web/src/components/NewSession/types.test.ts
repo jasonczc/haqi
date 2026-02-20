@@ -9,6 +9,6 @@ describe('NewSession model options', () => {
 
     it('includes codex think effort options', () => {
         const thinkEfforts = CODEX_THINK_EFFORT_OPTIONS.map((option) => option.value)
-        expect(thinkEfforts).toEqual(['auto', 'low', 'medium', 'high'])
+        expect(thinkEfforts).toEqual(['auto', 'low', 'medium', 'high', 'xhigh'])
     })
 })
