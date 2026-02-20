@@ -14,13 +14,13 @@ import { writeRunnerState, RunnerLocallyPersistedState, readRunnerState, acquire
 import { isProcessAlive, isWindows, killProcess, killProcessByChildProcess } from '@/utils/process';
 import { withRetry } from '@/utils/time';
 import { isRetryableConnectionError } from '@/utils/errorUtils';
+import { maybeAutoStartServer } from '@/utils/autoStartServer';
 
 import { cleanupRunnerState, getInstalledCliMtimeMs, isRunnerRunningCurrentlyInstalledHappyVersion, stopRunner } from './controlClient';
 import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { join } from 'path';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
-import { isBunCompiled } from '@/projectPath';
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -119,6 +119,9 @@ export async function startRunner(): Promise<void> {
   // 2. Should not have another runner process running
 
   try {
+    // Runner can be launched directly while hub is down. Bootstrap local hub first when applicable.
+    await maybeAutoStartServer();
+
     // Ensure auth and machine registration BEFORE anything else
     const { machineId } = await authAndSetupMachineIfNeeded();
     logger.debug('[RUNNER RUN] Auth and machine setup complete');
@@ -374,13 +377,7 @@ export async function startRunner(): Promise<void> {
           logger.debug('[RUNNER RUN] Child stderr tail', trimmed);
         };
 
-        const executionCwd = isBunCompiled() ? spawnDirectory : process.cwd();
-        if (executionCwd !== spawnDirectory) {
-          logger.debug('[RUNNER RUN] Using CLI project cwd for spawned process in dev mode', {
-            executionCwd,
-            targetWorkingDirectory: spawnDirectory
-          });
-        }
+        const executionCwd = spawnDirectory;
 
         happyProcess = spawnHappyCLI(args, {
           cwd: executionCwd,
@@ -565,6 +562,11 @@ export async function startRunner(): Promise<void> {
         onRetry: (error, attempt, nextDelayMs) => {
           const errorMsg = error instanceof Error ? error.message : String(error)
           logger.debug(`[RUNNER RUN] Failed to register machine (attempt ${attempt}), retrying in ${nextDelayMs}ms: ${errorMsg}`)
+
+          // If hub dropped after startup, opportunistically try to recover it.
+          void maybeAutoStartServer().catch((recoverError) => {
+            logger.debug('[RUNNER RUN] Failed to auto-recover hub during machine registration retry', recoverError)
+          })
         }
       }
     );

@@ -12,6 +12,9 @@ import { runDoctorCommand } from '@/ui/doctor'
 import { initializeToken } from '@/ui/tokenInit'
 import type { CommandDefinition } from './types'
 
+const RUNNER_START_POLL_INTERVAL_MS = 100
+const RUNNER_START_TIMEOUT_MS = 20_000
+
 export const runnerCommand: CommandDefinition = {
     name: 'runner',
     requiresRuntimeAssets: true,
@@ -59,12 +62,13 @@ export const runnerCommand: CommandDefinition = {
             child.unref()
 
             let started = false
-            for (let i = 0; i < 50; i++) {
+            const maxAttempts = Math.ceil(RUNNER_START_TIMEOUT_MS / RUNNER_START_POLL_INTERVAL_MS)
+            for (let i = 0; i < maxAttempts; i++) {
                 if (await checkIfRunnerRunningAndCleanupStaleState()) {
                     started = true
                     break
                 }
-                await new Promise(resolve => setTimeout(resolve, 100))
+                await new Promise(resolve => setTimeout(resolve, RUNNER_START_POLL_INTERVAL_MS))
             }
 
             if (started) {
