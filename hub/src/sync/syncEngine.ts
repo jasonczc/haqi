@@ -16,6 +16,7 @@ import { EventPublisher, type SyncEventListener } from './eventPublisher'
 import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
 import {
+    type RpcCodexStatusResponse,
     RpcGateway,
     type RpcCommandResponse,
     type RpcDeleteUploadResponse,
@@ -30,6 +31,7 @@ export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
 export type { SyncEventListener } from './eventPublisher'
 export type {
+    RpcCodexStatusResponse,
     RpcCommandResponse,
     RpcDeleteUploadResponse,
     RpcListDirectoryResponse,
@@ -518,6 +520,10 @@ export class SyncEngine {
 
     async getGitDiffFile(sessionId: string, options: { cwd?: string; filePath: string; staged?: boolean }): Promise<RpcCommandResponse> {
         return await this.rpcGateway.getGitDiffFile(sessionId, options)
+    }
+
+    async getCodexStatus(sessionId: string): Promise<RpcCodexStatusResponse> {
+        return await this.rpcGateway.getCodexStatus(sessionId)
     }
 
     async readSessionFile(sessionId: string, path: string): Promise<RpcReadFileResponse> {

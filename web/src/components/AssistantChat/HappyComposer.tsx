@@ -79,6 +79,7 @@ export function HappyComposer(props: {
     onModelModeChange?: (mode: ModelMode) => void
     onSwitchToRemote?: () => void
     onTerminal?: () => void
+    onCodexStatus?: () => void
     autocompletePrefixes?: string[]
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
     // Voice assistant props
@@ -104,6 +105,7 @@ export function HappyComposer(props: {
         onModelModeChange,
         onSwitchToRemote,
         onTerminal,
+        onCodexStatus,
         autocompletePrefixes = ['@', '/', '$'],
         autocompleteSuggestions = defaultSuggestionHandler,
         voiceStatus = 'disconnected',
@@ -260,6 +262,7 @@ export function HappyComposer(props: {
     const switchDisabled = controlsDisabled || isSwitching || !controlledByUser
     const showSwitchButton = Boolean(controlledByUser && onSwitchToRemote)
     const showTerminalButton = Boolean(onTerminal)
+    const showStatusButton = Boolean(agentFlavor === 'codex' && onCodexStatus)
 
     useEffect(() => {
         if (!isAborting) return
@@ -290,6 +293,12 @@ export function HappyComposer(props: {
             setIsSwitching(false)
         }
     }, [switchDisabled, onSwitchToRemote, haptic])
+
+    const handleCodexStatus = useCallback(() => {
+        if (controlsDisabled || threadIsRunning || !onCodexStatus) return
+        haptic('light')
+        onCodexStatus()
+    }, [controlsDisabled, threadIsRunning, onCodexStatus, haptic])
 
     const permissionModeOptions = useMemo(
         () => getPermissionModeOptionsForFlavor(agentFlavor),
@@ -612,6 +621,9 @@ export function HappyComposer(props: {
                             showTerminalButton={showTerminalButton}
                             terminalDisabled={controlsDisabled}
                             onTerminal={onTerminal ?? (() => {})}
+                            showStatusButton={showStatusButton}
+                            statusDisabled={controlsDisabled || threadIsRunning}
+                            onStatus={handleCodexStatus}
                             showAbortButton={showAbortButton}
                             abortDisabled={abortDisabled}
                             isAborting={isAborting}

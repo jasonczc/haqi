@@ -86,6 +86,12 @@ export type GitCommandResponse = {
     error?: string
 }
 
+export type CodexStatusResponse = {
+    success: boolean
+    message?: string
+    error?: string
+}
+
 export type FileSearchItem = {
     fileName: string
     filePath: string

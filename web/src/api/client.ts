@@ -1,6 +1,7 @@
 import type {
     AttachmentMetadata,
     AuthResponse,
+    CodexStatusResponse,
     DeleteUploadResponse,
     ListDirectoryResponse,
     FileReadResponse,
@@ -220,6 +221,10 @@ export class ApiClient {
             params.set('staged', staged ? 'true' : 'false')
         }
         return await this.request<GitCommandResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/git-diff-file?${params.toString()}`)
+    }
+
+    async getCodexStatus(sessionId: string): Promise<CodexStatusResponse> {
+        return await this.request<CodexStatusResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-status`)
     }
 
     async searchSessionFiles(sessionId: string, query: string, limit?: number): Promise<FileSearchResponse> {

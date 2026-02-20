@@ -11,7 +11,11 @@ import type {
     TurnStartParams,
     TurnStartResponse,
     TurnInterruptParams,
-    TurnInterruptResponse
+    TurnInterruptResponse,
+    AccountReadResponse,
+    AuthStatusResponse,
+    RateLimitsReadResponse,
+    ConfigReadResponse
 } from './appServerTypes';
 
 type JsonRpcLiteRequest = {
@@ -162,6 +166,34 @@ export class CodexAppServerClient {
             timeoutMs: 30_000
         });
         return response as TurnInterruptResponse;
+    }
+
+    async readAccount(): Promise<AccountReadResponse> {
+        const response = await this.sendRequest('account/read', {}, {
+            timeoutMs: 30_000
+        });
+        return response as AccountReadResponse;
+    }
+
+    async readAuthStatus(): Promise<AuthStatusResponse> {
+        const response = await this.sendRequest('getAuthStatus', {}, {
+            timeoutMs: 30_000
+        });
+        return response as AuthStatusResponse;
+    }
+
+    async readRateLimits(): Promise<RateLimitsReadResponse> {
+        const response = await this.sendRequest('account/rateLimits/read', {}, {
+            timeoutMs: 30_000
+        });
+        return response as RateLimitsReadResponse;
+    }
+
+    async readConfig(): Promise<ConfigReadResponse> {
+        const response = await this.sendRequest('config/read', {}, {
+            timeoutMs: 30_000
+        });
+        return response as ConfigReadResponse;
     }
 
     async disconnect(): Promise<void> {

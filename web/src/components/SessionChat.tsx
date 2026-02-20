@@ -16,8 +16,59 @@ import { SessionHeader } from '@/components/SessionHeader'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useTranslation } from '@/lib/use-translation'
 import { useVoiceOptional } from '@/lib/voice-context'
 import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
+
+type CodexStatusRow = {
+    label: string
+    value: string
+}
+
+function parseCodexStatusRows(message: string): CodexStatusRow[] {
+    return message
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith('- '))
+        .map((line) => line.slice(2))
+        .map((line) => {
+            const separatorIndex = line.indexOf(':')
+            if (separatorIndex <= 0) {
+                return { label: line, value: '' }
+            }
+            return {
+                label: line.slice(0, separatorIndex).trim(),
+                value: line.slice(separatorIndex + 1).trim()
+            }
+        })
+}
+
+function isWideStatusField(label: string): boolean {
+    const normalized = label.toLowerCase()
+    return normalized.includes('rate limit')
+        || normalized.includes('login status')
+        || normalized.includes('native status warnings')
+}
+
+function parseRateLimitValue(value: string): { usedPercent: number | null; resetAt: string } {
+    const match = value.match(/^(\d+(?:\.\d+)?)%\s*,\s*resets at\s*(.+)$/i)
+    if (!match) {
+        return { usedPercent: null, resetAt: value }
+    }
+    return {
+        usedPercent: Number.parseFloat(match[1]),
+        resetAt: match[2] ?? ''
+    }
+}
+
+function getBooleanValueTone(value: string): 'yes' | 'no' | 'unknown' | null {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'yes') return 'yes'
+    if (normalized === 'no') return 'no'
+    if (normalized === 'unknown') return 'unknown'
+    return null
+}
 
 export function SessionChat(props: {
     api: ApiClient
@@ -42,12 +93,18 @@ export function SessionChat(props: {
     sidebarVisible?: boolean
     density?: SessionListDensity
 }) {
+    const { t } = useTranslation()
     const { haptic } = usePlatform()
     const navigate = useNavigate()
     const sessionInactive = !props.session.active
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
+    const [isCodexStatusDialogOpen, setIsCodexStatusDialogOpen] = useState(false)
+    const [isCodexStatusLoading, setIsCodexStatusLoading] = useState(false)
+    const [codexStatusMessage, setCodexStatusMessage] = useState('')
+    const [codexStatusError, setCodexStatusError] = useState<string | null>(null)
+    const codexStatusRows = useMemo(() => parseCodexStatusRows(codexStatusMessage), [codexStatusMessage])
     const agentFlavor = props.session.metadata?.flavor ?? null
     const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
         props.api,
@@ -153,6 +210,13 @@ export function SessionChat(props: {
         blocksByIdRef.current.clear()
     }, [props.session.id])
 
+    useEffect(() => {
+        setIsCodexStatusDialogOpen(false)
+        setIsCodexStatusLoading(false)
+        setCodexStatusMessage('')
+        setCodexStatusError(null)
+    }, [props.session.id])
+
     const normalizedMessages: NormalizedMessage[] = useMemo(() => {
         // Clear caches immediately when session changes (before useEffect runs)
         if (prevSessionIdRef.current !== null && prevSessionIdRef.current !== props.session.id) {
@@ -251,6 +315,38 @@ export function SessionChat(props: {
         setForceScrollToken((token) => token + 1)
     }, [props.onSend])
 
+    const handleCodexStatus = useCallback(() => {
+        if (agentFlavor !== 'codex') {
+            return
+        }
+
+        setIsCodexStatusDialogOpen(true)
+        setIsCodexStatusLoading(true)
+        setCodexStatusError(null)
+
+        void (async () => {
+            try {
+                const result = await props.api.getCodexStatus(props.session.id)
+                if (result.success) {
+                    setCodexStatusMessage(result.message ?? '')
+                    return
+                }
+
+                const errorMessage = result.error ?? t('codexStatus.dialog.fetchError')
+                setCodexStatusMessage('')
+                setCodexStatusError(errorMessage)
+                haptic.notification('error')
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : t('codexStatus.dialog.fetchError')
+                setCodexStatusMessage('')
+                setCodexStatusError(errorMessage)
+                haptic.notification('error')
+            } finally {
+                setIsCodexStatusLoading(false)
+            }
+        })()
+    }, [agentFlavor, props.api, props.session.id, t, haptic])
+
     const attachmentAdapter = useMemo(() => {
         if (!props.session.active) {
             return undefined
@@ -329,6 +425,7 @@ export function SessionChat(props: {
                         onModelModeChange={handleModelModeChange}
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
+                        onCodexStatus={agentFlavor === 'codex' ? handleCodexStatus : undefined}
                         autocompleteSuggestions={props.autocompleteSuggestions}
                         voiceStatus={voice?.status}
                         voiceMicMuted={voice?.micMuted}
@@ -337,6 +434,94 @@ export function SessionChat(props: {
                     />
                 </div>
             </AssistantRuntimeProvider>
+
+            <Dialog open={isCodexStatusDialogOpen} onOpenChange={setIsCodexStatusDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>{t('codexStatus.dialog.title')}</DialogTitle>
+                        <DialogDescription>{t('codexStatus.dialog.description')}</DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-3 max-h-[75vh] overflow-auto">
+                        {isCodexStatusLoading ? (
+                            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                {t('codexStatus.dialog.loading')}
+                            </div>
+                        ) : codexStatusError ? (
+                            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                {codexStatusError}
+                            </div>
+                        ) : codexStatusRows.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {codexStatusRows.map((row) => {
+                                    const rowKey = `${row.label}:${row.value}`
+                                    const isWide = isWideStatusField(row.label)
+                                    const booleanTone = getBooleanValueTone(row.value)
+                                    const isRateLimit = row.label.toLowerCase().includes('rate limit')
+                                    const rateLimit = isRateLimit ? parseRateLimitValue(row.value) : null
+                                    const usedPercent = rateLimit?.usedPercent ?? null
+                                    const progressToneClass = usedPercent === null
+                                        ? 'bg-[var(--app-border)]'
+                                        : usedPercent >= 85
+                                            ? 'bg-red-500'
+                                            : usedPercent >= 60
+                                                ? 'bg-amber-500'
+                                                : 'bg-emerald-500'
+                                    const booleanToneClass = booleanTone === 'yes'
+                                        ? 'bg-emerald-500/10 text-emerald-600'
+                                        : booleanTone === 'no'
+                                            ? 'bg-red-500/10 text-red-600'
+                                            : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+
+                                    return (
+                                        <div
+                                            key={rowKey}
+                                            className={`rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 ${isWide ? 'sm:col-span-2' : ''}`}
+                                        >
+                                            <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                {row.label}
+                                            </div>
+                                            {isRateLimit && rateLimit ? (
+                                                <div className="mt-2 space-y-2">
+                                                    <div className="flex items-center justify-between gap-3">
+                                                        <span className="text-sm font-semibold">
+                                                            {usedPercent === null ? t('codexStatus.dialog.empty') : `${usedPercent}%`}
+                                                        </span>
+                                                        <span className="text-xs text-[var(--app-hint)] break-all">
+                                                            {rateLimit.resetAt}
+                                                        </span>
+                                                    </div>
+                                                    {usedPercent !== null ? (
+                                                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--app-subtle-bg)]">
+                                                            <div
+                                                                className={`h-full rounded-full ${progressToneClass}`}
+                                                                style={{ width: `${Math.max(0, Math.min(100, usedPercent))}%` }}
+                                                            />
+                                                        </div>
+                                                    ) : null}
+                                                </div>
+                                            ) : booleanTone ? (
+                                                <div className="mt-2">
+                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${booleanToneClass}`}>
+                                                        {row.value}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-2 break-all text-sm font-mono text-[var(--app-fg)]">
+                                                    {row.value || t('codexStatus.dialog.empty')}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                {codexStatusMessage || t('codexStatus.dialog.empty')}
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Voice session component - renders nothing but initializes ElevenLabs */}
             {voice && (

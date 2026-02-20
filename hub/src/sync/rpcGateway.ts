@@ -44,6 +44,12 @@ export type RpcPathExistsResponse = {
     exists: Record<string, boolean>
 }
 
+export type RpcCodexStatusResponse = {
+    success: boolean
+    message?: string
+    error?: string
+}
+
 export class RpcGateway {
     constructor(
         private readonly io: Server,
@@ -169,6 +175,10 @@ export class RpcGateway {
 
     async getGitDiffFile(sessionId: string, options: { cwd?: string; filePath: string; staged?: boolean }): Promise<RpcCommandResponse> {
         return await this.sessionRpc(sessionId, 'git-diff-file', options) as RpcCommandResponse
+    }
+
+    async getCodexStatus(sessionId: string): Promise<RpcCodexStatusResponse> {
+        return await this.sessionRpc(sessionId, 'get-codex-status', {}) as RpcCodexStatusResponse
     }
 
     async readSessionFile(sessionId: string, path: string): Promise<RpcReadFileResponse> {

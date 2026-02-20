@@ -208,9 +208,17 @@ export default {
   'composer.abort': 'Abort',
   'composer.switchRemote': 'Switch to remote mode',
   'composer.attach': 'Attach file',
+  'composer.status': 'Codex status',
   'composer.send': 'Send',
   'composer.stop': 'Stop',
   'composer.voice': 'Voice assistant',
+
+  // Codex status dialog
+  'codexStatus.dialog.title': 'Codex status',
+  'codexStatus.dialog.description': 'Live status from current Codex session',
+  'codexStatus.dialog.loading': 'Loading Codex status…',
+  'codexStatus.dialog.fetchError': 'Failed to load Codex status',
+  'codexStatus.dialog.empty': 'No status data',
 
   // Voice assistant
   'voice.connecting': 'Connecting...',

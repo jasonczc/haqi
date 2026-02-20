@@ -125,6 +125,26 @@ function TerminalIcon() {
     )
 }
 
+function StatusIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <circle cx="12" cy="12" r="9" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <circle cx="12" cy="16" r="1" fill="currentColor" stroke="none" />
+        </svg>
+    )
+}
+
 function AttachmentIcon() {
     return (
         <svg
@@ -304,6 +324,9 @@ export function ComposerButtons(props: {
     showTerminalButton: boolean
     terminalDisabled: boolean
     onTerminal: () => void
+    showStatusButton: boolean
+    statusDisabled: boolean
+    onStatus: () => void
     showAbortButton: boolean
     abortDisabled: boolean
     isAborting: boolean
@@ -357,6 +380,19 @@ export function ComposerButtons(props: {
                         disabled={props.terminalDisabled}
                     >
                         <TerminalIcon />
+                    </button>
+                ) : null}
+
+                {props.showStatusButton ? (
+                    <button
+                        type="button"
+                        aria-label={t('composer.status')}
+                        title={t('composer.status')}
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={props.onStatus}
+                        disabled={props.statusDisabled}
+                    >
+                        <StatusIcon />
                     </button>
                 ) : null}
 

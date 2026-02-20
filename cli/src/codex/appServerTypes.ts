@@ -133,3 +133,56 @@ export interface TurnInterruptResponse {
     ok: boolean;
     [key: string]: unknown;
 }
+
+export interface AccountReadResponse {
+    account?: {
+        type?: string;
+        email?: string;
+        planType?: string;
+        [key: string]: unknown;
+    };
+    requiresOpenaiAuth?: boolean;
+    [key: string]: unknown;
+}
+
+export interface AuthStatusResponse {
+    authMethod?: string;
+    requiresOpenaiAuth?: boolean;
+    [key: string]: unknown;
+}
+
+export interface RateLimitWindow {
+    usedPercent?: number;
+    windowDurationMins?: number;
+    resetsAt?: number;
+    [key: string]: unknown;
+}
+
+export interface RateLimitCredits {
+    hasCredits?: boolean;
+    unlimited?: boolean;
+    balance?: string;
+    [key: string]: unknown;
+}
+
+export interface RateLimitEntry {
+    limitId?: string;
+    limitName?: string | null;
+    primary?: RateLimitWindow;
+    secondary?: RateLimitWindow;
+    credits?: RateLimitCredits | null;
+    planType?: string;
+    [key: string]: unknown;
+}
+
+export interface RateLimitsReadResponse {
+    rateLimits?: RateLimitEntry;
+    rateLimitsByLimitId?: Record<string, RateLimitEntry>;
+    [key: string]: unknown;
+}
+
+export interface ConfigReadResponse {
+    config?: Record<string, unknown>;
+    origins?: Record<string, unknown>;
+    [key: string]: unknown;
+}

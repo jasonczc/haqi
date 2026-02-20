@@ -210,9 +210,17 @@ export default {
   'composer.abort': '中止',
   'composer.switchRemote': '切换到远程模式',
   'composer.attach': '添加文件',
+  'composer.status': 'Codex 状态',
   'composer.send': '发送',
   'composer.stop': '停止',
   'composer.voice': '语音助手',
+
+  // Codex 状态弹窗
+  'codexStatus.dialog.title': 'Codex 状态',
+  'codexStatus.dialog.description': '当前 Codex 会话的实时状态信息',
+  'codexStatus.dialog.loading': '正在加载 Codex 状态…',
+  'codexStatus.dialog.fetchError': '加载 Codex 状态失败',
+  'codexStatus.dialog.empty': '暂无状态数据',
 
   // Voice assistant
   'voice.connecting': '连接中...',

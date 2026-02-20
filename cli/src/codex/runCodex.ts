@@ -12,6 +12,7 @@ import { isPermissionModeAllowedForFlavor } from '@hapi/protocol';
 import { PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import type { ReasoningEffort } from './appServerTypes';
+import { buildCodexStatusMessage, isCodexStatusCommand } from './utils/codexStatusCommand';
 
 export { emitReadyIfIdle } from './utils/emitReadyIfIdle';
 
@@ -75,7 +76,42 @@ export async function runCodex(opts: {
         logger.debug(`[Codex] Synced session permission mode for keepalive: ${currentPermissionMode}`);
     };
 
+    const getCodexStatusMessage = async (): Promise<string> => {
+        const sessionInstance = sessionWrapperRef.current;
+        return await buildCodexStatusMessage({
+            cwd: workingDirectory,
+            mode: sessionInstance?.mode ?? startingMode,
+            sessionId: sessionInstance?.sessionId ?? null,
+            permissionMode: currentPermissionMode,
+            collaborationMode: currentCollaborationMode
+        });
+    };
+
     session.onUserMessage((message) => {
+        if (isCodexStatusCommand(message.content.text)) {
+            logger.debug('[Codex] Detected /status command');
+            void (async () => {
+                try {
+                    const statusMessage = await getCodexStatusMessage();
+                    session.sendCodexMessage({
+                        type: 'message',
+                        message: statusMessage
+                    });
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    session.sendCodexMessage({
+                        type: 'message',
+                        message: `Failed to get Codex status: ${message}`
+                    });
+                } finally {
+                    if (!sessionWrapperRef.current?.thinking) {
+                        session.sendSessionEvent({ type: 'ready' });
+                    }
+                }
+            })();
+            return;
+        }
+
         const messagePermissionMode = currentPermissionMode;
         logger.debug(`[Codex] User message received with permission mode: ${currentPermissionMode}`);
 
@@ -135,6 +171,16 @@ export async function runCodex(opts: {
 
         syncSessionMode();
         return { applied: { permissionMode: currentPermissionMode, collaborationMode: currentCollaborationMode } };
+    });
+
+    session.rpcHandlerManager.registerHandler('get-codex-status', async () => {
+        try {
+            const message = await getCodexStatusMessage();
+            return { success: true, message };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message };
+        }
     });
 
     try {
