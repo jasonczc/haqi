@@ -14,6 +14,9 @@ import { RpcHandlerManager } from './rpc/RpcHandlerManager'
 import { registerCommonHandlers } from '../modules/common/registerCommonHandlers'
 import type { SpawnSessionOptions, SpawnSessionResult } from '../modules/common/rpcTypes'
 import { applyVersionedAck } from './versionedUpdate'
+import { maybeAutoStartServer } from '@/utils/autoStartServer'
+
+const LOCAL_HUB_RECOVERY_MIN_INTERVAL_MS = 10_000
 
 interface ServerToRunnerEvents {
     update: (data: Update) => void
@@ -67,6 +70,8 @@ export class ApiMachineClient {
     private socket!: Socket<ServerToRunnerEvents, RunnerToServerEvents>
     private keepAliveInterval: NodeJS.Timeout | null = null
     private rpcHandlerManager: RpcHandlerManager
+    private isRecoveringLocalHub = false
+    private lastLocalHubRecoveryAttemptAt = 0
 
     constructor(
         private readonly token: string,
@@ -264,6 +269,7 @@ export class ApiMachineClient {
             logger.debug('[API MACHINE] Disconnected from bot')
             this.rpcHandlerManager.onSocketDisconnect()
             this.stopKeepAlive()
+            this.tryRecoverLocalHub('disconnect')
         })
 
         this.socket.on('rpc-request', async (data: { method: string; params: string }, callback: (response: string) => void) => {
@@ -308,11 +314,35 @@ export class ApiMachineClient {
 
         this.socket.on('connect_error', (error) => {
             logger.debug(`[API MACHINE] Connection error: ${error.message}`)
+            this.tryRecoverLocalHub(`connect_error:${error.message}`)
         })
 
         this.socket.on('error', (payload) => {
             logger.debug('[API MACHINE] Socket error:', payload)
         })
+    }
+
+    private tryRecoverLocalHub(reason: string): void {
+        if (this.isRecoveringLocalHub) {
+            return
+        }
+
+        const now = Date.now()
+        if (now - this.lastLocalHubRecoveryAttemptAt < LOCAL_HUB_RECOVERY_MIN_INTERVAL_MS) {
+            return
+        }
+
+        this.isRecoveringLocalHub = true
+        this.lastLocalHubRecoveryAttemptAt = now
+
+        // Only local/default setups pass maybeAutoStartServer pre-checks.
+        void maybeAutoStartServer()
+            .catch((error) => {
+                logger.debug(`[API MACHINE] Local hub recovery failed (${reason})`, error)
+            })
+            .finally(() => {
+                this.isRecoveringLocalHub = false
+            })
     }
 
     private startKeepAlive(): void {
