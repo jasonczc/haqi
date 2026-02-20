@@ -30,6 +30,47 @@ function resolveEnvNumber(name: string, fallback: number): number {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
+function normalizeOrigin(origin: string): string {
+    try {
+        return new URL(origin).origin
+    } catch {
+        return origin
+    }
+}
+
+function resolveRequestOrigins(req: Request): Set<string> {
+    const origins = new Set<string>()
+    try {
+        origins.add(new URL(req.url).origin)
+    } catch {
+        // ignore malformed URL
+    }
+
+    const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
+    if (!host) {
+        return origins
+    }
+
+    const forwardedProtoHeader = req.headers.get('x-forwarded-proto')
+    const forwardedProtos = forwardedProtoHeader
+        ? forwardedProtoHeader.split(',').map((value) => value.trim()).filter(Boolean)
+        : []
+
+    const protoCandidates = new Set<string>(forwardedProtos)
+    for (const fallback of ['https', 'http']) {
+        protoCandidates.add(fallback)
+    }
+
+    for (const proto of protoCandidates) {
+        if (proto !== 'https' && proto !== 'http') {
+            continue
+        }
+        origins.add(`${proto}://${host}`)
+    }
+
+    return origins
+}
+
 export type SocketServerDeps = {
     store: Store
     jwtSecret: Uint8Array
@@ -64,7 +105,24 @@ export function createSocketServer(deps: SocketServerDeps): {
         cors: corsOptions,
         allowRequest: async (req) => {
             const origin = req.headers.get('origin')
-            if (!origin || allowAllOrigins || corsOrigins.includes(origin)) {
+            if (!origin || allowAllOrigins) {
+                return
+            }
+
+            // Browsers mark same-origin XHR/fetch requests explicitly.
+            // This avoids false negatives behind reverse proxies that rewrite Host.
+            const fetchSite = req.headers.get('sec-fetch-site')
+            if (fetchSite === 'same-origin') {
+                return
+            }
+
+            const normalizedOrigin = normalizeOrigin(origin)
+            if (corsOrigins.includes(normalizedOrigin)) {
+                return
+            }
+
+            const requestOrigins = resolveRequestOrigins(req)
+            if (requestOrigins.has(normalizedOrigin)) {
                 return
             }
             throw 'Origin not allowed'

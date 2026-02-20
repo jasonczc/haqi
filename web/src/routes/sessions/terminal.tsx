@@ -200,6 +200,7 @@ export default function TerminalPage() {
     const [altActive, setAltActive] = useState(false)
     const [pasteDialogOpen, setPasteDialogOpen] = useState(false)
     const [manualPasteText, setManualPasteText] = useState('')
+    const hasValidSize = useCallback((cols: number, rows: number) => cols > 0 && rows > 0, [])
 
     const {
         state: terminalState,
@@ -263,6 +264,9 @@ export default function TerminalPage() {
 
     const handleResize = useCallback(
         (cols: number, rows: number) => {
+            if (!hasValidSize(cols, rows)) {
+                return
+            }
             lastSizeRef.current = { cols, rows }
             if (!session?.active) {
                 return
@@ -274,11 +278,11 @@ export default function TerminalPage() {
                 resize(cols, rows)
             }
         },
-        [session?.active, connect, resize]
+        [session?.active, connect, resize, hasValidSize]
     )
 
     useEffect(() => {
-        if (!session?.active) {
+        if (!session?.active || !token) {
             return
         }
         if (connectOnceRef.current) {
@@ -288,9 +292,12 @@ export default function TerminalPage() {
         if (!size) {
             return
         }
+        if (!hasValidSize(size.cols, size.rows)) {
+            return
+        }
         connectOnceRef.current = true
         connect(size.cols, size.rows)
-    }, [session?.active, connect])
+    }, [session?.active, token, connect, hasValidSize])
 
     useEffect(() => {
         connectOnceRef.current = false

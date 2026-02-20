@@ -4,6 +4,9 @@ import { I18nProvider } from '@/lib/i18n-context'
 import TerminalPage from './terminal'
 
 const writeMock = vi.fn()
+const connectMock = vi.fn()
+const resizeMock = vi.fn()
+const disconnectMock = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
     useParams: () => ({ sessionId: 'session-1' })
@@ -34,10 +37,10 @@ vi.mock('@/hooks/queries/useSession', () => ({
 vi.mock('@/hooks/useTerminalSocket', () => ({
     useTerminalSocket: () => ({
         state: { status: 'connected' as const },
-        connect: vi.fn(),
+        connect: connectMock,
         write: writeMock,
-        resize: vi.fn(),
-        disconnect: vi.fn(),
+        resize: resizeMock,
+        disconnect: disconnectMock,
         onOutput: vi.fn(),
         onExit: vi.fn()
     })
@@ -50,7 +53,12 @@ vi.mock('@/hooks/useLongPress', () => ({
 }))
 
 vi.mock('@/components/Terminal/TerminalView', () => ({
-    TerminalView: () => <div data-testid="terminal-view" />
+    TerminalView: (props: { onResize: (cols: number, rows: number) => void }) => (
+        <div data-testid="terminal-view">
+            <button type="button" onClick={() => props.onResize(0, 0)}>resize-zero</button>
+            <button type="button" onClick={() => props.onResize(120, 30)}>resize-valid</button>
+        </div>
+    )
 }))
 
 function renderWithProviders() {
@@ -96,5 +104,16 @@ describe('TerminalPage paste behavior', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Paste' })[0])
 
         expect(await screen.findByText('Paste input')).toBeInTheDocument()
+    })
+
+    it('waits for valid terminal size before connecting', async () => {
+        renderWithProviders()
+
+        fireEvent.click(screen.getByRole('button', { name: 'resize-zero' }))
+        expect(connectMock).not.toHaveBeenCalled()
+
+        fireEvent.click(screen.getByRole('button', { name: 'resize-valid' }))
+        expect(connectMock).toHaveBeenCalledTimes(1)
+        expect(connectMock).toHaveBeenCalledWith(120, 30)
     })
 })
