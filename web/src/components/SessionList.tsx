@@ -201,7 +201,7 @@ const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div
             <div
                 {...props}
                 ref={ref}
-                className={`desktop-scrollbar-left ${props.className ?? ''}`.trim()}
+                className={`desktop-scrollbar-left app-scrollbar ${props.className ?? ''}`.trim()}
             />
         )
     }

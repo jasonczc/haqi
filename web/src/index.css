@@ -43,6 +43,10 @@
     --app-badge-error-text: #b91c1c;
     --app-badge-error-border: rgba(239, 68, 68, 0.3);
 
+    /* Scrollbar (light) */
+    --app-scrollbar-thumb: rgba(17, 24, 39, 0.22);
+    --app-scrollbar-thumb-hover: rgba(17, 24, 39, 0.34);
+
     --app-font-scale: 1;
 }
 
@@ -87,6 +91,10 @@
     --app-badge-error-bg: rgba(248, 113, 113, 0.2);
     --app-badge-error-text: #fca5a5;
     --app-badge-error-border: rgba(248, 113, 113, 0.35);
+
+    /* Scrollbar (dark) */
+    --app-scrollbar-thumb: rgba(255, 255, 255, 0.24);
+    --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
 }
 
 html {
@@ -130,6 +138,36 @@ body {
     .desktop-scrollbar-left > * {
         direction: ltr;
     }
+}
+
+/* Unified slim scrollbar style for session list + chat content */
+.app-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-scrollbar-thumb) transparent;
+}
+
+.app-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.app-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.app-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    background-color: var(--app-scrollbar-thumb);
+}
+
+.app-scrollbar:hover::-webkit-scrollbar-thumb {
+    background-color: var(--app-scrollbar-thumb-hover);
+}
+
+.app-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
 }
 
 /* Markdown styles */
