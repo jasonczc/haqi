@@ -5,6 +5,11 @@ type ConvertedEvent = {
     [key: string]: unknown;
 };
 
+type GenericToolMeta = {
+    name: string;
+    input: unknown;
+};
+
 function asRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object') {
         return null;
@@ -22,6 +27,31 @@ function asBoolean(value: unknown): boolean | null {
 
 function asNumber(value: unknown): number | null {
     return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function asStringArray(value: unknown): string[] | null {
+    if (!Array.isArray(value)) return null;
+    const values = value.filter((part): part is string => typeof part === 'string' && part.length > 0);
+    return values.length > 0 ? values : null;
+}
+
+function joinStringParts(value: unknown): string | null {
+    if (typeof value === 'string' && value.length > 0) return value;
+
+    const values = asStringArray(value);
+    if (!values) return null;
+
+    return values.join('\n\n');
+}
+
+function extractErrorMessage(value: unknown): string | null {
+    const direct = asString(value);
+    if (direct) return direct;
+
+    const record = asRecord(value);
+    if (!record) return null;
+
+    return asString(record.message ?? record.error ?? record.reason);
 }
 
 function extractItemId(params: Record<string, unknown>): string | null {
@@ -57,9 +87,6 @@ function extractCommand(value: unknown): string | null {
 }
 
 function extractChanges(value: unknown): Record<string, unknown> | null {
-    const record = asRecord(value);
-    if (record) return record;
-
     if (Array.isArray(value)) {
         const changes: Record<string, unknown> = {};
         for (const entry of value) {
@@ -73,15 +100,95 @@ function extractChanges(value: unknown): Record<string, unknown> | null {
         return Object.keys(changes).length > 0 ? changes : null;
     }
 
+    const record = asRecord(value);
+    if (record) return record;
+
+    return null;
+}
+
+function sanitizeToolPart(value: unknown): string {
+    const raw = asString(value) ?? 'unknown';
+    const sanitized = raw
+        .trim()
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .toLowerCase();
+
+    return sanitized.length > 0 ? sanitized : 'unknown';
+}
+
+function buildMcpToolName(server: unknown, tool: unknown): string {
+    return `mcp__${sanitizeToolPart(server)}__${sanitizeToolPart(tool)}`;
+}
+
+function toSnakeCase(value: unknown): string {
+    const raw = asString(value) ?? 'tool';
+    const withUnderscores = raw
+        .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .toLowerCase();
+
+    return withUnderscores.length > 0 ? withUnderscores : 'tool';
+}
+
+function isCompletedStatus(status: unknown): boolean | null {
+    const value = asString(status);
+    if (!value) return null;
+
+    const normalized = value.toLowerCase();
+    if (normalized === 'completed' || normalized === 'complete' || normalized === 'success' || normalized === 'succeeded' || normalized === 'applied') {
+        return true;
+    }
+    if (normalized === 'failed' || normalized === 'declined' || normalized === 'error' || normalized === 'canceled' || normalized === 'cancelled') {
+        return false;
+    }
+
     return null;
 }
 
 export class AppServerEventConverter {
     private readonly agentMessageBuffers = new Map<string, string>();
-    private readonly reasoningBuffers = new Map<string, string>();
+    private readonly reasoningSummaryBuffers = new Map<string, string>();
+    private readonly reasoningContentBuffers = new Map<string, string>();
+    private readonly planBuffers = new Map<string, string>();
+
     private readonly commandOutputBuffers = new Map<string, string>();
+    private readonly commandInputBuffers = new Map<string, string[]>();
+    private readonly fileChangeOutputBuffers = new Map<string, string>();
+
     private readonly commandMeta = new Map<string, Record<string, unknown>>();
     private readonly fileChangeMeta = new Map<string, Record<string, unknown>>();
+    private readonly genericToolMeta = new Map<string, GenericToolMeta>();
+    private readonly genericToolProgress = new Map<string, string[]>();
+
+    private beginGenericToolCall(events: ConvertedEvent[], itemId: string, name: string, input: unknown): void {
+        this.genericToolMeta.set(itemId, { name, input });
+        events.push({
+            type: 'tool_call_begin',
+            call_id: itemId,
+            name,
+            input
+        });
+    }
+
+    private completeGenericToolCall(events: ConvertedEvent[], itemId: string, fallbackName: string, output: Record<string, unknown>): void {
+        const meta = this.genericToolMeta.get(itemId);
+        const progress = this.genericToolProgress.get(itemId);
+        if (progress && progress.length > 0) {
+            output.progress = progress;
+        }
+
+        events.push({
+            type: 'tool_call_end',
+            call_id: itemId,
+            name: meta?.name ?? fallbackName,
+            output
+        });
+
+        this.genericToolMeta.delete(itemId);
+        this.genericToolProgress.delete(itemId);
+    }
 
     handleNotification(method: string, params: unknown): ConvertedEvent[] {
         const events: ConvertedEvent[] = [];
@@ -93,6 +200,17 @@ export class AppServerEventConverter {
             if (threadId) {
                 events.push({ type: 'thread_started', thread_id: threadId });
             }
+            return events;
+        }
+
+        if (method === 'thread/compacted') {
+            const threadId = asString(paramsRecord.threadId ?? paramsRecord.thread_id);
+            const turnId = asString(paramsRecord.turnId ?? paramsRecord.turn_id);
+            events.push({
+                type: 'context_compacted',
+                ...(threadId ? { thread_id: threadId } : {}),
+                ...(turnId ? { turn_id: turnId } : {})
+            });
             return events;
         }
 
@@ -108,7 +226,10 @@ export class AppServerEventConverter {
             const statusRaw = asString(paramsRecord.status ?? turn.status);
             const status = statusRaw?.toLowerCase();
             const turnId = asString(turn.turnId ?? turn.turn_id ?? turn.id);
-            const errorMessage = asString(paramsRecord.error ?? paramsRecord.message ?? paramsRecord.reason);
+            const errorMessage = extractErrorMessage(paramsRecord.error)
+                ?? extractErrorMessage(paramsRecord.message)
+                ?? extractErrorMessage(paramsRecord.reason)
+                ?? extractErrorMessage(asRecord(turn.error)?.message ?? turn.error);
 
             if (status === 'interrupted' || status === 'cancelled' || status === 'canceled') {
                 events.push({ type: 'turn_aborted', ...(turnId ? { turn_id: turnId } : {}) });
@@ -132,6 +253,30 @@ export class AppServerEventConverter {
             return events;
         }
 
+        if (method === 'turn/plan/updated') {
+            const explanation = asString(paramsRecord.explanation);
+            const plan = Array.isArray(paramsRecord.plan) ? paramsRecord.plan : [];
+            events.push({
+                type: 'turn_plan_updated',
+                ...(explanation ? { explanation } : {}),
+                plan
+            });
+            return events;
+        }
+
+        if (method === 'model/rerouted') {
+            const fromModel = asString(paramsRecord.fromModel ?? paramsRecord.from_model);
+            const toModel = asString(paramsRecord.toModel ?? paramsRecord.to_model);
+            const reason = asString(paramsRecord.reason);
+            events.push({
+                type: 'model_rerouted',
+                ...(fromModel ? { from_model: fromModel } : {}),
+                ...(toModel ? { to_model: toModel } : {}),
+                ...(reason ? { reason } : {})
+            });
+            return events;
+        }
+
         if (method === 'thread/tokenUsage/updated') {
             const info = asRecord(paramsRecord.tokenUsage ?? paramsRecord.token_usage ?? paramsRecord) ?? {};
             events.push({ type: 'token_count', info });
@@ -141,7 +286,9 @@ export class AppServerEventConverter {
         if (method === 'error') {
             const willRetry = asBoolean(paramsRecord.will_retry ?? paramsRecord.willRetry) ?? false;
             if (willRetry) return events;
-            const message = asString(paramsRecord.message) ?? asString(asRecord(paramsRecord.error)?.message);
+            const message = extractErrorMessage(paramsRecord.message)
+                ?? extractErrorMessage(paramsRecord.error)
+                ?? extractErrorMessage(paramsRecord);
             if (message) {
                 events.push({ type: 'task_failed', error: message });
             }
@@ -158,19 +305,46 @@ export class AppServerEventConverter {
             return events;
         }
 
-        if (method === 'item/reasoning/textDelta') {
+        if (method === 'item/plan/delta') {
+            const itemId = extractItemId(paramsRecord) ?? 'plan';
+            const delta = asString(paramsRecord.delta ?? paramsRecord.text ?? paramsRecord.message);
+            if (delta) {
+                const prev = this.planBuffers.get(itemId) ?? '';
+                this.planBuffers.set(itemId, prev + delta);
+                events.push({ type: 'plan_delta', item_id: itemId, delta });
+            }
+            return events;
+        }
+
+        if (method === 'item/reasoning/textDelta' || method === 'item/reasoning/summaryTextDelta') {
             const itemId = extractItemId(paramsRecord) ?? 'reasoning';
             const delta = asString(paramsRecord.delta ?? paramsRecord.text ?? paramsRecord.message);
             if (delta) {
-                const prev = this.reasoningBuffers.get(itemId) ?? '';
-                this.reasoningBuffers.set(itemId, prev + delta);
-                events.push({ type: 'agent_reasoning_delta', delta });
+                if (method === 'item/reasoning/summaryTextDelta') {
+                    const prev = this.reasoningSummaryBuffers.get(itemId) ?? '';
+                    this.reasoningSummaryBuffers.set(itemId, prev + delta);
+                } else {
+                    const prev = this.reasoningContentBuffers.get(itemId) ?? '';
+                    this.reasoningContentBuffers.set(itemId, prev + delta);
+                }
+
+                events.push({
+                    type: 'agent_reasoning_delta',
+                    item_id: itemId,
+                    delta
+                });
             }
             return events;
         }
 
         if (method === 'item/reasoning/summaryPartAdded') {
-            events.push({ type: 'agent_reasoning_section_break' });
+            const itemId = extractItemId(paramsRecord);
+            const summaryIndex = asNumber(paramsRecord.summaryIndex ?? paramsRecord.summary_index);
+            events.push({
+                type: 'agent_reasoning_section_break',
+                ...(itemId ? { item_id: itemId } : {}),
+                ...(summaryIndex !== null ? { summary_index: summaryIndex } : {})
+            });
             return events;
         }
 
@@ -180,6 +354,53 @@ export class AppServerEventConverter {
             if (itemId && delta) {
                 const prev = this.commandOutputBuffers.get(itemId) ?? '';
                 this.commandOutputBuffers.set(itemId, prev + delta);
+            }
+            return events;
+        }
+
+        if (method === 'item/commandExecution/terminalInteraction') {
+            const itemId = extractItemId(paramsRecord);
+            const stdin = asString(paramsRecord.stdin);
+            const processId = asString(paramsRecord.processId ?? paramsRecord.process_id);
+
+            if (itemId && stdin) {
+                const prev = this.commandInputBuffers.get(itemId) ?? [];
+                prev.push(stdin);
+                this.commandInputBuffers.set(itemId, prev);
+
+                events.push({
+                    type: 'exec_command_terminal_input',
+                    call_id: itemId,
+                    stdin,
+                    ...(processId ? { process_id: processId } : {})
+                });
+            }
+            return events;
+        }
+
+        if (method === 'item/fileChange/outputDelta') {
+            const itemId = extractItemId(paramsRecord);
+            const delta = asString(paramsRecord.delta ?? paramsRecord.text ?? paramsRecord.output ?? paramsRecord.stdout);
+            if (itemId && delta) {
+                const prev = this.fileChangeOutputBuffers.get(itemId) ?? '';
+                this.fileChangeOutputBuffers.set(itemId, prev + delta);
+            }
+            return events;
+        }
+
+        if (method === 'item/mcpToolCall/progress') {
+            const itemId = extractItemId(paramsRecord);
+            const message = asString(paramsRecord.message ?? paramsRecord.delta ?? paramsRecord.text);
+            if (itemId && message) {
+                const prev = this.genericToolProgress.get(itemId) ?? [];
+                prev.push(message);
+                this.genericToolProgress.set(itemId, prev);
+
+                events.push({
+                    type: 'tool_call_progress',
+                    call_id: itemId,
+                    message
+                });
             }
             return events;
         }
@@ -208,11 +429,21 @@ export class AppServerEventConverter {
 
             if (itemType === 'reasoning') {
                 if (method === 'item/completed') {
-                    const text = asString(item.text ?? item.message ?? item.content) ?? this.reasoningBuffers.get(itemId);
+                    const summary = joinStringParts(item.summary) ?? this.reasoningSummaryBuffers.get(itemId);
+                    const content = joinStringParts(item.content)
+                        ?? asString(item.text ?? item.message)
+                        ?? this.reasoningContentBuffers.get(itemId);
+
+                    const text = summary && content && summary !== content
+                        ? `${summary}\n\n${content}`
+                        : (summary ?? content);
+
                     if (text) {
                         events.push({ type: 'agent_reasoning', text });
                     }
-                    this.reasoningBuffers.delete(itemId);
+
+                    this.reasoningSummaryBuffers.delete(itemId);
+                    this.reasoningContentBuffers.delete(itemId);
                 }
                 return events;
             }
@@ -222,9 +453,16 @@ export class AppServerEventConverter {
                     const command = extractCommand(item.command ?? item.cmd ?? item.args);
                     const cwd = asString(item.cwd ?? item.workingDirectory ?? item.working_directory);
                     const autoApproved = asBoolean(item.autoApproved ?? item.auto_approved);
+                    const processId = asString(item.processId ?? item.process_id);
+                    const commandActions = Array.isArray(item.commandActions ?? item.command_actions)
+                        ? item.commandActions ?? item.command_actions
+                        : null;
+
                     const meta: Record<string, unknown> = {};
                     if (command) meta.command = command;
                     if (cwd) meta.cwd = cwd;
+                    if (processId) meta.process_id = processId;
+                    if (commandActions) meta.command_actions = commandActions;
                     if (autoApproved !== null) meta.auto_approved = autoApproved;
                     this.commandMeta.set(itemId, meta);
 
@@ -237,11 +475,14 @@ export class AppServerEventConverter {
 
                 if (method === 'item/completed') {
                     const meta = this.commandMeta.get(itemId) ?? {};
-                    const output = asString(item.output ?? item.result ?? item.stdout) ?? this.commandOutputBuffers.get(itemId);
+                    const output = asString(item.output ?? item.result ?? item.stdout ?? item.aggregatedOutput ?? item.aggregated_output)
+                        ?? this.commandOutputBuffers.get(itemId);
                     const stderr = asString(item.stderr);
-                    const error = asString(item.error);
+                    const error = extractErrorMessage(item.error);
                     const exitCode = asNumber(item.exitCode ?? item.exit_code ?? item.exitcode);
                     const status = asString(item.status);
+                    const durationMs = asNumber(item.durationMs ?? item.duration_ms);
+                    const terminalInputs = this.commandInputBuffers.get(itemId);
 
                     events.push({
                         type: 'exec_command_end',
@@ -251,11 +492,14 @@ export class AppServerEventConverter {
                         ...(stderr ? { stderr } : {}),
                         ...(error ? { error } : {}),
                         ...(exitCode !== null ? { exit_code: exitCode } : {}),
-                        ...(status ? { status } : {})
+                        ...(status ? { status } : {}),
+                        ...(durationMs !== null ? { duration_ms: durationMs } : {}),
+                        ...(terminalInputs && terminalInputs.length > 0 ? { terminal_input: terminalInputs } : {})
                     });
 
                     this.commandMeta.delete(itemId);
                     this.commandOutputBuffers.delete(itemId);
+                    this.commandInputBuffers.delete(itemId);
                 }
 
                 return events;
@@ -279,9 +523,12 @@ export class AppServerEventConverter {
 
                 if (method === 'item/completed') {
                     const meta = this.fileChangeMeta.get(itemId) ?? {};
-                    const stdout = asString(item.stdout ?? item.output);
+                    const stdout = asString(item.stdout ?? item.output) ?? this.fileChangeOutputBuffers.get(itemId);
                     const stderr = asString(item.stderr);
-                    const success = asBoolean(item.success ?? item.ok ?? item.applied ?? item.status === 'completed');
+                    const status = asString(item.status);
+                    const explicitSuccess = asBoolean(item.success ?? item.ok ?? item.applied);
+                    const statusSuccess = isCompletedStatus(status);
+                    const success = explicitSuccess ?? statusSuccess ?? false;
 
                     events.push({
                         type: 'patch_apply_end',
@@ -289,14 +536,208 @@ export class AppServerEventConverter {
                         ...meta,
                         ...(stdout ? { stdout } : {}),
                         ...(stderr ? { stderr } : {}),
-                        success: success ?? false
+                        ...(status ? { status } : {}),
+                        success
                     });
 
                     this.fileChangeMeta.delete(itemId);
+                    this.fileChangeOutputBuffers.delete(itemId);
                 }
 
                 return events;
             }
+
+            if (itemType === 'plan') {
+                const text = asString(item.text) ?? this.planBuffers.get(itemId);
+                const status = asString(item.status);
+
+                if (method === 'item/started') {
+                    this.beginGenericToolCall(events, itemId, 'ExitPlanMode', {
+                        ...(text ? { text } : {}),
+                        ...(status ? { status } : {})
+                    });
+                }
+
+                if (method === 'item/completed') {
+                    this.completeGenericToolCall(events, itemId, 'ExitPlanMode', {
+                        ...(text ? { text } : {}),
+                        ...(status ? { status } : {})
+                    });
+                    this.planBuffers.delete(itemId);
+                }
+
+                return events;
+            }
+
+            if (itemType === 'websearch') {
+                const query = asString(item.query);
+                const action = item.action;
+                const status = asString(item.status);
+
+                if (method === 'item/started') {
+                    this.beginGenericToolCall(events, itemId, 'WebSearch', {
+                        ...(query ? { query } : {}),
+                        ...(action !== undefined ? { action } : {})
+                    });
+                }
+
+                if (method === 'item/completed') {
+                    this.completeGenericToolCall(events, itemId, 'WebSearch', {
+                        ...(query ? { query } : {}),
+                        ...(action !== undefined ? { action } : {}),
+                        ...(status ? { status } : {})
+                    });
+                }
+
+                return events;
+            }
+
+            if (itemType === 'mcptoolcall') {
+                const server = asString(item.server);
+                const tool = asString(item.tool);
+                const status = asString(item.status);
+                const name = buildMcpToolName(server, tool);
+
+                if (method === 'item/started') {
+                    this.beginGenericToolCall(events, itemId, name, {
+                        ...(server ? { server } : {}),
+                        ...(tool ? { tool } : {}),
+                        ...(status ? { status } : {}),
+                        arguments: item.arguments
+                    });
+                }
+
+                if (method === 'item/completed') {
+                    const durationMs = asNumber(item.durationMs ?? item.duration_ms);
+                    const error = extractErrorMessage(item.error);
+                    this.completeGenericToolCall(events, itemId, name, {
+                        ...(status ? { status } : {}),
+                        ...(durationMs !== null ? { duration_ms: durationMs } : {}),
+                        ...(item.result !== undefined ? { result: item.result } : {}),
+                        ...(error ? { error } : {}),
+                        ...(item.error && !error ? { error: item.error } : {})
+                    });
+                }
+
+                return events;
+            }
+
+            if (itemType === 'collabagenttoolcall') {
+                const tool = asString(item.tool);
+                const name = toSnakeCase(tool ?? 'collab_tool_call');
+                const status = asString(item.status);
+
+                const payload = {
+                    ...(tool ? { tool } : {}),
+                    ...(status ? { status } : {}),
+                    ...(asString(item.senderThreadId ?? item.sender_thread_id) ? { sender_thread_id: asString(item.senderThreadId ?? item.sender_thread_id) } : {}),
+                    ...(Array.isArray(item.receiverThreadIds ?? item.receiver_thread_ids)
+                        ? { receiver_thread_ids: item.receiverThreadIds ?? item.receiver_thread_ids }
+                        : {}),
+                    ...(asString(item.prompt) ? { prompt: asString(item.prompt) } : {}),
+                    ...(asRecord(item.agentsStates ?? item.agents_states) ? { agents_states: asRecord(item.agentsStates ?? item.agents_states) } : {})
+                };
+
+                if (method === 'item/started') {
+                    this.beginGenericToolCall(events, itemId, name, payload);
+                }
+
+                if (method === 'item/completed') {
+                    this.completeGenericToolCall(events, itemId, name, payload);
+                }
+
+                return events;
+            }
+
+            if (itemType === 'imageview') {
+                const path = asString(item.path);
+
+                if (method === 'item/started') {
+                    this.beginGenericToolCall(events, itemId, 'ImageView', {
+                        ...(path ? { path } : {})
+                    });
+                }
+
+                if (method === 'item/completed') {
+                    this.completeGenericToolCall(events, itemId, 'ImageView', {
+                        ...(path ? { path } : {})
+                    });
+                }
+
+                return events;
+            }
+
+            if (itemType === 'enteredreviewmode') {
+                const review = asString(item.review);
+
+                if (method === 'item/started') {
+                    this.beginGenericToolCall(events, itemId, 'CodexReviewEnter', {
+                        ...(review ? { review } : {})
+                    });
+                }
+
+                if (method === 'item/completed') {
+                    this.completeGenericToolCall(events, itemId, 'CodexReviewEnter', {
+                        ...(review ? { review } : {})
+                    });
+                }
+
+                return events;
+            }
+
+            if (itemType === 'exitedreviewmode') {
+                const review = asString(item.review);
+
+                if (method === 'item/started') {
+                    this.beginGenericToolCall(events, itemId, 'CodexReviewExit', {
+                        ...(review ? { review } : {})
+                    });
+                }
+
+                if (method === 'item/completed') {
+                    this.completeGenericToolCall(events, itemId, 'CodexReviewExit', {
+                        ...(review ? { review } : {})
+                    });
+                }
+
+                return events;
+            }
+
+            if (itemType === 'contextcompaction') {
+                if (method === 'item/started') {
+                    this.beginGenericToolCall(events, itemId, 'ContextCompaction', {});
+                }
+
+                if (method === 'item/completed') {
+                    this.completeGenericToolCall(events, itemId, 'ContextCompaction', {});
+                }
+
+                return events;
+            }
+        }
+
+        if (
+            method === 'rawResponseItem/completed'
+            || method === 'account/updated'
+            || method === 'account/rateLimits/updated'
+            || method === 'app/list/updated'
+            || method === 'mcpServer/oauthLogin/completed'
+            || method === 'deprecationNotice'
+            || method === 'configWarning'
+            || method === 'fuzzyFileSearch/sessionUpdated'
+            || method === 'fuzzyFileSearch/sessionCompleted'
+            || method === 'windows/worldWritableWarning'
+            || method === 'windowsSandbox/setupCompleted'
+            || method === 'account/login/completed'
+            || method === 'authStatusChange'
+            || method === 'loginChatGptComplete'
+            || method === 'sessionConfigured'
+            || method === 'thread/status/changed'
+            || method === 'thread/archived'
+            || method === 'thread/unarchived'
+            || method === 'thread/name/updated'
+        ) {
+            return events;
         }
 
         logger.debug('[AppServerEventConverter] Unhandled notification', { method, params });
@@ -305,9 +746,17 @@ export class AppServerEventConverter {
 
     reset(): void {
         this.agentMessageBuffers.clear();
-        this.reasoningBuffers.clear();
+        this.reasoningSummaryBuffers.clear();
+        this.reasoningContentBuffers.clear();
+        this.planBuffers.clear();
+
         this.commandOutputBuffers.clear();
+        this.commandInputBuffers.clear();
+        this.fileChangeOutputBuffers.clear();
+
         this.commandMeta.clear();
         this.fileChangeMeta.clear();
+        this.genericToolMeta.clear();
+        this.genericToolProgress.clear();
     }
 }

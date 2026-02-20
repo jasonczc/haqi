@@ -166,6 +166,26 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
         };
 
+        const formatPlanText = (planValue: unknown, explanationValue: unknown): string | null => {
+            const entries = Array.isArray(planValue) ? planValue : [];
+            const rows: string[] = [];
+            const explanation = asString(explanationValue);
+
+            if (explanation) {
+                rows.push(explanation.trim());
+            }
+
+            for (const entry of entries) {
+                const record = asRecord(entry);
+                if (!record) continue;
+                const step = asString(record.step) ?? 'step';
+                const status = asString(record.status) ?? 'pending';
+                rows.push(`- [${status}] ${step}`);
+            }
+
+            return rows.length > 0 ? rows.join('\n') : null;
+        };
+
         const permissionHandler = new CodexPermissionHandler(session.client, {
             getPermissionMode: () => session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined,
             onRequest: ({ id, toolName, input }) => {
@@ -263,6 +283,25 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             } else if (msgType === 'exec_command_begin') {
                 const command = normalizeCommand(msg.command) ?? 'command';
                 messageBuffer.addMessage(`Executing: ${command}`, 'tool');
+            } else if (msgType === 'tool_call_begin') {
+                const toolName = asString(msg.name) ?? 'Tool';
+                const input = asRecord(msg.input);
+                const query = asString(input?.query);
+                const detail = query ? `: ${query}` : '';
+                messageBuffer.addMessage(`Using ${toolName}${detail}`, 'tool');
+            } else if (msgType === 'tool_call_progress') {
+                const progress = asString(msg.message);
+                if (progress) {
+                    messageBuffer.addMessage(progress, 'status');
+                }
+            } else if (msgType === 'tool_call_end') {
+                const output = msg.output ?? 'Tool completed';
+                const outputText = formatOutputPreview(output);
+                const truncatedOutput = outputText.substring(0, 200);
+                messageBuffer.addMessage(
+                    `Result: ${truncatedOutput}${outputText.length > 200 ? '...' : ''}`,
+                    'result'
+                );
             } else if (msgType === 'exec_command_end') {
                 const output = msg.output ?? msg.error ?? 'Command completed';
                 const outputText = formatOutputPreview(output);
@@ -271,6 +310,14 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     `Result: ${truncatedOutput}${outputText.length > 200 ? '...' : ''}`,
                     'result'
                 );
+            } else if (msgType === 'turn_plan_updated') {
+                messageBuffer.addMessage('Plan updated', 'status');
+            } else if (msgType === 'model_rerouted') {
+                const from = asString(msg.from_model ?? msg.fromModel) ?? 'unknown';
+                const to = asString(msg.to_model ?? msg.toModel) ?? 'unknown';
+                messageBuffer.addMessage(`Model rerouted: ${from} -> ${to}`, 'status');
+            } else if (msgType === 'context_compacted') {
+                messageBuffer.addMessage('Context compacted', 'status');
             } else if (msgType === 'task_started') {
                 messageBuffer.addMessage('Starting task...', 'status');
             } else if (msgType === 'task_complete') {
@@ -362,6 +409,58 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         id: randomUUID()
                     });
                 }
+            }
+            if (msgType === 'tool_call_begin') {
+                const callId = asString(msg.call_id ?? msg.callId);
+                if (callId) {
+                    session.sendCodexMessage({
+                        type: 'tool-call',
+                        name: asString(msg.name) ?? 'Tool',
+                        callId,
+                        input: msg.input ?? {},
+                        id: randomUUID()
+                    });
+                }
+            }
+            if (msgType === 'tool_call_end') {
+                const callId = asString(msg.call_id ?? msg.callId);
+                if (callId) {
+                    session.sendCodexMessage({
+                        type: 'tool-call-result',
+                        callId,
+                        output: msg.output ?? {},
+                        id: randomUUID()
+                    });
+                }
+            }
+            if (msgType === 'turn_plan_updated') {
+                const text = formatPlanText(msg.plan, msg.explanation);
+                if (text) {
+                    session.sendCodexMessage({
+                        type: 'message',
+                        message: text,
+                        id: randomUUID()
+                    });
+                }
+            }
+            if (msgType === 'model_rerouted') {
+                const fromModel = asString(msg.from_model ?? msg.fromModel) ?? 'unknown';
+                const toModel = asString(msg.to_model ?? msg.toModel) ?? 'unknown';
+                const reason = asString(msg.reason);
+                session.sendCodexMessage({
+                    type: 'message',
+                    message: reason
+                        ? `[Model rerouted] ${fromModel} -> ${toModel} (${reason})`
+                        : `[Model rerouted] ${fromModel} -> ${toModel}`,
+                    id: randomUUID()
+                });
+            }
+            if (msgType === 'context_compacted') {
+                session.sendCodexMessage({
+                    type: 'message',
+                    message: '[Context compacted]',
+                    id: randomUUID()
+                });
             }
             if (msgType === 'token_count') {
                 session.sendCodexMessage({
