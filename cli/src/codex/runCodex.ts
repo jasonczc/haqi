@@ -11,6 +11,7 @@ import { createModeChangeHandler, createRunnerLifecycle, setControlledByUser } f
 import { isPermissionModeAllowedForFlavor } from '@hapi/protocol';
 import { PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
+import type { ReasoningEffort } from './appServerTypes';
 
 export { emitReadyIfIdle } from './utils/emitReadyIfIdle';
 
@@ -20,8 +21,9 @@ export async function runCodex(opts: {
     permissionMode?: PermissionMode;
     resumeSessionId?: string;
     model?: string;
+    effort?: ReasoningEffort;
 }): Promise<void> {
-    const workingDirectory = process.cwd();
+    const workingDirectory = process.env.HAPI_WORKING_DIRECTORY ?? process.cwd();
     const startedBy = opts.startedBy ?? 'terminal';
 
     logger.debug(`[codex] Starting with options: startedBy=${startedBy}`);
@@ -43,6 +45,7 @@ export async function runCodex(opts: {
     const messageQueue = new MessageQueue2<EnhancedMode>((mode) => hashObject({
         permissionMode: mode.permissionMode,
         model: mode.model,
+        effort: mode.effort,
         collaborationMode: mode.collaborationMode
     }));
 
@@ -51,6 +54,7 @@ export async function runCodex(opts: {
 
     let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'default';
     const currentModel = opts.model;
+    const currentEffort = opts.effort;
     let currentCollaborationMode: EnhancedMode['collaborationMode'];
 
     const lifecycle = createRunnerLifecycle({
@@ -78,6 +82,7 @@ export async function runCodex(opts: {
         const enhancedMode: EnhancedMode = {
             permissionMode: messagePermissionMode ?? 'default',
             model: currentModel,
+            effort: currentEffort,
             collaborationMode: currentCollaborationMode
         };
         const formattedText = formatMessageWithAttachments(message.content.text, message.content.attachments);

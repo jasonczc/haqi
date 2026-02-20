@@ -4,6 +4,7 @@ import { initializeToken } from '@/ui/tokenInit'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
 import type { CommandDefinition } from './types'
 import type { CodexPermissionMode } from '@hapi/protocol/types'
+import type { ReasoningEffort } from '@/codex/appServerTypes'
 
 export const codexCommand: CommandDefinition = {
     name: 'codex',
@@ -18,6 +19,7 @@ export const codexCommand: CommandDefinition = {
                 permissionMode?: CodexPermissionMode
                 resumeSessionId?: string
                 model?: string
+                effort?: ReasoningEffort
             } = {}
             const unknownArgs: string[] = []
 
@@ -46,6 +48,16 @@ export const codexCommand: CommandDefinition = {
                     }
                     options.model = model
                     unknownArgs.push('--model', model)
+                } else if (arg === '--effort' || arg === '--think-level') {
+                    const effort = commandArgs[++i]
+                    if (!effort) {
+                        throw new Error('Missing --effort value')
+                    }
+                    if (effort !== 'auto' && effort !== 'low' && effort !== 'medium' && effort !== 'high') {
+                        throw new Error('Invalid --effort value (expected auto, low, medium, or high)')
+                    }
+                    options.effort = effort
+                    unknownArgs.push('--effort', effort)
                 } else {
                     unknownArgs.push(arg)
                 }

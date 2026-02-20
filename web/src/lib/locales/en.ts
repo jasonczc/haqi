@@ -112,6 +112,7 @@ export default {
   'newSession.agent': 'Agent',
   'newSession.model': 'Model',
   'newSession.model.optional': 'optional',
+  'newSession.think': 'Think level',
   'newSession.yolo': 'YOLO mode',
   'newSession.yolo.title': 'Bypass approvals and sandbox',
   'newSession.yolo.desc': 'Uses dangerous agent flags when spawning.',

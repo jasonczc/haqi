@@ -141,6 +141,18 @@ function flattenSessionRows(
             continue
         }
 
+        // If this group has no online sessions, show offline sessions directly
+        // instead of requiring an extra "OFFLINE" expand step.
+        if (onlineSessions.length === 0) {
+            for (const session of offlineSessions) {
+                rows.push({
+                    type: 'session',
+                    session
+                })
+            }
+            continue
+        }
+
         const offlineCollapsed = isOfflineCollapsed(group.directory)
         rows.push({
             type: 'offline-section',

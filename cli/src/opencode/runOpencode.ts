@@ -19,7 +19,7 @@ export async function runOpencode(opts: {
     permissionMode?: PermissionMode;
     resumeSessionId?: string;
 } = {}): Promise<void> {
-    const workingDirectory = process.cwd();
+    const workingDirectory = process.env.HAPI_WORKING_DIRECTORY ?? process.cwd();
     const startedBy = opts.startedBy ?? 'terminal';
 
     logger.debug(`[opencode] Starting with options: startedBy=${startedBy}, startingMode=${opts.startingMode}`);

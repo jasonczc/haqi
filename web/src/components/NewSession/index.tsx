@@ -7,12 +7,13 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
 import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
-import type { AgentType, SessionType } from './types'
+import type { AgentType, CodexThinkEffort, SessionType } from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
 import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
+import { ThinkEffortSelector } from './ThinkEffortSelector'
 import {
     loadPreferredAgent,
     loadPreferredYoloMode,
@@ -44,6 +45,7 @@ export function NewSession(props: {
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
     const [agent, setAgent] = useState<AgentType>(loadPreferredAgent)
     const [model, setModel] = useState('auto')
+    const [thinkEffort, setThinkEffort] = useState<CodexThinkEffort>('auto')
     const [yoloMode, setYoloMode] = useState(loadPreferredYoloMode)
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
@@ -67,6 +69,7 @@ export function NewSession(props: {
 
     useEffect(() => {
         setModel('auto')
+        setThinkEffort('auto')
     }, [agent])
 
     useEffect(() => {
@@ -223,11 +226,15 @@ export function NewSession(props: {
         setError(null)
         try {
             const resolvedModel = model !== 'auto' && agent !== 'opencode' ? model : undefined
+            const resolvedThinkEffort = agent === 'codex' && thinkEffort !== 'auto'
+                ? thinkEffort
+                : undefined
             const result = await spawnSession({
                 machineId,
                 directory: directory.trim(),
                 agent,
                 model: resolvedModel,
+                thinkEffort: resolvedThinkEffort,
                 yolo: yoloMode,
                 sessionType,
                 worktreeName: sessionType === 'worktree' ? (worktreeName.trim() || undefined) : undefined
@@ -291,6 +298,12 @@ export function NewSession(props: {
                 model={model}
                 isDisabled={isFormDisabled}
                 onModelChange={setModel}
+            />
+            <ThinkEffortSelector
+                agent={agent}
+                thinkEffort={thinkEffort}
+                isDisabled={isFormDisabled}
+                onThinkEffortChange={setThinkEffort}
             />
             <YoloToggle
                 yoloMode={yoloMode}

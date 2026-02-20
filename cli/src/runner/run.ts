@@ -20,6 +20,7 @@ import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { join } from 'path';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
+import { isBunCompiled } from '@/projectPath';
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -179,6 +180,7 @@ export async function startRunner(): Promise<void> {
 
       const { directory, sessionId, machineId, approvedNewDirectoryCreation = true } = options;
       const agent = options.agent ?? 'claude';
+      const thinkEffort = options.thinkEffort;
       const yolo = options.yolo === true;
       const sessionType = options.sessionType ?? 'simple';
       const worktreeName = options.worktreeName;
@@ -342,6 +344,9 @@ export async function startRunner(): Promise<void> {
         if (options.model && agent !== 'opencode') {
           args.push('--model', options.model);
         }
+        if (agent === 'codex' && thinkEffort) {
+          args.push('--effort', thinkEffort);
+        }
         if (yolo) {
           if (agent === 'codex') {
             args.push('--auto-approve');
@@ -369,13 +374,22 @@ export async function startRunner(): Promise<void> {
           logger.debug('[RUNNER RUN] Child stderr tail', trimmed);
         };
 
+        const executionCwd = isBunCompiled() ? spawnDirectory : process.cwd();
+        if (executionCwd !== spawnDirectory) {
+          logger.debug('[RUNNER RUN] Using CLI project cwd for spawned process in dev mode', {
+            executionCwd,
+            targetWorkingDirectory: spawnDirectory
+          });
+        }
+
         happyProcess = spawnHappyCLI(args, {
-          cwd: spawnDirectory,
+          cwd: executionCwd,
           detached: true,  // Sessions stay alive when runner stops
           stdio: ['ignore', 'pipe', 'pipe'],  // Capture stdout/stderr for debugging
           env: {
             ...process.env,
-            ...extraEnv
+            ...extraEnv,
+            HAPI_WORKING_DIRECTORY: spawnDirectory
           }
         });
 
