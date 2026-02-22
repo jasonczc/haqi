@@ -22,6 +22,7 @@ import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
 import { usePlatform } from '@/hooks/usePlatform'
+import { useCodexQueueInlinePanel } from '@/hooks/useCodexQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -139,6 +140,7 @@ export function SessionChat(props: {
 }) {
     const { t } = useTranslation()
     const { haptic } = usePlatform()
+    const { codexQueueInlinePanelMode } = useCodexQueueInlinePanel()
     const navigate = useNavigate()
     const sessionInactive = !props.session.active
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
@@ -166,6 +168,20 @@ export function SessionChat(props: {
     const codexQueuePendingCount = codexQueueState?.pendingCount
         ?? codexQueueStatus?.pendingCount
         ?? 0
+    const codexQueueSummary = useMemo(() => {
+        if (codexQueueStatus) {
+            return codexQueueStatus
+        }
+        if (codexQueueState) {
+            return {
+                pendingCount: codexQueueState.pendingCount,
+                inQueue: codexQueueState.inQueue,
+                taskRunning: codexQueueState.taskRunning,
+                nextPreview: codexQueueState.nextPreview
+            }
+        }
+        return null
+    }, [codexQueueStatus, codexQueueState])
     const agentFlavor = props.session.metadata?.flavor ?? null
     const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
         props.api,
@@ -585,7 +601,20 @@ export function SessionChat(props: {
             return
         }
         void refreshCodexQueue({ silent: true })
-    }, [agentFlavor, props.session.id, props.session.thinking, refreshCodexQueue])
+    }, [agentFlavor, props.session.id, props.session.thinking, codexQueueInlinePanelMode, refreshCodexQueue])
+
+    useEffect(() => {
+        if (agentFlavor !== 'codex') {
+            return
+        }
+        if (codexQueueInlinePanelMode === 'off' || isCodexQueueDialogOpen) {
+            return
+        }
+        const timer = window.setInterval(() => {
+            void refreshCodexQueue({ silent: true })
+        }, 2_000)
+        return () => window.clearInterval(timer)
+    }, [agentFlavor, codexQueueInlinePanelMode, isCodexQueueDialogOpen, refreshCodexQueue])
 
     useEffect(() => {
         if (agentFlavor !== 'codex' || !isCodexQueueDialogOpen) {
@@ -680,6 +709,9 @@ export function SessionChat(props: {
                         codexSendMode={codexSendMode}
                         onCodexSendModeChange={agentFlavor === 'codex' ? handleCodexQueueModeChange : undefined}
                         codexQueuePendingCount={codexQueuePendingCount}
+                        codexQueueSummary={codexQueueSummary}
+                        codexQueueEntries={codexQueueEntries}
+                        codexQueueInlinePanelMode={codexQueueInlinePanelMode}
                         onCodexQueueOpen={agentFlavor === 'codex' ? handleCodexQueueOpen : undefined}
                         onCodexQueueUpdated={agentFlavor === 'codex' ? handleCodexQueueRefreshAfterSend : undefined}
                         onCodexQueueEnqueue={agentFlavor === 'codex' ? handleCodexQueueEnqueue : undefined}

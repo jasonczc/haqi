@@ -4,6 +4,7 @@ import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
+import { useCodexQueueInlinePanel, type CodexQueueInlinePanelMode } from '@/hooks/useCodexQueueInlinePanel'
 import { useThemePreference, type ThemePreference } from '@/hooks/useTheme'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 
@@ -14,6 +15,7 @@ const locales: { value: Locale; nativeLabel: string }[] = [
 
 const voiceLanguages = getElevenLabsSupportedLanguages()
 const themePreferences: ThemePreference[] = ['light', 'dark', 'system']
+const codexQueueInlinePanelModes: CodexQueueInlinePanelMode[] = ['off', 'compact', 'full']
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -79,12 +81,15 @@ export default function SettingsPage() {
     const [isThemeOpen, setIsThemeOpen] = useState(false)
     const [isFontOpen, setIsFontOpen] = useState(false)
     const [isVoiceOpen, setIsVoiceOpen] = useState(false)
+    const [isQueuePanelOpen, setIsQueuePanelOpen] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
     const themeContainerRef = useRef<HTMLDivElement>(null)
     const fontContainerRef = useRef<HTMLDivElement>(null)
     const voiceContainerRef = useRef<HTMLDivElement>(null)
+    const queuePanelContainerRef = useRef<HTMLDivElement>(null)
     const { fontScale, setFontScale } = useFontScale()
     const { themePreference, setThemePreference } = useThemePreference()
+    const { codexQueueInlinePanelMode, setCodexQueueInlinePanelMode } = useCodexQueueInlinePanel()
 
     // Voice language state - read from localStorage
     const [voiceLanguage, setVoiceLanguage] = useState<string | null>(() => {
@@ -96,6 +101,7 @@ export default function SettingsPage() {
     const currentThemeLabel = t(`settings.display.theme.${themePreference}`)
     const currentFontScaleLabel = fontScaleOptions.find((opt) => opt.value === fontScale)?.label ?? '100%'
     const currentVoiceLanguage = voiceLanguages.find((lang) => lang.code === voiceLanguage)
+    const currentQueuePanelLabel = t(`settings.behavior.codexQueueInlinePanel.${codexQueueInlinePanelMode}`)
     const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
 
     const handleLocaleChange = (newLocale: Locale) => {
@@ -117,6 +123,11 @@ export default function SettingsPage() {
         setSkipArchiveConfirmation(value)
     }
 
+    const handleQueuePanelModeChange = (mode: CodexQueueInlinePanelMode) => {
+        setCodexQueueInlinePanelMode(mode)
+        setIsQueuePanelOpen(false)
+    }
+
     const handleVoiceLanguageChange = (language: Language) => {
         setVoiceLanguage(language.code)
         if (language.code === null) {
@@ -129,7 +140,7 @@ export default function SettingsPage() {
 
     // Close dropdown when clicking outside
     useEffect(() => {
-        if (!isOpen && !isThemeOpen && !isFontOpen && !isVoiceOpen) return
+        if (!isOpen && !isThemeOpen && !isFontOpen && !isVoiceOpen && !isQueuePanelOpen) return
 
         const handleClickOutside = (event: MouseEvent) => {
             if (isOpen && containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -144,15 +155,18 @@ export default function SettingsPage() {
             if (isVoiceOpen && voiceContainerRef.current && !voiceContainerRef.current.contains(event.target as Node)) {
                 setIsVoiceOpen(false)
             }
+            if (isQueuePanelOpen && queuePanelContainerRef.current && !queuePanelContainerRef.current.contains(event.target as Node)) {
+                setIsQueuePanelOpen(false)
+            }
         }
 
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [isOpen, isThemeOpen, isFontOpen, isVoiceOpen])
+    }, [isOpen, isThemeOpen, isFontOpen, isVoiceOpen, isQueuePanelOpen])
 
     // Close on escape key
     useEffect(() => {
-        if (!isOpen && !isThemeOpen && !isFontOpen && !isVoiceOpen) return
+        if (!isOpen && !isThemeOpen && !isFontOpen && !isVoiceOpen && !isQueuePanelOpen) return
 
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -160,12 +174,13 @@ export default function SettingsPage() {
                 setIsThemeOpen(false)
                 setIsFontOpen(false)
                 setIsVoiceOpen(false)
+                setIsQueuePanelOpen(false)
             }
         }
 
         document.addEventListener('keydown', handleEscape)
         return () => document.removeEventListener('keydown', handleEscape)
-    }, [isOpen, isThemeOpen, isFontOpen, isVoiceOpen])
+    }, [isOpen, isThemeOpen, isFontOpen, isVoiceOpen, isQueuePanelOpen])
 
     return (
         <div className="flex h-full flex-col">
@@ -410,6 +425,61 @@ export default function SettingsPage() {
                     <div className="border-b border-[var(--app-divider)]">
                         <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
                             {t('settings.behavior.title')}
+                        </div>
+                        <div ref={queuePanelContainerRef} className="relative border-b border-[var(--app-divider)]">
+                            <button
+                                type="button"
+                                onClick={() => setIsQueuePanelOpen(!isQueuePanelOpen)}
+                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                aria-expanded={isQueuePanelOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <div className="flex flex-col">
+                                    <span className="text-[var(--app-fg)]">
+                                        {t('settings.behavior.codexQueueInlinePanel')}
+                                    </span>
+                                    <span className="text-xs text-[var(--app-hint)]">
+                                        {t('settings.behavior.codexQueueInlinePanel.description')}
+                                    </span>
+                                </div>
+                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
+                                    <span>{currentQueuePanelLabel}</span>
+                                    <ChevronDownIcon className={`transition-transform ${isQueuePanelOpen ? 'rotate-180' : ''}`} />
+                                </span>
+                            </button>
+
+                            {isQueuePanelOpen && (
+                                <div
+                                    className="absolute right-3 top-full mt-1 min-w-[180px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    role="listbox"
+                                    aria-label={t('settings.behavior.codexQueueInlinePanel')}
+                                >
+                                    {codexQueueInlinePanelModes.map((mode) => {
+                                        const isSelected = codexQueueInlinePanelMode === mode
+                                        return (
+                                            <button
+                                                key={mode}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={isSelected}
+                                                onClick={() => handleQueuePanelModeChange(mode)}
+                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
+                                                    isSelected
+                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
+                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                                                }`}
+                                            >
+                                                <span>{t(`settings.behavior.codexQueueInlinePanel.${mode}`)}</span>
+                                                {isSelected && (
+                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                        <CheckIcon />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3">
                             <div className="flex flex-col">

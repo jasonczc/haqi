@@ -245,6 +245,11 @@ export default {
   'codexQueue.entry.moveUp': '上移',
   'codexQueue.entry.moveDown': '下移',
   'codexQueue.entry.remove': '删除',
+  'codexQueue.inline.open': '管理',
+  'codexQueue.inline.pending': '排队 {count} 条',
+  'codexQueue.inline.running': '执行中',
+  'codexQueue.inline.next': '下一条',
+  'codexQueue.inline.empty': '队列为空',
 
   // Voice assistant
   'voice.connecting': '连接中...',
@@ -294,6 +299,11 @@ export default {
   'settings.display.theme.system': '跟随系统',
   'settings.display.fontSize': '字体大小',
   'settings.behavior.title': '行为',
+  'settings.behavior.codexQueueInlinePanel': '队列内联面板',
+  'settings.behavior.codexQueueInlinePanel.description': '在输入框上方显示 Codex 队列预览。',
+  'settings.behavior.codexQueueInlinePanel.off': '关闭',
+  'settings.behavior.codexQueueInlinePanel.compact': '紧凑',
+  'settings.behavior.codexQueueInlinePanel.full': '完整',
   'settings.behavior.archiveConfirm': '归档确认',
   'settings.behavior.archiveConfirm.description': '归档会话时跳过确认弹窗。',
   'settings.voice.title': '语音助手',

@@ -243,6 +243,11 @@ export default {
   'codexQueue.entry.moveUp': 'Move up',
   'codexQueue.entry.moveDown': 'Move down',
   'codexQueue.entry.remove': 'Remove',
+  'codexQueue.inline.open': 'Manage',
+  'codexQueue.inline.pending': '{count} queued',
+  'codexQueue.inline.running': 'Running',
+  'codexQueue.inline.next': 'Next',
+  'codexQueue.inline.empty': 'Queue is empty',
 
   // Voice assistant
   'voice.connecting': 'Connecting...',
@@ -292,6 +297,11 @@ export default {
   'settings.display.theme.system': 'Follow system',
   'settings.display.fontSize': 'Font Size',
   'settings.behavior.title': 'Behavior',
+  'settings.behavior.codexQueueInlinePanel': 'Queue Inline Panel',
+  'settings.behavior.codexQueueInlinePanel.description': 'Attach Codex queue preview above the composer.',
+  'settings.behavior.codexQueueInlinePanel.off': 'Off',
+  'settings.behavior.codexQueueInlinePanel.compact': 'Compact',
+  'settings.behavior.codexQueueInlinePanel.full': 'Full',
   'settings.behavior.archiveConfirm': 'Skip Archive Confirmation',
   'settings.behavior.archiveConfirm.description': 'Skip the archive confirmation dialog.',
   'settings.voice.title': 'Voice Assistant',
