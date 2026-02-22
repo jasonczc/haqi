@@ -99,6 +99,7 @@ export type CodexQueueEntry = {
     preview: string
     modeHash: string
     isolate: boolean
+    deferredUserMessage?: boolean
     enqueuedAt: number
 }
 

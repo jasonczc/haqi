@@ -232,6 +232,26 @@ export class ApiClient {
         return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue`)
     }
 
+    async enqueueCodexMessage(
+        sessionId: string,
+        payload: {
+            text: string
+            attachments?: Array<{
+                id: string
+                filename: string
+                mimeType: string
+                size: number
+                path: string
+                previewUrl?: string
+            }>
+        }
+    ): Promise<CodexQueueResponse> {
+        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/enqueue`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
     async removeCodexQueueItem(sessionId: string, id: string): Promise<CodexQueueResponse> {
         return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/remove`, {
             method: 'POST',

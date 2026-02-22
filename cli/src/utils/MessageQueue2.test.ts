@@ -406,6 +406,7 @@ describe('MessageQueue2', () => {
             mode: { type: 'A' },
             modeHash: 'A',
             isolate: true,
+            deferUserMessageUntilDequeue: false,
             enqueuedAt: Date.now()
         });
         
@@ -508,5 +509,23 @@ describe('MessageQueue2', () => {
         const clearedCount = queue.clear();
         expect(clearedCount).toBe(2);
         expect(queue.size()).toBe(0);
+    });
+
+    it('should process isolated deferred messages one by one', async () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.push('queue-1', 'mode', { deferUserMessageUntilDequeue: true, isolate: true });
+        queue.push('queue-2', 'mode', { deferUserMessageUntilDequeue: true, isolate: true });
+        queue.push('queue-3', 'mode', { deferUserMessageUntilDequeue: true, isolate: true });
+
+        const batch1 = await queue.waitForMessagesAndGetAsString();
+        const batch2 = await queue.waitForMessagesAndGetAsString();
+        const batch3 = await queue.waitForMessagesAndGetAsString();
+
+        expect(batch1?.message).toBe('queue-1');
+        expect(batch2?.message).toBe('queue-2');
+        expect(batch3?.message).toBe('queue-3');
+        expect(batch1?.deferUserMessageUntilDequeue).toBe(true);
+        expect(batch2?.deferUserMessageUntilDequeue).toBe(true);
+        expect(batch3?.deferUserMessageUntilDequeue).toBe(true);
     });
 });

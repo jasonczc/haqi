@@ -532,6 +532,23 @@ export class SyncEngine {
         return await this.rpcGateway.getCodexQueue(sessionId)
     }
 
+    async enqueueCodexMessage(
+        sessionId: string,
+        payload: {
+            text: string
+            attachments?: Array<{
+                id: string
+                filename: string
+                mimeType: string
+                size: number
+                path: string
+                previewUrl?: string
+            }>
+        }
+    ): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.enqueueCodexMessage(sessionId, payload)
+    }
+
     async removeCodexQueueItem(sessionId: string, id: string): Promise<RpcCodexQueueResponse> {
         return await this.rpcGateway.removeCodexQueueItem(sessionId, id)
     }

@@ -456,6 +456,31 @@ export function SessionChat(props: {
         void refreshCodexQueue()
     }, [agentFlavor, refreshCodexQueue])
 
+    const handleCodexQueueEnqueue = useCallback(async (payload: {
+        text: string
+        attachments?: AttachmentMetadata[]
+    }) => {
+        if (agentFlavor !== 'codex') {
+            return
+        }
+
+        const result = await props.api.enqueueCodexMessage(props.session.id, payload)
+        if (!result.success) {
+            const message = result.error ?? t('codexQueue.dialog.actionError')
+            setCodexQueueError(message)
+            if (result.queue) {
+                setCodexQueueState(result.queue)
+                applyCodexQueueSummary(result.queue)
+            }
+            haptic.notification('error')
+            throw new Error(message)
+        }
+
+        setCodexQueueError(null)
+        setCodexQueueState(result.queue ?? null)
+        applyCodexQueueSummary(result.queue ?? null)
+    }, [agentFlavor, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+
     const runCodexQueueAction = useCallback(async (
         action: () => Promise<{ success: boolean; error?: string; queue?: CodexQueueState | null }>
     ) => {
@@ -657,6 +682,7 @@ export function SessionChat(props: {
                         codexQueuePendingCount={codexQueuePendingCount}
                         onCodexQueueOpen={agentFlavor === 'codex' ? handleCodexQueueOpen : undefined}
                         onCodexQueueUpdated={agentFlavor === 'codex' ? handleCodexQueueRefreshAfterSend : undefined}
+                        onCodexQueueEnqueue={agentFlavor === 'codex' ? handleCodexQueueEnqueue : undefined}
                         autocompleteSuggestions={props.autocompleteSuggestions}
                         voiceStatus={voice?.status}
                         voiceMicMuted={voice?.micMuted}

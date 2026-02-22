@@ -22,6 +22,7 @@ type CodexQueueEntrySnapshot = {
     preview: string;
     modeHash: string;
     isolate: boolean;
+    deferredUserMessage: boolean;
     enqueuedAt: number;
 };
 
@@ -123,6 +124,7 @@ export async function runCodex(opts: {
                 preview: buildQueuePreview(item.message) ?? '',
                 modeHash: item.modeHash,
                 isolate: item.isolate,
+                deferredUserMessage: item.deferUserMessageUntilDequeue,
                 enqueuedAt: item.enqueuedAt
             }));
         return {
@@ -236,6 +238,52 @@ export async function runCodex(opts: {
         return { id, toIndex };
     };
 
+    const resolveEnqueuePayload = (payload: unknown): { text: string; attachments?: Array<{
+        id: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+        path: string;
+        previewUrl?: string;
+    }> } => {
+        if (!payload || typeof payload !== 'object') {
+            throw new Error('Invalid enqueue payload');
+        }
+        const textValue = (payload as { text?: unknown }).text;
+        if (typeof textValue !== 'string') {
+            throw new Error('Invalid enqueue text');
+        }
+        const text = textValue.trim();
+        const attachmentsValue = (payload as { attachments?: unknown }).attachments;
+        if (attachmentsValue !== undefined && !Array.isArray(attachmentsValue)) {
+            throw new Error('Invalid enqueue attachments');
+        }
+        const attachments = Array.isArray(attachmentsValue)
+            ? attachmentsValue.filter((attachment): attachment is {
+                id: string;
+                filename: string;
+                mimeType: string;
+                size: number;
+                path: string;
+                previewUrl?: string;
+            } => {
+                if (!attachment || typeof attachment !== 'object') return false;
+                const entry = attachment as Record<string, unknown>;
+                return typeof entry.id === 'string'
+                    && typeof entry.filename === 'string'
+                    && typeof entry.mimeType === 'string'
+                    && typeof entry.size === 'number'
+                    && Number.isFinite(entry.size)
+                    && typeof entry.path === 'string'
+                    && (entry.previewUrl === undefined || typeof entry.previewUrl === 'string');
+            })
+            : undefined;
+        if (!text && (!attachments || attachments.length === 0)) {
+            throw new Error('Message requires text or attachments');
+        }
+        return { text, attachments };
+    };
+
     session.rpcHandlerManager.registerHandler('set-session-config', async (payload: unknown) => {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
@@ -266,6 +314,27 @@ export async function runCodex(opts: {
 
     session.rpcHandlerManager.registerHandler('get-codex-queue', async () => {
         try {
+            return { success: true, queue: getCodexQueueStateSnapshot() };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getCodexQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('enqueue-codex-message', async (payload: unknown) => {
+        try {
+            const parsed = resolveEnqueuePayload(payload);
+            const formattedText = formatMessageWithAttachments(parsed.text, parsed.attachments);
+            const enhancedMode: EnhancedMode = {
+                permissionMode: currentPermissionMode ?? 'default',
+                model: currentModel,
+                effort: currentEffort,
+                collaborationMode: currentCollaborationMode
+            };
+            messageQueue.push(formattedText, enhancedMode, {
+                deferUserMessageUntilDequeue: true,
+                isolate: true
+            });
             return { success: true, queue: getCodexQueueStateSnapshot() };
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);

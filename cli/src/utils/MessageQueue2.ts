@@ -6,6 +6,7 @@ export interface MessageQueueItem<T> {
     mode: T;
     modeHash: string;
     isolate: boolean; // If true, this message must be processed alone
+    deferUserMessageUntilDequeue: boolean;
     enqueuedAt: number;
 }
 
@@ -37,7 +38,12 @@ export class MessageQueue2<T> {
         this.onMessageHandler = handler;
     }
 
-    private createQueueItem(message: string, mode: T, isolate: boolean): MessageQueueItem<T> {
+    private createQueueItem(
+        message: string,
+        mode: T,
+        isolate: boolean,
+        deferUserMessageUntilDequeue: boolean
+    ): MessageQueueItem<T> {
         const modeHash = this.modeHasher(mode);
         const id = `mq_${Date.now().toString(36)}_${(this.nextItemId++).toString(36)}`;
         return {
@@ -46,6 +52,7 @@ export class MessageQueue2<T> {
             mode,
             modeHash,
             isolate,
+            deferUserMessageUntilDequeue,
             enqueuedAt: Date.now()
         };
     }
@@ -122,12 +129,17 @@ export class MessageQueue2<T> {
     /**
      * Push a message to the queue with a mode.
      */
-    push(message: string, mode: T): void {
+    push(message: string, mode: T, options?: { deferUserMessageUntilDequeue?: boolean; isolate?: boolean }): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
 
-        const queueItem = this.createQueueItem(message, mode, false);
+        const queueItem = this.createQueueItem(
+            message,
+            mode,
+            options?.isolate === true,
+            options?.deferUserMessageUntilDequeue === true
+        );
         const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] push() called with mode hash: ${modeHash}`);
 
@@ -147,12 +159,12 @@ export class MessageQueue2<T> {
      * Push a message immediately without batching delay.
      * Does not clear the queue or enforce isolation.
      */
-    pushImmediate(message: string, mode: T): void {
+    pushImmediate(message: string, mode: T, options?: { deferUserMessageUntilDequeue?: boolean }): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
 
-        const queueItem = this.createQueueItem(message, mode, false);
+        const queueItem = this.createQueueItem(message, mode, false, options?.deferUserMessageUntilDequeue === true);
         const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] pushImmediate() called with mode hash: ${modeHash}`);
 
@@ -173,12 +185,12 @@ export class MessageQueue2<T> {
      * Clears any pending messages and ensures this message is never batched with others.
      * Used for special commands that require dedicated processing.
      */
-    pushIsolateAndClear(message: string, mode: T): void {
+    pushIsolateAndClear(message: string, mode: T, options?: { deferUserMessageUntilDequeue?: boolean }): void {
         if (this.closed) {
             throw new Error('Cannot push to closed queue');
         }
 
-        const queueItem = this.createQueueItem(message, mode, true);
+        const queueItem = this.createQueueItem(message, mode, true, options?.deferUserMessageUntilDequeue === true);
         const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] pushIsolateAndClear() called with mode hash: ${modeHash} - clearing ${this.queue.length} pending messages`);
 
@@ -200,12 +212,12 @@ export class MessageQueue2<T> {
     /**
      * Push a message to the beginning of the queue with a mode.
      */
-    unshift(message: string, mode: T): void {
+    unshift(message: string, mode: T, options?: { deferUserMessageUntilDequeue?: boolean }): void {
         if (this.closed) {
             throw new Error('Cannot unshift to closed queue');
         }
 
-        const queueItem = this.createQueueItem(message, mode, false);
+        const queueItem = this.createQueueItem(message, mode, false, options?.deferUserMessageUntilDequeue === true);
         const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] unshift() called with mode hash: ${modeHash}`);
 
@@ -266,7 +278,13 @@ export class MessageQueue2<T> {
      * Wait for messages and return all messages with the same mode as a single string
      * Returns { message: string, mode: T } or null if aborted/closed
      */
-    async waitForMessagesAndGetAsString(abortSignal?: AbortSignal): Promise<{ message: string, mode: T, isolate: boolean, hash: string } | null> {
+    async waitForMessagesAndGetAsString(abortSignal?: AbortSignal): Promise<{
+        message: string;
+        mode: T;
+        isolate: boolean;
+        hash: string;
+        deferUserMessageUntilDequeue: boolean;
+    } | null> {
         // If we have messages, return them immediately
         if (this.queue.length > 0) {
             return this.collectBatch();
@@ -290,7 +308,13 @@ export class MessageQueue2<T> {
     /**
      * Collect a batch of messages with the same mode, respecting isolation requirements
      */
-    private collectBatch(): { message: string, mode: T, hash: string, isolate: boolean } | null {
+    private collectBatch(): {
+        message: string;
+        mode: T;
+        hash: string;
+        isolate: boolean;
+        deferUserMessageUntilDequeue: boolean;
+    } | null {
         if (this.queue.length === 0) {
             return null;
         }
@@ -299,6 +323,7 @@ export class MessageQueue2<T> {
         const sameModeMessages: string[] = [];
         let mode = firstItem.mode;
         let isolate = firstItem.isolate;
+        const deferUserMessageUntilDequeue = firstItem.deferUserMessageUntilDequeue;
         const targetModeHash = firstItem.modeHash;
 
         // If the first message requires isolation, only process it alone
@@ -310,7 +335,8 @@ export class MessageQueue2<T> {
             // Collect all messages with the same mode until we hit an isolated message
             while (this.queue.length > 0 &&
                 this.queue[0].modeHash === targetModeHash &&
-                !this.queue[0].isolate) {
+                !this.queue[0].isolate &&
+                this.queue[0].deferUserMessageUntilDequeue === deferUserMessageUntilDequeue) {
                 const item = this.queue.shift()!;
                 sameModeMessages.push(item.message);
             }
@@ -324,7 +350,8 @@ export class MessageQueue2<T> {
             message: combinedMessage,
             mode,
             hash: targetModeHash,
-            isolate
+            isolate,
+            deferUserMessageUntilDequeue
         };
     }
 

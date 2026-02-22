@@ -639,7 +639,13 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
         let wasCreated = false;
         let currentModeHash: string | null = null;
-        let pending: { message: string; mode: EnhancedMode; isolate: boolean; hash: string } | null = null;
+        let pending: {
+            message: string;
+            mode: EnhancedMode;
+            isolate: boolean;
+            hash: string;
+            deferUserMessageUntilDequeue: boolean;
+        } | null = null;
         let first = true;
 
         while (!this.shouldExit) {
@@ -655,7 +661,13 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 }
             }
 
-            let message: { message: string; mode: EnhancedMode; isolate: boolean; hash: string } | null = pending;
+            let message: {
+                message: string;
+                mode: EnhancedMode;
+                isolate: boolean;
+                hash: string;
+                deferUserMessageUntilDequeue: boolean;
+            } | null = pending;
             pending = null;
             if (!message) {
                 const waitSignal = this.abortController.signal;
@@ -691,6 +703,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
 
             messageBuffer.addMessage(message.message, 'user');
+            if (message.deferUserMessageUntilDequeue) {
+                session.sendUserMessage(message.message);
+            }
             currentModeHash = message.hash;
 
             try {

@@ -12,7 +12,7 @@ import {
     useRef,
     useState
 } from 'react'
-import type { AgentState, ModelMode, PermissionMode } from '@/types/api'
+import type { AgentState, AttachmentMetadata, ModelMode, PermissionMode } from '@/types/api'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import type { ConversationStatus } from '@/realtime/types'
 import { useActiveWord } from '@/hooks/useActiveWord'
@@ -35,6 +35,11 @@ export interface TextInputState {
 }
 
 export type CodexSendMode = 'direct' | 'queue'
+
+type QueueEnqueuePayload = {
+    text: string
+    attachments?: AttachmentMetadata[]
+}
 
 const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
 const COMPOSER_DRAFT_STORAGE_PREFIX = 'hapi:sessionComposerDraft:'
@@ -87,6 +92,7 @@ export function HappyComposer(props: {
     codexQueuePendingCount?: number
     onCodexQueueOpen?: () => void
     onCodexQueueUpdated?: () => void
+    onCodexQueueEnqueue?: (payload: QueueEnqueuePayload) => Promise<void>
     autocompletePrefixes?: string[]
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
     // Voice assistant props
@@ -118,6 +124,7 @@ export function HappyComposer(props: {
         codexQueuePendingCount = 0,
         onCodexQueueOpen,
         onCodexQueueUpdated,
+        onCodexQueueEnqueue,
         autocompletePrefixes = ['@', '/', '$'],
         autocompleteSuggestions = defaultSuggestionHandler,
         voiceStatus = 'disconnected',
@@ -330,15 +337,46 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onCodexSendModeChange, controlsDisabled, codexSendMode, haptic])
 
-    const sendComposerNow = useCallback(() => {
+    const sendComposerNow = useCallback(async () => {
         if (!canSend) {
             return
         }
+
+        const shouldEnqueueWithoutImmediateChat = queueSendEnabled
+            && threadIsRunning
+            && Boolean(onCodexQueueEnqueue)
+            && !hasAttachments
+            && trimmed.length > 0
+
+        if (shouldEnqueueWithoutImmediateChat && onCodexQueueEnqueue) {
+            try {
+                await onCodexQueueEnqueue({
+                    text: trimmed
+                })
+                api.composer().setText('')
+                onCodexQueueUpdated?.()
+                return
+            } catch {
+                haptic('error')
+                return
+            }
+        }
+
         api.composer().send()
         if (queueSendEnabled && threadIsRunning) {
             onCodexQueueUpdated?.()
         }
-    }, [canSend, api, queueSendEnabled, threadIsRunning, onCodexQueueUpdated])
+    }, [
+        canSend,
+        api,
+        queueSendEnabled,
+        threadIsRunning,
+        onCodexQueueUpdated,
+        onCodexQueueEnqueue,
+        hasAttachments,
+        trimmed,
+        haptic
+    ])
 
     const permissionModeOptions = useMemo(
         () => getPermissionModeOptionsForFlavor(agentFlavor),
@@ -389,7 +427,7 @@ export function HappyComposer(props: {
 
         if (key === 'Enter' && !e.shiftKey && threadIsRunning && queueSendEnabled && canSend) {
             e.preventDefault()
-            sendComposerNow()
+            void sendComposerNow()
             return
         }
 
@@ -690,7 +728,7 @@ export function HappyComposer(props: {
                             voiceMicMuted={voiceMicMuted}
                             onVoiceToggle={onVoiceToggle ?? (() => {})}
                             onVoiceMicToggle={onVoiceMicToggle}
-                            onSend={sendComposerNow}
+                            onSend={() => { void sendComposerNow() }}
                         />
                     </div>
                 </ComposerPrimitive.Root>

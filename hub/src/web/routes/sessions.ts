@@ -37,6 +37,18 @@ const codexQueueMoveSchema = z.object({
     toIndex: z.number().int().min(0)
 })
 
+const codexQueueEnqueueSchema = z.object({
+    text: z.string(),
+    attachments: z.array(z.object({
+        id: z.string().min(1),
+        filename: z.string().min(1),
+        mimeType: z.string().min(1),
+        size: z.number().nonnegative(),
+        path: z.string().min(1),
+        previewUrl: z.string().optional()
+    })).optional()
+})
+
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 function estimateBase64Bytes(base64: string): number {
@@ -153,6 +165,41 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({
                 success: false,
                 error: error instanceof Error ? error.message : 'Failed to get Codex queue'
+            }, 500)
+        }
+    })
+
+    app.post('/sessions/:id/codex-queue/enqueue', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireActiveCodexSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = codexQueueEnqueueSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ success: false, error: 'Invalid body' }, 400)
+        }
+
+        if (!parsed.data.text.trim() && (!parsed.data.attachments || parsed.data.attachments.length === 0)) {
+            return c.json({ success: false, error: 'Message requires text or attachments' }, 400)
+        }
+
+        try {
+            const result = await engine.enqueueCodexMessage(sessionResult.sessionId, {
+                text: parsed.data.text,
+                attachments: parsed.data.attachments
+            })
+            return c.json(result)
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to enqueue Codex message'
             }, 500)
         }
     })

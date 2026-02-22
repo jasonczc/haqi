@@ -66,6 +66,7 @@ export type RpcCodexQueueEntry = {
     preview: string
     modeHash: string
     isolate: boolean
+    deferredUserMessage?: boolean
     enqueuedAt: number
 }
 
@@ -235,6 +236,33 @@ export class RpcGateway {
                         entries: []
                     }
                     : undefined
+            }
+        }
+    }
+
+    async enqueueCodexMessage(
+        sessionId: string,
+        payload: {
+            text: string
+            attachments?: Array<{
+                id: string
+                filename: string
+                mimeType: string
+                size: number
+                path: string
+                previewUrl?: string
+            }>
+        }
+    ): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'enqueue-codex-message', payload) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'enqueue-codex-message')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Codex queue enqueue is unavailable for this session. Please restart the session.'
             }
         }
     }
