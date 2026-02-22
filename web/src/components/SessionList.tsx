@@ -334,7 +334,7 @@ function SessionItem(props: {
             <button
                 type="button"
                 {...longPressHandlers}
-                className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-1 px-2.5 py-2' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
+                className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
                 style={{ WebkitTouchCallout: 'none' }}
                 aria-current={selected ? 'page' : undefined}
             >
@@ -345,11 +345,11 @@ function SessionItem(props: {
                                 className={`h-2 w-2 rounded-full ${statusDotClass}`}
                             />
                         </span>
-                        <div className="truncate text-base font-medium">
+                        <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
                             {sessionName}
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0 text-xs">
+                    <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
                         {s.thinking ? (
                             <span className="text-[#007AFF] animate-pulse">
                                 {t('session.item.thinking')}
@@ -679,7 +679,7 @@ export function SessionList(props: {
                         <Virtuoso
                             data={rows}
                             style={{ height: '100%' }}
-                            defaultItemHeight={density === 'compact' ? 72 : 108}
+                            defaultItemHeight={density === 'compact' ? 64 : 108}
                             increaseViewportBy={360}
                             initialItemCount={Math.min(rows.length, 24)}
                             components={{
