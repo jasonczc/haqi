@@ -197,6 +197,33 @@ describe('AppServerEventConverter', () => {
         }]);
     });
 
+    it('extracts web search query from action payload and defaults completion status', () => {
+        const converter = new AppServerEventConverter();
+        const action = { type: 'openPage', url: 'https://docs.cursor.com/agent/planning' };
+
+        const started = converter.handleNotification('item/started', {
+            item: { id: 'ws-2', type: 'webSearch', action }
+        });
+
+        expect(started).toEqual([{
+            type: 'tool_call_begin',
+            call_id: 'ws-2',
+            name: 'WebSearch',
+            input: { query: 'https://docs.cursor.com/agent/planning', action }
+        }]);
+
+        const completed = converter.handleNotification('item/completed', {
+            item: { id: 'ws-2', type: 'webSearch', action }
+        });
+
+        expect(completed).toEqual([{
+            type: 'tool_call_end',
+            call_id: 'ws-2',
+            name: 'WebSearch',
+            output: { query: 'https://docs.cursor.com/agent/planning', action, status: 'completed' }
+        }]);
+    });
+
     it('maps mcp tool call and progress to generic tool call events', () => {
         const converter = new AppServerEventConverter();
 

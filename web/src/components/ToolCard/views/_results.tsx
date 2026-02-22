@@ -1,5 +1,6 @@
 import type { ToolViewComponent, ToolViewProps } from '@/components/ToolCard/views/_all'
 import { isObject, safeStringify } from '@hapi/protocol'
+import { useEffect, useMemo, useState } from 'react'
 import { CodeBlock } from '@/components/CodeBlock'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { basename, resolveDisplayPath } from '@/utils/path'
@@ -489,6 +490,141 @@ const CodexDiffResultView: ToolViewComponent = (props: ToolViewProps) => {
     )
 }
 
+type CollabAgentStateEntry = {
+    agentId: string
+    status: string | null
+    message: string | null
+}
+
+function extractCollabAgentEntries(block: ToolViewProps['block']): {
+    senderId: string | null
+    prompt: string | null
+    entries: CollabAgentStateEntry[]
+} | null {
+    const input = isObject(block.tool.input) ? block.tool.input : null
+    const result = isObject(block.tool.result) ? block.tool.result : null
+    const payload = result ?? input
+    if (!payload) return null
+
+    const senderId = typeof payload.sender_thread_id === 'string'
+        ? payload.sender_thread_id
+        : typeof input?.sender_thread_id === 'string'
+            ? input.sender_thread_id
+            : null
+    const prompt = typeof payload.prompt === 'string'
+        ? payload.prompt
+        : typeof input?.prompt === 'string'
+            ? input.prompt
+            : null
+
+    const receiverIds = Array.isArray(payload.receiver_thread_ids)
+        ? payload.receiver_thread_ids.filter((value): value is string => typeof value === 'string')
+        : Array.isArray(input?.receiver_thread_ids)
+            ? input.receiver_thread_ids.filter((value): value is string => typeof value === 'string')
+            : []
+
+    const statesRecord = isObject(payload.agents_states)
+        ? payload.agents_states
+        : isObject(input?.agents_states)
+            ? input.agents_states
+            : null
+
+    if (!senderId && receiverIds.length === 0 && !statesRecord) {
+        return null
+    }
+
+    const agentIds = new Set<string>(receiverIds)
+    if (statesRecord) {
+        Object.keys(statesRecord).forEach((id) => agentIds.add(id))
+    }
+
+    const entries: CollabAgentStateEntry[] = Array.from(agentIds).map((agentId) => {
+        const rawState = statesRecord && isObject(statesRecord[agentId]) ? statesRecord[agentId] : null
+        const status = rawState && typeof rawState.status === 'string' ? rawState.status : null
+        const message = rawState && typeof rawState.message === 'string' ? rawState.message : null
+        return { agentId, status, message }
+    })
+
+    return { senderId, prompt, entries }
+}
+
+function collabStatusTone(status: string | null): string {
+    if (!status) return 'text-[var(--app-hint)]'
+    const normalized = status.toLowerCase()
+    if (normalized.includes('running') || normalized.includes('progress')) {
+        return 'text-[var(--app-link)]'
+    }
+    if (normalized.includes('complete') || normalized.includes('done')) {
+        return 'text-emerald-600'
+    }
+    if (normalized.includes('error') || normalized.includes('fail')) {
+        return 'text-red-600'
+    }
+    return 'text-[var(--app-hint)]'
+}
+
+const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
+    const collab = useMemo(() => extractCollabAgentEntries(props.block), [props.block])
+    const [selectedAgentId, setSelectedAgentId] = useState<string | null>(collab?.entries[0]?.agentId ?? null)
+
+    useEffect(() => {
+        setSelectedAgentId(collab?.entries[0]?.agentId ?? null)
+    }, [collab])
+
+    if (!collab || collab.entries.length === 0) {
+        return <GenericResultView {...props} />
+    }
+
+    const selected = collab.entries.find((entry) => entry.agentId === selectedAgentId) ?? collab.entries[0]
+
+    return (
+        <div className="flex flex-col gap-2">
+            {collab.senderId ? (
+                <div className="text-xs text-[var(--app-hint)]">
+                    sender: <span className="font-mono break-all">{collab.senderId}</span>
+                </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-1">
+                {collab.entries.map((entry) => (
+                    <button
+                        key={entry.agentId}
+                        type="button"
+                        className={`rounded border px-2 py-1 text-xs transition-colors ${
+                            selected?.agentId === entry.agentId
+                                ? 'border-[var(--app-link)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)]'
+                                : 'border-[var(--app-border)] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)]'
+                        }`}
+                        onClick={() => setSelectedAgentId(entry.agentId)}
+                    >
+                        {entry.agentId.slice(0, 8)}
+                    </button>
+                ))}
+            </div>
+
+            {selected ? (
+                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2 text-xs">
+                    <div className={`font-semibold ${collabStatusTone(selected.status)}`}>
+                        {selected.status ?? 'unknown'}
+                    </div>
+                    {selected.message ? (
+                        <div className="mt-1 break-words text-[var(--app-fg)]">
+                            {selected.message}
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
+
+            {collab.prompt ? (
+                <div className="rounded-md border border-[var(--app-border)] p-2 text-xs text-[var(--app-hint)]">
+                    <div className="mb-1 font-medium uppercase tracking-wide">prompt</div>
+                    <div className="break-words text-[var(--app-fg)]">{collab.prompt}</div>
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
 type TodoItem = {
     id?: string
     content?: string
@@ -604,13 +740,19 @@ export const toolResultViewRegistry: Record<string, ToolViewComponent> = {
     MultiEdit: MutationResultView,
     Write: MutationResultView,
     WebFetch: MarkdownResultView,
-    WebSearch: MarkdownResultView,
+    WebSearch: GenericResultView,
     NotebookRead: ReadResultView,
     NotebookEdit: MutationResultView,
     TodoWrite: TodoWriteResultView,
     CodexReasoning: CodexReasoningResultView,
     CodexPatch: CodexPatchResultView,
     CodexDiff: CodexDiffResultView,
+    collab_tool_call: CollabAgentResultView,
+    spawn_agent: CollabAgentResultView,
+    send_input: CollabAgentResultView,
+    wait: CollabAgentResultView,
+    close_agent: CollabAgentResultView,
+    resume_agent: CollabAgentResultView,
     AskUserQuestion: AskUserQuestionResultView,
     ExitPlanMode: MarkdownResultView,
     ask_user_question: AskUserQuestionResultView,
@@ -621,5 +763,9 @@ export function getToolResultViewComponent(toolName: string): ToolViewComponent 
     if (toolName.startsWith('mcp__')) {
         return GenericResultView
     }
-    return toolResultViewRegistry[toolName] ?? GenericResultView
+    const mapped = toolResultViewRegistry[toolName]
+    if (mapped) {
+        return mapped
+    }
+    return GenericResultView
 }

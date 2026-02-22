@@ -16,7 +16,9 @@ import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import {
     applySessionGroupOrder,
     loadSessionGroupOrder,
+    loadSessionProjectOffline,
     moveSessionGroup,
+    persistSessionProjectOffline,
     persistSessionGroupOrder,
     reconcileSessionGroupOrder
 } from '@/components/sessionGroupOrder'
@@ -35,6 +37,12 @@ type SessionListRow =
     | {
         type: 'group'
         group: SessionGroup
+        isProjectOffline: boolean
+        isCollapsed: boolean
+    }
+    | {
+        type: 'projects-offline-section'
+        count: number
         isCollapsed: boolean
     }
     | {
@@ -46,6 +54,7 @@ type SessionListRow =
     | {
         type: 'session'
         session: SessionSummary
+        forceOffline: boolean
     }
 
 export type NewSessionPreset = {
@@ -120,59 +129,84 @@ function pruneCollapseOverrides(
 function flattenSessionRows(
     groups: SessionGroup[],
     isGroupCollapsed: (group: SessionGroup) => boolean,
-    isOfflineCollapsed: (directory: string) => boolean
+    isOfflineCollapsed: (directory: string) => boolean,
+    isProjectForcedOffline: (group: SessionGroup) => boolean,
+    areOfflineProjectsCollapsed: boolean
 ): SessionListRow[] {
     const rows: SessionListRow[] = []
-    for (const group of groups) {
-        const collapsed = isGroupCollapsed(group)
-        rows.push({ type: 'group', group, isCollapsed: collapsed })
-        if (collapsed) continue
+    const activeGroups = groups.filter((group) => !isProjectForcedOffline(group))
+    const offlineGroups = groups.filter((group) => isProjectForcedOffline(group))
 
-        const onlineSessions = group.sessions.filter((session) => session.active)
-        const offlineSessions = group.sessions.filter((session) => !session.active)
+    const appendGroupRows = (groupList: SessionGroup[], forcedOffline: boolean) => {
+        for (const group of groupList) {
+            const collapsed = isGroupCollapsed(group)
+            rows.push({ type: 'group', group, isProjectOffline: forcedOffline, isCollapsed: collapsed })
+            if (collapsed) continue
 
-        for (const session of onlineSessions) {
+            const onlineSessions = forcedOffline ? [] : group.sessions.filter((session) => session.active)
+            const offlineSessions = forcedOffline ? group.sessions : group.sessions.filter((session) => !session.active)
+
+            for (const session of onlineSessions) {
+                rows.push({
+                    type: 'session',
+                    session,
+                    forceOffline: false
+                })
+            }
+
+            if (offlineSessions.length === 0) {
+                continue
+            }
+
+            // If this group has no online sessions, show offline sessions directly
+            // instead of requiring an extra "OFFLINE" expand step.
+            if (onlineSessions.length === 0) {
+                for (const session of offlineSessions) {
+                    rows.push({
+                        type: 'session',
+                        session,
+                        forceOffline: forcedOffline
+                    })
+                }
+                continue
+            }
+
+            const offlineCollapsed = isOfflineCollapsed(group.directory)
             rows.push({
-                type: 'session',
-                session
+                type: 'offline-section',
+                group,
+                offlineCount: offlineSessions.length,
+                isCollapsed: offlineCollapsed
             })
-        }
 
-        if (offlineSessions.length === 0) {
-            continue
-        }
+            if (offlineCollapsed) {
+                continue
+            }
 
-        // If this group has no online sessions, show offline sessions directly
-        // instead of requiring an extra "OFFLINE" expand step.
-        if (onlineSessions.length === 0) {
             for (const session of offlineSessions) {
                 rows.push({
                     type: 'session',
-                    session
+                    session,
+                    forceOffline: forcedOffline
                 })
             }
-            continue
-        }
-
-        const offlineCollapsed = isOfflineCollapsed(group.directory)
-        rows.push({
-            type: 'offline-section',
-            group,
-            offlineCount: offlineSessions.length,
-            isCollapsed: offlineCollapsed
-        })
-
-        if (offlineCollapsed) {
-            continue
-        }
-
-        for (const session of offlineSessions) {
-            rows.push({
-                type: 'session',
-                session
-            })
         }
     }
+
+    appendGroupRows(activeGroups, false)
+
+    if (offlineGroups.length > 0) {
+        rows.push({
+            type: 'projects-offline-section',
+            count: offlineGroups.length,
+            isCollapsed: areOfflineProjectsCollapsed
+        })
+
+        if (!areOfflineProjectsCollapsed) {
+            appendGroupRows(offlineGroups, true)
+        }
+    }
+
     return rows
 }
 
@@ -295,9 +329,10 @@ function SessionItem(props: {
     api: ApiClient | null
     selected?: boolean
     density: SessionListDensity
+    forceOffline?: boolean
 }) {
     const { t } = useTranslation()
-    const { session: s, onSelect, showPath = true, api, selected = false, density } = props
+    const { session: s, onSelect, showPath = true, api, selected = false, density, forceOffline = false } = props
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -327,8 +362,10 @@ function SessionItem(props: {
     })
 
     const sessionName = getSessionTitle(s)
-    const statusDotClass = s.active
-        ? (s.thinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
+    const effectiveActive = forceOffline ? false : s.active
+    const effectiveThinking = forceOffline ? false : s.thinking
+    const statusDotClass = effectiveActive
+        ? (effectiveThinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
         : 'bg-[var(--app-hint)]'
     const isCompact = density === 'compact'
 
@@ -364,7 +401,7 @@ function SessionItem(props: {
                         </div>
                     </div>
                     <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-                        {s.thinking ? (
+                        {effectiveThinking ? (
                             <span className="text-[#007AFF] animate-pulse">
                                 {t('session.item.thinking')}
                             </span>
@@ -457,13 +494,15 @@ function SessionItem(props: {
 
 function SessionGroupRow(props: {
     group: SessionGroup
+    isProjectOffline: boolean
     isCollapsed: boolean
     density: SessionListDensity
     onToggleGroup: (directory: string, isCollapsed: boolean) => void
+    onToggleProjectOffline: (directory: string, isOffline: boolean) => void
     onCreateInGroup: (preset?: NewSessionPreset) => void
 }) {
     const { t } = useTranslation()
-    const { group, isCollapsed, density, onToggleGroup, onCreateInGroup } = props
+    const { group, isProjectOffline, isCollapsed, density, onToggleGroup, onToggleProjectOffline, onCreateInGroup } = props
     const { setNodeRef, transform, transition, isDragging, isOver, listeners } = useSortable({
         id: group.directory
     })
@@ -494,10 +533,32 @@ function SessionGroupRow(props: {
                     <span className={`font-medium break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`} title={group.directory}>
                         {group.displayName}
                     </span>
+                    {isProjectOffline ? (
+                        <span className="shrink-0 rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                            {t('misc.offline')}
+                        </span>
+                    ) : null}
                     <span className="shrink-0 text-xs text-[var(--app-hint)]">
                         ({group.sessions.length})
                     </span>
                 </div>
+            </button>
+            <button
+                type="button"
+                onMouseDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                    event.stopPropagation()
+                    onToggleProjectOffline(group.directory, isProjectOffline)
+                }}
+                className={`shrink-0 rounded p-1.5 transition-colors hover:bg-[var(--app-secondary-bg)] ${
+                    isProjectOffline ? 'text-[var(--app-hint)]' : 'text-[var(--app-link)]'
+                }`}
+                title={isProjectOffline ? t('sessions.projectOffline.disable') : t('sessions.projectOffline.enable')}
+                aria-label={isProjectOffline ? t('sessions.projectOffline.disable') : t('sessions.projectOffline.enable')}
+            >
+                <BulbIcon className="h-4 w-4" />
             </button>
             {group.directory !== 'Other' ? (
                 <button
@@ -528,10 +589,11 @@ function OfflineSectionRow(props: {
     count: number
     isCollapsed: boolean
     density: SessionListDensity
+    label?: string
     onToggleGroup: (directory: string, isCollapsed: boolean) => void
 }) {
     const { t } = useTranslation()
-    const { directory, count, isCollapsed, density, onToggleGroup } = props
+    const { directory, count, isCollapsed, density, label, onToggleGroup } = props
 
     return (
         <button
@@ -544,7 +606,7 @@ function OfflineSectionRow(props: {
                 className="h-3.5 w-3.5 text-[var(--app-hint)]"
                 collapsed={isCollapsed}
             />
-            <span className="uppercase tracking-wide">{t('misc.offline')}</span>
+            <span className="uppercase tracking-wide">{label ?? t('misc.offline')}</span>
             <span className="text-[var(--app-hint)]">
                 ({count})
             </span>
@@ -574,12 +636,16 @@ export function SessionList(props: {
         [baseGroups]
     )
     const [groupOrder, setGroupOrder] = useState<string[]>(() => loadSessionGroupOrder())
+    const [projectOfflineDirectories, setProjectOfflineDirectories] = useState<Set<string>>(
+        () => new Set(loadSessionProjectOffline())
+    )
     const [collapseOverrides, setCollapseOverrides] = useState<Map<string, boolean>>(
         () => new Map()
     )
     const [offlineCollapseOverrides, setOfflineCollapseOverrides] = useState<Map<string, boolean>>(
         () => new Map()
     )
+    const [isOfflineProjectsCollapsed, setIsOfflineProjectsCollapsed] = useState(true)
     const groups = useMemo(
         () => applySessionGroupOrder(baseGroups, groupOrder),
         [baseGroups, groupOrder]
@@ -616,10 +682,17 @@ export function SessionList(props: {
         persistSessionGroupOrder(groupOrder)
     }, [groupOrder])
 
+    useEffect(() => {
+        persistSessionProjectOffline(Array.from(projectOfflineDirectories))
+    }, [projectOfflineDirectories])
+
+    const isProjectForcedOffline = (directory: string): boolean => projectOfflineDirectories.has(directory)
+    const isProjectForcedOfflineGroup = (group: SessionGroup): boolean => isProjectForcedOffline(group.directory)
+
     const isGroupCollapsed = (group: SessionGroup): boolean => {
         const override = collapseOverrides.get(group.directory)
         if (override !== undefined) return override
-        return !group.hasActiveSession
+        return isProjectForcedOfflineGroup(group) || !group.hasActiveSession
     }
     const isOfflineCollapsed = (directory: string): boolean => {
         const override = offlineCollapseOverrides.get(directory)
@@ -641,11 +714,35 @@ export function SessionList(props: {
             return next
         })
     }
+    const toggleProjectOffline = (directory: string, isOffline: boolean) => {
+        if (!isOffline) {
+            setIsOfflineProjectsCollapsed(false)
+        }
+        setProjectOfflineDirectories((prev) => {
+            const next = new Set(prev)
+            if (isOffline) {
+                next.delete(directory)
+            } else {
+                next.add(directory)
+            }
+            return next
+        })
+    }
+    const toggleOfflineProjectsSection = (_directory: string, isCollapsed: boolean) => {
+        setIsOfflineProjectsCollapsed(!isCollapsed)
+    }
 
     useEffect(() => {
         const knownGroups = new Set(groups.map(group => group.directory))
         setCollapseOverrides((prev) => pruneCollapseOverrides(prev, knownGroups))
         setOfflineCollapseOverrides((prev) => pruneCollapseOverrides(prev, knownGroups))
+        setProjectOfflineDirectories((prev) => {
+            const next = new Set(Array.from(prev).filter((directory) => knownGroups.has(directory)))
+            if (next.size === prev.size) {
+                return prev
+            }
+            return next
+        })
     }, [groups])
 
     const handleGroupDragEnd = ({ active, over }: DragEndEvent) => {
@@ -659,8 +756,14 @@ export function SessionList(props: {
     }
 
     const rows = useMemo(
-        () => flattenSessionRows(groups, isGroupCollapsed, isOfflineCollapsed),
-        [groups, collapseOverrides, offlineCollapseOverrides]
+        () => flattenSessionRows(
+            groups,
+            isGroupCollapsed,
+            isOfflineCollapsed,
+            isProjectForcedOfflineGroup,
+            isOfflineProjectsCollapsed
+        ),
+        [groups, collapseOverrides, offlineCollapseOverrides, projectOfflineDirectories, isOfflineProjectsCollapsed]
     )
 
     return (
@@ -702,6 +805,8 @@ export function SessionList(props: {
                             computeItemKey={(_, row) => (
                                 row.type === 'group'
                                     ? `group:${row.group.directory}`
+                                    : row.type === 'projects-offline-section'
+                                        ? 'projects-offline'
                                     : row.type === 'offline-section'
                                         ? `offline:${row.group.directory}`
                                     : `session:${row.session.id}`
@@ -711,10 +816,36 @@ export function SessionList(props: {
                                     return (
                                         <SessionGroupRow
                                             group={row.group}
+                                            isProjectOffline={row.isProjectOffline}
                                             isCollapsed={row.isCollapsed}
                                             density={density}
                                             onToggleGroup={toggleGroup}
-                                            onCreateInGroup={props.onNewSession}
+                                            onToggleProjectOffline={toggleProjectOffline}
+                                            onCreateInGroup={(preset) => {
+                                                if (row.isProjectOffline) {
+                                                    setProjectOfflineDirectories((prev) => {
+                                                        if (!prev.has(row.group.directory)) return prev
+                                                        const next = new Set(prev)
+                                                        next.delete(row.group.directory)
+                                                        return next
+                                                    })
+                                                    setIsOfflineProjectsCollapsed(false)
+                                                }
+                                                props.onNewSession(preset)
+                                            }}
+                                        />
+                                    )
+                                }
+
+                                if (row.type === 'projects-offline-section') {
+                                    return (
+                                        <OfflineSectionRow
+                                            directory="__projects_offline__"
+                                            count={row.count}
+                                            isCollapsed={row.isCollapsed}
+                                            density={density}
+                                            label={t('sessions.projectOffline.section')}
+                                            onToggleGroup={toggleOfflineProjectsSection}
                                         />
                                     )
                                 }
@@ -740,6 +871,7 @@ export function SessionList(props: {
                                             api={api}
                                             selected={row.session.id === selectedSessionId}
                                             density={density}
+                                            forceOffline={row.forceOffline}
                                         />
                                     </div>
                                 )

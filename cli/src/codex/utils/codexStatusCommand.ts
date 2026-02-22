@@ -33,6 +33,13 @@ type NativeStatusSnapshot = {
 
 type NativeStatusErrors = Partial<Record<'appServer' | 'account' | 'auth' | 'rateLimits' | 'config', string>>;
 
+export type CodexQueueSnapshot = {
+    pendingCount: number;
+    inQueue: boolean;
+    taskRunning: boolean;
+    nextPreview?: string;
+};
+
 function toText(value: unknown): string {
     if (typeof value === 'string') {
         return value;
@@ -250,6 +257,7 @@ export async function buildCodexStatusMessage(opts: {
     sessionId: string | null;
     permissionMode?: PermissionMode;
     collaborationMode?: CollaborationMode['mode'];
+    queueSnapshot?: CodexQueueSnapshot;
 }): Promise<string> {
     const [versionResult, loginStatusResult, nativeStatus] = await Promise.all([
         runCodexCommand(['--version'], opts.cwd),
@@ -278,6 +286,11 @@ export async function buildCodexStatusMessage(opts: {
     const creditsText = snapshot.creditsBalance ?? 'unknown';
 
     const loginPreview = loginStatusPreview;
+    const queueSnapshot = opts.queueSnapshot;
+    const queuePending = queueSnapshot?.pendingCount ?? 0;
+    const queueInProgress = queueSnapshot?.inQueue ?? false;
+    const queueTaskRunning = queueSnapshot?.taskRunning ?? false;
+    const queueNextPreview = queueSnapshot?.nextPreview ? toSingleLinePreview(queueSnapshot.nextPreview) : '';
 
     const lines = [
         'Codex status',
@@ -285,6 +298,9 @@ export async function buildCodexStatusMessage(opts: {
         `- Session: ${opts.sessionId ?? 'not established'}`,
         `- Permission mode: ${opts.permissionMode ?? 'default'}`,
         `- Collaboration mode: ${opts.collaborationMode ?? 'default'}`,
+        `- Queue pending: ${queuePending}`,
+        `- In queue: ${formatBoolean(queueInProgress)}`,
+        `- Task running: ${formatBoolean(queueTaskRunning)}`,
         `- CLI version: ${versionPreview || 'unknown'}`,
         `- Account: ${accountText}`,
         `- Plan: ${planText}`,
@@ -298,6 +314,10 @@ export async function buildCodexStatusMessage(opts: {
         `- Config model: ${snapshot.model ?? 'unknown'}`,
         `- codex login status: ${loginPreview}`
     ];
+
+    if (queueNextPreview) {
+        lines.push(`- Next queued message: ${queueNextPreview}`);
+    }
 
     if (nativeWarnings) {
         lines.push(`- Native status warnings: ${nativeWarnings}`);

@@ -159,11 +159,53 @@ describe('SessionList project quick-create action', () => {
         expect(screen.getByText('Online Session')).toBeInTheDocument()
         expect(screen.queryByText('Offline Session')).not.toBeInTheDocument()
 
-        const offlineToggle = screen.getByRole('button', { name: /offline/i })
+        const offlineToggle = screen
+            .getAllByRole('button', { name: /offline/i })
+            .find((button) => button.hasAttribute('aria-expanded'))
+
+        expect(offlineToggle).toBeDefined()
+        if (!offlineToggle) {
+            throw new Error('offline section toggle not found')
+        }
         expect(offlineToggle).toHaveAttribute('aria-expanded', 'false')
 
         fireEvent.click(offlineToggle)
 
         expect(offlineToggle).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    it('can mark project offline and pull it back by creating a new session', () => {
+        const onNewSession = vi.fn()
+        renderWithProviders(
+            <SessionList
+                sessions={[
+                    createSession({
+                        id: 'online-project',
+                        active: true,
+                        metadata: {
+                            path: '/repo/active-project',
+                            name: 'Active Project Session',
+                            machineId: 'machine-1',
+                            flavor: 'codex'
+                        }
+                    })
+                ]}
+                onSelect={vi.fn()}
+                onNewSession={onNewSession}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                renderHeader={false}
+                api={null}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: 'Mark project offline' }))
+        expect(screen.getByRole('button', { name: /offline projects/i })).toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('button', { name: 'New Session in this project' }))
+        expect(onNewSession).toHaveBeenCalledWith({
+            directory: '/repo/active-project',
+            machineId: 'machine-1'
+        })
     })
 })

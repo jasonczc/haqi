@@ -42,6 +42,9 @@ export default {
   'sessions.count': '{n} sessions in {m} projects',
   'sessions.new': 'New Session',
   'sessions.newInProject': 'New Session in this project',
+  'sessions.projectOffline.section': 'Offline projects',
+  'sessions.projectOffline.enable': 'Mark project offline',
+  'sessions.projectOffline.disable': 'Unmark project offline',
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
   'sessions.sidebar.resize': 'Resize sidebar',
@@ -248,6 +251,16 @@ export default {
   'codexQueue.inline.running': 'Running',
   'codexQueue.inline.next': 'Next',
   'codexQueue.inline.empty': 'Queue is empty',
+
+  // Codex plan notebook
+  'codexPlan.title': 'Codex plan',
+  'codexPlan.updated': 'Updated {time}',
+  'codexPlan.expand': 'Expand',
+  'codexPlan.collapse': 'Collapse',
+  'codexPlan.close': 'Hide',
+  'codexPlan.status.pending': 'pending',
+  'codexPlan.status.inProgress': 'in progress',
+  'codexPlan.status.completed': 'completed',
 
   // Voice assistant
   'voice.connecting': 'Connecting...',

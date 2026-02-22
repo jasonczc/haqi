@@ -84,6 +84,29 @@ bun install
 bun run build:single-exe
 ```
 
+## Development workflow: rebuild + deploy locally
+
+Use this when validating frontend/CLI changes on your local running hub.
+
+```bash
+# 1) Build all-in-one binary (web + hub + cli)
+bun run build:single-exe
+
+# 2) Deploy binary to current user install path (Linux example)
+cp -a ~/.local/bin/haqi ~/.local/bin/haqi.bak.$(date +%Y%m%d-%H%M%S)
+install -m 755 ./cli/dist-exe/bun-linux-x64/hapi ~/.local/bin/haqi
+
+# 3) Restart runtime processes
+haqi runner stop || true
+haqi runner start
+```
+
+Optional status check:
+
+```bash
+./scripts/hapi-local.sh status
+```
+
 ## Credits
 
 HAQI means "哈皮" a Chinese transliteration of [Happy](https://github.com/slopus/happy). Great credit to the original project.

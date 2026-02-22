@@ -1,5 +1,6 @@
 import { getPermissionModeOptionsForFlavor, MODEL_MODE_LABELS, MODEL_MODES } from '@hapi/protocol'
 import { ComposerPrimitive, useAssistantApi, useAssistantState } from '@assistant-ui/react'
+import type { Attachment } from '@assistant-ui/react'
 import {
     type ChangeEvent as ReactChangeEvent,
     type ClipboardEvent as ReactClipboardEvent,
@@ -75,6 +76,54 @@ function writeComposerDraft(sessionId: string, text: string): void {
         }
         localStorage.setItem(key, text)
     } catch {
+    }
+}
+
+type AttachmentMetadataEnvelope = {
+    __attachmentMetadata?: AttachmentMetadata
+}
+
+function parseAttachmentMetadataFromAttachment(attachment: Attachment): AttachmentMetadata | null {
+    const fromCompleteContent = (() => {
+        if (attachment.status.type !== 'complete') return null
+        const parts = attachment.content ?? []
+        for (const part of parts) {
+            if (part.type !== 'text') continue
+            const textPart = (part as { text?: unknown }).text
+            if (typeof textPart !== 'string') continue
+            try {
+                const parsed = JSON.parse(textPart) as AttachmentMetadataEnvelope
+                const metadata = parsed.__attachmentMetadata
+                if (!metadata || typeof metadata !== 'object') continue
+                if (typeof metadata.path !== 'string' || metadata.path.length === 0) continue
+                return metadata
+            } catch {
+                continue
+            }
+        }
+        return null
+    })()
+
+    if (fromCompleteContent) {
+        return fromCompleteContent
+    }
+
+    if (attachment.status.type !== 'requires-action') {
+        return null
+    }
+
+    const path = (attachment as { path?: unknown }).path
+    if (typeof path !== 'string' || path.length === 0) {
+        return null
+    }
+
+    return {
+        id: attachment.id,
+        filename: attachment.name,
+        mimeType: attachment.contentType ?? 'application/octet-stream',
+        size: attachment.file?.size ?? 0,
+        path,
+        previewUrl: (attachment as { previewUrl?: unknown }).previewUrl as string | undefined
     }
 }
 
@@ -193,6 +242,12 @@ export function HappyComposer(props: {
     })
     const canSendBase = (hasText || hasAttachments) && attachmentsReady && !controlsDisabled
     const canSend = canSendBase && (!threadIsRunning || queueSendEnabled)
+    const queueAttachments = useMemo(
+        () => attachments
+            .map(parseAttachmentMetadataFromAttachment)
+            .filter((metadata): metadata is AttachmentMetadata => metadata !== null),
+        [attachments]
+    )
 
     const [inputState, setInputState] = useState<TextInputState>({
         text: '',
@@ -371,8 +426,7 @@ export function HappyComposer(props: {
 
     const shouldEnqueueWithoutImmediateChat = queueSendEnabled
         && Boolean(onCodexQueueEnqueue)
-        && !hasAttachments
-        && trimmed.length > 0
+        && (trimmed.length > 0 || queueAttachments.length > 0)
 
     const sendComposerNow = useCallback(async () => {
         if (!canSend) {
@@ -380,10 +434,16 @@ export function HappyComposer(props: {
         }
 
         if (shouldEnqueueWithoutImmediateChat && onCodexQueueEnqueue) {
+            if (hasAttachments && queueAttachments.length < attachments.length) {
+                haptic('error')
+                return
+            }
             try {
                 await onCodexQueueEnqueue({
-                    text: trimmed
+                    text: trimmed,
+                    attachments: queueAttachments.length > 0 ? queueAttachments : undefined
                 })
+                await api.composer().clearAttachments()
                 api.composer().setText('')
                 onCodexQueueUpdated?.()
                 return
@@ -405,6 +465,9 @@ export function HappyComposer(props: {
         onCodexQueueUpdated,
         onCodexQueueEnqueue,
         shouldEnqueueWithoutImmediateChat,
+        queueAttachments,
+        hasAttachments,
+        attachments.length,
         trimmed,
         haptic
     ])
@@ -771,6 +834,10 @@ export function HappyComposer(props: {
                                                     </div>
                                                 ) : null}
                                             </>
+                                        ) : inlineQueuePendingCount > 0 ? (
+                                            <div className="px-1 text-xs text-[var(--app-hint)]">
+                                                {t('codexQueue.inline.pending', { count: inlineQueuePendingCount })}
+                                            </div>
                                         ) : (
                                             <div className="px-1 text-xs text-[var(--app-hint)]">
                                                 {t('codexQueue.dialog.empty')}

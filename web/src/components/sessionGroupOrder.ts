@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'hapi:sessionsGroupOrder'
+const PROJECT_OFFLINE_STORAGE_KEY = 'hapi:sessionsProjectOffline'
 
 export function normalizeSessionGroupOrder(value: string | null): string[] {
     if (!value) return []
@@ -31,6 +32,23 @@ export function loadSessionGroupOrder(): string[] {
 export function persistSessionGroupOrder(order: string[]): void {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(order))
+    } catch {
+        // ignore storage failures
+    }
+}
+
+export function loadSessionProjectOffline(): string[] {
+    try {
+        return normalizeSessionGroupOrder(localStorage.getItem(PROJECT_OFFLINE_STORAGE_KEY))
+    } catch {
+        return []
+    }
+}
+
+export function persistSessionProjectOffline(directories: string[]): void {
+    const normalized = Array.from(new Set(directories.map((value) => value.trim()).filter(Boolean)))
+    try {
+        localStorage.setItem(PROJECT_OFFLINE_STORAGE_KEY, JSON.stringify(normalized))
     } catch {
         // ignore storage failures
     }

@@ -106,6 +106,23 @@ function extractChanges(value: unknown): Record<string, unknown> | null {
     return null;
 }
 
+function extractWebSearchQuery(item: Record<string, unknown>): string | null {
+    const directQuery = asString(item.query);
+    if (directQuery) return directQuery;
+
+    const action = asRecord(item.action);
+    if (!action) return null;
+
+    const actionQuery = asString(action.query)
+        ?? asString(action.url)
+        ?? asString(action.pageUrl ?? action.page_url)
+        ?? asString(action.pattern);
+    if (actionQuery) return actionQuery;
+
+    const queries = asStringArray(action.queries);
+    return queries?.[0] ?? null;
+}
+
 function sanitizeToolPart(value: unknown): string {
     const raw = asString(value) ?? 'unknown';
     const sanitized = raw
@@ -570,9 +587,9 @@ export class AppServerEventConverter {
             }
 
             if (itemType === 'websearch') {
-                const query = asString(item.query);
+                const query = extractWebSearchQuery(item);
                 const action = item.action;
-                const status = asString(item.status);
+                const status = asString(item.status) ?? (method === 'item/completed' ? 'completed' : null);
 
                 if (method === 'item/started') {
                     this.beginGenericToolCall(events, itemId, 'WebSearch', {
@@ -585,7 +602,9 @@ export class AppServerEventConverter {
                     this.completeGenericToolCall(events, itemId, 'WebSearch', {
                         ...(query ? { query } : {}),
                         ...(action !== undefined ? { action } : {}),
-                        ...(status ? { status } : {})
+                        ...(status ? { status } : {}),
+                        ...(item.result !== undefined ? { result: item.result } : {}),
+                        ...(item.error !== undefined ? { error: item.error } : {})
                     });
                 }
 

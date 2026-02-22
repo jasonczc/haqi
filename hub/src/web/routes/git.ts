@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { isAbsolute } from 'node:path'
 import { z } from 'zod'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
@@ -13,9 +14,15 @@ const directorySchema = z.object({
     path: z.string().optional()
 })
 
-const filePathSchema = z.object({
-    path: z.string().min(1)
+const fileReadSchema = z.object({
+    path: z.string().min(1),
+    maxBytes: z.coerce.number().int().min(0).max(25 * 1024 * 1024).optional()
 })
+
+const pathOnlySchema = fileReadSchema.pick({ path: true })
+
+const YOLO_PERMISSION_MODES = new Set(['yolo', 'bypassPermissions', 'auto-approve'])
+const WINDOWS_ABSOLUTE_PATH_REGEX = /^[A-Za-z]:[\\/]/
 
 function parseBooleanParam(value: string | undefined): boolean | undefined {
     if (value === 'true') return true
@@ -29,6 +36,20 @@ async function runRpc<T>(fn: () => Promise<T>): Promise<T | { success: false; er
     } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
+}
+
+function hasParentTraversal(path: string): boolean {
+    const normalized = path.replace(/\\/g, '/')
+    return normalized === '..' || normalized.startsWith('../') || normalized.includes('/../')
+}
+
+function isOutsideWorkspacePath(path: string): boolean {
+    return isAbsolute(path) || WINDOWS_ABSOLUTE_PATH_REGEX.test(path) || hasParentTraversal(path)
+}
+
+function isYoloPermissionMode(mode: string | undefined): boolean {
+    if (!mode) return false
+    return YOLO_PERMISSION_MODES.has(mode)
 }
 
 export function createGitRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
@@ -91,7 +112,7 @@ export function createGitRoutes(getSyncEngine: () => SyncEngine | null): Hono<We
             return c.json({ success: false, error: 'Session path not available' })
         }
 
-        const parsed = filePathSchema.safeParse(c.req.query())
+        const parsed = pathOnlySchema.safeParse(c.req.query())
         if (!parsed.success) {
             return c.json({ error: 'Invalid file path' }, 400)
         }
@@ -121,12 +142,23 @@ export function createGitRoutes(getSyncEngine: () => SyncEngine | null): Hono<We
             return c.json({ success: false, error: 'Session path not available' })
         }
 
-        const parsed = filePathSchema.safeParse(c.req.query())
+        const parsed = fileReadSchema.safeParse(c.req.query())
         if (!parsed.success) {
             return c.json({ error: 'Invalid file path' }, 400)
         }
 
-        const result = await runRpc(() => engine.readSessionFile(sessionResult.sessionId, parsed.data.path))
+        const allowOutsideWorkingDirectory = isOutsideWorkspacePath(parsed.data.path)
+        if (allowOutsideWorkingDirectory && !isYoloPermissionMode(sessionResult.session.permissionMode)) {
+            return c.json({
+                success: false,
+                error: 'Outside-workspace paths require YOLO permission mode'
+            }, 403)
+        }
+
+        const result = await runRpc(() => engine.readSessionFile(sessionResult.sessionId, parsed.data.path, {
+            maxBytes: parsed.data.maxBytes,
+            allowOutsideWorkingDirectory
+        }))
         return c.json(result)
     })
 

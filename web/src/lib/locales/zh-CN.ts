@@ -42,6 +42,9 @@ export default {
   'sessions.count': '{n} 个会话，{m} 个项目',
   'sessions.new': '新建会话',
   'sessions.newInProject': '在此项目中新建会话',
+  'sessions.projectOffline.section': '离线项目',
+  'sessions.projectOffline.enable': '标记项目离线',
+  'sessions.projectOffline.disable': '取消项目离线',
   'sessions.display.toggleToCompact': '切换到紧凑视图',
   'sessions.display.toggleToComfortable': '切换到舒适视图',
   'sessions.sidebar.resize': '调整侧边栏宽度',
@@ -250,6 +253,16 @@ export default {
   'codexQueue.inline.running': '执行中',
   'codexQueue.inline.next': '下一条',
   'codexQueue.inline.empty': '队列为空',
+
+  // Codex 计划小本本
+  'codexPlan.title': 'Codex 计划',
+  'codexPlan.updated': '更新时间 {time}',
+  'codexPlan.expand': '展开',
+  'codexPlan.collapse': '收起',
+  'codexPlan.close': '隐藏',
+  'codexPlan.status.pending': '待处理',
+  'codexPlan.status.inProgress': '进行中',
+  'codexPlan.status.completed': '已完成',
 
   // Voice assistant
   'voice.connecting': '连接中...',

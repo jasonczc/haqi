@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
     applySessionGroupOrder,
+    loadSessionProjectOffline,
     moveSessionGroup,
     normalizeSessionGroupOrder,
+    persistSessionProjectOffline,
     reconcileSessionGroupOrder
 } from './sessionGroupOrder'
 
@@ -33,5 +35,10 @@ describe('sessionGroupOrder helpers', () => {
     it('moves source group to target position', () => {
         expect(moveSessionGroup(['/a', '/b', '/c', '/d'], '/a', '/d')).toEqual(['/b', '/c', '/d', '/a'])
         expect(moveSessionGroup(['/a', '/b', '/c', '/d'], '/d', '/b')).toEqual(['/a', '/d', '/b', '/c'])
+    })
+
+    it('persists and loads project offline overrides', () => {
+        persistSessionProjectOffline(['/a', ' /b ', '/a', ''])
+        expect(loadSessionProjectOffline()).toEqual(['/a', '/b'])
     })
 })

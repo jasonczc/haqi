@@ -113,13 +113,22 @@ From the repo root:
 ```bash
 bun install
 bun run build:cli
-bun run build:cli:exe
+(cd cli && bun run build:exe)
 ```
 
 For an all-in-one binary that also embeds the web app:
 
 ```bash
 bun run build:single-exe
+```
+
+## Deploy locally after build (Linux)
+
+```bash
+cp -a ~/.local/bin/haqi ~/.local/bin/haqi.bak.$(date +%Y%m%d-%H%M%S)
+install -m 755 ./cli/dist-exe/bun-linux-x64/hapi ~/.local/bin/haqi
+haqi runner stop || true
+haqi runner start
 ```
 
 ## Source structure

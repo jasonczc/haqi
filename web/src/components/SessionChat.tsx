@@ -87,6 +87,146 @@ function isQueueStatusField(label: string): boolean {
         || normalized === 'next queued message'
 }
 
+type CodexPlanStatus = 'pending' | 'in_progress' | 'completed'
+
+type CodexPlanEntry = {
+    step: string
+    status: CodexPlanStatus
+}
+
+type CodexPlanSnapshot = {
+    explanation: string | null
+    entries: CodexPlanEntry[]
+    updatedAt: number
+    signature: string
+}
+
+function normalizeCodexPlanStatus(value: unknown): CodexPlanStatus {
+    const normalized = typeof value === 'string' ? value.trim().toLowerCase() : ''
+    const parsed = parseCodexPlanStatus(normalized)
+    return parsed ?? 'pending'
+}
+
+function parseCodexPlanStatus(value: string): CodexPlanStatus | null {
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'completed' || normalized === 'done') {
+        return 'completed'
+    }
+    if (normalized === 'in_progress' || normalized === 'inprogress' || normalized === 'running') {
+        return 'in_progress'
+    }
+    if (normalized === 'pending' || normalized === 'todo') {
+        return 'pending'
+    }
+    return null
+}
+
+function buildCodexPlanSignature(explanation: string | null, entries: CodexPlanEntry[]): string {
+    return JSON.stringify({
+        explanation: explanation ?? '',
+        entries
+    })
+}
+
+function parseCodexPlanFromText(text: string, updatedAt: number): CodexPlanSnapshot | null {
+    const lines = text.split(/\r?\n/)
+    const explanationLines: string[] = []
+    const entries: CodexPlanEntry[] = []
+
+    for (const line of lines) {
+        const trimmed = line.trim()
+        if (trimmed.length === 0) continue
+
+        const match = trimmed.match(/^-\s*\[([^\]]+)\]\s+(.+)$/)
+        if (match) {
+            const parsedStatus = parseCodexPlanStatus(match[1] ?? '')
+            if (!parsedStatus) {
+                continue
+            }
+            const step = match[2]?.trim()
+            if (!step) continue
+            entries.push({
+                step,
+                status: parsedStatus
+            })
+            continue
+        }
+
+        if (entries.length === 0) {
+            explanationLines.push(trimmed)
+        }
+    }
+
+    if (entries.length === 0) {
+        return null
+    }
+
+    const explanation = explanationLines.length > 0 ? explanationLines.join(' ') : null
+    return {
+        explanation,
+        entries,
+        updatedAt,
+        signature: buildCodexPlanSignature(explanation, entries)
+    }
+}
+
+function extractLatestCodexPlan(messages: NormalizedMessage[]): CodexPlanSnapshot | null {
+    for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
+        const message = messages[messageIndex]
+
+        if (message.role === 'event' && message.content.type === 'plan-update') {
+            const rawEntries = Array.isArray(message.content.plan) ? message.content.plan : []
+            const entries: CodexPlanEntry[] = rawEntries
+                .map((entry) => {
+                    const step = typeof entry?.step === 'string' ? entry.step.trim() : ''
+                    if (step.length === 0) return null
+                    return {
+                        step,
+                        status: normalizeCodexPlanStatus(entry.status)
+                    } satisfies CodexPlanEntry
+                })
+                .filter((entry): entry is CodexPlanEntry => entry !== null)
+
+            const explanation = typeof message.content.explanation === 'string'
+                ? message.content.explanation.trim()
+                : ''
+
+            if (entries.length === 0 && explanation.length === 0) {
+                continue
+            }
+
+            const normalizedExplanation = explanation.length > 0 ? explanation : null
+            return {
+                explanation: normalizedExplanation,
+                entries,
+                updatedAt: message.createdAt,
+                signature: buildCodexPlanSignature(normalizedExplanation, entries)
+            }
+        }
+
+        if (message.role !== 'agent') {
+            continue
+        }
+
+        for (let partIndex = message.content.length - 1; partIndex >= 0; partIndex -= 1) {
+            const part = message.content[partIndex]
+            if (part.type !== 'text') continue
+            const parsed = parseCodexPlanFromText(part.text, message.createdAt)
+            if (parsed) {
+                return parsed
+            }
+        }
+    }
+
+    return null
+}
+
+function getCodexPlanStatusBadgeClass(status: CodexPlanStatus): string {
+    if (status === 'completed') return 'bg-emerald-500/10 text-emerald-600'
+    if (status === 'in_progress') return 'bg-blue-500/10 text-blue-600'
+    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+}
+
 const CODEX_SEND_MODE_STORAGE_PREFIX = 'hapi:codexSendMode:'
 
 function getCodexSendModeStorageKey(sessionId: string): string {
@@ -157,6 +297,8 @@ export function SessionChat(props: {
     const [isCodexQueueMutating, setIsCodexQueueMutating] = useState(false)
     const [codexQueueError, setCodexQueueError] = useState<string | null>(null)
     const [codexSendMode, setCodexSendMode] = useState<CodexSendMode>(() => readCodexSendMode(props.session.id))
+    const [dismissedCodexPlanSignature, setDismissedCodexPlanSignature] = useState<string | null>(null)
+    const [isCodexPlanCollapsed, setIsCodexPlanCollapsed] = useState(false)
     const codexStatusRows = useMemo(() => parseCodexStatusRows(codexStatusMessage), [codexStatusMessage])
     const codexStatusDetailRows = useMemo(
         () => codexQueueStatus
@@ -182,6 +324,9 @@ export function SessionChat(props: {
         }
         return null
     }, [codexQueueStatus, codexQueueState])
+    const codexQueueHasLiveActivity = props.session.thinking || codexQueuePendingCount > 0 || codexQueueEntries.length > 0
+    const inlineQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 10_000
+    const dialogQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 6_000
     const agentFlavor = props.session.metadata?.flavor ?? null
     const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
         props.api,
@@ -299,6 +444,8 @@ export function SessionChat(props: {
         setIsCodexQueueMutating(false)
         setCodexQueueError(null)
         setCodexSendMode(readCodexSendMode(props.session.id))
+        setDismissedCodexPlanSignature(null)
+        setIsCodexPlanCollapsed(false)
     }, [props.session.id])
 
     const normalizedMessages: NormalizedMessage[] = useMemo(() => {
@@ -330,6 +477,23 @@ export function SessionChat(props: {
         }
         return normalized
     }, [props.messages])
+
+    const latestCodexPlan = useMemo(
+        () => extractLatestCodexPlan(normalizedMessages),
+        [normalizedMessages]
+    )
+    const showCodexPlanNotebook = agentFlavor === 'codex'
+        && latestCodexPlan !== null
+        && latestCodexPlan.signature !== dismissedCodexPlanSignature
+
+    useEffect(() => {
+        if (!latestCodexPlan) {
+            return
+        }
+        if (latestCodexPlan.signature !== dismissedCodexPlanSignature) {
+            setIsCodexPlanCollapsed(false)
+        }
+    }, [latestCodexPlan, dismissedCodexPlanSignature])
 
     const reduced = useMemo(
         () => reduceChatBlocks(normalizedMessages, props.session.agentState),
@@ -612,9 +776,9 @@ export function SessionChat(props: {
         }
         const timer = window.setInterval(() => {
             void refreshCodexQueue({ silent: true })
-        }, 2_000)
+        }, inlineQueuePollIntervalMs)
         return () => window.clearInterval(timer)
-    }, [agentFlavor, codexQueueInlinePanelMode, isCodexQueueDialogOpen, refreshCodexQueue])
+    }, [agentFlavor, codexQueueInlinePanelMode, isCodexQueueDialogOpen, inlineQueuePollIntervalMs, refreshCodexQueue])
 
     useEffect(() => {
         if (agentFlavor !== 'codex' || !isCodexQueueDialogOpen) {
@@ -622,9 +786,9 @@ export function SessionChat(props: {
         }
         const timer = window.setInterval(() => {
             void refreshCodexQueue({ silent: true })
-        }, 2_000)
+        }, dialogQueuePollIntervalMs)
         return () => window.clearInterval(timer)
-    }, [agentFlavor, isCodexQueueDialogOpen, refreshCodexQueue])
+    }, [agentFlavor, isCodexQueueDialogOpen, dialogQueuePollIntervalMs, refreshCodexQueue])
 
     const attachmentAdapter = useMemo(() => {
         if (!props.session.active) {
@@ -665,6 +829,70 @@ export function SessionChat(props: {
 
             <AssistantRuntimeProvider runtime={runtime}>
                 <div className="relative flex min-h-0 flex-1 flex-col">
+                    {showCodexPlanNotebook && latestCodexPlan ? (
+                        <div className="px-3 pt-2">
+                            <div className="mx-auto w-full max-w-content rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/50 p-2.5">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                                        {t('codexPlan.title')}
+                                    </span>
+                                    <span className="text-[10px] text-[var(--app-hint)]">
+                                        {t('codexPlan.updated', {
+                                            time: new Date(latestCodexPlan.updatedAt).toLocaleTimeString([], {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })
+                                        })}
+                                    </span>
+                                    <div className="ml-auto flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            className="rounded px-1.5 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                            onClick={() => setIsCodexPlanCollapsed((prev) => !prev)}
+                                        >
+                                            {isCodexPlanCollapsed ? t('codexPlan.expand') : t('codexPlan.collapse')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="rounded px-1.5 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                            onClick={() => setDismissedCodexPlanSignature(latestCodexPlan.signature)}
+                                        >
+                                            {t('codexPlan.close')}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {!isCodexPlanCollapsed ? (
+                                    <div className="mt-2 space-y-1.5">
+                                        {latestCodexPlan.explanation ? (
+                                            <div className="text-xs text-[var(--app-hint)]">
+                                                {latestCodexPlan.explanation}
+                                            </div>
+                                        ) : null}
+                                        <div className="space-y-1">
+                                            {latestCodexPlan.entries.map((entry, index) => (
+                                                <div key={`${entry.step}:${index}`} className="flex items-start gap-2 text-xs">
+                                                    <span
+                                                        className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getCodexPlanStatusBadgeClass(entry.status)}`}
+                                                    >
+                                                        {entry.status === 'completed'
+                                                            ? t('codexPlan.status.completed')
+                                                            : entry.status === 'in_progress'
+                                                                ? t('codexPlan.status.inProgress')
+                                                                : t('codexPlan.status.pending')}
+                                                    </span>
+                                                    <span className="min-w-0 flex-1 break-words text-[var(--app-fg)]">
+                                                        {entry.step}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </div>
+                    ) : null}
+
                     <HappyThread
                         key={props.session.id}
                         api={props.api}

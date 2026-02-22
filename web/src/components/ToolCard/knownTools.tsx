@@ -38,6 +38,93 @@ function formatMCPTitle(toolName: string): string {
     return `MCP: ${snakeToTitleWithSpaces(withoutPrefix)}`
 }
 
+function getRecord(value: unknown): Record<string, unknown> | null {
+    return isObject(value) ? value : null
+}
+
+function getStringFromRecord(record: Record<string, unknown> | null, keys: string[]): string | null {
+    if (!record) return null
+    for (const key of keys) {
+        const value = record[key]
+        if (typeof value === 'string' && value.trim().length > 0) {
+            return value
+        }
+    }
+    return null
+}
+
+function getWebSearchQueryFromPayload(value: unknown): string | null {
+    const record = getRecord(value)
+    if (!record) return null
+
+    const direct = getStringFromRecord(record, ['query', 'url'])
+    if (direct) return direct
+
+    const action = getRecord(record.action)
+    if (!action) return null
+
+    const fromAction = getStringFromRecord(action, ['query', 'url', 'pageUrl', 'page_url', 'pattern'])
+    if (fromAction) return fromAction
+
+    if (Array.isArray(action.queries)) {
+        const first = action.queries.find((part) => typeof part === 'string' && part.length > 0)
+        if (typeof first === 'string') return first
+    }
+
+    return null
+}
+
+function getMcpSubtitle(input: unknown, result: unknown): string | null {
+    const inputRecord = getRecord(input)
+    const argsRecord = getRecord(inputRecord?.arguments)
+
+    const fromInput = getStringFromRecord(inputRecord, ['query', 'url', 'path', 'file', 'command', 'cmd', 'message'])
+        ?? getStringFromRecord(argsRecord, ['query', 'url', 'path', 'file', 'command', 'cmd', 'message', 'title', 'pattern'])
+    if (fromInput) {
+        return truncate(fromInput, 100)
+    }
+
+    const fromResult = getWebSearchQueryFromPayload(result)
+        ?? getStringFromRecord(getRecord(result), ['message', 'error', 'status'])
+        ?? getStringFromRecord(getRecord(getRecord(result)?.result), ['message', 'error', 'status'])
+    if (fromResult) {
+        return truncate(fromResult, 100)
+    }
+
+    const tool = getStringFromRecord(inputRecord, ['tool'])
+    const status = getStringFromRecord(inputRecord, ['status'])
+    if (tool && status) return `${tool} · ${status}`
+    return tool ?? status ?? null
+}
+
+function isCollabPayload(value: unknown): boolean {
+    if (!isObject(value)) return false
+    if (typeof value.sender_thread_id === 'string') return true
+    if (Array.isArray(value.receiver_thread_ids)) return true
+    if (isObject(value.agents_states)) return true
+    return false
+}
+
+function getCollabSubtitle(input: unknown, result: unknown): string | null {
+    const inputRecord = isObject(input) ? input : null
+    const resultRecord = isObject(result) ? result : null
+    const payload = resultRecord ?? inputRecord
+    if (!payload) return null
+
+    const prompt = getInputStringAny(payload, ['prompt'])
+    if (prompt) return truncate(prompt, 100)
+
+    const receivers = Array.isArray(payload.receiver_thread_ids)
+        ? payload.receiver_thread_ids.filter((value): value is string => typeof value === 'string')
+        : []
+    if (receivers.length > 0) {
+        return receivers.length === 1 ? `1 subagent` : `${receivers.length} subagents`
+    }
+
+    const status = getInputStringAny(payload, ['status'])
+    return status ?? null
+}
+
 type ToolOpts = {
     toolName: string
     input: unknown
@@ -198,12 +285,15 @@ export const knownTools: Record<string, {
     },
     WebSearch: {
         icon: () => <GlobeIcon className={DEFAULT_ICON_CLASS} />,
-        title: (opts) => getInputStringAny(opts.input, ['query']) ?? 'Web search',
+        title: (opts) => getWebSearchQueryFromPayload(opts.input)
+            ?? getWebSearchQueryFromPayload(opts.result)
+            ?? 'Web search',
         subtitle: (opts) => {
-            const query = getInputStringAny(opts.input, ['query'])
+            const query = getWebSearchQueryFromPayload(opts.input)
+                ?? getWebSearchQueryFromPayload(opts.result)
             return query ? truncate(query, 80) : null
         },
-        minimal: true
+        minimal: (opts) => opts.result == null
     },
     NotebookRead: {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
@@ -246,6 +336,10 @@ export const knownTools: Record<string, {
     CodexReasoning: {
         icon: () => <BulbIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => getInputStringAny(opts.input, ['title']) ?? 'Reasoning',
+        subtitle: (opts) => {
+            const content = getInputStringAny(opts.result, ['content'])
+            return content ? truncate(content, 120) : null
+        },
         minimal: true
     },
     CodexPatch: {
@@ -389,11 +483,13 @@ export const knownTools: Record<string, {
 
 export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadata: SessionMetadataSummary | null }): ToolPresentation {
     if (opts.toolName.startsWith('mcp__')) {
+        const subtitle = getMcpSubtitle(opts.input, opts.result)
+        const isWebTool = /^mcp__web__/i.test(opts.toolName)
         return {
             icon: <PuzzleIcon className={DEFAULT_ICON_CLASS} />,
             title: formatMCPTitle(opts.toolName),
-            subtitle: null,
-            minimal: true
+            subtitle,
+            minimal: !isWebTool
         }
     }
 
@@ -415,6 +511,15 @@ export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadat
     const query = getInputStringAny(opts.input, ['query'])
 
     const subtitle = filePath ?? command ?? pattern ?? url ?? query
+
+    if (isCollabPayload(opts.input) || isCollabPayload(opts.result)) {
+        return {
+            icon: <RocketIcon className={DEFAULT_ICON_CLASS} />,
+            title: 'Subagent coordination',
+            subtitle: getCollabSubtitle(opts.input, opts.result),
+            minimal: false
+        }
+    }
 
     return {
         icon: <WrenchIcon className={DEFAULT_ICON_CLASS} />,

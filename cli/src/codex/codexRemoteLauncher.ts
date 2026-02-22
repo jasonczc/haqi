@@ -204,6 +204,44 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             return typeof value === 'string' && value.length > 0 ? value : null;
         };
 
+        type PlanEntry = {
+            step: string;
+            status: 'pending' | 'in_progress' | 'completed';
+        };
+
+        const normalizePlanStatus = (value: unknown): PlanEntry['status'] => {
+            const normalized = typeof value === 'string' ? value.trim().toLowerCase() : '';
+            if (normalized === 'completed' || normalized === 'done') {
+                return 'completed';
+            }
+            if (normalized === 'in_progress' || normalized === 'inprogress' || normalized === 'running') {
+                return 'in_progress';
+            }
+            return 'pending';
+        };
+
+        const normalizePlanEntries = (planValue: unknown): PlanEntry[] => {
+            if (!Array.isArray(planValue)) {
+                return [];
+            }
+
+            const entries: PlanEntry[] = [];
+            for (const rawEntry of planValue) {
+                const record = asRecord(rawEntry);
+                if (!record) continue;
+                const rawStep = asString(record.step);
+                if (!rawStep) continue;
+                const step = rawStep.trim();
+                if (step.length === 0) continue;
+                entries.push({
+                    step,
+                    status: normalizePlanStatus(record.status)
+                });
+            }
+
+            return entries;
+        };
+
         const formatOutputPreview = (value: unknown): string => {
             if (typeof value === 'string') return value;
             if (typeof value === 'number' || typeof value === 'boolean') return String(value);
@@ -216,7 +254,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         };
 
         const formatPlanText = (planValue: unknown, explanationValue: unknown): string | null => {
-            const entries = Array.isArray(planValue) ? planValue : [];
+            const entries = normalizePlanEntries(planValue);
             const rows: string[] = [];
             const explanation = asString(explanationValue);
 
@@ -225,11 +263,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
 
             for (const entry of entries) {
-                const record = asRecord(entry);
-                if (!record) continue;
-                const step = asString(record.step) ?? 'step';
-                const status = asString(record.status) ?? 'pending';
-                rows.push(`- [${status}] ${step}`);
+                rows.push(`- [${entry.status}] ${entry.step}`);
             }
 
             return rows.length > 0 ? rows.join('\n') : null;
@@ -483,13 +517,25 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 }
             }
             if (msgType === 'turn_plan_updated') {
-                const text = formatPlanText(msg.plan, msg.explanation);
-                if (text) {
+                const plan = normalizePlanEntries(msg.plan);
+                const explanation = asString(msg.explanation);
+
+                if (plan.length > 0 || explanation) {
                     session.sendCodexMessage({
-                        type: 'message',
-                        message: text,
+                        type: 'plan-update',
+                        plan,
+                        ...(explanation ? { explanation } : {}),
                         id: randomUUID()
                     });
+                } else {
+                    const text = formatPlanText(msg.plan, msg.explanation);
+                    if (text) {
+                        session.sendCodexMessage({
+                            type: 'message',
+                            message: text,
+                            id: randomUUID()
+                        });
+                    }
                 }
             }
             if (msgType === 'model_rerouted') {

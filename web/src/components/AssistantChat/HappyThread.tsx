@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ThreadPrimitive } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
-import type { SessionMetadataSummary } from '@/types/api'
+import type { PermissionMode, SessionMetadataSummary } from '@/types/api'
 import { HappyChatProvider } from '@/components/AssistantChat/context'
 import { HappyAssistantMessage } from '@/components/AssistantChat/messages/AssistantMessage'
 import { HappyUserMessage } from '@/components/AssistantChat/messages/UserMessage'
@@ -103,6 +103,7 @@ export function HappyThread(props: {
     api: ApiClient
     sessionId: string
     metadata: SessionMetadataSummary | null
+    permissionMode?: PermissionMode
     disabled: boolean
     onRefresh: () => void
     onRetryMessage?: (localId: string) => void
@@ -415,6 +416,7 @@ export function HappyThread(props: {
             api: props.api,
             sessionId: props.sessionId,
             metadata: props.metadata,
+            permissionMode: props.permissionMode,
             disabled: props.disabled,
             density: props.density,
             onRefresh: props.onRefresh,

@@ -113,10 +113,11 @@ function HappyNestedBlockList(props: {
 
                 if (block.kind === 'tool-call') {
                     const isTask = block.tool.name === 'Task'
+                    const isReasoningTool = block.tool.name === 'CodexReasoning'
                     const taskChildren = isTask ? splitTaskChildren(block) : null
 
                     return (
-                        <div key={`tool:${block.id}`} className={isCompact ? 'py-0.5' : 'py-1'}>
+                        <div key={`tool:${block.id}`} className={isReasoningTool ? 'py-0' : (isCompact ? 'py-0.5' : 'py-1')}>
                             <ToolCard
                                 api={ctx.api}
                                 sessionId={ctx.sessionId}
@@ -205,10 +206,11 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
 
     const block = artifact
     const isTask = block.tool.name === 'Task'
+    const isReasoningTool = block.tool.name === 'CodexReasoning'
     const taskChildren = isTask ? splitTaskChildren(block) : null
 
     return (
-        <div className={`${isCompact ? 'py-0.5' : 'py-1'} min-w-0 max-w-full overflow-x-hidden`}>
+        <div className={`${isReasoningTool ? 'py-0' : (isCompact ? 'py-0.5' : 'py-1')} min-w-0 max-w-full overflow-x-hidden`}>
             <ToolCard
                 api={ctx.api}
                 sessionId={ctx.sessionId}

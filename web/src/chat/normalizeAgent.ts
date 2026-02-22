@@ -31,6 +31,34 @@ function normalizeAgentEvent(value: unknown): AgentEvent | null {
     return value as AgentEvent
 }
 
+function normalizePlanStatus(value: unknown): 'pending' | 'in_progress' | 'completed' {
+    const normalized = asString(value)?.trim().toLowerCase() ?? ''
+    if (normalized === 'completed' || normalized === 'done') {
+        return 'completed'
+    }
+    if (normalized === 'in_progress' || normalized === 'inprogress' || normalized === 'running') {
+        return 'in_progress'
+    }
+    return 'pending'
+}
+
+function normalizePlanEntries(value: unknown): Array<{ step: string; status: 'pending' | 'in_progress' | 'completed' }> {
+    if (!Array.isArray(value)) {
+        return []
+    }
+    const entries: Array<{ step: string; status: 'pending' | 'in_progress' | 'completed' }> = []
+    for (const entry of value) {
+        if (!isObject(entry)) continue
+        const step = asString(entry.step)?.trim()
+        if (!step) continue
+        entries.push({
+            step,
+            status: normalizePlanStatus(entry.status)
+        })
+    }
+    return entries
+}
+
 function normalizeAssistantOutput(
     messageId: string,
     localId: string | null,
@@ -320,6 +348,28 @@ export function normalizeAgentRecord(
                 role: 'agent',
                 isSidechain: false,
                 content: [{ type: 'reasoning', text: data.message, uuid: messageId, parentUUID: null }],
+                meta
+            }
+        }
+
+        if (data.type === 'plan-update') {
+            const explanation = asString(data.explanation)?.trim()
+            const plan = normalizePlanEntries(data.plan)
+            if (plan.length === 0 && !explanation) {
+                return null
+            }
+
+            return {
+                id: messageId,
+                localId,
+                createdAt,
+                role: 'event',
+                content: {
+                    type: 'plan-update',
+                    ...(explanation ? { explanation } : {}),
+                    plan
+                },
+                isSidechain: false,
                 meta
             }
         }

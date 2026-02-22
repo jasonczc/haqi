@@ -67,6 +67,28 @@ bun run dev             # hub + web concurrently
 bun run build:single-exe # All-in-one binary
 ```
 
+## Build + deploy flow (local Linux dev)
+
+Use this flow after web/cli changes that must be verified in running hub:
+
+```bash
+# Build (web + embedded assets + single binary)
+bun run build:single-exe
+
+# Deploy binary to user install path
+cp -a ~/.local/bin/haqi ~/.local/bin/haqi.bak.$(date +%Y%m%d-%H%M%S)
+install -m 755 ./cli/dist-exe/bun-linux-x64/hapi ~/.local/bin/haqi
+
+# Restart services
+haqi runner stop || true
+haqi runner start
+
+# Verify
+./scripts/hapi-local.sh status
+```
+
+Expected: `/health` OK; process command shows `~/.local/bin/haqi hub`.
+
 ## Key source dirs
 
 ### CLI (`cli/src/`)

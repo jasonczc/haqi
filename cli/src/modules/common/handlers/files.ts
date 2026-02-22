@@ -1,18 +1,21 @@
 import { logger } from '@/ui/logger'
-import { readFile, stat, writeFile } from 'fs/promises'
+import { open, readFile, stat, writeFile } from 'fs/promises'
 import { createHash } from 'crypto'
-import { resolve } from 'path'
 import type { RpcHandlerManager } from '@/api/rpc/RpcHandlerManager'
-import { validatePath } from '../pathSecurity'
+import { resolveValidatedExistingPath, validatePath } from '../pathSecurity'
 import { getErrorMessage, rpcError } from '../rpcResponses'
 
 interface ReadFileRequest {
     path: string
+    maxBytes?: number
+    allowOutsideWorkingDirectory?: boolean
 }
 
 interface ReadFileResponse {
     success: boolean
     content?: string
+    size?: number
+    truncated?: boolean
     error?: string
 }
 
@@ -32,16 +35,49 @@ export function registerFileHandlers(rpcHandlerManager: RpcHandlerManager, worki
     rpcHandlerManager.registerHandler<ReadFileRequest, ReadFileResponse>('readFile', async (data) => {
         logger.debug('Read file request:', data.path)
 
-        const validation = validatePath(data.path, workingDirectory)
-        if (!validation.valid) {
-            return rpcError(validation.error ?? 'Invalid file path')
-        }
-
         try {
-            const resolvedPath = resolve(workingDirectory, data.path)
-            const buffer = await readFile(resolvedPath)
+            const maxBytesValue = typeof data.maxBytes === 'number' && Number.isFinite(data.maxBytes)
+                ? Math.max(0, Math.floor(data.maxBytes))
+                : undefined
+            const allowOutsideWorkingDirectory = data.allowOutsideWorkingDirectory === true
+
+            const validation = await resolveValidatedExistingPath(data.path, workingDirectory, {
+                allowOutsideWorkingDirectory
+            })
+            if (!validation.valid || !validation.resolvedPath) {
+                return rpcError(validation.error ?? 'Invalid file path')
+            }
+
+            const resolvedPath = validation.resolvedPath
+            const stats = await stat(resolvedPath)
+            if (!stats.isFile()) {
+                return rpcError('Path is not a regular file')
+            }
+
+            const size = stats.size
+            let truncated = false
+            let buffer: Buffer
+
+            if (maxBytesValue !== undefined && size > maxBytesValue) {
+                truncated = true
+                if (maxBytesValue === 0) {
+                    buffer = Buffer.alloc(0)
+                } else {
+                    const handle = await open(resolvedPath, 'r')
+                    try {
+                        buffer = Buffer.alloc(maxBytesValue)
+                        const { bytesRead } = await handle.read(buffer, 0, maxBytesValue, 0)
+                        buffer = buffer.subarray(0, bytesRead)
+                    } finally {
+                        await handle.close()
+                    }
+                }
+            } else {
+                buffer = await readFile(resolvedPath)
+            }
+
             const content = buffer.toString('base64')
-            return { success: true, content }
+            return { success: true, content, size, truncated }
         } catch (error) {
             logger.debug('Failed to read file:', error)
             return rpcError(getErrorMessage(error, 'Failed to read file'))

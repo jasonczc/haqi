@@ -10,6 +10,7 @@ import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { queryKeys } from '@/lib/query-keys'
 import { langAlias, useShikiHighlighter } from '@/lib/shiki'
 import { decodeBase64 } from '@/lib/utils'
+import { isOutsideWorkspacePathCandidate } from '@/lib/pathLinks'
 
 const MAX_COPYABLE_FILE_BYTES = 1_000_000
 
@@ -128,6 +129,10 @@ export default function FilePage() {
 
     const filePath = useMemo(() => decodePath(encodedPath), [encodedPath])
     const fileName = filePath.split('/').pop() || filePath || 'File'
+    const outsideWorkspaceCandidate = useMemo(
+        () => isOutsideWorkspacePathCandidate(filePath),
+        [filePath]
+    )
 
     const diffQuery = useQuery({
         queryKey: queryKeys.gitFileDiff(sessionId, filePath, staged),
@@ -137,7 +142,7 @@ export default function FilePage() {
             }
             return await api.getGitDiffFile(sessionId, filePath, staged)
         },
-        enabled: Boolean(api && sessionId && filePath)
+        enabled: Boolean(api && sessionId && filePath && !outsideWorkspaceCandidate)
     })
 
     const fileQuery = useQuery({
@@ -193,7 +198,9 @@ export default function FilePage() {
         ? (fileContentResult.error ?? 'Failed to read file')
         : null
     const missingPath = !filePath
-    const diffErrorMessage = diffError ? `Diff unavailable: ${diffError}` : null
+    const diffErrorMessage = outsideWorkspaceCandidate
+        ? null
+        : diffError ? `Diff unavailable: ${diffError}` : null
 
     return (
         <div className="flex h-full flex-col">

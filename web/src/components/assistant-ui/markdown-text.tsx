@@ -8,10 +8,13 @@ import {
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import { SyntaxHighlighter } from '@/components/assistant-ui/shiki-highlighter'
+import { PathActionLink } from '@/components/assistant-ui/path-action-link'
+import { remarkPathLinks } from '@/components/assistant-ui/remark-path-links'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { CopyIcon, CheckIcon } from '@/components/icons'
+import { decodePathLink } from '@/lib/pathLinks'
 
-export const MARKDOWN_PLUGINS = [remarkGfm]
+export const MARKDOWN_PLUGINS = [remarkGfm, remarkPathLinks]
 
 function CodeHeader(props: CodeHeaderProps) {
     const { copied, copy } = useCopyToClipboard()
@@ -74,6 +77,11 @@ function Code(props: ComponentPropsWithoutRef<'code'>) {
 }
 
 function A(props: ComponentPropsWithoutRef<'a'>) {
+    const path = decodePathLink(props.href)
+    if (path) {
+        return <PathActionLink path={path} className={props.className} />
+    }
+
     const rel = props.target === '_blank' ? (props.rel ?? 'noreferrer') : props.rel
 
     return (

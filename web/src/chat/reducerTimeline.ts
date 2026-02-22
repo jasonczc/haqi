@@ -24,6 +24,9 @@ export function reduceTimeline(
                 hasReadyEvent = true
                 continue
             }
+            if (msg.content.type === 'plan-update') {
+                continue
+            }
             blocks.push({
                 kind: 'agent-event',
                 id: msg.id,

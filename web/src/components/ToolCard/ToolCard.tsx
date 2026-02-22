@@ -354,6 +354,37 @@ function ToolCardInner(props: ToolCardProps) {
     const showCardBody = hasBody && (!isCompact || isExpanded)
     const { suppressFocusRing, onTriggerPointerDown, onTriggerKeyDown, onTriggerBlur } = usePointerFocusRing()
 
+    if (toolName === 'CodexReasoning') {
+        const reasoningDetail = getInputStringAny(props.block.tool.result, ['content'])
+        const compactDetail = reasoningDetail && reasoningDetail.trim() !== toolTitle
+            ? truncate(reasoningDetail, isCompact ? 120 : 180)
+            : null
+
+        return (
+            <div
+                className={cn(
+                    'rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40',
+                    isCompact ? 'px-2 py-1' : 'px-2.5 py-1.5'
+                )}
+            >
+                <div className="flex items-center gap-1.5">
+                    <span className={cn('shrink-0', statusColorClass(props.block.tool.state))}>
+                        <StatusIcon state={props.block.tool.state} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">
+                        {toolTitle}
+                    </span>
+                    <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} />
+                </div>
+                {compactDetail ? (
+                    <div className="mt-1 pl-4 text-[11px] text-[var(--app-hint)]">
+                        {compactDetail}
+                    </div>
+                ) : null}
+            </div>
+        )
+    }
+
     useEffect(() => {
         setHasUserToggledExpand(false)
         setIsExpanded(isCompact ? requiresInteraction : true)

@@ -105,9 +105,6 @@ export class ReasoningProcessor {
                 this.currentCallId = randomUUID();
                 
                 logger.debug(`[ReasoningProcessor] Title captured: "${title}"`);
-                
-                // Send tool call immediately when title is detected
-                this.sendToolCallStart(title);
             }
         } else if (this.hasTitle) {
             // We have a title, accumulate content after title
@@ -115,6 +112,9 @@ export class ReasoningProcessor {
                 this.accumulator.indexOf('**') + 2 + 
                 this.currentTitle!.length + 2
             );
+            if (!this.toolCallStarted && this.currentTitle && this.contentBuffer.trim().length > 0) {
+                this.sendToolCallStart(this.currentTitle);
+            }
         } else {
             // Untitled reasoning, just accumulate
             this.contentBuffer = this.accumulator;
@@ -160,12 +160,39 @@ export class ReasoningProcessor {
             }
         }
 
+        const normalizedTitle = title?.trim() ?? '';
+        const normalizedContent = content.trim();
+
         logger.debug(`[ReasoningProcessor] Complete reasoning - Title: "${title}", Has content: ${content.length > 0}`);
-        
-        if (title && !this.toolCallStarted) {
-            // If we have a title but haven't sent the tool call yet, send it now
+
+        if (normalizedTitle.length > 0 && normalizedContent.length === 0) {
+            // Title-only reasoning should still be visible in thinking stream.
+            if (this.toolCallStarted && this.currentCallId) {
+                const toolResult: ReasoningToolResult = {
+                    type: 'tool-call-result',
+                    callId: this.currentCallId,
+                    output: {
+                        content: normalizedTitle,
+                        status: 'completed'
+                    },
+                    id: randomUUID()
+                };
+                this.onMessage?.(toolResult);
+            }
+
+            const reasoningMessage: ReasoningMessage = {
+                type: 'reasoning',
+                message: normalizedTitle,
+                id: randomUUID()
+            };
+            this.onMessage?.(reasoningMessage);
+            this.resetState();
+            return;
+        }
+
+        if (normalizedTitle.length > 0 && !this.toolCallStarted) {
             this.currentCallId = this.currentCallId || randomUUID();
-            this.sendToolCallStart(title);
+            this.sendToolCallStart(normalizedTitle);
         }
 
         if (this.toolCallStarted && this.currentCallId) {
@@ -174,7 +201,7 @@ export class ReasoningProcessor {
                 type: 'tool-call-result',
                 callId: this.currentCallId,
                 output: {
-                    content: content,
+                    content: normalizedContent.length > 0 ? normalizedContent : normalizedTitle,
                     status: 'completed'
                 },
                 id: randomUUID()
@@ -218,12 +245,15 @@ export class ReasoningProcessor {
      */
     private finishCurrentToolCall(status: 'completed' | 'canceled'): void {
         if (this.toolCallStarted && this.currentCallId) {
+            const content = this.contentBuffer.trim().length > 0
+                ? this.contentBuffer
+                : (this.currentTitle ?? '');
             // Send tool call result with canceled status
             const toolResult: ReasoningToolResult = {
                 type: 'tool-call-result',
                 callId: this.currentCallId,
                 output: {
-                    content: this.contentBuffer || '',
+                    content,
                     status: status
                 },
                 id: randomUUID()
