@@ -232,6 +232,13 @@ export class ApiSessionClient extends EventEmitter {
 
         const userResult = UserMessageSchema.safeParse(message.content)
         if (userResult.success) {
+            // Ignore user messages that were emitted by this CLI instance itself.
+            // These are persisted as transcript records (e.g. deferred queue flush),
+            // and replaying them on reconnect/backfill would incorrectly enqueue
+            // historical prompts again.
+            if (userResult.data.meta?.sentFrom === 'cli') {
+                return
+            }
             this.enqueueUserMessage(userResult.data)
             return
         }
