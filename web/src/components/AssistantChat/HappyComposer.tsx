@@ -337,16 +337,15 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onCodexSendModeChange, controlsDisabled, codexSendMode, haptic])
 
+    const shouldEnqueueWithoutImmediateChat = queueSendEnabled
+        && Boolean(onCodexQueueEnqueue)
+        && !hasAttachments
+        && trimmed.length > 0
+
     const sendComposerNow = useCallback(async () => {
         if (!canSend) {
             return
         }
-
-        const shouldEnqueueWithoutImmediateChat = queueSendEnabled
-            && threadIsRunning
-            && Boolean(onCodexQueueEnqueue)
-            && !hasAttachments
-            && trimmed.length > 0
 
         if (shouldEnqueueWithoutImmediateChat && onCodexQueueEnqueue) {
             try {
@@ -373,7 +372,7 @@ export function HappyComposer(props: {
         threadIsRunning,
         onCodexQueueUpdated,
         onCodexQueueEnqueue,
-        hasAttachments,
+        shouldEnqueueWithoutImmediateChat,
         trimmed,
         haptic
     ])
@@ -425,7 +424,7 @@ export function HappyComposer(props: {
             return
         }
 
-        if (key === 'Enter' && !e.shiftKey && threadIsRunning && queueSendEnabled && canSend) {
+        if (key === 'Enter' && !e.shiftKey && queueSendEnabled && canSend) {
             e.preventDefault()
             void sendComposerNow()
             return
@@ -446,7 +445,6 @@ export function HappyComposer(props: {
         moveDown,
         clearSuggestions,
         handleSuggestionSelect,
-        threadIsRunning,
         handleAbort,
         queueSendEnabled,
         canSend,
@@ -511,12 +509,19 @@ export function HappyComposer(props: {
     }, [haptic])
 
     const handleSubmit = useCallback((event?: ReactFormEvent<HTMLFormElement>) => {
+        if (event && queueSendEnabled && canSend) {
+            event.preventDefault()
+            void sendComposerNow()
+            setShowContinueHint(false)
+            return
+        }
+
         if (event && !attachmentsReady) {
             event.preventDefault()
             return
         }
         setShowContinueHint(false)
-    }, [attachmentsReady])
+    }, [attachmentsReady, queueSendEnabled, canSend, sendComposerNow])
 
     const handlePermissionChange = useCallback((mode: PermissionMode) => {
         if (!onPermissionModeChange || controlsDisabled) return
