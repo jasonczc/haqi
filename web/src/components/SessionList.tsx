@@ -12,6 +12,7 @@ import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import {
     applySessionGroupOrder,
     loadSessionGroupOrder,
@@ -309,6 +310,7 @@ function SessionItem(props: {
         s.id,
         s.metadata?.flavor ?? null
     )
+    const { skipArchiveConfirmation } = useArchiveConfirmation()
 
     const longPressHandlers = useLongPress({
         onLongPress: (point) => {
@@ -329,6 +331,18 @@ function SessionItem(props: {
         ? (s.thinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
         : 'bg-[var(--app-hint)]'
     const isCompact = density === 'compact'
+
+    const handleArchive = () => {
+        if (!skipArchiveConfirmation) {
+            setArchiveOpen(true)
+            return
+        }
+
+        void archiveSession().catch((error) => {
+            console.error('Failed to archive session', error)
+        })
+    }
+
     return (
         <>
             <button
@@ -401,7 +415,7 @@ function SessionItem(props: {
                 onClose={() => setMenuOpen(false)}
                 sessionActive={s.active}
                 onRename={() => setRenameOpen(true)}
-                onArchive={() => setArchiveOpen(true)}
+                onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
             />

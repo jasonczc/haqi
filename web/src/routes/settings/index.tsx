@@ -3,6 +3,7 @@ import { useTranslation, type Locale } from '@/lib/use-translation'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
+import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useThemePreference, type ThemePreference } from '@/hooks/useTheme'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 
@@ -95,6 +96,7 @@ export default function SettingsPage() {
     const currentThemeLabel = t(`settings.display.theme.${themePreference}`)
     const currentFontScaleLabel = fontScaleOptions.find((opt) => opt.value === fontScale)?.label ?? '100%'
     const currentVoiceLanguage = voiceLanguages.find((lang) => lang.code === voiceLanguage)
+    const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
 
     const handleLocaleChange = (newLocale: Locale) => {
         setLocale(newLocale)
@@ -109,6 +111,10 @@ export default function SettingsPage() {
     const handleThemePreferenceChange = (newPreference: ThemePreference) => {
         setThemePreference(newPreference)
         setIsThemeOpen(false)
+    }
+
+    const handleSkipArchiveConfirmToggle = (value: boolean) => {
+        setSkipArchiveConfirmation(value)
     }
 
     const handleVoiceLanguageChange = (language: Language) => {
@@ -397,6 +403,33 @@ export default function SettingsPage() {
                                     })}
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Behavior section */}
+                    <div className="border-b border-[var(--app-divider)]">
+                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            {t('settings.behavior.title')}
+                        </div>
+                        <div className="flex items-start justify-between gap-3 px-3 py-3">
+                            <div className="flex flex-col">
+                                <span className="text-[var(--app-fg)]">
+                                    {t('settings.behavior.archiveConfirm')}
+                                </span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {t('settings.behavior.archiveConfirm.description')}
+                                </span>
+                            </div>
+                            <label className="relative inline-flex h-5 w-9 items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={skipArchiveConfirmation}
+                                    onChange={(event) => handleSkipArchiveConfirmToggle(event.target.checked)}
+                                    className="peer sr-only"
+                                />
+                                <span className="absolute inset-0 rounded-full bg-[var(--app-border)] transition-colors peer-checked:bg-[var(--app-link)]" />
+                                <span className="absolute left-0.5 h-4 w-4 rounded-full bg-[var(--app-bg)] transition-transform peer-checked:translate-x-4" />
+                            </label>
                         </div>
                     </div>
 

@@ -3,6 +3,7 @@ import type { Session } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -109,6 +110,7 @@ export function SessionHeader(props: {
         session.id,
         session.metadata?.flavor ?? null
     )
+    const { skipArchiveConfirmation } = useArchiveConfirmation()
 
     const handleDelete = async () => {
         await deleteSession()
@@ -121,6 +123,17 @@ export function SessionHeader(props: {
             setMenuAnchorPoint({ x: rect.right, y: rect.bottom })
         }
         setMenuOpen((open) => !open)
+    }
+
+    const handleArchive = () => {
+        if (!skipArchiveConfirmation) {
+            setArchiveOpen(true)
+            return
+        }
+
+        void archiveSession().catch((error) => {
+            console.error('Failed to archive session', error)
+        })
     }
 
     // In Telegram, don't render header (Telegram provides its own)
@@ -218,7 +231,7 @@ export function SessionHeader(props: {
                 onClose={() => setMenuOpen(false)}
                 sessionActive={session.active}
                 onRename={() => setRenameOpen(true)}
-                onArchive={() => setArchiveOpen(true)}
+                onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
                 menuId={menuId}
