@@ -12,9 +12,22 @@ import { isPermissionModeAllowedForFlavor } from '@hapi/protocol';
 import { PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import type { ReasoningEffort } from './appServerTypes';
-import { buildCodexStatusMessage, isCodexStatusCommand } from './utils/codexStatusCommand';
+import { buildCodexStatusMessage, isCodexStatusCommand, type CodexQueueSnapshot } from './utils/codexStatusCommand';
 
 export { emitReadyIfIdle } from './utils/emitReadyIfIdle';
+
+type CodexQueueEntrySnapshot = {
+    id: string;
+    index: number;
+    preview: string;
+    modeHash: string;
+    isolate: boolean;
+    enqueuedAt: number;
+};
+
+type CodexQueueStateSnapshot = CodexQueueSnapshot & {
+    entries: CodexQueueEntrySnapshot[];
+};
 
 export async function runCodex(opts: {
     startedBy?: 'runner' | 'terminal';
@@ -76,6 +89,48 @@ export async function runCodex(opts: {
         logger.debug(`[Codex] Synced session permission mode for keepalive: ${currentPermissionMode}`);
     };
 
+    const buildQueuePreview = (text: string | undefined): string | undefined => {
+        if (typeof text !== 'string') {
+            return undefined;
+        }
+        const normalized = text
+            .trim()
+            .replace(/\s+/g, ' ');
+        if (!normalized) {
+            return undefined;
+        }
+        return normalized.length <= 180 ? normalized : `${normalized.slice(0, 180)}...`;
+    };
+
+    const getCodexQueueSnapshot = (): CodexQueueSnapshot => {
+        const pendingCount = messageQueue.size();
+        const nextQueued = messageQueue.peek()?.message;
+        return {
+            pendingCount,
+            inQueue: pendingCount > 0,
+            taskRunning: Boolean(sessionWrapperRef.current?.thinking),
+            nextPreview: buildQueuePreview(nextQueued)
+        };
+    };
+
+    const getCodexQueueStateSnapshot = (): CodexQueueStateSnapshot => {
+        const queueSnapshot = getCodexQueueSnapshot();
+        const entries = messageQueue
+            .listEntries()
+            .map((item, index) => ({
+                id: item.id,
+                index,
+                preview: buildQueuePreview(item.message) ?? '',
+                modeHash: item.modeHash,
+                isolate: item.isolate,
+                enqueuedAt: item.enqueuedAt
+            }));
+        return {
+            ...queueSnapshot,
+            entries
+        };
+    };
+
     const getCodexStatusMessage = async (): Promise<string> => {
         const sessionInstance = sessionWrapperRef.current;
         return await buildCodexStatusMessage({
@@ -83,7 +138,8 @@ export async function runCodex(opts: {
             mode: sessionInstance?.mode ?? startingMode,
             sessionId: sessionInstance?.sessionId ?? null,
             permissionMode: currentPermissionMode,
-            collaborationMode: currentCollaborationMode
+            collaborationMode: currentCollaborationMode,
+            queueSnapshot: getCodexQueueSnapshot()
         });
     };
 
@@ -155,6 +211,31 @@ export async function runCodex(opts: {
         return trimmed as EnhancedMode['collaborationMode'];
     };
 
+    const resolveQueueItemId = (payload: unknown): string => {
+        if (!payload || typeof payload !== 'object') {
+            throw new Error('Invalid queue payload');
+        }
+        const candidate = (payload as { id?: unknown }).id;
+        if (typeof candidate !== 'string') {
+            throw new Error('Invalid queue item id');
+        }
+        const id = candidate.trim();
+        if (!id) {
+            throw new Error('Invalid queue item id');
+        }
+        return id;
+    };
+
+    const resolveQueueMovePayload = (payload: unknown): { id: string; toIndex: number } => {
+        const id = resolveQueueItemId(payload);
+        const toIndexValue = (payload as { toIndex?: unknown }).toIndex;
+        if (typeof toIndexValue !== 'number' || !Number.isFinite(toIndexValue)) {
+            throw new Error('Invalid queue target index');
+        }
+        const toIndex = Math.max(0, Math.floor(toIndexValue));
+        return { id, toIndex };
+    };
+
     session.rpcHandlerManager.registerHandler('set-session-config', async (payload: unknown) => {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
@@ -176,10 +257,69 @@ export async function runCodex(opts: {
     session.rpcHandlerManager.registerHandler('get-codex-status', async () => {
         try {
             const message = await getCodexStatusMessage();
-            return { success: true, message };
+            return { success: true, message, queue: getCodexQueueSnapshot() };
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            return { success: false, error: message };
+            return { success: false, error: message, queue: getCodexQueueSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('get-codex-queue', async () => {
+        try {
+            return { success: true, queue: getCodexQueueStateSnapshot() };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getCodexQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('remove-codex-queue-item', async (payload: unknown) => {
+        try {
+            const id = resolveQueueItemId(payload);
+            const removed = messageQueue.removeById(id);
+            if (!removed) {
+                return { success: false, error: 'Queue item not found', queue: getCodexQueueStateSnapshot() };
+            }
+            return {
+                success: true,
+                removedId: removed.id,
+                queue: getCodexQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getCodexQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('move-codex-queue-item', async (payload: unknown) => {
+        try {
+            const { id, toIndex } = resolveQueueMovePayload(payload);
+            const moved = messageQueue.moveById(id, toIndex);
+            if (!moved) {
+                return { success: false, error: 'Queue item not found', queue: getCodexQueueStateSnapshot() };
+            }
+            return {
+                success: true,
+                movedId: id,
+                queue: getCodexQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getCodexQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('clear-codex-queue', async () => {
+        try {
+            const clearedCount = messageQueue.clear();
+            return {
+                success: true,
+                clearedCount,
+                queue: getCodexQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getCodexQueueStateSnapshot() };
         }
     });
 

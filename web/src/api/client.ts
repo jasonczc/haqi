@@ -1,6 +1,7 @@
 import type {
     AttachmentMetadata,
     AuthResponse,
+    CodexQueueResponse,
     CodexStatusResponse,
     DeleteUploadResponse,
     ListDirectoryResponse,
@@ -227,6 +228,31 @@ export class ApiClient {
         return await this.request<CodexStatusResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-status`)
     }
 
+    async getCodexQueue(sessionId: string): Promise<CodexQueueResponse> {
+        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue`)
+    }
+
+    async removeCodexQueueItem(sessionId: string, id: string): Promise<CodexQueueResponse> {
+        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/remove`, {
+            method: 'POST',
+            body: JSON.stringify({ id })
+        })
+    }
+
+    async moveCodexQueueItem(sessionId: string, id: string, toIndex: number): Promise<CodexQueueResponse> {
+        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/move`, {
+            method: 'POST',
+            body: JSON.stringify({ id, toIndex })
+        })
+    }
+
+    async clearCodexQueue(sessionId: string): Promise<CodexQueueResponse> {
+        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/clear`, {
+            method: 'POST',
+            body: JSON.stringify({})
+        })
+    }
+
     async searchSessionFiles(sessionId: string, query: string, limit?: number): Promise<FileSearchResponse> {
         const params = new URLSearchParams()
         if (query) {
@@ -239,9 +265,16 @@ export class ApiClient {
         return await this.request<FileSearchResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/files${qs ? `?${qs}` : ''}`)
     }
 
-    async readSessionFile(sessionId: string, path: string): Promise<FileReadResponse> {
+    async readSessionFile(
+        sessionId: string,
+        path: string,
+        options?: { maxBytes?: number }
+    ): Promise<FileReadResponse> {
         const params = new URLSearchParams()
         params.set('path', path)
+        if (typeof options?.maxBytes === 'number' && Number.isFinite(options.maxBytes)) {
+            params.set('maxBytes', `${Math.max(0, Math.floor(options.maxBytes))}`)
+        }
         return await this.request<FileReadResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/file?${params.toString()}`)
     }
 

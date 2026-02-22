@@ -34,6 +34,8 @@ export interface TextInputState {
     selection: { start: number; end: number }
 }
 
+export type CodexSendMode = 'direct' | 'queue'
+
 const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
 const COMPOSER_DRAFT_STORAGE_PREFIX = 'hapi:sessionComposerDraft:'
 
@@ -80,6 +82,11 @@ export function HappyComposer(props: {
     onSwitchToRemote?: () => void
     onTerminal?: () => void
     onCodexStatus?: () => void
+    codexSendMode?: CodexSendMode
+    onCodexSendModeChange?: (mode: CodexSendMode) => void
+    codexQueuePendingCount?: number
+    onCodexQueueOpen?: () => void
+    onCodexQueueUpdated?: () => void
     autocompletePrefixes?: string[]
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
     // Voice assistant props
@@ -106,6 +113,11 @@ export function HappyComposer(props: {
         onSwitchToRemote,
         onTerminal,
         onCodexStatus,
+        codexSendMode = 'direct',
+        onCodexSendModeChange,
+        codexQueuePendingCount = 0,
+        onCodexQueueOpen,
+        onCodexQueueUpdated,
         autocompletePrefixes = ['@', '/', '$'],
         autocompleteSuggestions = defaultSuggestionHandler,
         voiceStatus = 'disconnected',
@@ -125,6 +137,8 @@ export function HappyComposer(props: {
     const threadIsDisabled = useAssistantState(({ thread }) => thread.isDisabled)
 
     const controlsDisabled = disabled || (!active && !allowSendWhenInactive) || threadIsDisabled
+    const isCodexSession = agentFlavor === 'codex'
+    const queueSendEnabled = isCodexSession && codexSendMode === 'queue'
     const trimmed = composerText.trim()
     const hasText = trimmed.length > 0
     const hasAttachments = attachments.length > 0
@@ -138,7 +152,8 @@ export function HappyComposer(props: {
         const path = (attachment as { path?: string }).path
         return typeof path === 'string' && path.length > 0
     })
-    const canSend = (hasText || hasAttachments) && attachmentsReady && !controlsDisabled && !threadIsRunning
+    const canSendBase = (hasText || hasAttachments) && attachmentsReady && !controlsDisabled
+    const canSend = canSendBase && (!threadIsRunning || queueSendEnabled)
 
     const [inputState, setInputState] = useState<TextInputState>({
         text: '',
@@ -263,6 +278,7 @@ export function HappyComposer(props: {
     const showSwitchButton = Boolean(controlledByUser && onSwitchToRemote)
     const showTerminalButton = Boolean(onTerminal)
     const showStatusButton = Boolean(agentFlavor === 'codex' && onCodexStatus)
+    const showQueueButton = Boolean(isCodexSession && onCodexQueueOpen)
 
     useEffect(() => {
         if (!isAborting) return
@@ -299,6 +315,30 @@ export function HappyComposer(props: {
         haptic('light')
         onCodexStatus()
     }, [controlsDisabled, threadIsRunning, onCodexStatus, haptic])
+
+    const handleCodexQueueOpen = useCallback(() => {
+        if (controlsDisabled || !onCodexQueueOpen) return
+        haptic('light')
+        onCodexQueueOpen()
+    }, [controlsDisabled, onCodexQueueOpen, haptic])
+
+    const handleCodexSendModeChange = useCallback((nextMode: CodexSendMode) => {
+        if (!onCodexSendModeChange || controlsDisabled || codexSendMode === nextMode) {
+            return
+        }
+        onCodexSendModeChange(nextMode)
+        haptic('light')
+    }, [onCodexSendModeChange, controlsDisabled, codexSendMode, haptic])
+
+    const sendComposerNow = useCallback(() => {
+        if (!canSend) {
+            return
+        }
+        api.composer().send()
+        if (queueSendEnabled && threadIsRunning) {
+            onCodexQueueUpdated?.()
+        }
+    }, [canSend, api, queueSendEnabled, threadIsRunning, onCodexQueueUpdated])
 
     const permissionModeOptions = useMemo(
         () => getPermissionModeOptionsForFlavor(agentFlavor),
@@ -347,6 +387,12 @@ export function HappyComposer(props: {
             return
         }
 
+        if (key === 'Enter' && !e.shiftKey && threadIsRunning && queueSendEnabled && canSend) {
+            e.preventDefault()
+            sendComposerNow()
+            return
+        }
+
         if (key === 'Tab' && e.shiftKey && onPermissionModeChange && permissionModes.length > 0) {
             e.preventDefault()
             const currentIndex = permissionModes.indexOf(permissionMode)
@@ -364,6 +410,9 @@ export function HappyComposer(props: {
         handleSuggestionSelect,
         threadIsRunning,
         handleAbort,
+        queueSendEnabled,
+        canSend,
+        sendComposerNow,
         onPermissionModeChange,
         permissionMode,
         permissionModes,
@@ -450,10 +499,6 @@ export function HappyComposer(props: {
     const showSettingsButton = Boolean(showPermissionSettings || showModelSettings)
     const showAbortButton = true
     const voiceEnabled = Boolean(onVoiceToggle)
-
-    const handleSend = useCallback(() => {
-        api.composer().send()
-    }, [api])
 
     const overlays = useMemo(() => {
         if (showSettings && (showPermissionSettings || showModelSettings)) {
@@ -613,6 +658,42 @@ export function HappyComposer(props: {
                             />
                         </div>
 
+                        {isCodexSession ? (
+                            <div className="flex items-center justify-between gap-2 border-t border-[var(--app-divider)] px-3 py-2">
+                                <div className="inline-flex rounded-full border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-0.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleCodexSendModeChange('direct')}
+                                        disabled={controlsDisabled || !onCodexSendModeChange}
+                                        className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                                            codexSendMode === 'direct'
+                                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                                : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                                    >
+                                        {t('codexQueue.mode.direct')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleCodexSendModeChange('queue')}
+                                        disabled={controlsDisabled || !onCodexSendModeChange}
+                                        className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                                            codexSendMode === 'queue'
+                                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                                : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                                    >
+                                        {t('codexQueue.mode.queue')}
+                                    </button>
+                                </div>
+                                <div className="truncate text-[11px] text-[var(--app-hint)]">
+                                    {queueSendEnabled
+                                        ? t('codexQueue.mode.queueHint')
+                                        : t('codexQueue.mode.directHint')}
+                                </div>
+                            </div>
+                        ) : null}
+
                         <ComposerButtons
                             canSend={canSend}
                             controlsDisabled={controlsDisabled}
@@ -624,6 +705,10 @@ export function HappyComposer(props: {
                             showStatusButton={showStatusButton}
                             statusDisabled={controlsDisabled || threadIsRunning}
                             onStatus={handleCodexStatus}
+                            showQueueButton={showQueueButton}
+                            queueDisabled={controlsDisabled}
+                            queuePendingCount={Math.max(0, codexQueuePendingCount)}
+                            onQueue={handleCodexQueueOpen}
                             showAbortButton={showAbortButton}
                             abortDisabled={abortDisabled}
                             isAborting={isAborting}
@@ -637,7 +722,7 @@ export function HappyComposer(props: {
                             voiceMicMuted={voiceMicMuted}
                             onVoiceToggle={onVoiceToggle ?? (() => {})}
                             onVoiceMicToggle={onVoiceMicToggle}
-                            onSend={handleSend}
+                            onSend={sendComposerNow}
                         />
                     </div>
                 </ComposerPrimitive.Root>

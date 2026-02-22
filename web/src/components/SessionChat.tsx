@@ -2,13 +2,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
-import type { AttachmentMetadata, DecryptedMessage, ModelMode, PermissionMode, Session } from '@/types/api'
+import type {
+    AttachmentMetadata,
+    CodexQueueState,
+    CodexStatusResponse,
+    DecryptedMessage,
+    ModelMode,
+    PermissionMode,
+    Session
+} from '@/types/api'
 import type { ChatBlock, NormalizedMessage } from '@/chat/types'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { normalizeDecryptedMessage } from '@/chat/normalize'
 import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
-import { HappyComposer } from '@/components/AssistantChat/HappyComposer'
+import { HappyComposer, type CodexSendMode } from '@/components/AssistantChat/HappyComposer'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
@@ -70,6 +78,42 @@ function getBooleanValueTone(value: string): 'yes' | 'no' | 'unknown' | null {
     return null
 }
 
+function isQueueStatusField(label: string): boolean {
+    const normalized = label.trim().toLowerCase()
+    return normalized === 'queue pending'
+        || normalized === 'in queue'
+        || normalized === 'task running'
+        || normalized === 'next queued message'
+}
+
+const CODEX_SEND_MODE_STORAGE_PREFIX = 'hapi:codexSendMode:'
+
+function getCodexSendModeStorageKey(sessionId: string): string {
+    return `${CODEX_SEND_MODE_STORAGE_PREFIX}${sessionId}`
+}
+
+function readCodexSendMode(sessionId: string): CodexSendMode {
+    if (typeof window === 'undefined') {
+        return 'direct'
+    }
+    try {
+        const value = localStorage.getItem(getCodexSendModeStorageKey(sessionId))
+        return value === 'queue' ? 'queue' : 'direct'
+    } catch {
+        return 'direct'
+    }
+}
+
+function writeCodexSendMode(sessionId: string, mode: CodexSendMode): void {
+    if (typeof window === 'undefined') {
+        return
+    }
+    try {
+        localStorage.setItem(getCodexSendModeStorageKey(sessionId), mode)
+    } catch {
+    }
+}
+
 export function SessionChat(props: {
     api: ApiClient
     session: Session
@@ -104,7 +148,24 @@ export function SessionChat(props: {
     const [isCodexStatusLoading, setIsCodexStatusLoading] = useState(false)
     const [codexStatusMessage, setCodexStatusMessage] = useState('')
     const [codexStatusError, setCodexStatusError] = useState<string | null>(null)
+    const [codexQueueStatus, setCodexQueueStatus] = useState<CodexStatusResponse['queue'] | null>(null)
+    const [codexQueueState, setCodexQueueState] = useState<CodexQueueState | null>(null)
+    const [isCodexQueueDialogOpen, setIsCodexQueueDialogOpen] = useState(false)
+    const [isCodexQueueLoading, setIsCodexQueueLoading] = useState(false)
+    const [isCodexQueueMutating, setIsCodexQueueMutating] = useState(false)
+    const [codexQueueError, setCodexQueueError] = useState<string | null>(null)
+    const [codexSendMode, setCodexSendMode] = useState<CodexSendMode>(() => readCodexSendMode(props.session.id))
     const codexStatusRows = useMemo(() => parseCodexStatusRows(codexStatusMessage), [codexStatusMessage])
+    const codexStatusDetailRows = useMemo(
+        () => codexQueueStatus
+            ? codexStatusRows.filter((row) => !isQueueStatusField(row.label))
+            : codexStatusRows,
+        [codexQueueStatus, codexStatusRows]
+    )
+    const codexQueueEntries = codexQueueState?.entries ?? []
+    const codexQueuePendingCount = codexQueueState?.pendingCount
+        ?? codexQueueStatus?.pendingCount
+        ?? 0
     const agentFlavor = props.session.metadata?.flavor ?? null
     const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
         props.api,
@@ -215,6 +276,13 @@ export function SessionChat(props: {
         setIsCodexStatusLoading(false)
         setCodexStatusMessage('')
         setCodexStatusError(null)
+        setCodexQueueStatus(null)
+        setCodexQueueState(null)
+        setIsCodexQueueDialogOpen(false)
+        setIsCodexQueueLoading(false)
+        setIsCodexQueueMutating(false)
+        setCodexQueueError(null)
+        setCodexSendMode(readCodexSendMode(props.session.id))
     }, [props.session.id])
 
     const normalizedMessages: NormalizedMessage[] = useMemo(() => {
@@ -315,6 +383,143 @@ export function SessionChat(props: {
         setForceScrollToken((token) => token + 1)
     }, [props.onSend])
 
+    const applyCodexQueueSummary = useCallback((queue: CodexStatusResponse['queue'] | CodexQueueState | null | undefined) => {
+        if (!queue) {
+            setCodexQueueStatus(null)
+            return
+        }
+        setCodexQueueStatus({
+            pendingCount: queue.pendingCount,
+            inQueue: queue.inQueue,
+            taskRunning: queue.taskRunning,
+            nextPreview: queue.nextPreview
+        })
+    }, [])
+
+    const refreshCodexQueue = useCallback(async (options?: { silent?: boolean }): Promise<void> => {
+        if (agentFlavor !== 'codex') {
+            return
+        }
+
+        if (!options?.silent) {
+            setIsCodexQueueLoading(true)
+        }
+
+        try {
+            const result = await props.api.getCodexQueue(props.session.id)
+            if (result.success) {
+                setCodexQueueState(result.queue ?? null)
+                applyCodexQueueSummary(result.queue)
+                setCodexQueueError(null)
+            } else {
+                const message = result.error ?? t('codexQueue.dialog.fetchError')
+                setCodexQueueError(message)
+                setCodexQueueState(result.queue ?? null)
+                applyCodexQueueSummary(result.queue)
+                if (!options?.silent) {
+                    haptic.notification('error')
+                }
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : t('codexQueue.dialog.fetchError')
+            setCodexQueueError(message)
+            if (!options?.silent) {
+                haptic.notification('error')
+            }
+        } finally {
+            if (!options?.silent) {
+                setIsCodexQueueLoading(false)
+            }
+        }
+    }, [agentFlavor, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+
+    const handleCodexQueueModeChange = useCallback((mode: CodexSendMode) => {
+        setCodexSendMode(mode)
+        writeCodexSendMode(props.session.id, mode)
+    }, [props.session.id])
+
+    const handleCodexQueueRefreshAfterSend = useCallback(() => {
+        if (agentFlavor !== 'codex') {
+            return
+        }
+        setTimeout(() => {
+            void refreshCodexQueue({ silent: true })
+        }, 150)
+    }, [agentFlavor, refreshCodexQueue])
+
+    const handleCodexQueueOpen = useCallback(() => {
+        if (agentFlavor !== 'codex') {
+            return
+        }
+        setIsCodexQueueDialogOpen(true)
+        setCodexQueueError(null)
+        void refreshCodexQueue()
+    }, [agentFlavor, refreshCodexQueue])
+
+    const runCodexQueueAction = useCallback(async (
+        action: () => Promise<{ success: boolean; error?: string; queue?: CodexQueueState | null }>
+    ) => {
+        if (agentFlavor !== 'codex') {
+            return
+        }
+        setIsCodexQueueMutating(true)
+        setCodexQueueError(null)
+        try {
+            const result = await action()
+            if (result.success) {
+                setCodexQueueState(result.queue ?? null)
+                applyCodexQueueSummary(result.queue ?? null)
+                return
+            }
+            const message = result.error ?? t('codexQueue.dialog.actionError')
+            setCodexQueueError(message)
+            if (result.queue) {
+                setCodexQueueState(result.queue)
+                applyCodexQueueSummary(result.queue)
+            }
+            haptic.notification('error')
+        } catch (error) {
+            const message = error instanceof Error ? error.message : t('codexQueue.dialog.actionError')
+            setCodexQueueError(message)
+            haptic.notification('error')
+        } finally {
+            setIsCodexQueueMutating(false)
+        }
+    }, [agentFlavor, applyCodexQueueSummary, haptic, t])
+
+    const handleCodexQueueClear = useCallback(() => {
+        void runCodexQueueAction(async () => {
+            const result = await props.api.clearCodexQueue(props.session.id)
+            return {
+                success: result.success,
+                error: result.error,
+                queue: result.queue ?? null
+            }
+        })
+    }, [props.api, props.session.id, runCodexQueueAction])
+
+    const handleCodexQueueRemove = useCallback((id: string) => {
+        void runCodexQueueAction(async () => {
+            const result = await props.api.removeCodexQueueItem(props.session.id, id)
+            return {
+                success: result.success,
+                error: result.error,
+                queue: result.queue ?? null
+            }
+        })
+    }, [props.api, props.session.id, runCodexQueueAction])
+
+    const handleCodexQueueMove = useCallback((id: string, toIndex: number) => {
+        void runCodexQueueAction(async () => {
+            const result = await props.api.moveCodexQueueItem(props.session.id, id, toIndex)
+            return {
+                success: result.success,
+                error: result.error,
+                queue: result.queue ?? null
+            }
+        })
+    }, [props.api, props.session.id, runCodexQueueAction])
+
     const handleCodexStatus = useCallback(() => {
         if (agentFlavor !== 'codex') {
             return
@@ -329,23 +534,43 @@ export function SessionChat(props: {
                 const result = await props.api.getCodexStatus(props.session.id)
                 if (result.success) {
                     setCodexStatusMessage(result.message ?? '')
+                    applyCodexQueueSummary(result.queue ?? null)
                     return
                 }
 
                 const errorMessage = result.error ?? t('codexStatus.dialog.fetchError')
                 setCodexStatusMessage('')
                 setCodexStatusError(errorMessage)
+                applyCodexQueueSummary(result.queue ?? null)
                 haptic.notification('error')
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : t('codexStatus.dialog.fetchError')
                 setCodexStatusMessage('')
                 setCodexStatusError(errorMessage)
+                applyCodexQueueSummary(null)
                 haptic.notification('error')
             } finally {
                 setIsCodexStatusLoading(false)
             }
         })()
-    }, [agentFlavor, props.api, props.session.id, t, haptic])
+    }, [agentFlavor, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+
+    useEffect(() => {
+        if (agentFlavor !== 'codex') {
+            return
+        }
+        void refreshCodexQueue({ silent: true })
+    }, [agentFlavor, props.session.id, props.session.thinking, refreshCodexQueue])
+
+    useEffect(() => {
+        if (agentFlavor !== 'codex' || !isCodexQueueDialogOpen) {
+            return
+        }
+        const timer = window.setInterval(() => {
+            void refreshCodexQueue({ silent: true })
+        }, 2_000)
+        return () => window.clearInterval(timer)
+    }, [agentFlavor, isCodexQueueDialogOpen, refreshCodexQueue])
 
     const attachmentAdapter = useMemo(() => {
         if (!props.session.active) {
@@ -391,6 +616,7 @@ export function SessionChat(props: {
                         api={props.api}
                         sessionId={props.session.id}
                         metadata={props.session.metadata}
+                        permissionMode={props.session.permissionMode}
                         disabled={sessionInactive}
                         onRefresh={props.onRefresh}
                         onRetryMessage={props.onRetryMessage}
@@ -426,6 +652,11 @@ export function SessionChat(props: {
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
                         onCodexStatus={agentFlavor === 'codex' ? handleCodexStatus : undefined}
+                        codexSendMode={codexSendMode}
+                        onCodexSendModeChange={agentFlavor === 'codex' ? handleCodexQueueModeChange : undefined}
+                        codexQueuePendingCount={codexQueuePendingCount}
+                        onCodexQueueOpen={agentFlavor === 'codex' ? handleCodexQueueOpen : undefined}
+                        onCodexQueueUpdated={agentFlavor === 'codex' ? handleCodexQueueRefreshAfterSend : undefined}
                         autocompleteSuggestions={props.autocompleteSuggestions}
                         voiceStatus={voice?.status}
                         voiceMicMuted={voice?.micMuted}
@@ -450,9 +681,68 @@ export function SessionChat(props: {
                             <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
                                 {codexStatusError}
                             </div>
-                        ) : codexStatusRows.length > 0 ? (
+                        ) : codexStatusDetailRows.length > 0 || codexQueueStatus ? (
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                {codexStatusRows.map((row) => {
+                                {codexQueueStatus ? (
+                                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 sm:col-span-2">
+                                        <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                            Queue
+                                        </div>
+                                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    Pending
+                                                </div>
+                                                <div className="mt-1 text-lg font-semibold text-[var(--app-fg)]">
+                                                    {codexQueueStatus.pendingCount}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    In queue
+                                                </div>
+                                                <div className="mt-1">
+                                                    <span
+                                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                            codexQueueStatus.inQueue
+                                                                ? 'bg-emerald-500/10 text-emerald-600'
+                                                                : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+                                                        }`}
+                                                    >
+                                                        {codexQueueStatus.inQueue ? 'yes' : 'no'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    Task running
+                                                </div>
+                                                <div className="mt-1">
+                                                    <span
+                                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                            codexQueueStatus.taskRunning
+                                                                ? 'bg-blue-500/10 text-blue-600'
+                                                                : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+                                                        }`}
+                                                    >
+                                                        {codexQueueStatus.taskRunning ? 'yes' : 'no'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {codexQueueStatus.nextPreview ? (
+                                            <div className="mt-2 rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    Next queued message
+                                                </div>
+                                                <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">
+                                                    {codexQueueStatus.nextPreview}
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : null}
+                                {codexStatusDetailRows.map((row) => {
                                     const rowKey = `${row.label}:${row.value}`
                                     const isWide = isWideStatusField(row.label)
                                     const booleanTone = getBooleanValueTone(row.value)
@@ -517,6 +807,145 @@ export function SessionChat(props: {
                         ) : (
                             <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
                                 {codexStatusMessage || t('codexStatus.dialog.empty')}
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isCodexQueueDialogOpen} onOpenChange={setIsCodexQueueDialogOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>{t('codexQueue.dialog.title')}</DialogTitle>
+                        <DialogDescription>{t('codexQueue.dialog.description')}</DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-3 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs text-[var(--app-hint)]">
+                                {t('codexQueue.dialog.modeLabel')}: {codexSendMode === 'queue'
+                                    ? t('codexQueue.mode.queue')
+                                    : t('codexQueue.mode.direct')}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={() => void refreshCodexQueue()}
+                                    disabled={isCodexQueueLoading || isCodexQueueMutating}
+                                >
+                                    {t('codexQueue.dialog.refresh')}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="rounded-md border border-red-500/40 px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={handleCodexQueueClear}
+                                    disabled={isCodexQueueMutating || codexQueueEntries.length === 0}
+                                >
+                                    {t('codexQueue.dialog.clear')}
+                                </button>
+                            </div>
+                        </div>
+
+                        {isCodexQueueLoading ? (
+                            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                {t('codexQueue.dialog.loading')}
+                            </div>
+                        ) : null}
+
+                        {codexQueueError ? (
+                            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                {codexQueueError}
+                            </div>
+                        ) : null}
+
+                        {codexQueueStatus ? (
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                        {t('codexQueue.summary.pending')}
+                                    </div>
+                                    <div className="mt-1 text-lg font-semibold text-[var(--app-fg)]">
+                                        {codexQueueStatus.pendingCount}
+                                    </div>
+                                </div>
+                                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                        {t('codexQueue.summary.inQueue')}
+                                    </div>
+                                    <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                        {codexQueueStatus.inQueue ? 'yes' : 'no'}
+                                    </div>
+                                </div>
+                                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                        {t('codexQueue.summary.taskRunning')}
+                                    </div>
+                                    <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                        {codexQueueStatus.taskRunning ? 'yes' : 'no'}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {codexQueueEntries.length > 0 ? (
+                            <div className="max-h-[55vh] space-y-2 overflow-auto pr-1">
+                                {codexQueueEntries.map((entry, index) => (
+                                    <div
+                                        key={entry.id}
+                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    #{index + 1}
+                                                    {entry.isolate ? ` · ${t('codexQueue.entry.isolate')}` : ''}
+                                                </div>
+                                                <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">
+                                                    {entry.preview || t('codexQueue.dialog.emptyMessage')}
+                                                </div>
+                                                <div className="mt-1 text-[10px] text-[var(--app-hint)]">
+                                                    {new Date(entry.enqueuedAt).toLocaleTimeString()}
+                                                </div>
+                                            </div>
+                                            <div className="ml-2 flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    aria-label={t('codexQueue.entry.moveUp')}
+                                                    title={t('codexQueue.entry.moveUp')}
+                                                    className="rounded border border-[var(--app-border)] px-1.5 py-1 text-xs text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                                    onClick={() => handleCodexQueueMove(entry.id, index - 1)}
+                                                    disabled={isCodexQueueMutating || index <= 0}
+                                                >
+                                                    ↑
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-label={t('codexQueue.entry.moveDown')}
+                                                    title={t('codexQueue.entry.moveDown')}
+                                                    className="rounded border border-[var(--app-border)] px-1.5 py-1 text-xs text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                                    onClick={() => handleCodexQueueMove(entry.id, index + 1)}
+                                                    disabled={isCodexQueueMutating || index >= codexQueueEntries.length - 1}
+                                                >
+                                                    ↓
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-label={t('codexQueue.entry.remove')}
+                                                    title={t('codexQueue.entry.remove')}
+                                                    className="rounded border border-red-500/40 px-1.5 py-1 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    onClick={() => handleCodexQueueRemove(entry.id)}
+                                                    disabled={isCodexQueueMutating}
+                                                >
+                                                    ✕
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                {t('codexQueue.dialog.empty')}
                             </div>
                         )}
                     </div>

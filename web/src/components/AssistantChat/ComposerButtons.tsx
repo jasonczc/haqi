@@ -145,6 +145,27 @@ function StatusIcon() {
     )
 }
 
+function QueueIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <line x1="4" y1="6" x2="20" y2="6" />
+            <line x1="4" y1="12" x2="16" y2="12" />
+            <line x1="4" y1="18" x2="12" y2="18" />
+            <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" />
+        </svg>
+    )
+}
+
 function AttachmentIcon() {
     return (
         <svg
@@ -327,6 +348,10 @@ export function ComposerButtons(props: {
     showStatusButton: boolean
     statusDisabled: boolean
     onStatus: () => void
+    showQueueButton: boolean
+    queueDisabled: boolean
+    queuePendingCount: number
+    onQueue: () => void
     showAbortButton: boolean
     abortDisabled: boolean
     isAborting: boolean
@@ -393,6 +418,24 @@ export function ComposerButtons(props: {
                         disabled={props.statusDisabled}
                     >
                         <StatusIcon />
+                    </button>
+                ) : null}
+
+                {props.showQueueButton ? (
+                    <button
+                        type="button"
+                        aria-label={t('composer.queue')}
+                        title={t('composer.queue')}
+                        className="relative flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={props.onQueue}
+                        disabled={props.queueDisabled}
+                    >
+                        <QueueIcon />
+                        {props.queuePendingCount > 0 ? (
+                            <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-semibold leading-4 text-white">
+                                {props.queuePendingCount > 99 ? '99+' : props.queuePendingCount}
+                            </span>
+                        ) : null}
                     </button>
                 ) : null}
 

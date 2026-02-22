@@ -1,10 +1,12 @@
 import { logger } from "@/ui/logger";
 
-interface QueueItem<T> {
+export interface MessageQueueItem<T> {
+    id: string;
     message: string;
     mode: T;
     modeHash: string;
-    isolate?: boolean; // If true, this message must be processed alone
+    isolate: boolean; // If true, this message must be processed alone
+    enqueuedAt: number;
 }
 
 /**
@@ -12,10 +14,11 @@ interface QueueItem<T> {
  * Returns consistent batches of messages with the same mode.
  */
 export class MessageQueue2<T> {
-    public queue: QueueItem<T>[] = []; // Made public for testing
+    public queue: MessageQueueItem<T>[] = []; // Made public for testing
     private waiter: ((hasMessages: boolean) => void) | null = null;
     private closed = false;
     private onMessageHandler: ((message: string, mode: T) => void) | null = null;
+    private nextItemId = 1;
     modeHasher: (mode: T) => string;
 
     constructor(
@@ -34,6 +37,88 @@ export class MessageQueue2<T> {
         this.onMessageHandler = handler;
     }
 
+    private createQueueItem(message: string, mode: T, isolate: boolean): MessageQueueItem<T> {
+        const modeHash = this.modeHasher(mode);
+        const id = `mq_${Date.now().toString(36)}_${(this.nextItemId++).toString(36)}`;
+        return {
+            id,
+            message,
+            mode,
+            modeHash,
+            isolate,
+            enqueuedAt: Date.now()
+        };
+    }
+
+    private notifyWaiter(): void {
+        if (!this.waiter) {
+            return;
+        }
+        logger.debug(`[MessageQueue2] Notifying waiter`);
+        const waiter = this.waiter;
+        this.waiter = null;
+        waiter(true);
+    }
+
+    /**
+     * Return a snapshot copy of all pending queue entries in order.
+     */
+    listEntries(): MessageQueueItem<T>[] {
+        return this.queue.map((item) => ({ ...item }));
+    }
+
+    /**
+     * Return the first pending queue entry (if any) without removing it.
+     */
+    peek(): MessageQueueItem<T> | null {
+        const first = this.queue[0];
+        return first ? { ...first } : null;
+    }
+
+    /**
+     * Remove one queue entry by id.
+     */
+    removeById(id: string): MessageQueueItem<T> | null {
+        const index = this.queue.findIndex((item) => item.id === id);
+        if (index < 0) {
+            return null;
+        }
+        const [removed] = this.queue.splice(index, 1);
+        return removed ?? null;
+    }
+
+    /**
+     * Move one queue entry to a specific index.
+     */
+    moveById(id: string, toIndex: number): boolean {
+        if (!Number.isFinite(toIndex)) {
+            return false;
+        }
+        const fromIndex = this.queue.findIndex((item) => item.id === id);
+        if (fromIndex < 0) {
+            return false;
+        }
+        const normalizedTarget = Math.max(0, Math.min(Math.floor(toIndex), this.queue.length - 1));
+        if (fromIndex === normalizedTarget) {
+            return true;
+        }
+        const [item] = this.queue.splice(fromIndex, 1);
+        if (!item) {
+            return false;
+        }
+        this.queue.splice(normalizedTarget, 0, item);
+        return true;
+    }
+
+    /**
+     * Clear all pending queue items and return cleared count.
+     */
+    clear(): number {
+        const removed = this.queue.length;
+        this.queue = [];
+        return removed;
+    }
+
     /**
      * Push a message to the queue with a mode.
      */
@@ -42,28 +127,18 @@ export class MessageQueue2<T> {
             throw new Error('Cannot push to closed queue');
         }
 
-        const modeHash = this.modeHasher(mode);
+        const queueItem = this.createQueueItem(message, mode, false);
+        const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] push() called with mode hash: ${modeHash}`);
 
-        this.queue.push({
-            message,
-            mode,
-            modeHash,
-            isolate: false
-        });
+        this.queue.push(queueItem);
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
             this.onMessageHandler(message, mode);
         }
 
-        // Notify waiter if any
-        if (this.waiter) {
-            logger.debug(`[MessageQueue2] Notifying waiter`);
-            const waiter = this.waiter;
-            this.waiter = null;
-            waiter(true);
-        }
+        this.notifyWaiter();
 
         logger.debug(`[MessageQueue2] push() completed. Queue size: ${this.queue.length}`);
     }
@@ -77,28 +152,18 @@ export class MessageQueue2<T> {
             throw new Error('Cannot push to closed queue');
         }
 
-        const modeHash = this.modeHasher(mode);
+        const queueItem = this.createQueueItem(message, mode, false);
+        const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] pushImmediate() called with mode hash: ${modeHash}`);
 
-        this.queue.push({
-            message,
-            mode,
-            modeHash,
-            isolate: false
-        });
+        this.queue.push(queueItem);
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
             this.onMessageHandler(message, mode);
         }
 
-        // Notify waiter if any
-        if (this.waiter) {
-            logger.debug(`[MessageQueue2] Notifying waiter for immediate message`);
-            const waiter = this.waiter;
-            this.waiter = null;
-            waiter(true);
-        }
+        this.notifyWaiter();
 
         logger.debug(`[MessageQueue2] pushImmediate() completed. Queue size: ${this.queue.length}`);
     }
@@ -113,31 +178,21 @@ export class MessageQueue2<T> {
             throw new Error('Cannot push to closed queue');
         }
 
-        const modeHash = this.modeHasher(mode);
+        const queueItem = this.createQueueItem(message, mode, true);
+        const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] pushIsolateAndClear() called with mode hash: ${modeHash} - clearing ${this.queue.length} pending messages`);
 
         // Clear any pending messages to ensure this message is processed in complete isolation
         this.queue = [];
 
-        this.queue.push({
-            message,
-            mode,
-            modeHash,
-            isolate: true
-        });
+        this.queue.push(queueItem);
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
             this.onMessageHandler(message, mode);
         }
 
-        // Notify waiter if any
-        if (this.waiter) {
-            logger.debug(`[MessageQueue2] Notifying waiter for isolated message`);
-            const waiter = this.waiter;
-            this.waiter = null;
-            waiter(true);
-        }
+        this.notifyWaiter();
 
         logger.debug(`[MessageQueue2] pushIsolateAndClear() completed. Queue size: ${this.queue.length}`);
     }
@@ -150,28 +205,18 @@ export class MessageQueue2<T> {
             throw new Error('Cannot unshift to closed queue');
         }
 
-        const modeHash = this.modeHasher(mode);
+        const queueItem = this.createQueueItem(message, mode, false);
+        const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] unshift() called with mode hash: ${modeHash}`);
 
-        this.queue.unshift({
-            message,
-            mode,
-            modeHash,
-            isolate: false
-        });
+        this.queue.unshift(queueItem);
 
         // Trigger message handler if set
         if (this.onMessageHandler) {
             this.onMessageHandler(message, mode);
         }
 
-        // Notify waiter if any
-        if (this.waiter) {
-            logger.debug(`[MessageQueue2] Notifying waiter`);
-            const waiter = this.waiter;
-            this.waiter = null;
-            waiter(true);
-        }
+        this.notifyWaiter();
 
         logger.debug(`[MessageQueue2] unshift() completed. Queue size: ${this.queue.length}`);
     }
@@ -181,7 +226,7 @@ export class MessageQueue2<T> {
      */
     reset(): void {
         logger.debug(`[MessageQueue2] reset() called. Clearing ${this.queue.length} messages`);
-        this.queue = [];
+        this.clear();
         this.closed = false;
 
         // Clear waiter without calling it since we're not closing
@@ -253,7 +298,7 @@ export class MessageQueue2<T> {
         const firstItem = this.queue[0];
         const sameModeMessages: string[] = [];
         let mode = firstItem.mode;
-        let isolate = firstItem.isolate ?? false;
+        let isolate = firstItem.isolate;
         const targetModeHash = firstItem.modeHash;
 
         // If the first message requires isolation, only process it alone

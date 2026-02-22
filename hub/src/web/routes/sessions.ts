@@ -1,6 +1,6 @@
 import { getPermissionModesForFlavor, isModelModeAllowedForFlavor, isPermissionModeAllowedForFlavor, toSessionSummary } from '@hapi/protocol'
 import { ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import type { SyncEngine, Session } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
@@ -28,6 +28,15 @@ const uploadDeleteSchema = z.object({
     path: z.string().min(1)
 })
 
+const codexQueueRemoveSchema = z.object({
+    id: z.string().min(1).max(255)
+})
+
+const codexQueueMoveSchema = z.object({
+    id: z.string().min(1).max(255),
+    toIndex: z.number().int().min(0)
+})
+
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 function estimateBase64Bytes(base64: string): number {
@@ -39,6 +48,27 @@ function estimateBase64Bytes(base64: string): number {
 
 export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
+
+    const requireActiveCodexSession = (
+        c: Context<WebAppEnv>,
+        engine: SyncEngine
+    ) => {
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        if (!sessionResult.session.active) {
+            return c.json({ success: false, error: 'Session is inactive' })
+        }
+
+        const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
+        if (flavor !== 'codex') {
+            return c.json({ success: false, error: 'Codex API is only supported for Codex sessions' })
+        }
+
+        return sessionResult
+    }
 
     app.get('/sessions', (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
@@ -89,18 +119,9 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireSessionFromParam(c, engine)
+        const sessionResult = requireActiveCodexSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
-        }
-
-        if (!sessionResult.session.active) {
-            return c.json({ success: false, error: 'Session is inactive' })
-        }
-
-        const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
-        if (flavor !== 'codex') {
-            return c.json({ success: false, error: 'Codex status is only supported for Codex sessions' })
         }
 
         try {
@@ -111,6 +132,110 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
                 success: false,
                 error: error instanceof Error ? error.message : 'Failed to get Codex status'
             })
+        }
+    })
+
+    app.get('/sessions/:id/codex-queue', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireActiveCodexSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        try {
+            const result = await engine.getCodexQueue(sessionResult.sessionId)
+            return c.json(result)
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to get Codex queue'
+            }, 500)
+        }
+    })
+
+    app.post('/sessions/:id/codex-queue/remove', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireActiveCodexSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = codexQueueRemoveSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ success: false, error: 'Invalid body' }, 400)
+        }
+
+        try {
+            const result = await engine.removeCodexQueueItem(sessionResult.sessionId, parsed.data.id)
+            return c.json(result)
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to remove Codex queue item'
+            }, 500)
+        }
+    })
+
+    app.post('/sessions/:id/codex-queue/move', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireActiveCodexSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = codexQueueMoveSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ success: false, error: 'Invalid body' }, 400)
+        }
+
+        try {
+            const result = await engine.moveCodexQueueItem(
+                sessionResult.sessionId,
+                parsed.data.id,
+                parsed.data.toIndex
+            )
+            return c.json(result)
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to move Codex queue item'
+            }, 500)
+        }
+    })
+
+    app.post('/sessions/:id/codex-queue/clear', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireActiveCodexSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        try {
+            const result = await engine.clearCodexQueue(sessionResult.sessionId)
+            return c.json(result)
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to clear Codex queue'
+            }, 500)
         }
     })
 

@@ -16,6 +16,7 @@ import { EventPublisher, type SyncEventListener } from './eventPublisher'
 import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
 import {
+    type RpcCodexQueueResponse,
     type RpcCodexStatusResponse,
     RpcGateway,
     type RpcCommandResponse,
@@ -31,6 +32,7 @@ export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
 export type { SyncEventListener } from './eventPublisher'
 export type {
+    RpcCodexQueueResponse,
     RpcCodexStatusResponse,
     RpcCommandResponse,
     RpcDeleteUploadResponse,
@@ -526,8 +528,28 @@ export class SyncEngine {
         return await this.rpcGateway.getCodexStatus(sessionId)
     }
 
-    async readSessionFile(sessionId: string, path: string): Promise<RpcReadFileResponse> {
-        return await this.rpcGateway.readSessionFile(sessionId, path)
+    async getCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.getCodexQueue(sessionId)
+    }
+
+    async removeCodexQueueItem(sessionId: string, id: string): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.removeCodexQueueItem(sessionId, id)
+    }
+
+    async moveCodexQueueItem(sessionId: string, id: string, toIndex: number): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.moveCodexQueueItem(sessionId, id, toIndex)
+    }
+
+    async clearCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.clearCodexQueue(sessionId)
+    }
+
+    async readSessionFile(
+        sessionId: string,
+        path: string,
+        options?: { maxBytes?: number; allowOutsideWorkingDirectory?: boolean }
+    ): Promise<RpcReadFileResponse> {
+        return await this.rpcGateway.readSessionFile(sessionId, path, options)
     }
 
     async listDirectory(sessionId: string, path: string): Promise<RpcListDirectoryResponse> {

@@ -401,10 +401,12 @@ describe('MessageQueue2', () => {
         
         // Manually add an isolated message without clearing (simulating edge case)
         queue.queue.push({
+            id: 'manual-isolated',
             message: 'isolated',
             mode: { type: 'A' },
             modeHash: 'A',
-            isolate: true
+            isolate: true,
+            enqueuedAt: Date.now()
         });
         
         // Add more regular messages
@@ -455,5 +457,56 @@ describe('MessageQueue2', () => {
         const batch3 = await queue.waitForMessagesAndGetAsString();
         expect(batch3?.message).toBe('after-isolated');
         expect(batch3?.mode.type).toBe('B');
+    });
+
+    it('should list queue entries with metadata and preserve order', () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.push('first', 'mode-a');
+        queue.push('second', 'mode-b');
+
+        const entries = queue.listEntries();
+        expect(entries).toHaveLength(2);
+        expect(entries[0]?.message).toBe('first');
+        expect(entries[1]?.message).toBe('second');
+        expect(entries[0]?.id).not.toBe(entries[1]?.id);
+        expect(entries[0]?.enqueuedAt).toBeTypeOf('number');
+    });
+
+    it('should remove queue item by id', () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.push('first', 'mode');
+        queue.push('second', 'mode');
+        const target = queue.listEntries()[0];
+        expect(target).toBeDefined();
+
+        const removed = queue.removeById(target!.id);
+        expect(removed?.message).toBe('first');
+        expect(queue.size()).toBe(1);
+        expect(queue.listEntries()[0]?.message).toBe('second');
+    });
+
+    it('should move queue item by id', () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.push('first', 'mode');
+        queue.push('second', 'mode');
+        queue.push('third', 'mode');
+        const entries = queue.listEntries();
+        const thirdId = entries[2]?.id;
+        expect(thirdId).toBeDefined();
+
+        const moved = queue.moveById(thirdId!, 0);
+        expect(moved).toBe(true);
+        expect(queue.listEntries().map((entry) => entry.message)).toEqual(['third', 'first', 'second']);
+    });
+
+    it('should clear queue and return cleared count', () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.push('first', 'mode');
+        queue.push('second', 'mode');
+        expect(queue.size()).toBe(2);
+
+        const clearedCount = queue.clear();
+        expect(clearedCount).toBe(2);
+        expect(queue.size()).toBe(0);
     });
 });

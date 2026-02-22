@@ -13,6 +13,8 @@ export type RpcCommandResponse = {
 export type RpcReadFileResponse = {
     success: boolean
     content?: string
+    size?: number
+    truncated?: boolean
     error?: string
 }
 
@@ -48,6 +50,36 @@ export type RpcCodexStatusResponse = {
     success: boolean
     message?: string
     error?: string
+    queue?: RpcCodexQueueSummary
+}
+
+export type RpcCodexQueueSummary = {
+    pendingCount: number
+    inQueue: boolean
+    taskRunning: boolean
+    nextPreview?: string
+}
+
+export type RpcCodexQueueEntry = {
+    id: string
+    index: number
+    preview: string
+    modeHash: string
+    isolate: boolean
+    enqueuedAt: number
+}
+
+export type RpcCodexQueueState = RpcCodexQueueSummary & {
+    entries: RpcCodexQueueEntry[]
+}
+
+export type RpcCodexQueueResponse = {
+    success: boolean
+    error?: string
+    queue?: RpcCodexQueueState
+    removedId?: string
+    movedId?: string
+    clearedCount?: number
 }
 
 export class RpcGateway {
@@ -181,8 +213,32 @@ export class RpcGateway {
         return await this.sessionRpc(sessionId, 'get-codex-status', {}) as RpcCodexStatusResponse
     }
 
-    async readSessionFile(sessionId: string, path: string): Promise<RpcReadFileResponse> {
-        return await this.sessionRpc(sessionId, 'readFile', { path }) as RpcReadFileResponse
+    async getCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        return await this.sessionRpc(sessionId, 'get-codex-queue', {}) as RpcCodexQueueResponse
+    }
+
+    async removeCodexQueueItem(sessionId: string, id: string): Promise<RpcCodexQueueResponse> {
+        return await this.sessionRpc(sessionId, 'remove-codex-queue-item', { id }) as RpcCodexQueueResponse
+    }
+
+    async moveCodexQueueItem(sessionId: string, id: string, toIndex: number): Promise<RpcCodexQueueResponse> {
+        return await this.sessionRpc(sessionId, 'move-codex-queue-item', { id, toIndex }) as RpcCodexQueueResponse
+    }
+
+    async clearCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        return await this.sessionRpc(sessionId, 'clear-codex-queue', {}) as RpcCodexQueueResponse
+    }
+
+    async readSessionFile(
+        sessionId: string,
+        path: string,
+        options?: { maxBytes?: number; allowOutsideWorkingDirectory?: boolean }
+    ): Promise<RpcReadFileResponse> {
+        return await this.sessionRpc(sessionId, 'readFile', {
+            path,
+            maxBytes: options?.maxBytes,
+            allowOutsideWorkingDirectory: options?.allowOutsideWorkingDirectory
+        }) as RpcReadFileResponse
     }
 
     async listDirectory(sessionId: string, path: string): Promise<RpcListDirectoryResponse> {

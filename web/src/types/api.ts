@@ -86,10 +86,40 @@ export type GitCommandResponse = {
     error?: string
 }
 
+export type CodexQueueSummary = {
+    pendingCount: number
+    inQueue: boolean
+    taskRunning: boolean
+    nextPreview?: string
+}
+
+export type CodexQueueEntry = {
+    id: string
+    index: number
+    preview: string
+    modeHash: string
+    isolate: boolean
+    enqueuedAt: number
+}
+
+export type CodexQueueState = CodexQueueSummary & {
+    entries: CodexQueueEntry[]
+}
+
+export type CodexQueueResponse = {
+    success: boolean
+    error?: string
+    queue?: CodexQueueState
+    removedId?: string
+    movedId?: string
+    clearedCount?: number
+}
+
 export type CodexStatusResponse = {
     success: boolean
     message?: string
     error?: string
+    queue?: CodexQueueSummary
 }
 
 export type FileSearchItem = {
@@ -121,6 +151,8 @@ export type ListDirectoryResponse = {
 export type FileReadResponse = {
     success: boolean
     content?: string
+    size?: number
+    truncated?: boolean
     error?: string
 }
 
