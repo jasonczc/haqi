@@ -214,19 +214,71 @@ export class RpcGateway {
     }
 
     async getCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
-        return await this.sessionRpc(sessionId, 'get-codex-queue', {}) as RpcCodexQueueResponse
+        try {
+            return await this.sessionRpc(sessionId, 'get-codex-queue', {}) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'get-codex-queue')) {
+                throw error
+            }
+
+            const fallbackStatus = await this.getCodexStatus(sessionId).catch(() => null)
+            const summary = fallbackStatus?.queue
+            return {
+                success: false,
+                error: 'Codex queue management is unavailable for this session. Please restart the session.',
+                queue: summary
+                    ? {
+                        pendingCount: summary.pendingCount,
+                        inQueue: summary.inQueue,
+                        taskRunning: summary.taskRunning,
+                        nextPreview: summary.nextPreview,
+                        entries: []
+                    }
+                    : undefined
+            }
+        }
     }
 
     async removeCodexQueueItem(sessionId: string, id: string): Promise<RpcCodexQueueResponse> {
-        return await this.sessionRpc(sessionId, 'remove-codex-queue-item', { id }) as RpcCodexQueueResponse
+        try {
+            return await this.sessionRpc(sessionId, 'remove-codex-queue-item', { id }) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'remove-codex-queue-item')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue mutation is unavailable for this session. Please restart the session.'
+            }
+        }
     }
 
     async moveCodexQueueItem(sessionId: string, id: string, toIndex: number): Promise<RpcCodexQueueResponse> {
-        return await this.sessionRpc(sessionId, 'move-codex-queue-item', { id, toIndex }) as RpcCodexQueueResponse
+        try {
+            return await this.sessionRpc(sessionId, 'move-codex-queue-item', { id, toIndex }) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'move-codex-queue-item')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue mutation is unavailable for this session. Please restart the session.'
+            }
+        }
     }
 
     async clearCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
-        return await this.sessionRpc(sessionId, 'clear-codex-queue', {}) as RpcCodexQueueResponse
+        try {
+            return await this.sessionRpc(sessionId, 'clear-codex-queue', {}) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'clear-codex-queue')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue mutation is unavailable for this session. Please restart the session.'
+            }
+        }
     }
 
     async readSessionFile(
@@ -314,5 +366,11 @@ export class RpcGateway {
         } catch {
             return response
         }
+    }
+
+    private isMissingRpcHandler(error: unknown, method: string): boolean {
+        const message = error instanceof Error ? error.message : String(error)
+        return message.includes('RPC handler not registered')
+            && message.includes(`:${method}`)
     }
 }

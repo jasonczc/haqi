@@ -352,6 +352,10 @@ export function ComposerButtons(props: {
     queueDisabled: boolean
     queuePendingCount: number
     onQueue: () => void
+    showSendModeToggle: boolean
+    sendMode: 'direct' | 'queue'
+    sendModeDisabled: boolean
+    onSendModeChange: (mode: 'direct' | 'queue') => void
     showAbortButton: boolean
     abortDisabled: boolean
     isAborting: boolean
@@ -482,14 +486,48 @@ export function ComposerButtons(props: {
                 ) : null}
             </div>
 
-            <UnifiedButton
-                canSend={props.canSend}
-                voiceStatus={props.voiceStatus}
-                voiceEnabled={props.voiceEnabled}
-                controlsDisabled={props.controlsDisabled}
-                onSend={props.onSend}
-                onVoiceToggle={props.onVoiceToggle}
-            />
+            <div
+                className="flex items-center gap-2"
+                title={props.sendMode === 'queue' ? t('codexQueue.mode.queueHint') : t('codexQueue.mode.directHint')}
+            >
+                {props.showSendModeToggle ? (
+                    <div className="inline-flex rounded-full border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-0.5">
+                        <button
+                            type="button"
+                            onClick={() => props.onSendModeChange('direct')}
+                            disabled={props.sendModeDisabled}
+                            className={`rounded-full px-2 py-1 text-[10px] font-medium transition-colors ${
+                                props.sendMode === 'direct'
+                                    ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                    : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                            } disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                            {t('codexQueue.mode.direct')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => props.onSendModeChange('queue')}
+                            disabled={props.sendModeDisabled}
+                            className={`rounded-full px-2 py-1 text-[10px] font-medium transition-colors ${
+                                props.sendMode === 'queue'
+                                    ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                    : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                            } disabled:cursor-not-allowed disabled:opacity-50`}
+                        >
+                            {t('codexQueue.mode.queue')}
+                        </button>
+                    </div>
+                ) : null}
+
+                <UnifiedButton
+                    canSend={props.canSend}
+                    voiceStatus={props.voiceStatus}
+                    voiceEnabled={props.voiceEnabled}
+                    controlsDisabled={props.controlsDisabled}
+                    onSend={props.onSend}
+                    onVoiceToggle={props.onVoiceToggle}
+                />
+            </div>
         </div>
     )
 }

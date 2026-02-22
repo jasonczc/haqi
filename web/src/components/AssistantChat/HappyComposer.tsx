@@ -658,42 +658,6 @@ export function HappyComposer(props: {
                             />
                         </div>
 
-                        {isCodexSession ? (
-                            <div className="flex items-center justify-between gap-2 border-t border-[var(--app-divider)] px-3 py-2">
-                                <div className="inline-flex rounded-full border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-0.5">
-                                    <button
-                                        type="button"
-                                        onClick={() => handleCodexSendModeChange('direct')}
-                                        disabled={controlsDisabled || !onCodexSendModeChange}
-                                        className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                                            codexSendMode === 'direct'
-                                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                                : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
-                                        } disabled:cursor-not-allowed disabled:opacity-50`}
-                                    >
-                                        {t('codexQueue.mode.direct')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleCodexSendModeChange('queue')}
-                                        disabled={controlsDisabled || !onCodexSendModeChange}
-                                        className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                                            codexSendMode === 'queue'
-                                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                                : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
-                                        } disabled:cursor-not-allowed disabled:opacity-50`}
-                                    >
-                                        {t('codexQueue.mode.queue')}
-                                    </button>
-                                </div>
-                                <div className="truncate text-[11px] text-[var(--app-hint)]">
-                                    {queueSendEnabled
-                                        ? t('codexQueue.mode.queueHint')
-                                        : t('codexQueue.mode.directHint')}
-                                </div>
-                            </div>
-                        ) : null}
-
                         <ComposerButtons
                             canSend={canSend}
                             controlsDisabled={controlsDisabled}
@@ -709,6 +673,10 @@ export function HappyComposer(props: {
                             queueDisabled={controlsDisabled}
                             queuePendingCount={Math.max(0, codexQueuePendingCount)}
                             onQueue={handleCodexQueueOpen}
+                            showSendModeToggle={isCodexSession}
+                            sendMode={codexSendMode}
+                            sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
+                            onSendModeChange={handleCodexSendModeChange}
                             showAbortButton={showAbortButton}
                             abortDisabled={abortDisabled}
                             isAborting={isAborting}
