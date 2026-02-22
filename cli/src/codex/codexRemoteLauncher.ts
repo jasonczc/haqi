@@ -131,6 +131,55 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         const mcpClient = this.mcpClient;
         const appServerClient = this.appServerClient;
         const appServerEventConverter = useAppServer ? new AppServerEventConverter() : null;
+        let turnInFlight = false;
+        const turnIdleWaiters: Array<() => void> = [];
+
+        const resolveTurnIdleWaiters = () => {
+            while (turnIdleWaiters.length > 0) {
+                const resolve = turnIdleWaiters.shift();
+                resolve?.();
+            }
+        };
+
+        const setTurnInFlight = (next: boolean) => {
+            turnInFlight = next;
+            if (!next) {
+                resolveTurnIdleWaiters();
+            }
+        };
+
+        const waitForTurnIdle = async (signal: AbortSignal): Promise<void> => {
+            if (!useAppServer || !turnInFlight) {
+                return;
+            }
+
+            await new Promise<void>((resolve) => {
+                const onAbort = () => {
+                    cleanup();
+                    resolve();
+                };
+
+                const onIdle = () => {
+                    cleanup();
+                    resolve();
+                };
+
+                const cleanup = () => {
+                    signal.removeEventListener('abort', onAbort);
+                    const index = turnIdleWaiters.indexOf(onIdle);
+                    if (index >= 0) {
+                        turnIdleWaiters.splice(index, 1);
+                    }
+                };
+
+                turnIdleWaiters.push(onIdle);
+                signal.addEventListener('abort', onAbort, { once: true });
+
+                if (!turnInFlight) {
+                    onIdle();
+                }
+            });
+        };
 
         const normalizeCommand = (value: unknown): string | undefined => {
             if (typeof value === 'string') {
@@ -334,7 +383,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
             if (msgType === 'task_started') {
                 if (useAppServer) {
-                    turnInFlight = true;
+                    setTurnInFlight(true);
                 }
                 if (!session.thinking) {
                     logger.debug('thinking started');
@@ -343,7 +392,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
             if (msgType === 'task_complete' || msgType === 'turn_aborted' || msgType === 'task_failed') {
                 if (useAppServer) {
-                    turnInFlight = false;
+                    setTurnInFlight(false);
                 }
                 if (session.thinking) {
                     logger.debug('thinking completed');
@@ -592,10 +641,20 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         let currentModeHash: string | null = null;
         let pending: { message: string; mode: EnhancedMode; isolate: boolean; hash: string } | null = null;
         let first = true;
-        let turnInFlight = false;
 
         while (!this.shouldExit) {
             logActiveHandles('loop-top');
+
+            if (useAppServer && turnInFlight && !this.shouldExit) {
+                await waitForTurnIdle(this.abortController.signal);
+                if (this.shouldExit) {
+                    break;
+                }
+                if (this.abortController.signal.aborted && !turnInFlight) {
+                    continue;
+                }
+            }
+
             let message: { message: string; mode: EnhancedMode; isolate: boolean; hash: string } | null = pending;
             pending = null;
             if (!message) {
@@ -688,7 +747,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             mode: message.mode,
                             cliOverrides: session.codexCliOverrides
                         });
-                        turnInFlight = true;
+                        setTurnInFlight(true);
                         const turnResponse = await appServerClient.startTurn(turnParams, {
                             signal: this.abortController.signal
                         });
@@ -727,7 +786,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         mode: message.mode,
                         cliOverrides: session.codexCliOverrides
                     });
-                    turnInFlight = true;
+                    setTurnInFlight(true);
                     const turnResponse = await appServerClient.startTurn(turnParams, {
                         signal: this.abortController.signal
                     });
@@ -745,7 +804,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 logger.warn('Error in codex session:', error);
                 const isAbortError = error instanceof Error && error.name === 'AbortError';
                 if (useAppServer) {
-                    turnInFlight = false;
+                    setTurnInFlight(false);
                 }
 
                 if (isAbortError) {
