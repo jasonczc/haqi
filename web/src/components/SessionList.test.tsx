@@ -199,7 +199,15 @@ describe('SessionList project quick-create action', () => {
             />
         )
 
-        fireEvent.click(screen.getByRole('button', { name: 'Mark project offline' }))
+        const groupTitle = screen.getByTitle('/repo/active-project')
+        const groupRowToggle = groupTitle.closest('button')
+        expect(groupRowToggle).toBeTruthy()
+        if (!groupRowToggle) {
+            throw new Error('group row toggle not found')
+        }
+
+        fireEvent.contextMenu(groupRowToggle)
+        fireEvent.click(screen.getByRole('menuitem', { name: 'Mark project offline' }))
         expect(screen.getByRole('button', { name: /offline projects/i })).toBeInTheDocument()
 
         fireEvent.click(screen.getByRole('button', { name: 'New Session in this project' }))

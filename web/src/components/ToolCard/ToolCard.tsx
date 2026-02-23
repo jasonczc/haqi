@@ -354,6 +354,16 @@ function ToolCardInner(props: ToolCardProps) {
     const showCardBody = hasBody && (!isCompact || isExpanded)
     const { suppressFocusRing, onTriggerPointerDown, onTriggerKeyDown, onTriggerBlur } = usePointerFocusRing()
 
+    useEffect(() => {
+        setHasUserToggledExpand(false)
+        setIsExpanded(isCompact ? requiresInteraction : true)
+    }, [props.block.id, isCompact, requiresInteraction])
+
+    useEffect(() => {
+        if (!isCompact || hasUserToggledExpand) return
+        setIsExpanded(requiresInteraction)
+    }, [isCompact, hasUserToggledExpand, requiresInteraction])
+
     if (toolName === 'CodexReasoning') {
         const reasoningDetail = getInputStringAny(props.block.tool.result, ['content'])
         const compactDetail = reasoningDetail && reasoningDetail.trim() !== toolTitle
@@ -384,16 +394,6 @@ function ToolCardInner(props: ToolCardProps) {
             </div>
         )
     }
-
-    useEffect(() => {
-        setHasUserToggledExpand(false)
-        setIsExpanded(isCompact ? requiresInteraction : true)
-    }, [props.block.id, isCompact, requiresInteraction])
-
-    useEffect(() => {
-        if (!isCompact || hasUserToggledExpand) return
-        setIsExpanded(requiresInteraction)
-    }, [isCompact, hasUserToggledExpand, requiresInteraction])
 
     const renderDialogContent = () => {
         const isQuestionToolWithAnswers = isQuestionTool

@@ -21,6 +21,20 @@ type PushPayload = {
     }
 }
 
+// Activate new SW immediately and control existing pages to avoid stale bundles.
+self.skipWaiting()
+self.addEventListener('activate', (event) => {
+    event.waitUntil(self.clients.claim())
+})
+
+// Allow workbox-window / virtual:pwa-register to trigger immediate activation.
+self.addEventListener('message', (event) => {
+    const data = event.data as { type?: string } | undefined
+    if (data?.type === 'SKIP_WAITING') {
+        self.skipWaiting()
+    }
+})
+
 precacheAndRoute(self.__WB_MANIFEST)
 
 registerRoute(

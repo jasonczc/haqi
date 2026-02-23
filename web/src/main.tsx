@@ -43,18 +43,27 @@ async function bootstrap() {
 
     const updateSW = registerSW({
         onNeedRefresh() {
-            if (confirm('New version available! Reload to update?')) {
-                updateSW(true)
+            // Auto-apply updates to avoid users being stuck on stale hashed bundles.
+            try {
+                const key = 'hapi:pwa-updating'
+                if (sessionStorage.getItem(key) === '1') {
+                    return
+                }
+                sessionStorage.setItem(key, '1')
+            } catch {
+                // ignore storage errors
             }
+            updateSW(true)
         },
         onOfflineReady() {
             console.log('App ready for offline use')
         },
         onRegistered(registration) {
             if (registration) {
+                void registration.update()
                 setInterval(() => {
                     registration.update()
-                }, 60 * 60 * 1000)
+                }, 5 * 60 * 1000)
             }
         },
         onRegisterError(error) {
