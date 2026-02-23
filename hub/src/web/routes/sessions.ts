@@ -18,6 +18,14 @@ const renameSessionSchema = z.object({
     name: z.string().min(1).max(255)
 })
 
+const previewUrlSchema = z.object({
+    url: z.string().max(2048).nullable()
+})
+
+const previewUrlHistoryQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(100).optional()
+})
+
 const uploadSchema = z.object({
     filename: z.string().min(1).max(255),
     content: z.string().min(1),
@@ -56,6 +64,27 @@ function estimateBase64Bytes(base64: string): number {
     if (len === 0) return 0
     const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0
     return Math.floor((len * 3) / 4) - padding
+}
+
+function normalizePreviewUrl(raw: string | null): { ok: true; value: string | null } | { ok: false; error: string } {
+    if (raw === null) {
+        return { ok: true, value: null }
+    }
+
+    const trimmed = raw.trim()
+    if (!trimmed) {
+        return { ok: true, value: null }
+    }
+
+    try {
+        const url = new URL(trimmed)
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            return { ok: false, error: 'Preview URL must use http:// or https://' }
+        }
+        return { ok: true, value: url.toString() }
+    } catch {
+        return { ok: false, error: 'Invalid preview URL' }
+    }
 }
 
 export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
@@ -109,6 +138,22 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             .map(toSessionSummary)
 
         return c.json({ sessions })
+    })
+
+    app.get('/sessions/preview-url-history', (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const parsed = previewUrlHistoryQuerySchema.safeParse(c.req.query())
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid query' }, 400)
+        }
+
+        const namespace = c.get('namespace')
+        const entries = engine.getPreviewUrlHistory(namespace, parsed.data.limit)
+        return c.json({ urls: entries.map((entry) => entry.url), entries })
     })
 
     app.get('/sessions/:id', (c) => {
@@ -487,6 +532,37 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply model mode'
             return c.json({ error: message }, 409)
+        }
+    })
+
+    app.patch('/sessions/:id/preview-url', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = previewUrlSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const previewUrl = normalizePreviewUrl(parsed.data.url)
+        if (!previewUrl.ok) {
+            return c.json({ error: previewUrl.error }, 400)
+        }
+
+        try {
+            await engine.setSessionPreviewUrl(sessionResult.sessionId, previewUrl.value)
+            return c.json({ ok: true, previewUrl: previewUrl.value })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update preview URL'
+            return c.json({ error: message }, 500)
         }
     })
 

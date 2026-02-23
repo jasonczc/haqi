@@ -36,6 +36,7 @@ import { useSessionSidebarWidth } from '@/hooks/useSessionSidebarWidth'
 import { useSessionSidebarVisibility } from '@/hooks/useSessionSidebarVisibility'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
+import PreviewPage from '@/routes/sessions/preview'
 import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
 
@@ -714,6 +715,12 @@ const sessionTerminalRoute = createRoute({
     component: TerminalPage,
 })
 
+const sessionPreviewRoute = createRoute({
+    getParentRoute: () => sessionDetailRoute,
+    path: 'preview',
+    component: PreviewPage,
+})
+
 type SessionFileSearch = {
     path: string
     staged?: boolean
@@ -781,6 +788,7 @@ export const routeTree = rootRoute.addChildren([
         sessionsIndexRoute,
         newSessionRoute,
         sessionDetailRoute.addChildren([
+            sessionPreviewRoute,
             sessionTerminalRoute,
             sessionFilesRoute,
             sessionFileRoute,

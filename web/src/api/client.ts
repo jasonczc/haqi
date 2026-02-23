@@ -13,6 +13,7 @@ import type {
     MessagesResponse,
     ModelMode,
     PermissionMode,
+    PreviewUrlHistoryResponse,
     PushSubscriptionPayload,
     PushUnsubscribePayload,
     PushVapidPublicKeyResponse,
@@ -21,6 +22,7 @@ import type {
     SpawnResponse,
     UploadFileResponse,
     VisibilityPayload,
+    SessionPreviewUrlResponse,
     SessionResponse,
     SessionsResponse
 } from '@/types/api'
@@ -189,6 +191,18 @@ export class ApiClient {
 
     async getSession(sessionId: string): Promise<SessionResponse> {
         return await this.request<SessionResponse>(`/api/sessions/${encodeURIComponent(sessionId)}`)
+    }
+
+    async getPreviewUrlHistory(limit?: number): Promise<PreviewUrlHistoryResponse> {
+        const qs = typeof limit === 'number' ? `?limit=${encodeURIComponent(String(limit))}` : ''
+        return await this.request<PreviewUrlHistoryResponse>(`/api/sessions/preview-url-history${qs}`)
+    }
+
+    async setSessionPreviewUrl(sessionId: string, url: string | null): Promise<SessionPreviewUrlResponse> {
+        return await this.request<SessionPreviewUrlResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/preview-url`, {
+            method: 'PATCH',
+            body: JSON.stringify({ url })
+        })
     }
 
     async getMessages(sessionId: string, options: { beforeSeq?: number | null; limit?: number }): Promise<MessagesResponse> {
@@ -435,11 +449,12 @@ export class ApiClient {
         thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
-        worktreeName?: string
+        worktreeName?: string,
+        previewUrl?: string
     ): Promise<SpawnResponse> {
         return await this.request<SpawnResponse>(`/api/machines/${encodeURIComponent(machineId)}/spawn`, {
             method: 'POST',
-            body: JSON.stringify({ directory, agent, model, thinkEffort, yolo, sessionType, worktreeName })
+            body: JSON.stringify({ directory, agent, model, thinkEffort, yolo, sessionType, worktreeName, previewUrl })
         })
     }
 

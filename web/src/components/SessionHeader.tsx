@@ -43,6 +43,28 @@ function FilesIcon(props: { className?: string }) {
     )
 }
 
+function BrowserIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <path d="M3 9h18" />
+            <path d="M7 6.5h.01" />
+            <path d="M10 6.5h.01" />
+        </svg>
+    )
+}
+
 function SidebarIcon(props: { className?: string }) {
     return (
         <svg
@@ -85,6 +107,7 @@ export function SessionHeader(props: {
     onBack: () => void
     onToggleSidebar?: () => void
     sidebarVisible?: boolean
+    onViewPreview?: () => void
     onViewFiles?: () => void
     api: ApiClient | null
     onSessionDeleted?: () => void
@@ -198,6 +221,18 @@ export function SessionHeader(props: {
                             ) : null}
                         </div>
                     </div>
+
+                    {props.onViewPreview ? (
+                        <button
+                            type="button"
+                            onClick={props.onViewPreview}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title="Preview"
+                            aria-label="Preview"
+                        >
+                            <BrowserIcon />
+                        </button>
+                    ) : null}
 
                     {props.onViewFiles ? (
                         <button

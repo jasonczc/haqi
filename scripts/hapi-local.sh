@@ -42,10 +42,19 @@ EOF
 }
 
 server_port_pid() {
-    ss -ltnp 2>/dev/null \
-        | grep -F ":${SERVER_PORT} " \
-        | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' \
-        | head -n 1
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltnp 2>/dev/null \
+            | grep -F ":${SERVER_PORT} " \
+            | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' \
+            | head -n 1
+        return 0
+    fi
+
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -nP -iTCP:"${SERVER_PORT}" -sTCP:LISTEN 2>/dev/null \
+            | awk 'NR==2 {print $2}'
+        return 0
+    fi
 }
 
 pid_cmd() {
@@ -55,12 +64,12 @@ pid_cmd() {
 
 is_local_server_cmd() {
     local cmd="$1"
-    [[ "${cmd}" == *"${CLI_DIR}"* && "${cmd}" == *"src/index.ts server"* ]]
+    [[ "${cmd}" == *"${CLI_DIR}"* && ( "${cmd}" == *"src/index.ts server"* || "${cmd}" == *"src/index.ts hub"* ) ]]
 }
 
 is_hapi_server_cmd() {
     local cmd="$1"
-    [[ "${cmd}" == *"hapi"* && "${cmd}" == *"server"* ]]
+    [[ "${cmd}" == *"hapi"* && ( "${cmd}" == *"server"* || "${cmd}" == *"hub"* ) ]]
 }
 
 ensure_setup() {
@@ -113,8 +122,14 @@ cmd_start() {
         fi
 
         echo "🚀 启动 server (screen: ${SCREEN_SESSION})..."
-        screen -L -Logfile "${SERVER_LOG_FILE}" -dmS "${SCREEN_SESSION}" \
-            bash -lc "cd '${CLI_DIR}' && exec '${BUN_BIN}' src/index.ts server"
+        if screen -h 2>&1 | grep -q -- 'Logfile'; then
+            screen -L -Logfile "${SERVER_LOG_FILE}" -dmS "${SCREEN_SESSION}" \
+                bash -lc "cd '${CLI_DIR}' && exec '${BUN_BIN}' src/index.ts server"
+        else
+            echo "⚠️  当前 screen 不支持 -Logfile，改用命令重定向写日志"
+            screen -dmS "${SCREEN_SESSION}" \
+                bash -lc "cd '${CLI_DIR}' && exec '${BUN_BIN}' src/index.ts server >>'${SERVER_LOG_FILE}' 2>&1"
+        fi
     else
         echo "⚠️  未检测到 screen，改用 nohup 后台启动 server"
         nohup bash -lc "cd '${CLI_DIR}' && exec '${BUN_BIN}' src/index.ts server" \
@@ -144,7 +159,9 @@ cmd_stop() {
     fi
 
     pkill -f "src/index.ts server" 2>/dev/null || true
+    pkill -f "src/index.ts hub" 2>/dev/null || true
     pkill -f "/bin/haqi server" 2>/dev/null || true
+    pkill -f "/bin/haqi hub" 2>/dev/null || true
 
     local port_pid
     port_pid="$(server_port_pid || true)"

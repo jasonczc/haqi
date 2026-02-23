@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite'
 import { randomUUID } from 'node:crypto'
 
-import type { StoredSession, VersionedUpdateResult } from './types'
+import type { PreviewUrlHistoryEntry, StoredSession, VersionedUpdateResult } from './types'
 import { safeJsonParse } from './json'
 import { updateVersionedField } from './versionedUpdates'
 
@@ -16,6 +16,7 @@ type DbSessionRow = {
     metadata_version: number
     agent_state: string | null
     agent_state_version: number
+    preview_url: string | null
     todos: string | null
     todos_updated_at: number | null
     active: number
@@ -35,6 +36,7 @@ function toStoredSession(row: DbSessionRow): StoredSession {
         metadataVersion: row.metadata_version,
         agentState: safeJsonParse(row.agent_state),
         agentStateVersion: row.agent_state_version,
+        previewUrl: row.preview_url,
         todos: safeJsonParse(row.todos),
         todosUpdatedAt: row.todos_updated_at,
         active: row.active === 1,
@@ -187,6 +189,91 @@ export function setSessionTodos(
     } catch {
         return false
     }
+}
+
+export function setSessionPreviewUrl(
+    db: Database,
+    id: string,
+    previewUrl: string | null,
+    namespace: string
+): boolean {
+    try {
+        const result = db.prepare(`
+            UPDATE sessions
+            SET preview_url = @preview_url,
+                seq = seq + 1
+            WHERE id = @id
+              AND namespace = @namespace
+        `).run({
+            id,
+            namespace,
+            preview_url: previewUrl
+        })
+
+        if (result.changes !== 1) {
+            return false
+        }
+
+        if (previewUrl && previewUrl.trim()) {
+            savePreviewUrlHistory(db, namespace, previewUrl)
+        }
+
+        return true
+    } catch {
+        return false
+    }
+}
+
+export function savePreviewUrlHistory(db: Database, namespace: string, url: string): boolean {
+    const trimmed = url.trim()
+    if (!trimmed) {
+        return false
+    }
+
+    try {
+        const now = Date.now()
+        db.prepare(`
+            INSERT INTO preview_url_history (namespace, url, created_at, last_used_at)
+            VALUES (@namespace, @url, @created_at, @last_used_at)
+            ON CONFLICT(namespace, url)
+            DO UPDATE SET last_used_at = excluded.last_used_at
+        `).run({
+            namespace,
+            url: trimmed,
+            created_at: now,
+            last_used_at: now
+        })
+        return true
+    } catch {
+        return false
+    }
+}
+
+type DbPreviewUrlHistoryRow = {
+    url: string
+    created_at: number
+    last_used_at: number
+}
+
+export function getPreviewUrlHistory(
+    db: Database,
+    namespace: string,
+    limit: number = 20
+): PreviewUrlHistoryEntry[] {
+    const normalizedLimit = Math.max(1, Math.min(100, Math.trunc(limit)))
+    const rows = db.prepare(`
+        SELECT url, created_at, last_used_at
+        FROM preview_url_history
+        WHERE namespace = ?
+        ORDER BY last_used_at DESC, created_at DESC
+        LIMIT ?
+    `).all(namespace, normalizedLimit) as DbPreviewUrlHistoryRow[]
+
+    return rows.map((row) => ({
+        url: row.url,
+        createdAt: row.created_at,
+        lastUsedAt: row.last_used_at
+    }))
 }
 
 export function getSession(db: Database, id: string): StoredSession | null {

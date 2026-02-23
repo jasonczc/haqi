@@ -551,6 +551,13 @@ export function SessionChat(props: {
         })
     }, [navigate, props.session.id])
 
+    const handleViewPreview = useCallback(() => {
+        navigate({
+            to: '/sessions/$sessionId/preview',
+            params: { sessionId: props.session.id }
+        })
+    }, [navigate, props.session.id])
+
     const handleViewTerminal = useCallback(() => {
         navigate({
             to: '/sessions/$sessionId/terminal',
@@ -814,6 +821,7 @@ export function SessionChat(props: {
                 onBack={props.onBack}
                 onToggleSidebar={props.onToggleSidebar}
                 sidebarVisible={props.sidebarVisible}
+                onViewPreview={handleViewPreview}
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 api={props.api}
                 onSessionDeleted={props.onBack}

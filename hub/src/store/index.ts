@@ -9,6 +9,7 @@ import { SessionStore } from './sessionStore'
 import { UserStore } from './userStore'
 
 export type {
+    PreviewUrlHistoryEntry,
     StoredMachine,
     StoredMessage,
     StoredPushSubscription,
@@ -22,13 +23,14 @@ export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 
-const SCHEMA_VERSION: number = 3
+const SCHEMA_VERSION: number = 4
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
     'messages',
     'users',
-    'push_subscriptions'
+    'push_subscriptions',
+    'preview_url_history'
 ] as const
 
 export class Store {
@@ -98,15 +100,23 @@ export class Store {
             return
         }
 
-        if (currentVersion === 1 && SCHEMA_VERSION === 2) {
+        if (currentVersion === 1 && SCHEMA_VERSION >= 2) {
             this.migrateFromV1ToV2()
-            this.setUserVersion(SCHEMA_VERSION)
+            this.setUserVersion(2)
+            this.initSchema()
             return
         }
 
-        if (currentVersion === 2 && SCHEMA_VERSION === 3) {
+        if (currentVersion === 2 && SCHEMA_VERSION >= 3) {
             this.migrateFromV2ToV3()
-            this.setUserVersion(SCHEMA_VERSION)
+            this.setUserVersion(3)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 3 && SCHEMA_VERSION >= 4) {
+            this.migrateFromV3ToV4()
+            this.setUserVersion(4)
             return
         }
 
@@ -130,6 +140,7 @@ export class Store {
                 metadata_version INTEGER DEFAULT 1,
                 agent_state TEXT,
                 agent_state_version INTEGER DEFAULT 1,
+                preview_url TEXT,
                 todos TEXT,
                 todos_updated_at INTEGER,
                 active INTEGER DEFAULT 0,
@@ -187,6 +198,17 @@ export class Store {
                 UNIQUE(namespace, endpoint)
             );
             CREATE INDEX IF NOT EXISTS idx_push_subscriptions_namespace ON push_subscriptions(namespace);
+
+            CREATE TABLE IF NOT EXISTS preview_url_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                namespace TEXT NOT NULL,
+                url TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                last_used_at INTEGER NOT NULL,
+                UNIQUE(namespace, url)
+            );
+            CREATE INDEX IF NOT EXISTS idx_preview_url_history_namespace_last_used
+                ON preview_url_history(namespace, last_used_at DESC);
         `)
     }
 
@@ -280,8 +302,45 @@ export class Store {
         return
     }
 
+    private migrateFromV3ToV4(): void {
+        const sessionColumns = this.getSessionColumnNames()
+        try {
+            this.db.exec('BEGIN')
+
+            if (!sessionColumns.has('preview_url')) {
+                this.db.exec('ALTER TABLE sessions ADD COLUMN preview_url TEXT')
+            }
+
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS preview_url_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    namespace TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    last_used_at INTEGER NOT NULL,
+                    UNIQUE(namespace, url)
+                );
+            `)
+            this.db.exec(`
+                CREATE INDEX IF NOT EXISTS idx_preview_url_history_namespace_last_used
+                ON preview_url_history(namespace, last_used_at DESC)
+            `)
+
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v3->v4 failed: ${message}`)
+        }
+    }
+
     private getMachineColumnNames(): Set<string> {
         const rows = this.db.prepare('PRAGMA table_info(machines)').all() as Array<{ name: string }>
+        return new Set(rows.map((row) => row.name))
+    }
+
+    private getSessionColumnNames(): Set<string> {
+        const rows = this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>
         return new Set(rows.map((row) => row.name))
     }
 

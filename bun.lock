@@ -14,6 +14,7 @@
       "name": "@twsxtd/hapi",
       "version": "0.15.2",
       "bin": {
+        "haqi": "bin/haqi.cjs",
         "hapi": "bin/hapi.cjs",
       },
       "dependencies": {

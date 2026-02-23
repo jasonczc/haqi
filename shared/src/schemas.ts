@@ -124,6 +124,7 @@ export const SessionSchema = z.object({
     seq: z.number(),
     createdAt: z.number(),
     updatedAt: z.number(),
+    previewUrl: z.string().optional(),
     active: z.boolean(),
     activeAt: z.number(),
     metadata: MetadataSchema.nullable(),

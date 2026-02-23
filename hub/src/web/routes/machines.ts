@@ -11,12 +11,34 @@ const spawnBodySchema = z.object({
     thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'xhigh']).optional(),
     yolo: z.boolean().optional(),
     sessionType: z.enum(['simple', 'worktree']).optional(),
-    worktreeName: z.string().optional()
+    worktreeName: z.string().optional(),
+    previewUrl: z.string().optional()
 })
 
 const pathsExistsSchema = z.object({
     paths: z.array(z.string().min(1)).max(1000)
 })
+
+function normalizePreviewUrl(raw: string | undefined): { ok: true; value?: string } | { ok: false; error: string } {
+    if (raw === undefined) {
+        return { ok: true }
+    }
+
+    const trimmed = raw.trim()
+    if (!trimmed) {
+        return { ok: true, value: undefined }
+    }
+
+    try {
+        const url = new URL(trimmed)
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            return { ok: false, error: 'Preview URL must use http:// or https://' }
+        }
+        return { ok: true, value: url.toString() }
+    } catch {
+        return { ok: false, error: 'Invalid preview URL' }
+    }
+}
 
 export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
@@ -50,6 +72,11 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Invalid body' }, 400)
         }
 
+        const previewUrl = normalizePreviewUrl(parsed.data.previewUrl)
+        if (!previewUrl.ok) {
+            return c.json({ error: previewUrl.error }, 400)
+        }
+
         const result = await engine.spawnSession(
             machineId,
             parsed.data.directory,
@@ -58,7 +85,9 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             parsed.data.thinkEffort,
             parsed.data.yolo,
             parsed.data.sessionType,
-            parsed.data.worktreeName
+            parsed.data.worktreeName,
+            undefined,
+            previewUrl.value
         )
         return c.json(result)
     })

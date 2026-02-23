@@ -9,7 +9,7 @@
 
 import type { DecryptedMessage, ModelMode, PermissionMode, Session, SyncEvent } from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
-import type { Store } from '../store'
+import type { PreviewUrlHistoryEntry, Store } from '../store'
 import type { RpcRegistry } from '../socket/rpcRegistry'
 import type { SSEManager } from '../sse/sseManager'
 import { EventPublisher, type SyncEventListener } from './eventPublisher'
@@ -285,6 +285,14 @@ export class SyncEngine {
         await this.sessionCache.renameSession(sessionId, name)
     }
 
+    async setSessionPreviewUrl(sessionId: string, previewUrl: string | null): Promise<void> {
+        await this.sessionCache.setPreviewUrl(sessionId, previewUrl)
+    }
+
+    getPreviewUrlHistory(namespace: string, limit?: number): PreviewUrlHistoryEntry[] {
+        return this.sessionCache.getPreviewUrlHistory(namespace, limit)
+    }
+
     async deleteSession(sessionId: string): Promise<void> {
         await this.sessionCache.deleteSession(sessionId)
     }
@@ -392,9 +400,10 @@ export class SyncEngine {
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
-        resumeSessionId?: string
+        resumeSessionId?: string,
+        previewUrl?: string | null
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
-        return await this.rpcGateway.spawnSession(
+        const result = await this.rpcGateway.spawnSession(
             machineId,
             directory,
             agent,
@@ -405,6 +414,17 @@ export class SyncEngine {
             worktreeName,
             resumeSessionId
         )
+
+        if (result.type === 'success' && previewUrl) {
+            try {
+                await this.persistSessionPreviewUrlWithRetry(result.sessionId, previewUrl)
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error)
+                console.warn(`[SyncEngine] Failed to persist preview URL for ${result.sessionId}: ${message}`)
+            }
+        }
+
+        return result
     }
 
     async resumeSession(sessionId: string, namespace: string): Promise<ResumeSessionResult> {
@@ -599,5 +619,19 @@ export class SyncEngine {
         error?: string
     }> {
         return await this.rpcGateway.listSkills(sessionId)
+    }
+
+    private async persistSessionPreviewUrlWithRetry(sessionId: string, previewUrl: string): Promise<void> {
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+            try {
+                await this.sessionCache.setPreviewUrl(sessionId, previewUrl)
+                return
+            } catch (error) {
+                if (attempt >= 9) {
+                    throw error
+                }
+                await new Promise((resolve) => setTimeout(resolve, 100))
+            }
+        }
     }
 }

@@ -61,6 +61,11 @@ export type AuthResponse = {
 
 export type SessionsResponse = { sessions: SessionSummary[] }
 export type SessionResponse = { session: Session }
+export type SessionPreviewUrlResponse = { ok: true; previewUrl: string | null }
+export type PreviewUrlHistoryResponse = {
+    urls: string[]
+    entries?: Array<{ url: string; createdAt: number; lastUsedAt: number }>
+}
 export type MessagesResponse = {
     messages: DecryptedMessage[]
     page: {

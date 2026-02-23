@@ -9,11 +9,18 @@ export type StoredSession = {
     metadataVersion: number
     agentState: unknown | null
     agentStateVersion: number
+    previewUrl: string | null
     todos: unknown | null
     todosUpdatedAt: number | null
     active: boolean
     activeAt: number | null
     seq: number
+}
+
+export type PreviewUrlHistoryEntry = {
+    url: string
+    createdAt: number
+    lastUsedAt: number
 }
 
 export type StoredMachine = {
