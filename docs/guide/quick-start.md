@@ -7,7 +7,7 @@
 ::: code-group
 
 ```bash [npm]
-npm install -g @twsxtd/haqi
+npm install -g @jasonczc/haqi
 ```
 
 ```bash [Homebrew]
@@ -15,7 +15,7 @@ brew install tiann/tap/hapi
 ```
 
 ```bash [npx (one-off)]
-npx @twsxtd/haqi
+npx @jasonczc/haqi
 ```
 
 :::
