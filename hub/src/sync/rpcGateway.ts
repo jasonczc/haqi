@@ -226,7 +226,7 @@ export class RpcGateway {
             const summary = fallbackStatus?.queue
             return {
                 success: false,
-                error: 'Codex queue management is unavailable for this session. Please restart the session.',
+                error: 'Queue management is unavailable for this session. Please restart the session.',
                 queue: summary
                     ? {
                         pendingCount: summary.pendingCount,
@@ -262,7 +262,7 @@ export class RpcGateway {
             }
             return {
                 success: false,
-                error: 'Codex queue enqueue is unavailable for this session. Please restart the session.'
+                error: 'Queue enqueue is unavailable for this session. Please restart the session.'
             }
         }
     }

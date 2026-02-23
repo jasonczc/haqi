@@ -74,6 +74,67 @@ export type MessagesResponse = {
 export type MachinesResponse = { machines: Machine[] }
 export type MachinePathsExistsResponse = { exists: Record<string, boolean> }
 
+export type UsageTotals = {
+    inputTokens: number
+    cachedInputTokens: number
+    cacheReadTokens: number
+    cacheCreationTokens: number
+    outputTokens: number
+    reasoningOutputTokens: number
+    totalTokens: number
+}
+
+export type UsageProviderOverview = {
+    provider: 'claude' | 'codex'
+    available: boolean
+    roots: string[]
+    filesScanned: number
+    parseErrors: number
+    eventCount: number
+    last30DaysEventCount: number
+    allTime: UsageTotals
+    last30Days: UsageTotals
+}
+
+export type UsageOverview = {
+    generatedAt: number
+    windowDays: number
+    claude: UsageProviderOverview
+    codex: UsageProviderOverview
+}
+
+export type UsageOverviewResponse = {
+    success: boolean
+    overview?: UsageOverview
+    error?: string
+}
+
+export type SessionUsageProvider = 'claude' | 'codex' | 'unknown'
+
+export type SessionUsageSourceCounts = {
+    claudeAssistantMessages: number
+    codexTokenEvents: number
+}
+
+export type SessionUsageOverview = {
+    sessionId: string
+    provider: SessionUsageProvider
+    generatedAt: number
+    messageCount: number
+    usageEventCount: number
+    parseErrors: number
+    allTime: UsageTotals
+    latest: UsageTotals | null
+    lastUsageAt: number | null
+    sourceCounts: SessionUsageSourceCounts
+}
+
+export type SessionUsageResponse = {
+    success: boolean
+    usage?: SessionUsageOverview
+    error?: string
+}
+
 export type SpawnResponse =
     | { type: 'success'; sessionId: string }
     | { type: 'error'; message: string }
@@ -86,14 +147,14 @@ export type GitCommandResponse = {
     error?: string
 }
 
-export type CodexQueueSummary = {
+export type QueueSummary = {
     pendingCount: number
     inQueue: boolean
     taskRunning: boolean
     nextPreview?: string
 }
 
-export type CodexQueueEntry = {
+export type QueueEntry = {
     id: string
     index: number
     preview: string
@@ -103,25 +164,32 @@ export type CodexQueueEntry = {
     enqueuedAt: number
 }
 
-export type CodexQueueState = CodexQueueSummary & {
-    entries: CodexQueueEntry[]
+export type QueueState = QueueSummary & {
+    entries: QueueEntry[]
 }
 
-export type CodexQueueResponse = {
+export type QueueResponse = {
     success: boolean
     error?: string
-    queue?: CodexQueueState
+    queue?: QueueState
     removedId?: string
     movedId?: string
     clearedCount?: number
 }
 
-export type CodexStatusResponse = {
+export type QueueStatusResponse = {
     success: boolean
     message?: string
     error?: string
-    queue?: CodexQueueSummary
+    queue?: QueueSummary
 }
+
+// Backward-compat aliases (to be removed later)
+export type CodexQueueSummary = QueueSummary
+export type CodexQueueEntry = QueueEntry
+export type CodexQueueState = QueueState
+export type CodexQueueResponse = QueueResponse
+export type CodexStatusResponse = QueueStatusResponse
 
 export type FileSearchItem = {
     fileName: string

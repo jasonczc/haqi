@@ -488,7 +488,7 @@ export function ComposerButtons(props: {
 
             <div
                 className="flex items-center gap-2"
-                title={props.sendMode === 'queue' ? t('codexQueue.mode.queueHint') : t('codexQueue.mode.directHint')}
+                title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
             >
                 {props.showSendModeToggle ? (
                     <div className="inline-flex rounded-full border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-0.5">
@@ -502,7 +502,7 @@ export function ComposerButtons(props: {
                                     : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
                             } disabled:cursor-not-allowed disabled:opacity-50`}
                         >
-                            {t('codexQueue.mode.direct')}
+                            {t('queue.mode.direct')}
                         </button>
                         <button
                             type="button"
@@ -514,7 +514,7 @@ export function ComposerButtons(props: {
                                     : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
                             } disabled:cursor-not-allowed disabled:opacity-50`}
                         >
-                            {t('codexQueue.mode.queue')}
+                            {t('queue.mode.queue')}
                         </button>
                     </div>
                 ) : null}

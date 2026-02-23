@@ -327,6 +327,13 @@ export async function startRunner(): Promise<void> {
           };
         }
 
+        if (agent === 'claude' && thinkEffort && thinkEffort !== 'auto' && thinkEffort !== 'xhigh') {
+          extraEnv = {
+            ...extraEnv,
+            CLAUDE_CODE_EFFORT_LEVEL: thinkEffort
+          };
+        }
+
         // Construct arguments for the CLI
         const agentCommand = agent === 'codex'
           ? 'codex'

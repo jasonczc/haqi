@@ -50,6 +50,10 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Invalid body' }, 400)
         }
 
+        if (parsed.data.agent === 'claude' && parsed.data.thinkEffort === 'xhigh') {
+            return c.json({ error: 'Claude thinkEffort does not support xhigh (expected low/medium/high)' }, 400)
+        }
+
         const result = await engine.spawnSession(
             machineId,
             parsed.data.directory,

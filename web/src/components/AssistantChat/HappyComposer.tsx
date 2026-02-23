@@ -16,21 +16,22 @@ import {
 import type {
     AgentState,
     AttachmentMetadata,
-    CodexQueueEntry,
-    CodexQueueSummary,
+    QueueEntry,
+    QueueSummary,
     ModelMode,
     PermissionMode
 } from '@/types/api'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import type { ConversationStatus } from '@/realtime/types'
-import type { CodexQueueInlinePanelMode } from '@/hooks/useCodexQueueInlinePanel'
+import type { QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useActiveWord } from '@/hooks/useActiveWord'
 import { useActiveSuggestions } from '@/hooks/useActiveSuggestions'
 import { applySuggestion } from '@/utils/applySuggestion'
 import { usePlatform } from '@/hooks/usePlatform'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
-import { isCodexFamilyFlavor } from '@/lib/agentFlavorUtils'
+import { isCodexFamilyFlavor, supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import { markSkillUsed } from '@/lib/recent-skills'
+import { preserveUploadPathsForQueue } from '@/lib/attachmentAdapter'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { StatusBar } from '@/components/AssistantChat/StatusBar'
@@ -147,9 +148,9 @@ export function HappyComposer(props: {
     codexSendMode?: CodexSendMode
     onCodexSendModeChange?: (mode: CodexSendMode) => void
     codexQueuePendingCount?: number
-    codexQueueSummary?: CodexQueueSummary | null
-    codexQueueEntries?: CodexQueueEntry[]
-    codexQueueInlinePanelMode?: CodexQueueInlinePanelMode
+    codexQueueSummary?: QueueSummary | null
+    codexQueueEntries?: QueueEntry[]
+    codexQueueInlinePanelMode?: QueueInlinePanelMode
     onCodexQueueOpen?: () => void
     onCodexQueueUpdated?: () => void
     onCodexQueueEnqueue?: (payload: QueueEnqueuePayload) => Promise<void>
@@ -207,25 +208,25 @@ export function HappyComposer(props: {
     const threadIsDisabled = useAssistantState(({ thread }) => thread.isDisabled)
 
     const controlsDisabled = disabled || (!active && !allowSendWhenInactive) || threadIsDisabled
-    const isCodexSession = agentFlavor === 'codex'
-    const queueSendEnabled = isCodexSession && codexSendMode === 'queue'
-    const showInlineQueuePanel = isCodexSession && codexQueueInlinePanelMode !== 'off'
+    const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
+    const queueSendEnabled = supportsQueueControls && codexSendMode === 'queue'
+    const showInlineQueuePanel = supportsQueueControls && codexQueueInlinePanelMode !== 'off'
     const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
     const inlineQueueInQueue = codexQueueSummary?.inQueue ?? false
     const inlineQueueTaskRunning = codexQueueSummary?.taskRunning ?? false
     const inlineQueueNextPreview = codexQueueSummary?.nextPreview?.trim() ?? ''
     const inlineQueueHeadline = useMemo(() => {
         if (inlineQueueNextPreview.length > 0) {
-            return `${t('codexQueue.inline.next')}: ${inlineQueueNextPreview}`
+            return `${t('queue.inline.next')}: ${inlineQueueNextPreview}`
         }
         const firstEntryPreview = codexQueueEntries[0]?.preview?.trim()
         if (firstEntryPreview) {
-            return `${t('codexQueue.inline.next')}: ${firstEntryPreview}`
+            return `${t('queue.inline.next')}: ${firstEntryPreview}`
         }
         if (inlineQueuePendingCount > 0) {
-            return t('codexQueue.inline.pending', { count: inlineQueuePendingCount })
+            return t('queue.inline.pending', { count: inlineQueuePendingCount })
         }
-        return t('codexQueue.inline.empty')
+        return t('queue.inline.empty')
     }, [inlineQueueNextPreview, codexQueueEntries, inlineQueuePendingCount, t])
     const trimmed = composerText.trim()
     const hasText = trimmed.length > 0
@@ -371,8 +372,8 @@ export function HappyComposer(props: {
     const switchDisabled = controlsDisabled || isSwitching || !controlledByUser
     const showSwitchButton = Boolean(controlledByUser && onSwitchToRemote)
     const showTerminalButton = Boolean(onTerminal)
-    const showStatusButton = Boolean(agentFlavor === 'codex' && onCodexStatus)
-    const showQueueButton = Boolean(isCodexSession && onCodexQueueOpen)
+    const showStatusButton = Boolean(supportsQueueControls && onCodexStatus)
+    const showQueueButton = Boolean(supportsQueueControls && onCodexQueueOpen)
 
     useEffect(() => {
         if (!isAborting) return
@@ -443,6 +444,10 @@ export function HappyComposer(props: {
                     text: trimmed,
                     attachments: queueAttachments.length > 0 ? queueAttachments : undefined
                 })
+                preserveUploadPathsForQueue(
+                    sessionId,
+                    queueAttachments.map((attachment) => attachment.path)
+                )
                 await api.composer().clearAttachments()
                 api.composer().setText('')
                 onCodexQueueUpdated?.()
@@ -777,19 +782,19 @@ export function HappyComposer(props: {
                             <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
-                                        {t('codexQueue.dialog.title')}
+                                        {t('queue.dialog.title')}
                                     </span>
                                     <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
-                                        {t('codexQueue.inline.pending', { count: inlineQueuePendingCount })}
+                                        {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                     </span>
                                     {inlineQueueTaskRunning ? (
                                         <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
-                                            {t('codexQueue.inline.running')}
+                                            {t('queue.inline.running')}
                                         </span>
                                     ) : null}
                                     {inlineQueueInQueue ? (
                                         <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
-                                            {t('codexQueue.summary.inQueue')}
+                                            {t('queue.summary.inQueue')}
                                         </span>
                                     ) : null}
                                     <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">
@@ -801,7 +806,7 @@ export function HappyComposer(props: {
                                         onClick={handleCodexQueueOpen}
                                         disabled={controlsDisabled || !onCodexQueueOpen}
                                     >
-                                        {t('codexQueue.inline.open')}
+                                        {t('queue.inline.open')}
                                     </button>
                                 </div>
 
@@ -818,7 +823,7 @@ export function HappyComposer(props: {
                                                             #{index + 1}
                                                         </span>
                                                         <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]">
-                                                            {entry.preview || t('codexQueue.dialog.emptyMessage')}
+                                                            {entry.preview || t('queue.dialog.emptyMessage')}
                                                         </span>
                                                         <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
                                                             {new Date(entry.enqueuedAt).toLocaleTimeString([], {
@@ -836,11 +841,11 @@ export function HappyComposer(props: {
                                             </>
                                         ) : inlineQueuePendingCount > 0 ? (
                                             <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                {t('codexQueue.inline.pending', { count: inlineQueuePendingCount })}
+                                                {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                             </div>
                                         ) : (
                                             <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                {t('codexQueue.dialog.empty')}
+                                                {t('queue.dialog.empty')}
                                             </div>
                                         )}
                                     </div>
@@ -886,7 +891,7 @@ export function HappyComposer(props: {
                             queueDisabled={controlsDisabled}
                             queuePendingCount={Math.max(0, codexQueuePendingCount)}
                             onQueue={handleCodexQueueOpen}
-                            showSendModeToggle={isCodexSession}
+                            showSendModeToggle={supportsQueueControls}
                             sendMode={codexSendMode}
                             sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
                             onSendModeChange={handleCodexSendModeChange}
