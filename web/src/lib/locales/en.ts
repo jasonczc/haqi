@@ -61,6 +61,7 @@ export default {
   'session.item.worktree': 'worktree',
   'session.item.pending': 'pending',
   'session.item.thinking': 'thinking',
+  'session.item.completed': 'done',
   'session.time.justNow': 'just now',
   'session.time.minutesAgo': '{n}m ago',
   'session.time.hoursAgo': '{n}h ago',

@@ -49,12 +49,13 @@ export function createEventsRoutes(
         const all = parseBoolean(query.all)
         const sessionId = parseOptionalId(query.sessionId)
         const machineId = parseOptionalId(query.machineId)
+        const groupId = parseOptionalId(query.groupId)
         const subscriptionId = randomUUID()
         const visibility = parseVisibility(query.visibility)
         const namespace = c.get('namespace')
         let resolvedSessionId = sessionId
 
-        if (sessionId || machineId) {
+        if (sessionId || machineId || groupId) {
             const engine = getSyncEngine()
             if (!engine) {
                 return c.json({ error: 'Not connected' }, 503)
@@ -75,6 +76,12 @@ export function createEventsRoutes(
                     return c.json({ error: 'Machine access denied' }, 403)
                 }
             }
+            if (groupId) {
+                const group = engine.getGroupByNamespace(groupId, namespace)
+                if (!group) {
+                    return c.json({ error: 'Group not found' }, 404)
+                }
+            }
         }
 
         return streamSSE(c, async (stream) => {
@@ -84,6 +91,7 @@ export function createEventsRoutes(
                 all,
                 sessionId: resolvedSessionId,
                 machineId,
+                groupId,
                 visibility,
                 send: (event) => stream.writeSSE({ data: JSON.stringify(event) }),
                 sendHeartbeat: async () => {

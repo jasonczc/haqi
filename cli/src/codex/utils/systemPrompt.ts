@@ -6,6 +6,7 @@
  */
 
 import { trimIdent } from '@/utils/trimIdent';
+import { buildPromptWithHaqiAgentInstructions } from '@/agent/utils/haqiAgentInstructions';
 
 /**
  * Title instruction for Codex to call the haqi MCP tool.
@@ -20,3 +21,7 @@ export const TITLE_INSTRUCTION = trimIdent(`
  * The system prompt to inject via developer_instructions in local mode.
  */
 export const codexSystemPrompt = TITLE_INSTRUCTION;
+
+export function buildCodexSystemPrompt(startDir: string): string {
+    return buildPromptWithHaqiAgentInstructions(codexSystemPrompt, startDir);
+}

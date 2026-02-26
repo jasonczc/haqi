@@ -48,6 +48,15 @@ const codexQueueMoveSchema = z.object({
 
 const codexQueueEnqueueSchema = z.object({
     text: z.string(),
+    meta: z.object({
+        routeContext: z.object({
+            groupId: z.string().min(1),
+            taskId: z.string().min(1).optional(),
+            traceId: z.string().min(1).optional(),
+            source: z.string().min(1),
+            targetSessionIds: z.array(z.string().min(1)).optional()
+        }).optional()
+    }).optional(),
     attachments: z.array(z.object({
         id: z.string().min(1),
         filename: z.string().min(1),
@@ -287,10 +296,12 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             const result = sessionResult.flavor === 'claude'
                 ? await engine.enqueueClaudeMessage(sessionResult.sessionId, {
                     text: parsed.data.text,
+                    meta: parsed.data.meta,
                     attachments: parsed.data.attachments
                 })
                 : await engine.enqueueCodexMessage(sessionResult.sessionId, {
                     text: parsed.data.text,
+                    meta: parsed.data.meta,
                     attachments: parsed.data.attachments
                 })
             return c.json(result)

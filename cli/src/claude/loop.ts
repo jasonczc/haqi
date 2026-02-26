@@ -6,6 +6,7 @@ import { Session } from "./session"
 import { claudeLocalLauncher } from "./claudeLocalLauncher"
 import { claudeRemoteLauncher } from "./claudeRemoteLauncher"
 import { ApiClient } from "@/lib"
+import type { MessageRouteContext } from "@/api/types"
 import type { ClaudePermissionMode } from "@hapi/protocol/types"
 import { resolveClaudeModelSelection } from "./modelMode"
 import type { ClaudeThinkEffort } from "./modelMode"
@@ -21,6 +22,7 @@ export interface EnhancedMode {
     appendSystemPrompt?: string;
     allowedTools?: string[];
     disallowedTools?: string[];
+    routeContext?: MessageRouteContext;
 }
 
 interface LoopOptions {

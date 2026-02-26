@@ -20,6 +20,8 @@ import { createCliRoutes } from './routes/cli'
 import { createPushRoutes } from './routes/push'
 import { createVoiceRoutes } from './routes/voice'
 import { createUsageRoutes } from './routes/usage'
+import { createGroupsRoutes } from './routes/groups'
+import { createMemoryRoutes } from './routes/memory'
 import type { SSEManager } from '../sse/sseManager'
 import type { VisibilityTracker } from '../visibility/visibilityTracker'
 import type { Server as BunServer } from 'bun'
@@ -99,6 +101,8 @@ function createWebApp(options: {
     app.route('/api', createPushRoutes(options.store, options.vapidPublicKey))
     app.route('/api', createVoiceRoutes())
     app.route('/api', createUsageRoutes())
+    app.route('/api', createGroupsRoutes(options.getSyncEngine))
+    app.route('/api', createMemoryRoutes())
 
     // Skip static serving in relay mode, show helpful message on root
     if (options.relayMode) {

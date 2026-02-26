@@ -9,6 +9,7 @@ type SSESubscription = {
     all?: boolean
     sessionId?: string
     machineId?: string
+    groupId?: string
 }
 
 type VisibilityState = 'visible' | 'hidden'
@@ -39,6 +40,9 @@ function buildEventsUrl(
     }
     if (subscription.machineId) {
         params.set('machineId', subscription.machineId)
+    }
+    if (subscription.groupId) {
+        params.set('groupId', subscription.groupId)
     }
 
     const path = `/api/events?${params.toString()}`
@@ -92,8 +96,8 @@ export function useSSE(options: {
     const subscription = options.subscription ?? {}
 
     const subscriptionKey = useMemo(() => {
-        return `${subscription.all ? '1' : '0'}|${subscription.sessionId ?? ''}|${subscription.machineId ?? ''}`
-    }, [subscription.all, subscription.sessionId, subscription.machineId])
+        return `${subscription.all ? '1' : '0'}|${subscription.sessionId ?? ''}|${subscription.machineId ?? ''}|${subscription.groupId ?? ''}`
+    }, [subscription.all, subscription.sessionId, subscription.machineId, subscription.groupId])
 
     useEffect(() => {
         if (!options.enabled) {
@@ -145,6 +149,23 @@ export function useSSE(options: {
 
             if (event.type === 'machine-updated') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.machines })
+            }
+
+            if (event.type === 'group-added' || event.type === 'group-updated' || event.type === 'group-removed') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.groups })
+                void queryClient.invalidateQueries({ queryKey: queryKeys.group(event.groupId) })
+            }
+
+            if (event.type === 'group-message-received') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.groupMessages(event.groupId) })
+            }
+
+            if (event.type === 'group-task-updated') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.groupTasks(event.groupId) })
+            }
+
+            if (event.type === 'group-note-updated') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.groupNote(event.groupId) })
             }
 
             onEventRef.current(event)

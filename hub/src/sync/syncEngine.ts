@@ -14,6 +14,7 @@ import type { PreviewUrlHistoryEntry, Store } from '../store'
 import type { RpcRegistry } from '../socket/rpcRegistry'
 import type { SSEManager } from '../sse/sseManager'
 import { EventPublisher, type SyncEventListener } from './eventPublisher'
+import { GroupService, type GroupWithDetails } from './groupService'
 import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
 import {
@@ -47,13 +48,240 @@ export type ResumeSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'error'; message: string; code: 'session_not_found' | 'access_denied' | 'no_machine_online' | 'resume_unavailable' | 'resume_failed' }
 
+type GroupRouteContext = {
+    groupId: string
+    taskId?: string
+    traceId?: string
+    source: string
+    targetSessionIds?: string[]
+}
+
+type MessageEnvelope = {
+    role: string
+    contentType: string | null
+    data: unknown
+    meta: Record<string, unknown> | null
+}
+
+const NOTE_REFRESH_TASK_PREFIX = 'note-refresh:'
+const MAX_NOTE_REFRESH_CONTENT_LENGTH = 20_000
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object') {
+        return null
+    }
+    return value as Record<string, unknown>
+}
+
+function asString(value: unknown): string | null {
+    return typeof value === 'string' ? value : null
+}
+
+function asStringArray(value: unknown): string[] | null {
+    if (!Array.isArray(value)) {
+        return null
+    }
+    const items = value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    return items
+}
+
+function parseRouteContext(value: unknown): GroupRouteContext | null {
+    const record = asRecord(value)
+    if (!record) {
+        return null
+    }
+
+    const groupId = asString(record.groupId)?.trim()
+    const source = asString(record.source)?.trim()
+    if (!groupId || !source) {
+        return null
+    }
+
+    const taskId = asString(record.taskId)?.trim()
+    const traceId = asString(record.traceId)?.trim()
+    const targetSessionIds = asStringArray(record.targetSessionIds) ?? undefined
+
+    return {
+        groupId,
+        ...(taskId ? { taskId } : {}),
+        ...(traceId ? { traceId } : {}),
+        source,
+        ...(targetSessionIds ? { targetSessionIds } : {})
+    }
+}
+
+function parseMessageEnvelope(content: unknown): MessageEnvelope | null {
+    const root = asRecord(content)
+    if (!root) {
+        return null
+    }
+
+    const role = asString(root.role)?.trim()
+    if (!role) {
+        return null
+    }
+
+    const messageContent = asRecord(root.content)
+    const contentType = messageContent ? asString(messageContent.type) : null
+    const data = messageContent ? messageContent.data : undefined
+    const meta = asRecord(root.meta)
+
+    return {
+        role,
+        contentType,
+        data,
+        meta
+    }
+}
+
+function truncateText(text: string, maxLength: number): string {
+    if (text.length <= maxLength) {
+        return text
+    }
+    return `${text.slice(0, maxLength)}...`
+}
+
+function extractClaudeText(data: unknown): string | null {
+    const record = asRecord(data)
+    if (!record) {
+        return null
+    }
+    const type = asString(record.type)
+    if (type === 'summary') {
+        const summary = asString(record.summary)?.trim()
+        return summary && summary.length > 0 ? summary : null
+    }
+    if (type !== 'assistant') {
+        return null
+    }
+
+    const message = asRecord(record.message)
+    const content = message?.content
+    if (typeof content === 'string') {
+        const text = content.trim()
+        return text.length > 0 ? text : null
+    }
+    if (!Array.isArray(content)) {
+        return null
+    }
+
+    const texts: string[] = []
+    for (const block of content) {
+        const item = asRecord(block)
+        if (!item || item.type !== 'text') {
+            continue
+        }
+        const text = asString(item.text)?.trim()
+        if (text) {
+            texts.push(text)
+        }
+    }
+
+    if (texts.length === 0) {
+        return null
+    }
+    return texts.join('\n')
+}
+
+function extractCodexText(data: unknown): string | null {
+    const record = asRecord(data)
+    if (!record) {
+        return null
+    }
+    const type = asString(record.type)
+    if (!type) {
+        return null
+    }
+
+    const message = asString(record.message)?.trim()
+    if (message && message.length > 0) {
+        return message
+    }
+    const error = asString(record.error)?.trim()
+    if (error && error.length > 0) {
+        return `${type}: ${error}`
+    }
+    return null
+}
+
+function isReadyEvent(envelope: MessageEnvelope): boolean {
+    if (envelope.contentType !== 'event') {
+        return false
+    }
+    const eventData = asRecord(envelope.data)
+    return asString(eventData?.type) === 'ready'
+}
+
+function buildMirroredPayload(sessionId: string, envelope: MessageEnvelope): {
+    sessionId: string
+    contentType: string
+    text: string
+} | null {
+    const contentType = envelope.contentType
+    if (!contentType) {
+        return null
+    }
+
+    let text: string | null = null
+    if (contentType === 'output') {
+        text = extractClaudeText(envelope.data)
+    } else if (contentType === 'codex') {
+        text = extractCodexText(envelope.data)
+    } else if (contentType === 'event') {
+        const eventData = asRecord(envelope.data)
+        if (asString(eventData?.type) !== 'message') {
+            return null
+        }
+        text = asString(eventData?.message)?.trim() ?? null
+    }
+
+    if (!text || text.length === 0) {
+        return null
+    }
+
+    return {
+        sessionId,
+        contentType,
+        text: truncateText(text, 8_000)
+    }
+}
+
+function isNoteRefreshTaskId(taskId: string | undefined): boolean {
+    return typeof taskId === 'string' && taskId.startsWith(NOTE_REFRESH_TASK_PREFIX)
+}
+
+function stripMarkdownCodeFence(content: string): string {
+    const trimmed = content.trim()
+    const fenced = trimmed.match(/^```(?:markdown|md)?\s*([\s\S]*?)\s*```$/i)
+    if (!fenced) {
+        return trimmed
+    }
+    const inner = fenced[1]?.trim()
+    return inner && inner.length > 0 ? inner : trimmed
+}
+
+function normalizeNoteRefreshContent(content: string): string {
+    const normalized = stripMarkdownCodeFence(content).trim()
+    if (!normalized) {
+        return ''
+    }
+    return truncateText(normalized, MAX_NOTE_REFRESH_CONTENT_LENGTH)
+}
+
 export class SyncEngine {
+    private readonly store: Store
     private readonly eventPublisher: EventPublisher
     private readonly sessionCache: SessionCache
     private readonly machineCache: MachineCache
     private readonly messageService: MessageService
+    private readonly groupService: GroupService
     private readonly rpcGateway: RpcGateway
     private readonly autoApprovalInFlight: Set<string> = new Set()
+    private readonly activeGroupRoutesBySession: Map<string, GroupRouteContext> = new Map()
+    // Routes registered at queue-dispatch time for flavors (claude/gemini) that don't
+    // echo routeContext in their user-message echo. Prevents the echo from clearing the route.
+    private readonly queuePendingRoutes: Map<string, GroupRouteContext> = new Map()
+    private readonly pendingNoteRefreshDraftByTaskKey: Map<string, string> = new Map()
     private inactivityTimer: NodeJS.Timeout | null = null
 
     constructor(
@@ -62,10 +290,24 @@ export class SyncEngine {
         rpcRegistry: RpcRegistry,
         sseManager: SSEManager
     ) {
+        this.store = store
         this.eventPublisher = new EventPublisher(sseManager, (event) => this.resolveNamespace(event))
         this.sessionCache = new SessionCache(store, this.eventPublisher)
         this.machineCache = new MachineCache(store, this.eventPublisher)
         this.messageService = new MessageService(store, io, this.eventPublisher)
+        this.groupService = new GroupService(
+            store,
+            this.eventPublisher,
+            async (payload) => this.dispatchGroupTask(payload),
+            async (payload) => this.executeNoteRefresh(payload),
+            (sessionId, namespace) => {
+                const session = this.getSessionByNamespace(sessionId, namespace)
+                if (!session) {
+                    return null
+                }
+                return { active: session.active }
+            }
+        )
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
         this.reloadAll()
         this.inactivityTimer = setInterval(() => this.expireInactive(), 5_000)
@@ -91,6 +333,9 @@ export class SyncEngine {
         }
         if ('machineId' in event) {
             return this.machineCache.getMachine(event.machineId)?.namespace
+        }
+        if ('groupId' in event) {
+            return this.store.groups.getGroup(event.groupId)?.namespace
         }
         return undefined
     }
@@ -151,6 +396,99 @@ export class SyncEngine {
         return this.machineCache.getOnlineMachinesByNamespace(namespace)
     }
 
+    getGroupsByNamespace(namespace: string): GroupWithDetails[] {
+        return this.groupService.getGroupsByNamespace(namespace)
+    }
+
+    getGroupByNamespace(groupId: string, namespace: string): GroupWithDetails | null {
+        return this.groupService.getGroupByNamespace(groupId, namespace)
+    }
+
+    createGroup(options: {
+        namespace: string
+        name: string
+        description?: string | null
+        noteSessionId?: string | null
+        sessionMemberIds?: string[]
+    }): GroupWithDetails {
+        return this.groupService.createGroup(options)
+    }
+
+    getGroupMessagesPage(
+        groupId: string,
+        namespace: string,
+        options: { limit: number; beforeSeq: number | null }
+    ) {
+        return this.groupService.getMessagesPage(groupId, namespace, options)
+    }
+
+    async addGroupMessage(options: {
+        groupId: string
+        namespace: string
+        type: 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
+        payload: unknown
+        source?: string
+        actorSessionId?: string | null
+        actorName?: string | null
+        traceId?: string | null
+        taskId?: string | null
+        targetSessionIds?: string[] | null
+    }) {
+        return this.groupService.addTimelineMessage(options)
+    }
+
+    getGroupNote(groupId: string, namespace: string) {
+        return this.groupService.getGroupNote(groupId, namespace)
+    }
+
+    getGroupTasks(groupId: string, namespace: string, limit?: number) {
+        return this.groupService.getGroupTasks(groupId, namespace, limit)
+    }
+
+    updateGroupNote(options: {
+        groupId: string
+        namespace: string
+        content: string
+        updatedBy?: string | null
+    }) {
+        return this.groupService.updateGroupNote(options)
+    }
+
+    refreshGroupNote(options: {
+        groupId: string
+        namespace: string
+        source?: string
+        command?: string
+    }): Promise<{ triggered: boolean; reason?: string }> {
+        return this.groupService.refreshGroupNote(options)
+    }
+
+    claimGroupTask(groupId: string, taskId: string, namespace: string) {
+        return this.groupService.claimTask(groupId, taskId, namespace)
+    }
+
+    doneGroupTask(groupId: string, taskId: string, namespace: string) {
+        return this.groupService.doneTask(groupId, taskId, namespace)
+    }
+
+    cancelGroupTask(groupId: string, taskId: string, namespace: string) {
+        return this.groupService.cancelTask(groupId, taskId, namespace)
+    }
+
+    addGroupMember(groupId: string, namespace: string, sessionId: string): GroupWithDetails {
+        return this.groupService.addMember({ groupId, namespace, sessionId })
+    }
+
+    updateGroup(options: {
+        groupId: string
+        namespace: string
+        name?: string
+        description?: string | null
+        noteSessionId?: string | null
+    }): GroupWithDetails {
+        return this.groupService.updateGroup(options)
+    }
+
     getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null }): {
         messages: DecryptedMessage[]
         page: {
@@ -182,8 +520,9 @@ export class SyncEngine {
         }
 
         if (event.type === 'message-received' && event.sessionId) {
-            if (!this.getSession(event.sessionId)) {
-                this.sessionCache.refreshSession(event.sessionId)
+            const session = this.getSession(event.sessionId) ?? this.sessionCache.refreshSession(event.sessionId)
+            if (session) {
+                this.handleGroupRoutedMessage(event.sessionId, session.namespace, event.message)
             }
         }
 
@@ -207,6 +546,16 @@ export class SyncEngine {
 
     handleSessionEnd(payload: { sid: string; time: number }): void {
         this.sessionCache.handleSessionEnd(payload)
+        const activeRoute = this.activeGroupRoutesBySession.get(payload.sid)
+        if (activeRoute) {
+            this.clearPendingNoteRefreshDraft(activeRoute)
+        }
+        const pendingRoute = this.queuePendingRoutes.get(payload.sid)
+        if (pendingRoute) {
+            this.clearPendingNoteRefreshDraft(pendingRoute)
+        }
+        this.activeGroupRoutesBySession.delete(payload.sid)
+        this.queuePendingRoutes.delete(payload.sid)
     }
 
     handleMachineAlive(payload: { machineId: string; time: number }): void {
@@ -245,6 +594,7 @@ export class SyncEngine {
                 previewUrl?: string
             }>
             sentFrom?: 'telegram-bot' | 'webapp'
+            meta?: Record<string, unknown>
         }
     ): Promise<void> {
         await this.messageService.sendMessage(sessionId, payload)
@@ -419,6 +769,417 @@ export class SyncEngine {
         }
     }
 
+    private getPendingNoteRefreshTaskKey(route: GroupRouteContext): string | null {
+        if (!route.taskId || !isNoteRefreshTaskId(route.taskId)) {
+            return null
+        }
+        return `${route.groupId}:${route.taskId}`
+    }
+
+    private clearPendingNoteRefreshDraft(route: GroupRouteContext): void {
+        const key = this.getPendingNoteRefreshTaskKey(route)
+        if (!key) {
+            return
+        }
+        this.pendingNoteRefreshDraftByTaskKey.delete(key)
+    }
+
+    private capturePendingNoteRefreshDraft(route: GroupRouteContext, envelope: MessageEnvelope): void {
+        const key = this.getPendingNoteRefreshTaskKey(route)
+        if (!key) {
+            return
+        }
+
+        let text: string | null = null
+        if (envelope.contentType === 'output') {
+            const data = asRecord(envelope.data)
+            if (asString(data?.type) !== 'assistant') {
+                return
+            }
+            text = extractClaudeText(envelope.data)
+        } else if (envelope.contentType === 'codex') {
+            const data = asRecord(envelope.data)
+            if (asString(data?.type) !== 'message') {
+                return
+            }
+            text = extractCodexText(envelope.data)
+        } else {
+            return
+        }
+
+        if (!text) {
+            return
+        }
+
+        const normalized = normalizeNoteRefreshContent(text)
+        if (!normalized) {
+            return
+        }
+
+        const existing = this.pendingNoteRefreshDraftByTaskKey.get(key)
+        if (!existing || normalized.length >= existing.length) {
+            this.pendingNoteRefreshDraftByTaskKey.set(key, normalized)
+        }
+    }
+
+    private applyPendingNoteRefreshDraft(route: GroupRouteContext, namespace: string, sessionId: string): void {
+        const key = this.getPendingNoteRefreshTaskKey(route)
+        if (!key) {
+            return
+        }
+
+        const content = this.pendingNoteRefreshDraftByTaskKey.get(key)
+        this.pendingNoteRefreshDraftByTaskKey.delete(key)
+        if (!content) {
+            return
+        }
+
+        const group = this.groupService.getGroupByNamespace(route.groupId, namespace)
+        if (!group) {
+            return
+        }
+        if (group.group.noteSessionId !== sessionId) {
+            return
+        }
+
+        try {
+            this.groupService.updateGroupNote({
+                groupId: route.groupId,
+                namespace,
+                content,
+                updatedBy: `session:${sessionId}`
+            })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            console.warn(`[SyncEngine] Failed to update group note from note refresh task ${route.taskId}: ${message}`)
+        }
+    }
+
+    private handleGroupRoutedMessage(
+        sessionId: string,
+        namespace: string,
+        message: DecryptedMessage
+    ): void {
+        const envelope = parseMessageEnvelope(message.content)
+        if (!envelope) {
+            return
+        }
+
+        const routeFromMeta = parseRouteContext(envelope.meta?.routeContext)
+        if (envelope.role === 'user') {
+            if (routeFromMeta) {
+                const group = this.groupService.getGroupByNamespace(routeFromMeta.groupId, namespace)
+                if (!group) {
+                    this.clearPendingNoteRefreshDraft(routeFromMeta)
+                    this.activeGroupRoutesBySession.delete(sessionId)
+                    return
+                }
+                this.activeGroupRoutesBySession.set(sessionId, routeFromMeta)
+                if (routeFromMeta.taskId) {
+                    this.groupService.updateTaskExecutionStatus({
+                        groupId: routeFromMeta.groupId,
+                        taskId: routeFromMeta.taskId,
+                        namespace,
+                        status: 'running'
+                    })
+                }
+            } else {
+                // No routeContext in this user message. If a queue-pending route
+                // exists (claude/gemini don't echo routeContext in their user echo),
+                // keep the route alive rather than clearing it.
+                const pendingRoute = this.queuePendingRoutes.get(sessionId)
+                if (pendingRoute) {
+                    this.activeGroupRoutesBySession.set(sessionId, pendingRoute)
+                } else {
+                    const activeRoute = this.activeGroupRoutesBySession.get(sessionId)
+                    if (activeRoute) {
+                        this.clearPendingNoteRefreshDraft(activeRoute)
+                    }
+                    this.activeGroupRoutesBySession.delete(sessionId)
+                }
+            }
+            return
+        }
+
+        if (envelope.role !== 'agent') {
+            return
+        }
+
+        const route = routeFromMeta ?? this.activeGroupRoutesBySession.get(sessionId)
+        if (!route) {
+            return
+        }
+
+        const group = this.groupService.getGroupByNamespace(route.groupId, namespace)
+        if (!group) {
+            this.clearPendingNoteRefreshDraft(route)
+            this.activeGroupRoutesBySession.delete(sessionId)
+            this.queuePendingRoutes.delete(sessionId)
+            return
+        }
+
+        if (routeFromMeta) {
+            this.activeGroupRoutesBySession.set(sessionId, route)
+        }
+
+        if (route.taskId) {
+            this.groupService.updateTaskExecutionStatus({
+                groupId: route.groupId,
+                taskId: route.taskId,
+                namespace,
+                status: 'running'
+            })
+        }
+
+        this.capturePendingNoteRefreshDraft(route, envelope)
+
+        if (isReadyEvent(envelope)) {
+            this.applyPendingNoteRefreshDraft(route, namespace, sessionId)
+            if (route.taskId) {
+                this.groupService.updateTaskExecutionStatus({
+                    groupId: route.groupId,
+                    taskId: route.taskId,
+                    namespace,
+                    status: 'completed'
+                })
+            }
+            this.activeGroupRoutesBySession.delete(sessionId)
+            this.queuePendingRoutes.delete(sessionId)
+            return
+        }
+
+        const payload = buildMirroredPayload(sessionId, envelope)
+        if (!payload) {
+            return
+        }
+
+        void this.groupService.addTimelineMessage({
+            groupId: route.groupId,
+            namespace,
+            type: 'chat',
+            source: `session:${sessionId}`,
+            actorSessionId: sessionId,
+            traceId: route.traceId ?? null,
+            taskId: route.taskId ?? null,
+            targetSessionIds: route.targetSessionIds ?? null,
+            payload
+        }).catch((error) => {
+            const message = error instanceof Error ? error.message : String(error)
+            console.warn(`[SyncEngine] Failed to mirror group message for ${sessionId}: ${message}`)
+        })
+    }
+
+    private async dispatchGroupTask(payload: {
+        groupId: string
+        namespace: string
+        taskId: string
+        traceId: string
+        source: string
+        targetSessionId: string
+        command: string
+    }): Promise<void> {
+        const session = this.getSession(payload.targetSessionId)
+        if (!session) {
+            throw new Error('Target session not found')
+        }
+        if (session.namespace !== payload.namespace) {
+            throw new Error('Target session access denied')
+        }
+        if (!session.active) {
+            throw new Error('Target session is inactive')
+        }
+
+        const flavor = session.metadata?.flavor
+        const routeContext = {
+            groupId: payload.groupId,
+            taskId: payload.taskId,
+            traceId: payload.traceId,
+            source: payload.source,
+            targetSessionIds: [payload.targetSessionId]
+        }
+
+        if (flavor === 'claude') {
+            // Pre-register route in both maps. queuePendingRoutes prevents the
+            // user-message echo (which lacks routeContext) from clearing the route.
+            this.activeGroupRoutesBySession.set(payload.targetSessionId, routeContext)
+            this.queuePendingRoutes.set(payload.targetSessionId, routeContext)
+            const result = await this.enqueueClaudeMessage(payload.targetSessionId, {
+                text: payload.command,
+                meta: { routeContext }
+            })
+            if (!result.success) {
+                this.activeGroupRoutesBySession.delete(payload.targetSessionId)
+                this.queuePendingRoutes.delete(payload.targetSessionId)
+                throw new Error(result.error ?? 'Failed to enqueue Claude task')
+            }
+            return
+        }
+
+        if (flavor === 'gemini') {
+            // Same treatment as claude
+            this.activeGroupRoutesBySession.set(payload.targetSessionId, routeContext)
+            this.queuePendingRoutes.set(payload.targetSessionId, routeContext)
+            const result = await this.enqueueCodexMessage(payload.targetSessionId, {
+                text: payload.command,
+                meta: { routeContext }
+            })
+            if (!result.success) {
+                this.activeGroupRoutesBySession.delete(payload.targetSessionId)
+                this.queuePendingRoutes.delete(payload.targetSessionId)
+                throw new Error(result.error ?? 'Failed to enqueue Gemini task')
+            }
+            return
+        }
+
+        if (flavor === 'codex') {
+            // Codex echoes routeContext in its messages, so no pre-registration needed
+            const result = await this.enqueueCodexMessage(payload.targetSessionId, {
+                text: payload.command,
+                meta: { routeContext }
+            })
+            if (!result.success) {
+                throw new Error(result.error ?? 'Failed to enqueue Codex task')
+            }
+            return
+        }
+
+        // opencode and unknown flavors: fall back to direct send
+        await this.sendMessage(payload.targetSessionId, {
+            text: payload.command,
+            sentFrom: 'webapp',
+            meta: { routeContext }
+        })
+    }
+
+    private async executeNoteRefresh(payload: {
+        groupId: string
+        namespace: string
+        traceId: string
+        noteSessionId: string
+        source: string
+        command: string
+    }): Promise<{ accepted: boolean; reason?: string }> {
+        try {
+            await this.dispatchGroupTask({
+                groupId: payload.groupId,
+                namespace: payload.namespace,
+                taskId: `note-refresh:${payload.traceId}`,
+                traceId: payload.traceId,
+                source: payload.source,
+                targetSessionId: payload.noteSessionId,
+                command: payload.command
+            })
+            return { accepted: true }
+        } catch (error) {
+            return {
+                accepted: false,
+                reason: error instanceof Error ? error.message : String(error)
+            }
+        }
+    }
+
+    async broadcastGroupNote(
+        groupId: string,
+        namespace: string,
+        options: { source: string; broadcastedBy?: string }
+    ): Promise<void> {
+        const detail = this.groupService.getGroupByNamespace(groupId, namespace)
+        const note = detail?.note
+
+        if (!detail || !note?.content) {
+            throw new Error('No group note to broadcast')
+        }
+
+        const members = detail.members.filter((m: any) => m.sessionId)
+        if (members.length === 0) {
+            throw new Error('No active members to broadcast to')
+        }
+
+        // 并行发送给所有成员
+        await Promise.all(members.map(async (member: any) => {
+            const traceId = `broadcast-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`
+            const routeContext = {
+                groupId,
+                traceId,
+                source: options.source,
+                targetSessionIds: [member.sessionId!]
+            }
+
+            const message = {
+                text: `📝 **Group Note Broadcast**
+
+**Group**: ${detail.group.name}
+**Broadcasted by**: ${options.broadcastedBy ?? options.source}
+
+## Current Group Note (v${note.version}):
+
+${note.content}
+
+---
+*This is a manual broadcast. You can reference this information for current group context.*`,
+                meta: { routeContext }
+            }
+
+            // 根据session类型选择队列
+            const session = this.sessionCache.getSession(member.sessionId!)
+            const flavor = session?.metadata?.flavor ?? 'claude'
+
+            if (flavor === 'claude') {
+                // Pre-register route for claude (similar to dispatchGroupTask)
+                this.activeGroupRoutesBySession.set(member.sessionId!, routeContext)
+                this.queuePendingRoutes.set(member.sessionId!, routeContext)
+                const result = await this.enqueueClaudeMessage(member.sessionId!, message)
+                if (!result.success) {
+                    // Clean up on failure
+                    this.activeGroupRoutesBySession.delete(member.sessionId!)
+                    this.queuePendingRoutes.delete(member.sessionId!)
+                    console.warn(`[SyncEngine] Failed to broadcast note to claude session ${member.sessionId}: ${result.error}`)
+                }
+            } else if (flavor === 'gemini') {
+                // Same treatment as claude
+                this.activeGroupRoutesBySession.set(member.sessionId!, routeContext)
+                this.queuePendingRoutes.set(member.sessionId!, routeContext)
+                const result = await this.enqueueCodexMessage(member.sessionId!, message)
+                if (!result.success) {
+                    // Clean up on failure
+                    this.activeGroupRoutesBySession.delete(member.sessionId!)
+                    this.queuePendingRoutes.delete(member.sessionId!)
+                    console.warn(`[SyncEngine] Failed to broadcast note to gemini session ${member.sessionId}: ${result.error}`)
+                }
+            } else if (flavor === 'codex') {
+                // Codex echoes routeContext in its messages, so no pre-registration needed
+                const result = await this.enqueueCodexMessage(member.sessionId!, message)
+                if (!result.success) {
+                    console.warn(`[SyncEngine] Failed to broadcast note to codex session ${member.sessionId}: ${result.error}`)
+                }
+            } else {
+                // Fallback for other flavors
+                try {
+                    await this.sendMessage(member.sessionId!, {
+                        text: message.text,
+                        sentFrom: 'webapp'
+                    })
+                } catch (error) {
+                    console.warn(`[SyncEngine] Failed to broadcast note to session ${member.sessionId}:`, error)
+                }
+            }
+        }))
+
+        // 在timeline中记录广播事件
+        this.store.groups.addGroupMessage({
+            groupId,
+            namespace,
+            type: 'system',
+            source: options.source,
+            payload: {
+                action: 'note_broadcasted',
+                noteVersion: note.version,
+                targetCount: members.length,
+                broadcastedBy: options.broadcastedBy
+            }
+        })
+    }
+
     async spawnSession(
         machineId: string,
         directory: string,
@@ -584,6 +1345,15 @@ export class SyncEngine {
         sessionId: string,
         payload: {
             text: string
+            meta?: {
+                routeContext?: {
+                    groupId: string
+                    taskId?: string
+                    traceId?: string
+                    source: string
+                    targetSessionIds?: string[]
+                }
+            }
             attachments?: Array<{
                 id: string
                 filename: string
@@ -617,6 +1387,15 @@ export class SyncEngine {
         sessionId: string,
         payload: {
             text: string
+            meta?: {
+                routeContext?: {
+                    groupId: string
+                    taskId?: string
+                    traceId?: string
+                    source: string
+                    targetSessionIds?: string[]
+                }
+            }
             attachments?: Array<{
                 id: string
                 filename: string

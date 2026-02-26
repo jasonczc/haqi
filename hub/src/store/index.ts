@@ -7,9 +7,15 @@ import { MessageStore } from './messageStore'
 import { PushStore } from './pushStore'
 import { SessionStore } from './sessionStore'
 import { UserStore } from './userStore'
+import { GroupStore } from './groupStore'
 
 export type {
     PreviewUrlHistoryEntry,
+    StoredGroup,
+    StoredGroupMember,
+    StoredGroupMessage,
+    StoredGroupNote,
+    StoredGroupTask,
     StoredMachine,
     StoredMessage,
     StoredPushSubscription,
@@ -22,6 +28,7 @@ export { MessageStore } from './messageStore'
 export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
+export { GroupStore } from './groupStore'
 
 const SCHEMA_VERSION: number = 4
 const REQUIRED_TABLES = [
@@ -30,7 +37,12 @@ const REQUIRED_TABLES = [
     'messages',
     'users',
     'push_subscriptions',
-    'preview_url_history'
+    'preview_url_history',
+    'groups',
+    'group_members',
+    'group_messages',
+    'group_tasks',
+    'group_notes'
 ] as const
 
 export class Store {
@@ -42,6 +54,7 @@ export class Store {
     readonly messages: MessageStore
     readonly users: UserStore
     readonly push: PushStore
+    readonly groups: GroupStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -83,6 +96,11 @@ export class Store {
         this.messages = new MessageStore(this.db)
         this.users = new UserStore(this.db)
         this.push = new PushStore(this.db)
+        this.groups = new GroupStore(this.db)
+    }
+
+    getDatabasePath(): string {
+        return this.dbPath
     }
 
     private initSchema(): void {
@@ -124,7 +142,7 @@ export class Store {
             throw this.buildSchemaMismatchError(currentVersion)
         }
 
-        this.assertRequiredTablesPresent()
+        this.ensureRequiredTablesPresent()
     }
 
     private createSchema(): void {
@@ -209,6 +227,94 @@ export class Store {
             );
             CREATE INDEX IF NOT EXISTS idx_preview_url_history_namespace_last_used
                 ON preview_url_history(namespace, last_used_at DESC);
+
+            CREATE TABLE IF NOT EXISTS groups (
+                id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                name TEXT NOT NULL,
+                description TEXT,
+                note_session_id TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_groups_namespace ON groups(namespace);
+
+            CREATE TABLE IF NOT EXISTS group_members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                member_type TEXT NOT NULL,
+                session_id TEXT,
+                user_id INTEGER,
+                role TEXT NOT NULL DEFAULT 'member',
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members(group_id);
+            CREATE INDEX IF NOT EXISTS idx_group_members_namespace ON group_members(namespace);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_group_members_dedupe
+                ON group_members(group_id, member_type, session_id, user_id);
+
+            CREATE TABLE IF NOT EXISTS group_messages (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                seq INTEGER NOT NULL,
+                type TEXT NOT NULL,
+                trace_id TEXT,
+                task_id TEXT,
+                source TEXT NOT NULL,
+                actor_session_id TEXT,
+                actor_name TEXT,
+                target_session_ids TEXT,
+                payload TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_group_messages_group_seq
+                ON group_messages(group_id, seq);
+            CREATE INDEX IF NOT EXISTS idx_group_messages_namespace_created
+                ON group_messages(namespace, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS group_tasks (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                trace_id TEXT NOT NULL,
+                source TEXT NOT NULL,
+                target_session_id TEXT NOT NULL,
+                command TEXT NOT NULL,
+                status TEXT NOT NULL,
+                dedupe_key TEXT,
+                expires_at INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                started_at INTEGER,
+                completed_at INTEGER,
+                error TEXT,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (target_session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_group_tasks_group_status
+                ON group_tasks(group_id, status);
+            CREATE INDEX IF NOT EXISTS idx_group_tasks_namespace_created
+                ON group_tasks(namespace, created_at DESC);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_group_tasks_dedupe_key
+                ON group_tasks(group_id, dedupe_key)
+                WHERE dedupe_key IS NOT NULL;
+
+            CREATE TABLE IF NOT EXISTS group_notes (
+                group_id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                content TEXT NOT NULL DEFAULT '',
+                version INTEGER NOT NULL DEFAULT 1,
+                updated_by TEXT,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+                );
+            CREATE INDEX IF NOT EXISTS idx_group_notes_namespace ON group_notes(namespace);
         `)
     }
 
@@ -325,7 +431,95 @@ export class Store {
                 CREATE INDEX IF NOT EXISTS idx_preview_url_history_namespace_last_used
                 ON preview_url_history(namespace, last_used_at DESC)
             `)
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS groups (
+                    id TEXT PRIMARY KEY,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    note_session_id TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_groups_namespace ON groups(namespace);
 
+                CREATE TABLE IF NOT EXISTS group_members (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    group_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    member_type TEXT NOT NULL,
+                    session_id TEXT,
+                    user_id INTEGER,
+                    role TEXT NOT NULL DEFAULT 'member',
+                    created_at INTEGER NOT NULL,
+                    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+                    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_group_members_group_id ON group_members(group_id);
+                CREATE INDEX IF NOT EXISTS idx_group_members_namespace ON group_members(namespace);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_group_members_dedupe
+                    ON group_members(group_id, member_type, session_id, user_id);
+
+                CREATE TABLE IF NOT EXISTS group_messages (
+                    id TEXT PRIMARY KEY,
+                    group_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    seq INTEGER NOT NULL,
+                    type TEXT NOT NULL,
+                    trace_id TEXT,
+                    task_id TEXT,
+                    source TEXT NOT NULL,
+                    actor_session_id TEXT,
+                    actor_name TEXT,
+                    target_session_ids TEXT,
+                    payload TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_group_messages_group_seq
+                    ON group_messages(group_id, seq);
+                CREATE INDEX IF NOT EXISTS idx_group_messages_namespace_created
+                    ON group_messages(namespace, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS group_tasks (
+                    id TEXT PRIMARY KEY,
+                    group_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    trace_id TEXT NOT NULL,
+                    source TEXT NOT NULL,
+                    target_session_id TEXT NOT NULL,
+                    command TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    dedupe_key TEXT,
+                    expires_at INTEGER,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    started_at INTEGER,
+                    completed_at INTEGER,
+                    error TEXT,
+                    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+                    FOREIGN KEY (target_session_id) REFERENCES sessions(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_group_tasks_group_status
+                    ON group_tasks(group_id, status);
+                CREATE INDEX IF NOT EXISTS idx_group_tasks_namespace_created
+                    ON group_tasks(namespace, created_at DESC);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_group_tasks_dedupe_key
+                    ON group_tasks(group_id, dedupe_key)
+                    WHERE dedupe_key IS NOT NULL;
+
+                CREATE TABLE IF NOT EXISTS group_notes (
+                    group_id TEXT PRIMARY KEY,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    content TEXT NOT NULL DEFAULT '',
+                    version INTEGER NOT NULL DEFAULT 1,
+                    updated_by TEXT,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_group_notes_namespace ON group_notes(namespace);
+            `)
             this.db.exec('COMMIT')
         } catch (error) {
             this.db.exec('ROLLBACK')
@@ -360,20 +554,35 @@ export class Store {
         return Boolean(row?.name)
     }
 
-    private assertRequiredTablesPresent(): void {
+    private ensureRequiredTablesPresent(): void {
+        const missingBeforeRepair = this.getMissingRequiredTables()
+        if (missingBeforeRepair.length === 0) {
+            return
+        }
+
+        // Self-heal partial upgrades where user_version was bumped but
+        // table creation did not complete (e.g. interrupted startup).
+        this.createSchema()
+
+        const missingAfterRepair = this.getMissingRequiredTables()
+        if (missingAfterRepair.length === 0) {
+            return
+        }
+
+        throw new Error(
+            `SQLite schema is missing required tables (${missingAfterRepair.join(', ')}). ` +
+            'Automatic schema repair was attempted and failed. ' +
+            'Back up and rebuild the database, or run an offline migration to the expected schema version.'
+        )
+    }
+
+    private getMissingRequiredTables(): string[] {
         const placeholders = REQUIRED_TABLES.map(() => '?').join(', ')
         const rows = this.db.prepare(
             `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`
         ).all(...REQUIRED_TABLES) as Array<{ name: string }>
         const existing = new Set(rows.map((row) => row.name))
-        const missing = REQUIRED_TABLES.filter((table) => !existing.has(table))
-
-        if (missing.length > 0) {
-            throw new Error(
-                `SQLite schema is missing required tables (${missing.join(', ')}). ` +
-                'Back up and rebuild the database, or run an offline migration to the expected schema version.'
-            )
-        }
+        return REQUIRED_TABLES.filter((table) => !existing.has(table))
     }
 
     private buildSchemaMismatchError(currentVersion: number): Error {

@@ -6,6 +6,7 @@
  */
 
 import { trimIdent } from '@/utils/trimIdent';
+import { buildPromptWithHaqiAgentInstructions } from '@/agent/utils/haqiAgentInstructions';
 
 /**
  * Title instruction for OpenCode to call the haqi MCP tool.
@@ -18,3 +19,7 @@ export const TITLE_INSTRUCTION = trimIdent(`
  * The system prompt to inject for OpenCode sessions.
  */
 export const opencodeSystemPrompt = TITLE_INSTRUCTION;
+
+export function buildOpencodeSystemPrompt(startDir: string): string {
+    return buildPromptWithHaqiAgentInstructions(opencodeSystemPrompt, startDir);
+}

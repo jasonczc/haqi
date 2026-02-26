@@ -154,6 +154,34 @@ const MachineChangedSchema = SessionEventBaseSchema.extend({
     machineId: z.string()
 })
 
+const GroupChangedSchema = SessionEventBaseSchema.extend({
+    groupId: z.string()
+})
+
+export const GroupTimelineMessageTypeSchema = z.enum([
+    'chat',
+    'command',
+    'task_state',
+    'note_state',
+    'system'
+])
+
+export const GroupTimelineMessageSchema = z.object({
+    id: z.string(),
+    groupId: z.string(),
+    namespace: z.string(),
+    seq: z.number().int().nonnegative(),
+    type: GroupTimelineMessageTypeSchema,
+    traceId: z.string().optional(),
+    taskId: z.string().optional(),
+    source: z.string(),
+    actorSessionId: z.string().optional(),
+    actorName: z.string().optional(),
+    targetSessionIds: z.array(z.string()).optional(),
+    payload: z.unknown(),
+    createdAt: z.number()
+})
+
 export const SyncEventSchema = z.discriminatedUnion('type', [
     SessionChangedSchema.extend({
         type: z.literal('session-added'),
@@ -174,6 +202,29 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
     MachineChangedSchema.extend({
         type: z.literal('machine-updated'),
         data: z.unknown().optional()
+    }),
+    GroupChangedSchema.extend({
+        type: z.literal('group-added'),
+        data: z.unknown().optional()
+    }),
+    GroupChangedSchema.extend({
+        type: z.literal('group-updated'),
+        data: z.unknown().optional()
+    }),
+    GroupChangedSchema.extend({
+        type: z.literal('group-removed')
+    }),
+    GroupChangedSchema.extend({
+        type: z.literal('group-message-received'),
+        message: GroupTimelineMessageSchema
+    }),
+    GroupChangedSchema.extend({
+        type: z.literal('group-task-updated'),
+        task: z.unknown()
+    }),
+    GroupChangedSchema.extend({
+        type: z.literal('group-note-updated'),
+        note: z.unknown()
     }),
     SessionEventBaseSchema.extend({
         type: z.literal('toast'),

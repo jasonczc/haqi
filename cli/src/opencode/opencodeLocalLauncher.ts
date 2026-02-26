@@ -4,7 +4,7 @@ import { OpencodeSession } from './session';
 import { ensureOpencodeHookPlugin } from './utils/hookPlugin';
 import { buildOpencodeEnv } from './utils/config';
 import { ensureOpencodeConfig } from './utils/opencodeConfig';
-import { TITLE_INSTRUCTION } from './utils/systemPrompt';
+import { buildOpencodeSystemPrompt } from './utils/systemPrompt';
 import { buildHapiMcpBridge } from '@/codex/utils/buildHapiMcpBridge';
 import type { OpencodeHookEvent } from './types';
 import type { OpencodeHookServer } from './utils/startOpencodeHookServer';
@@ -271,7 +271,8 @@ export async function opencodeLocalLauncher(
         logger.debug(`[opencode-local]: Started hapi MCP server at ${happyServer.url}`);
 
         // Generate opencode.json config with MCP server and instructions
-        const { configPath } = ensureOpencodeConfig(opencodeConfigDir, bridge.mcpServers.hapi, TITLE_INSTRUCTION);
+        const instructions = buildOpencodeSystemPrompt(session.path);
+        const { configPath } = ensureOpencodeConfig(opencodeConfigDir, bridge.mcpServers.hapi, instructions);
         opencodeConfigPath = configPath;
     } catch (error) {
         logger.debug('[opencode-local]: Failed to start hapi MCP server (change_title will be unavailable)', error);

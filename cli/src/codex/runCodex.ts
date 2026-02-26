@@ -13,6 +13,7 @@ import { PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import type { ReasoningEffort } from './appServerTypes';
 import { buildCodexStatusMessage, isCodexStatusCommand, type CodexQueueSnapshot } from './utils/codexStatusCommand';
+import { MessageRouteContextSchema } from '@/api/types';
 
 export { emitReadyIfIdle } from './utils/emitReadyIfIdle';
 
@@ -61,7 +62,8 @@ export async function runCodex(opts: {
         permissionMode: mode.permissionMode,
         model: mode.model,
         effort: mode.effort,
-        collaborationMode: mode.collaborationMode
+        collaborationMode: mode.collaborationMode,
+        routeContext: mode.routeContext
     }));
 
     const codexCliOverrides = parseCodexCliOverrides(opts.codexArgs);
@@ -177,10 +179,13 @@ export async function runCodex(opts: {
             permissionMode: messagePermissionMode ?? 'default',
             model: currentModel,
             effort: currentEffort,
-            collaborationMode: currentCollaborationMode
+            collaborationMode: currentCollaborationMode,
+            routeContext: message.meta?.routeContext
         };
         const formattedText = formatMessageWithAttachments(message.content.text, message.content.attachments);
-        messageQueue.push(formattedText, enhancedMode);
+        messageQueue.push(formattedText, enhancedMode, {
+            isolate: Boolean(message.meta?.routeContext)
+        });
     });
 
     const formatFailureReason = (message: string): string => {
@@ -238,7 +243,7 @@ export async function runCodex(opts: {
         return { id, toIndex };
     };
 
-    const resolveEnqueuePayload = (payload: unknown): { text: string; attachments?: Array<{
+    const resolveEnqueuePayload = (payload: unknown): { text: string; routeContext?: EnhancedMode['routeContext']; attachments?: Array<{
         id: string;
         filename: string;
         mimeType: string;
@@ -257,6 +262,13 @@ export async function runCodex(opts: {
         const attachmentsValue = (payload as { attachments?: unknown }).attachments;
         if (attachmentsValue !== undefined && !Array.isArray(attachmentsValue)) {
             throw new Error('Invalid enqueue attachments');
+        }
+        const routeContextValue = (payload as { meta?: { routeContext?: unknown } }).meta?.routeContext;
+        const routeContextResult = routeContextValue === undefined
+            ? { success: true as const, data: undefined }
+            : MessageRouteContextSchema.safeParse(routeContextValue);
+        if (!routeContextResult.success) {
+            throw new Error('Invalid enqueue route context');
         }
         const attachments = Array.isArray(attachmentsValue)
             ? attachmentsValue.filter((attachment): attachment is {
@@ -281,7 +293,11 @@ export async function runCodex(opts: {
         if (!text && (!attachments || attachments.length === 0)) {
             throw new Error('Message requires text or attachments');
         }
-        return { text, attachments };
+        return {
+            text,
+            routeContext: routeContextResult.data,
+            attachments
+        };
     };
 
     session.rpcHandlerManager.registerHandler('set-session-config', async (payload: unknown) => {
@@ -329,7 +345,8 @@ export async function runCodex(opts: {
                 permissionMode: currentPermissionMode ?? 'default',
                 model: currentModel,
                 effort: currentEffort,
-                collaborationMode: currentCollaborationMode
+                collaborationMode: currentCollaborationMode,
+                routeContext: parsed.routeContext
             };
             messageQueue.push(formattedText, enhancedMode, {
                 deferUserMessageUntilDequeue: true,

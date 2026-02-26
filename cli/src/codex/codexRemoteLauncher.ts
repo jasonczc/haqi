@@ -18,6 +18,7 @@ import { buildCodexStartConfig } from './utils/codexStartConfig';
 import { AppServerEventConverter } from './utils/appServerEventConverter';
 import { registerAppServerPermissionHandlers } from './utils/appServerPermissionAdapter';
 import { buildThreadStartParams, buildTurnStartParams } from './utils/appServerConfig';
+import { buildCodexSystemPrompt } from './utils/systemPrompt';
 import {
     RemoteLauncherBase,
     type RemoteLauncherDisplayContext,
@@ -131,6 +132,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         const mcpClient = this.mcpClient;
         const appServerClient = this.appServerClient;
         const appServerEventConverter = useAppServer ? new AppServerEventConverter() : null;
+        const baseInstructions = buildCodexSystemPrompt(session.path);
         let turnInFlight = false;
         const turnIdleWaiters: Array<() => void> = [];
 
@@ -750,7 +752,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
             messageBuffer.addMessage(message.message, 'user');
             if (message.deferUserMessageUntilDequeue) {
-                session.sendUserMessage(message.message);
+                session.sendUserMessage(message.message, message.mode.routeContext
+                    ? { routeContext: message.mode.routeContext }
+                    : undefined);
             }
             currentModeHash = message.hash;
 
@@ -760,7 +764,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         const threadParams = buildThreadStartParams({
                             mode: message.mode,
                             mcpServers,
-                            cliOverrides: session.codexCliOverrides
+                            cliOverrides: session.codexCliOverrides,
+                            baseInstructions
                         });
 
                         const resumeCandidate = session.sessionId;
@@ -824,7 +829,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             mode: message.mode,
                             first,
                             mcpServers,
-                            cliOverrides: session.codexCliOverrides
+                            cliOverrides: session.codexCliOverrides,
+                            baseInstructions
                         });
 
                         await mcpClient.startSession(startConfig, { signal: this.abortController.signal });

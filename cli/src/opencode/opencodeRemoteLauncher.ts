@@ -9,7 +9,7 @@ import type { OpencodeSession } from './session';
 import type { PermissionMode } from './types';
 import { createOpencodeBackend } from './utils/opencodeBackend';
 import { OpencodePermissionHandler } from './utils/permissionHandler';
-import { TITLE_INSTRUCTION } from './utils/systemPrompt';
+import { buildOpencodeSystemPrompt } from './utils/systemPrompt';
 
 class OpencodeRemoteLauncher extends RemoteLauncherBase {
     private readonly session: OpencodeSession;
@@ -39,6 +39,7 @@ class OpencodeRemoteLauncher extends RemoteLauncherBase {
     protected async runMainLoop(): Promise<void> {
         const session = this.session;
         const messageBuffer = this.messageBuffer;
+        const baseInstructions = buildOpencodeSystemPrompt(session.path);
 
         const { server: happyServer, mcpServers } = await buildHapiMcpBridge(session.client);
         this.happyServer = happyServer;
@@ -117,7 +118,7 @@ class OpencodeRemoteLauncher extends RemoteLauncherBase {
             // Inject title instructions on first prompt
             let messageText = batch.message;
             if (!this.instructionsSent) {
-                messageText = `${TITLE_INSTRUCTION}\n\n${batch.message}`;
+                messageText = `${baseInstructions}\n\n${batch.message}`;
                 this.instructionsSent = true;
             }
 
