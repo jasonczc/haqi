@@ -6,11 +6,17 @@ import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language 
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
+import {
+    useImageUploadCompression,
+    type ImageUploadCompressionLevel,
+    type ImageUploadCompressionTargetSize
+} from '@/hooks/useImageUploadCompression'
 import { useThemePreference, type ThemePreference } from '@/hooks/useTheme'
 import { useAppContext } from '@/lib/app-context'
 import { useMemory } from '@/hooks/queries/useMemory'
 import { queryKeys } from '@/lib/query-keys'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
+import { Switch } from '@/components/ui/Switch'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
     { value: 'en', nativeLabel: 'English' },
@@ -20,6 +26,8 @@ const locales: { value: Locale; nativeLabel: string }[] = [
 const voiceLanguages = getElevenLabsSupportedLanguages()
 const themePreferences: ThemePreference[] = ['light', 'dark', 'system']
 const queueInlinePanelModes: QueueInlinePanelMode[] = ['off', 'compact', 'full']
+const imageUploadCompressionLevels: ImageUploadCompressionLevel[] = ['light', 'balanced', 'aggressive']
+const imageUploadCompressionTargetSizes: ImageUploadCompressionTargetSize[] = ['auto', '500kb', '1mb', '2mb', '5mb']
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -88,14 +96,26 @@ export default function SettingsPage() {
     const [isFontOpen, setIsFontOpen] = useState(false)
     const [isVoiceOpen, setIsVoiceOpen] = useState(false)
     const [isQueuePanelOpen, setIsQueuePanelOpen] = useState(false)
+    const [isImageCompressionLevelOpen, setIsImageCompressionLevelOpen] = useState(false)
+    const [isImageCompressionTargetSizeOpen, setIsImageCompressionTargetSizeOpen] = useState(false)
     const containerRef = useRef<HTMLDivElement>(null)
     const themeContainerRef = useRef<HTMLDivElement>(null)
     const fontContainerRef = useRef<HTMLDivElement>(null)
     const voiceContainerRef = useRef<HTMLDivElement>(null)
     const queuePanelContainerRef = useRef<HTMLDivElement>(null)
+    const imageCompressionLevelContainerRef = useRef<HTMLDivElement>(null)
+    const imageCompressionTargetSizeContainerRef = useRef<HTMLDivElement>(null)
     const { fontScale, setFontScale } = useFontScale()
     const { themePreference, setThemePreference } = useThemePreference()
     const { queueInlinePanelMode, setQueueInlinePanelMode } = useQueueInlinePanel()
+    const {
+        imageUploadCompressionEnabled,
+        imageUploadCompressionLevel,
+        imageUploadCompressionTargetSize,
+        setImageUploadCompressionEnabled,
+        setImageUploadCompressionLevel,
+        setImageUploadCompressionTargetSize
+    } = useImageUploadCompression()
 
     // Voice language state - read from localStorage
     const [voiceLanguage, setVoiceLanguage] = useState<string | null>(() => {
@@ -116,6 +136,12 @@ export default function SettingsPage() {
     const currentFontScaleLabel = fontScaleOptions.find((opt) => opt.value === fontScale)?.label ?? '100%'
     const currentVoiceLanguage = voiceLanguages.find((lang) => lang.code === voiceLanguage)
     const currentQueuePanelLabel = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}`)
+    const currentImageCompressionLevelLabel = t(
+        `settings.behavior.imageCompression.level.${imageUploadCompressionLevel}`
+    )
+    const currentImageCompressionTargetSizeLabel = t(
+        `settings.behavior.imageCompression.targetSize.${imageUploadCompressionTargetSize}`
+    )
     const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
     const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
 
@@ -199,6 +225,24 @@ export default function SettingsPage() {
         setIsQueuePanelOpen(false)
     }
 
+    const handleImageUploadCompressionToggle = (value: boolean) => {
+        setImageUploadCompressionEnabled(value)
+        if (!value) {
+            setIsImageCompressionLevelOpen(false)
+            setIsImageCompressionTargetSizeOpen(false)
+        }
+    }
+
+    const handleImageUploadCompressionLevelChange = (level: ImageUploadCompressionLevel) => {
+        setImageUploadCompressionLevel(level)
+        setIsImageCompressionLevelOpen(false)
+    }
+
+    const handleImageUploadCompressionTargetSizeChange = (targetSize: ImageUploadCompressionTargetSize) => {
+        setImageUploadCompressionTargetSize(targetSize)
+        setIsImageCompressionTargetSizeOpen(false)
+    }
+
     const handleVoiceLanguageChange = (language: Language) => {
         setVoiceLanguage(language.code)
         if (language.code === null) {
@@ -232,7 +276,15 @@ export default function SettingsPage() {
 
     // Close dropdown when clicking outside
     useEffect(() => {
-        if (!isOpen && !isThemeOpen && !isFontOpen && !isVoiceOpen && !isQueuePanelOpen) return
+        if (
+            !isOpen &&
+            !isThemeOpen &&
+            !isFontOpen &&
+            !isVoiceOpen &&
+            !isQueuePanelOpen &&
+            !isImageCompressionLevelOpen &&
+            !isImageCompressionTargetSizeOpen
+        ) return
 
         const handleClickOutside = (event: MouseEvent) => {
             if (isOpen && containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -250,15 +302,45 @@ export default function SettingsPage() {
             if (isQueuePanelOpen && queuePanelContainerRef.current && !queuePanelContainerRef.current.contains(event.target as Node)) {
                 setIsQueuePanelOpen(false)
             }
+            if (
+                isImageCompressionLevelOpen &&
+                imageCompressionLevelContainerRef.current &&
+                !imageCompressionLevelContainerRef.current.contains(event.target as Node)
+            ) {
+                setIsImageCompressionLevelOpen(false)
+            }
+            if (
+                isImageCompressionTargetSizeOpen &&
+                imageCompressionTargetSizeContainerRef.current &&
+                !imageCompressionTargetSizeContainerRef.current.contains(event.target as Node)
+            ) {
+                setIsImageCompressionTargetSizeOpen(false)
+            }
         }
 
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [isOpen, isThemeOpen, isFontOpen, isVoiceOpen, isQueuePanelOpen])
+    }, [
+        isOpen,
+        isThemeOpen,
+        isFontOpen,
+        isVoiceOpen,
+        isQueuePanelOpen,
+        isImageCompressionLevelOpen,
+        isImageCompressionTargetSizeOpen
+    ])
 
     // Close on escape key
     useEffect(() => {
-        if (!isOpen && !isThemeOpen && !isFontOpen && !isVoiceOpen && !isQueuePanelOpen) return
+        if (
+            !isOpen &&
+            !isThemeOpen &&
+            !isFontOpen &&
+            !isVoiceOpen &&
+            !isQueuePanelOpen &&
+            !isImageCompressionLevelOpen &&
+            !isImageCompressionTargetSizeOpen
+        ) return
 
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
@@ -267,12 +349,22 @@ export default function SettingsPage() {
                 setIsFontOpen(false)
                 setIsVoiceOpen(false)
                 setIsQueuePanelOpen(false)
+                setIsImageCompressionLevelOpen(false)
+                setIsImageCompressionTargetSizeOpen(false)
             }
         }
 
         document.addEventListener('keydown', handleEscape)
         return () => document.removeEventListener('keydown', handleEscape)
-    }, [isOpen, isThemeOpen, isFontOpen, isVoiceOpen, isQueuePanelOpen])
+    }, [
+        isOpen,
+        isThemeOpen,
+        isFontOpen,
+        isVoiceOpen,
+        isQueuePanelOpen,
+        isImageCompressionLevelOpen,
+        isImageCompressionTargetSizeOpen
+    ])
 
     return (
         <div className="flex h-full flex-col">
@@ -573,6 +665,151 @@ export default function SettingsPage() {
                                 </div>
                             )}
                         </div>
+                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
+                            <div className="flex flex-col">
+                                <span className="text-[var(--app-fg)]">
+                                    {t('settings.behavior.imageCompression')}
+                                </span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {t('settings.behavior.imageCompression.description')}
+                                </span>
+                            </div>
+                            <Switch
+                                checked={imageUploadCompressionEnabled}
+                                onCheckedChange={handleImageUploadCompressionToggle}
+                                ariaLabel={t('settings.behavior.imageCompression')}
+                            />
+                        </div>
+                        <div ref={imageCompressionLevelContainerRef} className="relative border-b border-[var(--app-divider)]">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!imageUploadCompressionEnabled) {
+                                        return
+                                    }
+                                    setIsImageCompressionLevelOpen(!isImageCompressionLevelOpen)
+                                }}
+                                disabled={!imageUploadCompressionEnabled}
+                                className={`flex w-full items-center justify-between px-3 py-3 text-left transition-colors ${
+                                    imageUploadCompressionEnabled
+                                        ? 'hover:bg-[var(--app-subtle-bg)]'
+                                        : 'cursor-not-allowed opacity-60'
+                                }`}
+                                aria-expanded={isImageCompressionLevelOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <div className="flex flex-col">
+                                    <span className="text-[var(--app-fg)]">
+                                        {t('settings.behavior.imageCompression.level')}
+                                    </span>
+                                    <span className="text-xs text-[var(--app-hint)]">
+                                        {t('settings.behavior.imageCompression.level.description')}
+                                    </span>
+                                </div>
+                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
+                                    <span>{currentImageCompressionLevelLabel}</span>
+                                    <ChevronDownIcon className={`transition-transform ${isImageCompressionLevelOpen ? 'rotate-180' : ''}`} />
+                                </span>
+                            </button>
+
+                            {isImageCompressionLevelOpen && imageUploadCompressionEnabled && (
+                                <div
+                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    role="listbox"
+                                    aria-label={t('settings.behavior.imageCompression.level')}
+                                >
+                                    {imageUploadCompressionLevels.map((level) => {
+                                        const isSelected = imageUploadCompressionLevel === level
+                                        return (
+                                            <button
+                                                key={level}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={isSelected}
+                                                onClick={() => handleImageUploadCompressionLevelChange(level)}
+                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
+                                                    isSelected
+                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
+                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                                                }`}
+                                            >
+                                                <span>{t(`settings.behavior.imageCompression.level.${level}`)}</span>
+                                                {isSelected && (
+                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                        <CheckIcon />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        <div ref={imageCompressionTargetSizeContainerRef} className="relative border-b border-[var(--app-divider)]">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!imageUploadCompressionEnabled) {
+                                        return
+                                    }
+                                    setIsImageCompressionTargetSizeOpen(!isImageCompressionTargetSizeOpen)
+                                }}
+                                disabled={!imageUploadCompressionEnabled}
+                                className={`flex w-full items-center justify-between px-3 py-3 text-left transition-colors ${
+                                    imageUploadCompressionEnabled
+                                        ? 'hover:bg-[var(--app-subtle-bg)]'
+                                        : 'cursor-not-allowed opacity-60'
+                                }`}
+                                aria-expanded={isImageCompressionTargetSizeOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <div className="flex flex-col">
+                                    <span className="text-[var(--app-fg)]">
+                                        {t('settings.behavior.imageCompression.targetSize')}
+                                    </span>
+                                    <span className="text-xs text-[var(--app-hint)]">
+                                        {t('settings.behavior.imageCompression.targetSize.description')}
+                                    </span>
+                                </div>
+                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
+                                    <span>{currentImageCompressionTargetSizeLabel}</span>
+                                    <ChevronDownIcon className={`transition-transform ${isImageCompressionTargetSizeOpen ? 'rotate-180' : ''}`} />
+                                </span>
+                            </button>
+
+                            {isImageCompressionTargetSizeOpen && imageUploadCompressionEnabled && (
+                                <div
+                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    role="listbox"
+                                    aria-label={t('settings.behavior.imageCompression.targetSize')}
+                                >
+                                    {imageUploadCompressionTargetSizes.map((targetSize) => {
+                                        const isSelected = imageUploadCompressionTargetSize === targetSize
+                                        return (
+                                            <button
+                                                key={targetSize}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={isSelected}
+                                                onClick={() => handleImageUploadCompressionTargetSizeChange(targetSize)}
+                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
+                                                    isSelected
+                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
+                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                                                }`}
+                                            >
+                                                <span>{t(`settings.behavior.imageCompression.targetSize.${targetSize}`)}</span>
+                                                {isSelected && (
+                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                        <CheckIcon />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3">
                             <div className="flex flex-col">
                                 <span className="text-[var(--app-fg)]">
@@ -582,16 +819,11 @@ export default function SettingsPage() {
                                     {t('settings.behavior.archiveConfirm.description')}
                                 </span>
                             </div>
-                            <label className="relative inline-flex h-5 w-9 items-center">
-                                <input
-                                    type="checkbox"
-                                    checked={skipArchiveConfirmation}
-                                    onChange={(event) => handleSkipArchiveConfirmToggle(event.target.checked)}
-                                    className="peer sr-only"
-                                />
-                                <span className="absolute inset-0 rounded-full bg-[var(--app-border)] transition-colors peer-checked:bg-[var(--app-link)]" />
-                                <span className="absolute left-0.5 h-4 w-4 rounded-full bg-[var(--app-bg)] transition-transform peer-checked:translate-x-4" />
-                            </label>
+                            <Switch
+                                checked={skipArchiveConfirmation}
+                                onCheckedChange={handleSkipArchiveConfirmToggle}
+                                ariaLabel={t('settings.behavior.archiveConfirm')}
+                            />
                         </div>
                     </div>
 

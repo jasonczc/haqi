@@ -2,6 +2,11 @@ import type { AttachmentAdapter, PendingAttachment, CompleteAttachment, Attachme
 import type { ApiClient } from '@/api/client'
 import type { AttachmentMetadata } from '@/types/api'
 import { isImageMimeType } from '@/lib/fileAttachments'
+import { compressImageForUpload } from '@/lib/imageUploadCompression'
+import {
+    imageUploadCompressionTargetSizeToBytes,
+    readImageUploadCompressionSettings
+} from '@/lib/imageUploadCompressionSettings'
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 const MAX_PREVIEW_BYTES = 5 * 1024 * 1024
@@ -58,14 +63,18 @@ export function createAttachmentAdapter(api: ApiClient, sessionId: string): Atta
 
         async *add({ file }): AsyncGenerator<PendingAttachment> {
             const id = crypto.randomUUID()
-            const contentType = file.type || 'application/octet-stream'
+            const initialContentType = file.type || 'application/octet-stream'
+            let uploadFile = file
+            let uploadName = file.name
+            let uploadContentType = initialContentType
+            const imageUploadCompression = readImageUploadCompressionSettings()
 
             yield {
                 id,
                 type: 'file',
-                name: file.name,
-                contentType,
-                file,
+                name: uploadName,
+                contentType: uploadContentType,
+                file: uploadFile,
                 status: { type: 'running', reason: 'uploading', progress: 0 }
             }
 
@@ -74,19 +83,28 @@ export function createAttachmentAdapter(api: ApiClient, sessionId: string): Atta
                     return
                 }
 
-                if (file.size > MAX_UPLOAD_BYTES) {
+                if (isImageMimeType(initialContentType) && imageUploadCompression.enabled) {
+                    uploadFile = await compressImageForUpload(file, MAX_UPLOAD_BYTES, {
+                        level: imageUploadCompression.level,
+                        targetBytes: imageUploadCompressionTargetSizeToBytes(imageUploadCompression.targetSize)
+                    })
+                    uploadName = uploadFile.name || file.name
+                    uploadContentType = uploadFile.type || initialContentType
+                }
+
+                if (uploadFile.size > MAX_UPLOAD_BYTES) {
                     yield {
                         id,
                         type: 'file',
-                        name: file.name,
-                        contentType,
-                        file,
+                        name: uploadName,
+                        contentType: uploadContentType,
+                        file: uploadFile,
                         status: { type: 'incomplete', reason: 'error' }
                     }
                     return
                 }
 
-                const content = await fileToBase64(file)
+                const content = await fileToBase64(uploadFile)
                 if (cancelledAttachmentIds.has(id)) {
                     return
                 }
@@ -94,13 +112,13 @@ export function createAttachmentAdapter(api: ApiClient, sessionId: string): Atta
                 yield {
                     id,
                     type: 'file',
-                    name: file.name,
-                    contentType,
-                    file,
+                    name: uploadName,
+                    contentType: uploadContentType,
+                    file: uploadFile,
                     status: { type: 'running', reason: 'uploading', progress: 50 }
                 }
 
-                const result = await api.uploadFile(sessionId, file.name, content, contentType)
+                const result = await api.uploadFile(sessionId, uploadName, content, uploadContentType)
                 if (cancelledAttachmentIds.has(id)) {
                     if (result.success && result.path) {
                         await deleteUpload(result.path)
@@ -112,9 +130,9 @@ export function createAttachmentAdapter(api: ApiClient, sessionId: string): Atta
                     yield {
                         id,
                         type: 'file',
-                        name: file.name,
-                        contentType,
-                        file,
+                        name: uploadName,
+                        contentType: uploadContentType,
+                        file: uploadFile,
                         status: { type: 'incomplete', reason: 'error' }
                     }
                     return
@@ -122,16 +140,16 @@ export function createAttachmentAdapter(api: ApiClient, sessionId: string): Atta
 
                 // Generate preview URL for images under 5MB
                 let previewUrl: string | undefined
-                if (isImageMimeType(contentType) && file.size <= MAX_PREVIEW_BYTES) {
-                    previewUrl = await fileToDataUrl(file)
+                if (isImageMimeType(uploadContentType) && uploadFile.size <= MAX_PREVIEW_BYTES) {
+                    previewUrl = await fileToDataUrl(uploadFile)
                 }
 
                 yield {
                     id,
                     type: 'file',
-                    name: file.name,
-                    contentType,
-                    file,
+                    name: uploadName,
+                    contentType: uploadContentType,
+                    file: uploadFile,
                     status: { type: 'requires-action', reason: 'composer-send' },
                     path: result.path,
                     previewUrl
@@ -140,9 +158,9 @@ export function createAttachmentAdapter(api: ApiClient, sessionId: string): Atta
                 yield {
                     id,
                     type: 'file',
-                    name: file.name,
-                    contentType,
-                    file,
+                    name: uploadName,
+                    contentType: uploadContentType,
+                    file: uploadFile,
                     status: { type: 'incomplete', reason: 'error' }
                 }
             }
