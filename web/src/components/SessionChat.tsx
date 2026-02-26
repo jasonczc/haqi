@@ -596,18 +596,19 @@ export function SessionChat(props: {
         () => extractLatestCodexPlan(normalizedMessages),
         [normalizedMessages]
     )
+    const latestCodexPlanSignature = latestCodexPlan?.signature ?? null
     const showCodexPlanNotebook = supportsQueueControls
         && latestCodexPlan !== null
-        && latestCodexPlan.signature !== dismissedCodexPlanSignature
+        && latestCodexPlanSignature !== dismissedCodexPlanSignature
 
     useEffect(() => {
-        if (!latestCodexPlan) {
+        if (!latestCodexPlanSignature) {
             return
         }
-        if (latestCodexPlan.signature !== dismissedCodexPlanSignature) {
+        if (latestCodexPlanSignature !== dismissedCodexPlanSignature) {
             setIsCodexPlanCollapsed(false)
         }
-    }, [latestCodexPlan, dismissedCodexPlanSignature])
+    }, [latestCodexPlanSignature, dismissedCodexPlanSignature])
 
     const reduced = useMemo(
         () => reduceChatBlocks(normalizedMessages, props.session.agentState),
