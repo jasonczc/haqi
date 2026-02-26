@@ -94,7 +94,7 @@ function A(props: ComponentPropsWithoutRef<'a'>) {
 }
 
 function Paragraph(props: ComponentPropsWithoutRef<'p'>) {
-    return <p {...props} className={cn('aui-md-p leading-relaxed', props.className)} />
+    return <p {...props} className={cn('aui-md-p leading-relaxed break-words [overflow-wrap:anywhere]', props.className)} />
 }
 
 function Blockquote(props: ComponentPropsWithoutRef<'blockquote'>) {
@@ -103,6 +103,7 @@ function Blockquote(props: ComponentPropsWithoutRef<'blockquote'>) {
             {...props}
             className={cn(
                 'aui-md-blockquote border-l-4 border-[var(--app-hint)] pl-3 opacity-85',
+                'break-words [overflow-wrap:anywhere]',
                 props.className
             )}
         />

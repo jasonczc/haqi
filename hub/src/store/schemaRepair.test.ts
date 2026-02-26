@@ -32,7 +32,7 @@ describe('Store schema repair', () => {
             DROP TABLE IF EXISTS group_messages;
             DROP TABLE IF EXISTS group_members;
             DROP TABLE IF EXISTS groups;
-            PRAGMA user_version = 4;
+            PRAGMA user_version = 5;
         `)
         closeStore(seeded)
 

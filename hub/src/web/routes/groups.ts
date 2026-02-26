@@ -26,16 +26,27 @@ const addGroupMemberSchema = z.object({
     sessionId: z.string().min(1).max(255)
 })
 
+const attachmentMetadataSchema = z.object({
+    id: z.string().min(1),
+    filename: z.string().min(1),
+    mimeType: z.string().min(1),
+    size: z.number().nonnegative(),
+    path: z.string().min(1),
+    previewUrl: z.string().optional()
+})
+
 const postGroupMessageSchema = z.object({
     type: z.enum(['chat', 'command', 'task_state', 'note_state', 'system']),
     payload: z.unknown().optional(),
     text: z.string().optional(),
+    attachments: z.array(attachmentMetadataSchema).optional(),
     traceId: z.string().optional(),
     taskId: z.string().optional(),
     source: z.string().min(1).max(255).optional(),
     actorSessionId: z.string().min(1).max(255).optional(),
     actorName: z.string().min(1).max(255).optional(),
-    targetSessionIds: z.array(z.string().min(1).max(255)).optional()
+    targetSessionIds: z.array(z.string().min(1).max(255)).optional(),
+    quotedMessageId: z.string().min(1).max(255).optional()
 })
 
 const updateGroupNoteSchema = z.object({
@@ -232,9 +243,31 @@ export function createGroupsRoutes(getSyncEngine: () => SyncEngine | null): Hono
             return c.json({ error: 'Invalid body' }, 400)
         }
 
+        const fallbackPayload: Record<string, unknown> = {}
+        if (parsed.data.text !== undefined) {
+            fallbackPayload.text = parsed.data.text
+        }
+        if (parsed.data.attachments && parsed.data.attachments.length > 0) {
+            fallbackPayload.attachments = parsed.data.attachments
+        }
+
         const payload = parsed.data.payload !== undefined
             ? parsed.data.payload
-            : (parsed.data.text !== undefined ? { text: parsed.data.text } : {})
+            : fallbackPayload
+
+        if (parsed.data.type === 'command') {
+            const textFromPayload = (
+                payload
+                && typeof payload === 'object'
+                && typeof (payload as { text?: unknown }).text === 'string'
+            )
+                ? ((payload as { text: string }).text ?? '').trim()
+                : ''
+            const commandText = (parsed.data.text ?? '').trim() || textFromPayload
+            if (!commandText) {
+                return c.json({ error: 'Command message requires text' }, 400)
+            }
+        }
 
         try {
             const result = await engine.addGroupMessage({
@@ -247,7 +280,8 @@ export function createGroupsRoutes(getSyncEngine: () => SyncEngine | null): Hono
                 actorName: parsed.data.actorName ?? null,
                 traceId: parsed.data.traceId ?? null,
                 taskId: parsed.data.taskId ?? null,
-                targetSessionIds: parsed.data.targetSessionIds ?? null
+                targetSessionIds: parsed.data.targetSessionIds ?? null,
+                quotedMessageId: parsed.data.quotedMessageId ?? null
             })
             return c.json(result, 201)
         } catch (error) {

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { Store, StoredGroup, StoredGroupMessage, StoredGroupNote, StoredGroupTask } from '../store'
@@ -9,6 +9,14 @@ export type GroupWithDetails = {
     group: StoredGroup
     members: ReturnType<Store['groups']['getGroupMembersByNamespace']>
     note: StoredGroupNote | null
+}
+
+export type GroupNoteFileSyncResult = {
+    checked: number
+    pulledFromFile: number
+    pushedToFile: number
+    skipped: number
+    errors: number
 }
 
 type GroupTaskDispatchPayload = {
@@ -36,12 +44,38 @@ type SessionRoutingState = {
 
 type ResolveSessionRoutingState = (sessionId: string, namespace: string) => SessionRoutingState | null
 
+type TimelineQuotedMessage = {
+    id: string
+    text: string
+    actorName?: string
+    createdAt: number
+}
+
+type TimelineMessage = {
+    id: string
+    groupId: string
+    namespace: string
+    seq: number
+    type: StoredGroupMessage['type']
+    traceId?: string
+    taskId?: string
+    source: string
+    actorSessionId?: string
+    actorName?: string
+    targetSessionIds?: string[]
+    quotedMessageId?: string
+    quotedMessage?: TimelineQuotedMessage
+    payload: unknown
+    createdAt: number
+}
+
 const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'expired', 'canceled', 'manual_done'])
 const NOTE_REFRESH_TIMELINE_LIMIT = 120
 const NOTE_REFRESH_TASK_LIMIT = 120
 const NOTE_REFRESH_NOTE_MAX_LENGTH = 2_000
 const NOTE_REFRESH_PAYLOAD_MAX_LENGTH = 500
 const GROUP_NOTE_FILENAME = 'GROUP-NOTE.md'
+const QUOTED_CONTEXT_MAX_LENGTH = 2_000
 
 function extractCommandText(payload: unknown): string {
     if (typeof payload === 'string') {
@@ -117,6 +151,11 @@ function resolveHapiHomeDir(): string {
         return raw.replace(/^~(?=\/|$)/, homedir())
     }
     return join(homedir(), '.hapi')
+}
+
+function normalizeGroupNoteContent(content: string): string {
+    const normalizedLineEndings = content.replace(/\r\n/g, '\n')
+    return normalizedLineEndings.replace(/\n+$/g, '')
 }
 
 export class GroupService {
@@ -287,7 +326,7 @@ export class GroupService {
         namespace: string,
         options: { limit: number; beforeSeq: number | null }
     ): {
-        messages: StoredGroupMessage[]
+        messages: TimelineMessage[]
         page: {
             limit: number
             beforeSeq: number | null
@@ -296,10 +335,10 @@ export class GroupService {
         }
     } {
         this.requireGroup(groupId, namespace)
-        const messages = this.store.groups.getGroupMessages(groupId, namespace, options.limit, options.beforeSeq ?? undefined)
+        const storedMessages = this.store.groups.getGroupMessages(groupId, namespace, options.limit, options.beforeSeq ?? undefined)
 
         let oldestSeq: number | null = null
-        for (const message of messages) {
+        for (const message of storedMessages) {
             if (oldestSeq === null || message.seq < oldestSeq) {
                 oldestSeq = message.seq
             }
@@ -310,7 +349,7 @@ export class GroupService {
             && this.store.groups.getGroupMessages(groupId, namespace, 1, nextBeforeSeq).length > 0
 
         return {
-            messages,
+            messages: storedMessages.map((message) => this.toTimelineMessage(message)),
             page: {
                 limit: options.limit,
                 beforeSeq: options.beforeSeq,
@@ -331,13 +370,14 @@ export class GroupService {
         traceId?: string | null
         taskId?: string | null
         targetSessionIds?: string[] | null
+        quotedMessageId?: string | null
     }): Promise<{
-        message: StoredGroupMessage
+        message: TimelineMessage
         createdTasks: StoredGroupTask[]
     }> {
         this.requireGroup(options.groupId, options.namespace)
         const source = options.source ?? 'user:web'
-        const message = this.store.groups.addGroupMessage({
+        const storedMessage = this.store.groups.addGroupMessage({
             groupId: options.groupId,
             namespace: options.namespace,
             type: options.type,
@@ -347,18 +387,22 @@ export class GroupService {
             actorName: options.actorName ?? null,
             traceId: options.traceId ?? null,
             taskId: options.taskId ?? null,
-            targetSessionIds: options.targetSessionIds ?? null
+            targetSessionIds: options.targetSessionIds ?? null,
+            quotedMessageId: options.quotedMessageId ?? null
         })
-        this.emitMessageEvent(message)
+        this.emitMessageEvent(storedMessage)
+        const timelineMessage = this.toTimelineMessage(storedMessage)
 
         if (options.type !== 'command') {
-            return { message, createdTasks: [] }
+            return { message: timelineMessage, createdTasks: [] }
         }
 
         const command = extractCommandText(options.payload)
         if (!command) {
-            return { message, createdTasks: [] }
+            return { message: timelineMessage, createdTasks: [] }
         }
+
+        const commandWithQuotedContext = this.buildCommandWithQuotedContext(command, timelineMessage.quotedMessage)
 
         const targetSessionIds = this.resolveCommandTargets(
             options.groupId,
@@ -367,19 +411,19 @@ export class GroupService {
             options.targetSessionIds ?? null
         )
         if (targetSessionIds.length === 0) {
-            return { message, createdTasks: [] }
+            return { message: timelineMessage, createdTasks: [] }
         }
 
-        const traceId = options.traceId ?? message.traceId ?? randomUUID()
+        const traceId = options.traceId ?? storedMessage.traceId ?? randomUUID()
         const createdTasks = await this.createAndDispatchTasks({
             groupId: options.groupId,
             namespace: options.namespace,
             source,
-            command,
+            command: commandWithQuotedContext,
             traceId,
             targetSessionIds
         })
-        return { message, createdTasks }
+        return { message: timelineMessage, createdTasks }
     }
 
     getGroupNote(groupId: string, namespace: string): StoredGroupNote | null {
@@ -452,11 +496,18 @@ export class GroupService {
             command
         })
 
+        const status = result.accepted ? 'enqueued' : 'rejected'
+        const reason = result.reason ?? null
+        const text = result.accepted
+            ? 'Generating group note...'
+            : `Failed to start group note generation${reason ? `: ${reason}` : ''}`
+
         const payload = {
             traceId,
             noteSessionId,
-            status: result.accepted ? 'enqueued' : 'rejected',
-            reason: result.reason ?? null
+            status,
+            reason,
+            text
         }
 
         const event = this.store.groups.addGroupMessage({
@@ -587,6 +638,86 @@ export class GroupService {
             const message = error instanceof Error ? error.message : String(error)
             console.warn(`[GroupService] Failed to persist group note markdown at ${filePath}: ${message}`)
         }
+    }
+
+    syncGroupNoteMarkdownFiles(): GroupNoteFileSyncResult {
+        const result: GroupNoteFileSyncResult = {
+            checked: 0,
+            pulledFromFile: 0,
+            pushedToFile: 0,
+            skipped: 0,
+            errors: 0
+        }
+
+        const groups = this.store.groups.getAllGroups()
+        for (const group of groups) {
+            const note = this.store.groups.getGroupNote(group.id, group.namespace)
+            const filePath = this.getGroupNoteFilePath(group.namespace, group.id)
+            if (!note || !filePath) {
+                result.skipped += 1
+                continue
+            }
+
+            result.checked += 1
+            const normalizedNoteContent = normalizeGroupNoteContent(note.content)
+
+            let fileExists = false
+            let fileContent = ''
+            let fileMtimeMs = 0
+            try {
+                fileExists = existsSync(filePath)
+                if (fileExists) {
+                    const stats = statSync(filePath)
+                    if (!stats.isFile()) {
+                        result.skipped += 1
+                        continue
+                    }
+                    fileContent = readFileSync(filePath, 'utf8')
+                    fileMtimeMs = stats.mtimeMs
+                }
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error)
+                console.warn(`[GroupService] Failed to read group note markdown at ${filePath}: ${message}`)
+                result.errors += 1
+                continue
+            }
+
+            if (!fileExists) {
+                if (!normalizedNoteContent) {
+                    continue
+                }
+                this.persistGroupNoteMarkdown(note)
+                result.pushedToFile += 1
+                continue
+            }
+
+            const normalizedFileContent = normalizeGroupNoteContent(fileContent)
+            if (normalizedFileContent === normalizedNoteContent) {
+                continue
+            }
+
+            if (fileMtimeMs > note.updatedAt) {
+                try {
+                    this.updateGroupNote({
+                        groupId: group.id,
+                        namespace: group.namespace,
+                        content: normalizedFileContent,
+                        updatedBy: 'system:file-sync'
+                    })
+                    result.pulledFromFile += 1
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error)
+                    console.warn(`[GroupService] Failed to sync group note from markdown for ${group.id}: ${message}`)
+                    result.errors += 1
+                }
+                continue
+            }
+
+            this.persistGroupNoteMarkdown(note)
+            result.pushedToFile += 1
+        }
+
+        return result
     }
 
     claimTask(groupId: string, taskId: string, namespace: string): StoredGroupTask {
@@ -820,6 +951,56 @@ export class GroupService {
         return session.active
     }
 
+    private buildCommandWithQuotedContext(command: string, quotedMessage: TimelineQuotedMessage | undefined): string {
+        if (!quotedMessage || command.trimStart().startsWith('>')) {
+            return command
+        }
+        const quotedText = quotedMessage.text.replace(/\s+/g, ' ').trim()
+        if (!quotedText) {
+            return command
+        }
+        const actorName = quotedMessage.actorName?.trim() || 'Unknown'
+        const quotedLine = truncateText(quotedText, QUOTED_CONTEXT_MAX_LENGTH)
+        return `> ${actorName}: ${quotedLine}\n\n${command}`
+    }
+
+    private resolveMessageActorName(message: StoredGroupMessage): string | undefined {
+        const actorName = message.actorName?.trim()
+        if (actorName) {
+            return actorName
+        }
+        const actorSessionId = message.actorSessionId?.trim()
+        if (actorSessionId) {
+            return actorSessionId
+        }
+        if (message.source.startsWith('session:')) {
+            const value = message.source.slice('session:'.length).trim()
+            return value || undefined
+        }
+        return undefined
+    }
+
+    private resolveQuotedMessage(
+        groupId: string,
+        namespace: string,
+        quotedMessageId: string | null
+    ): TimelineQuotedMessage | null {
+        if (!quotedMessageId) {
+            return null
+        }
+        const quoted = this.store.groups.getGroupMessageByNamespace(groupId, namespace, quotedMessageId)
+        if (!quoted) {
+            return null
+        }
+        const actorName = this.resolveMessageActorName(quoted)
+        return {
+            id: quoted.id,
+            text: stringifyPayload(quoted.payload),
+            ...(actorName ? { actorName } : {}),
+            createdAt: quoted.createdAt
+        }
+    }
+
     private emitMessageEvent(message: StoredGroupMessage): void {
         this.publisher.emit({
             type: 'group-message-received',
@@ -854,21 +1035,8 @@ export class GroupService {
         this.emitMessageEvent(timeline)
     }
 
-    private toTimelineMessage(message: StoredGroupMessage): {
-        id: string
-        groupId: string
-        namespace: string
-        seq: number
-        type: StoredGroupMessage['type']
-        traceId?: string
-        taskId?: string
-        source: string
-        actorSessionId?: string
-        actorName?: string
-        targetSessionIds?: string[]
-        payload: unknown
-        createdAt: number
-    } {
+    private toTimelineMessage(message: StoredGroupMessage): TimelineMessage {
+        const quotedMessage = this.resolveQuotedMessage(message.groupId, message.namespace, message.quotedMessageId)
         return {
             id: message.id,
             groupId: message.groupId,
@@ -881,6 +1049,8 @@ export class GroupService {
             ...(message.actorSessionId ? { actorSessionId: message.actorSessionId } : {}),
             ...(message.actorName ? { actorName: message.actorName } : {}),
             ...(message.targetSessionIds ? { targetSessionIds: message.targetSessionIds } : {}),
+            ...(message.quotedMessageId ? { quotedMessageId: message.quotedMessageId } : {}),
+            ...(quotedMessage ? { quotedMessage } : {}),
             payload: message.payload,
             createdAt: message.createdAt
         }

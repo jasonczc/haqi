@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { Database } from 'bun:sqlite'
 import type { SyncEvent } from '@hapi/protocol/types'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Store } from '../store'
@@ -28,6 +28,16 @@ function createService(
     options?: {
         executeNoteRefresh?: (payload: ExecuteNoteRefreshPayload) => Promise<{ accepted: boolean; reason?: string }>
         events?: SyncEvent[]
+        dispatchTask?: (payload: {
+            groupId: string
+            namespace: string
+            taskId: string
+            traceId: string
+            source: string
+            targetSessionId: string
+            command: string
+        }) => Promise<void>
+        resolveSessionRoutingState?: (sessionId: string, namespace: string) => { active: boolean } | null
     }
 ): GroupService {
     const publisher = new EventPublisher(
@@ -44,8 +54,9 @@ function createService(
     return new GroupService(
         store,
         publisher,
-        async () => {},
-        options?.executeNoteRefresh
+        options?.dispatchTask ?? (async () => {}),
+        options?.executeNoteRefresh,
+        options?.resolveSessionRoutingState
     )
 }
 
@@ -111,6 +122,63 @@ describe('GroupService createGroup', () => {
         })).toThrow('Note session must be a group session member')
     })
 
+    it('returns quoted metadata and dispatches command with quoted context', async () => {
+        const store = new Store(':memory:')
+        const worker = store.sessions.getOrCreateSession('session-quote-worker', { path: '/repo/quote' }, null, 'default')
+        const dispatched: Array<{ command: string; targetSessionId: string }> = []
+        const service = createService(store, {
+            dispatchTask: async (payload) => {
+                dispatched.push({
+                    command: payload.command,
+                    targetSessionId: payload.targetSessionId
+                })
+            },
+            resolveSessionRoutingState: (sessionId) => (sessionId === worker.id ? { active: true } : null)
+        })
+
+        const created = service.createGroup({
+            namespace: 'default',
+            name: 'Quote Group',
+            sessionMemberIds: [worker.id]
+        })
+
+        const referenced = await service.addTimelineMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: `session:${worker.id}`,
+            actorSessionId: worker.id,
+            actorName: 'Worker',
+            payload: { text: '需要保留的引用上下文' }
+        })
+
+        const reply = await service.addTimelineMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'command',
+            source: 'user:web',
+            payload: { text: `@${worker.id} 继续实现` },
+            quotedMessageId: referenced.message.id
+        })
+
+        expect(reply.message.quotedMessageId).toBe(referenced.message.id)
+        expect(reply.message.quotedMessage?.text).toBe('需要保留的引用上下文')
+        expect(reply.message.quotedMessage?.actorName).toBe('Worker')
+        expect(reply.createdTasks).toHaveLength(1)
+        expect(dispatched).toHaveLength(1)
+        expect(dispatched[0]?.targetSessionId).toBe(worker.id)
+        expect(dispatched[0]?.command).toContain('> Worker: 需要保留的引用上下文')
+        expect(dispatched[0]?.command).toContain(`@${worker.id} 继续实现`)
+
+        const page = service.getMessagesPage(created.group.id, 'default', {
+            limit: 20,
+            beforeSeq: null
+        })
+        const repliedMessage = page.messages.find((message) => message.id === reply.message.id)
+        expect(repliedMessage?.quotedMessageId).toBe(referenced.message.id)
+        expect(repliedMessage?.quotedMessage?.text).toBe('需要保留的引用上下文')
+    })
+
     it('builds structured note refresh prompt from timeline and tasks', async () => {
         const store = new Store(':memory:')
         const noteExecutor = store.sessions.getOrCreateSession('session-note', { path: '/repo/note' }, null, 'default')
@@ -165,6 +233,14 @@ describe('GroupService createGroup', () => {
         expect(captured.command).toContain('## 当前目标、进展以及待办事项')
         expect(captured.command).toContain('Recent Group Timeline')
         expect(captured.command).toContain(worker.id)
+
+        const timeline = service.getMessagesPage(created.group.id, 'default', {
+            limit: 20,
+            beforeSeq: null
+        }).messages
+        const refreshSystem = timeline.find((message) => message.type === 'system' && message.traceId === captured.traceId)
+        const refreshPayload = refreshSystem?.payload as { text?: unknown } | undefined
+        expect(refreshPayload?.text).toBe('Generating group note...')
     })
 
     it('persists group note markdown to disk when store is file-backed', () => {
@@ -191,6 +267,93 @@ describe('GroupService createGroup', () => {
             const notePath = join(dir, 'memory', 'groups', 'default', created.group.id, 'GROUP-NOTE.md')
             const fileContent = readFileSync(notePath, 'utf8')
             expect(fileContent).toBe(content)
+        } finally {
+            closeStore(store)
+            if (previousHapiHome === undefined) {
+                delete process.env.HAPI_HOME
+            } else {
+                process.env.HAPI_HOME = previousHapiHome
+            }
+            rmSync(dir, { recursive: true, force: true })
+        }
+    })
+
+    it('syncs newer markdown file content back into group note', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'haqi-group-note-sync-pull-'))
+        const previousHapiHome = process.env.HAPI_HOME
+        process.env.HAPI_HOME = dir
+        const dbPath = join(dir, 'hapi.db')
+        const store = new Store(dbPath)
+        try {
+            const service = createService(store)
+            const created = service.createGroup({
+                namespace: 'default',
+                name: 'File Sync Pull Group'
+            })
+
+            service.updateGroupNote({
+                groupId: created.group.id,
+                namespace: 'default',
+                content: '## Old note content',
+                updatedBy: 'test'
+            })
+
+            const notePath = join(dir, 'memory', 'groups', 'default', created.group.id, 'GROUP-NOTE.md')
+            const before = store.groups.getGroupNote(created.group.id, 'default')
+            const waitUntil = (before?.updatedAt ?? Date.now()) + 5
+            while (Date.now() <= waitUntil) {
+                // Busy wait to ensure file mtime is newer than note.updatedAt.
+            }
+
+            const finalMarkdown = '## 每个agent的职责\n- session-a: 完成同步\n\n## 当前目标、进展以及待办事项\n- [ ] 验收'
+            writeFileSync(notePath, finalMarkdown, { encoding: 'utf8' })
+
+            const syncResult = service.syncGroupNoteMarkdownFiles()
+            expect(syncResult.pulledFromFile).toBe(1)
+
+            const note = store.groups.getGroupNote(created.group.id, 'default')
+            expect(note?.content).toBe(finalMarkdown)
+            expect(note?.updatedBy).toBe('system:file-sync')
+        } finally {
+            closeStore(store)
+            if (previousHapiHome === undefined) {
+                delete process.env.HAPI_HOME
+            } else {
+                process.env.HAPI_HOME = previousHapiHome
+            }
+            rmSync(dir, { recursive: true, force: true })
+        }
+    })
+
+    it('recreates missing markdown file from stored group note', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'haqi-group-note-sync-push-'))
+        const previousHapiHome = process.env.HAPI_HOME
+        process.env.HAPI_HOME = dir
+        const dbPath = join(dir, 'hapi.db')
+        const store = new Store(dbPath)
+        try {
+            const service = createService(store)
+            const content = '## Canonical note\n- persisted in db'
+
+            const created = service.createGroup({
+                namespace: 'default',
+                name: 'File Sync Push Group'
+            })
+            service.updateGroupNote({
+                groupId: created.group.id,
+                namespace: 'default',
+                content,
+                updatedBy: 'test'
+            })
+
+            const notePath = join(dir, 'memory', 'groups', 'default', created.group.id, 'GROUP-NOTE.md')
+            unlinkSync(notePath)
+            expect(existsSync(notePath)).toBe(false)
+
+            const syncResult = service.syncGroupNoteMarkdownFiles()
+            expect(syncResult.pushedToFile).toBe(1)
+            expect(existsSync(notePath)).toBe(true)
+            expect(readFileSync(notePath, 'utf8')).toBe(content)
         } finally {
             closeStore(store)
             if (previousHapiHome === undefined) {

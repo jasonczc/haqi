@@ -81,6 +81,7 @@ type BufferedCodexGroupMirror = {
 const NOTE_REFRESH_TASK_PREFIX = 'note-refresh:'
 const MAX_NOTE_REFRESH_CONTENT_LENGTH = 20_000
 const MAX_GROUP_MIRROR_TEXT_LENGTH = 8_000
+const GROUP_NOTE_FILE_SYNC_INTERVAL_MS = 3 * 60 * 1000
 const CODEX_TOOL_PROCESS_EVENT_TYPES = new Set([
     'tool-call',
     'tool-call-result',
@@ -165,15 +166,22 @@ function truncateText(text: string, maxLength: number): string {
     return `${text.slice(0, maxLength)}...`
 }
 
-function extractClaudeText(data: unknown): string | null {
+function extractClaudeText(
+    data: unknown,
+    options: { allowSummary?: boolean } = {}
+): string | null {
     const record = asRecord(data)
     if (!record) {
         return null
     }
     const type = asString(record.type)
     if (type === 'summary') {
-        // Summary payloads are metadata updates (e.g. title sync), not timeline chat content.
-        return null
+        if (!options.allowSummary) {
+            // Summary payloads are metadata updates (e.g. title sync), not timeline chat content.
+            return null
+        }
+        const summary = asString(record.summary)?.trim()
+        return summary && summary.length > 0 ? summary : null
     }
     if (type !== 'assistant') {
         return null
@@ -316,7 +324,11 @@ function isReadyEvent(envelope: MessageEnvelope): boolean {
     return asString(eventData?.type) === 'ready'
 }
 
-function buildMirroredPayload(sessionId: string, envelope: MessageEnvelope): MirroredPayload | null {
+function buildMirroredPayload(
+    sessionId: string,
+    envelope: MessageEnvelope,
+    route?: GroupRouteContext
+): MirroredPayload | null {
     const contentType = envelope.contentType
     if (!contentType) {
         return null
@@ -326,7 +338,9 @@ function buildMirroredPayload(sessionId: string, envelope: MessageEnvelope): Mir
     let codexType: string | undefined
     let isCodexExecutionDetail: boolean | undefined
     if (contentType === 'output') {
-        text = extractClaudeText(envelope.data)
+        text = extractClaudeText(envelope.data, {
+            allowSummary: isNoteRefreshTaskId(route?.taskId)
+        })
     } else if (contentType === 'codex') {
         const codexPayload = extractCodexMirrorPayload(envelope.data)
         if (!codexPayload) {
@@ -393,7 +407,9 @@ export class SyncEngine {
     private readonly queuePendingRoutes: Map<string, GroupRouteContext> = new Map()
     private readonly bufferedCodexMirrorsBySession: Map<string, BufferedCodexGroupMirror> = new Map()
     private readonly pendingNoteRefreshDraftByTaskKey: Map<string, string> = new Map()
+    private readonly pendingNoteRefreshMirroredByTaskKey: Set<string> = new Set()
     private inactivityTimer: NodeJS.Timeout | null = null
+    private groupNoteFileSyncTimer: NodeJS.Timeout | null = null
 
     constructor(
         store: Store,
@@ -421,13 +437,22 @@ export class SyncEngine {
         )
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
         this.reloadAll()
+        this.syncGroupNoteMarkdownFiles()
         this.inactivityTimer = setInterval(() => this.expireInactive(), 5_000)
+        this.groupNoteFileSyncTimer = setInterval(
+            () => this.syncGroupNoteMarkdownFiles(),
+            GROUP_NOTE_FILE_SYNC_INTERVAL_MS
+        )
     }
 
     stop(): void {
         if (this.inactivityTimer) {
             clearInterval(this.inactivityTimer)
             this.inactivityTimer = null
+        }
+        if (this.groupNoteFileSyncTimer) {
+            clearInterval(this.groupNoteFileSyncTimer)
+            this.groupNoteFileSyncTimer = null
         }
     }
 
@@ -544,6 +569,7 @@ export class SyncEngine {
         traceId?: string | null
         taskId?: string | null
         targetSessionIds?: string[] | null
+        quotedMessageId?: string | null
     }) {
         return this.groupService.addTimelineMessage(options)
     }
@@ -680,6 +706,20 @@ export class SyncEngine {
     private expireInactive(): void {
         this.sessionCache.expireInactive()
         this.machineCache.expireInactive()
+    }
+
+    private syncGroupNoteMarkdownFiles(): void {
+        try {
+            const result = this.groupService.syncGroupNoteMarkdownFiles()
+            if (result.errors > 0) {
+                console.warn(
+                    `[SyncEngine] Group note markdown sync completed with ${result.errors} error(s)`
+                )
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            console.warn(`[SyncEngine] Failed to run group note markdown sync: ${message}`)
+        }
     }
 
     private reloadAll(): void {
@@ -897,6 +937,7 @@ export class SyncEngine {
             return
         }
         this.pendingNoteRefreshDraftByTaskKey.delete(key)
+        this.pendingNoteRefreshMirroredByTaskKey.delete(key)
     }
 
     private capturePendingNoteRefreshDraft(route: GroupRouteContext, envelope: MessageEnvelope): void {
@@ -907,11 +948,7 @@ export class SyncEngine {
 
         let text: string | null = null
         if (envelope.contentType === 'output') {
-            const data = asRecord(envelope.data)
-            if (asString(data?.type) !== 'assistant') {
-                return
-            }
-            text = extractClaudeText(envelope.data)
+            text = extractClaudeText(envelope.data, { allowSummary: true })
         } else if (envelope.contentType === 'codex') {
             const data = asRecord(envelope.data)
             if (asString(data?.type) !== 'message') {
@@ -945,6 +982,8 @@ export class SyncEngine {
 
         const content = this.pendingNoteRefreshDraftByTaskKey.get(key)
         this.pendingNoteRefreshDraftByTaskKey.delete(key)
+        const hadMirroredTimelineOutput = this.pendingNoteRefreshMirroredByTaskKey.has(key)
+        this.pendingNoteRefreshMirroredByTaskKey.delete(key)
         if (!content) {
             return
         }
@@ -964,6 +1003,13 @@ export class SyncEngine {
                 content,
                 updatedBy: `session:${sessionId}`
             })
+            if (!hadMirroredTimelineOutput) {
+                this.emitMirroredGroupMessage(route, sessionId, namespace, {
+                    sessionId,
+                    contentType: 'output',
+                    text: truncateText(content, MAX_GROUP_MIRROR_TEXT_LENGTH)
+                })
+            }
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error)
             console.warn(`[SyncEngine] Failed to update group note from note refresh task ${route.taskId}: ${message}`)
@@ -987,6 +1033,11 @@ export class SyncEngine {
         namespace: string,
         payload: MirroredPayload
     ): void {
+        const noteRefreshTaskKey = this.getPendingNoteRefreshTaskKey(route)
+        if (noteRefreshTaskKey) {
+            this.pendingNoteRefreshMirroredByTaskKey.add(noteRefreshTaskKey)
+        }
+
         void this.groupService.addTimelineMessage({
             groupId: route.groupId,
             namespace,
@@ -1185,7 +1236,7 @@ export class SyncEngine {
             return
         }
 
-        const payload = buildMirroredPayload(sessionId, envelope)
+        const payload = buildMirroredPayload(sessionId, envelope, route)
         if (!payload) {
             return
         }

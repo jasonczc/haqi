@@ -178,6 +178,13 @@ export const GroupTimelineMessageSchema = z.object({
     actorSessionId: z.string().optional(),
     actorName: z.string().optional(),
     targetSessionIds: z.array(z.string()).optional(),
+    quotedMessageId: z.string().optional(),
+    quotedMessage: z.object({
+        id: z.string(),
+        text: z.string(),
+        actorName: z.string().optional(),
+        createdAt: z.number()
+    }).optional(),
     payload: z.unknown(),
     createdAt: z.number()
 })

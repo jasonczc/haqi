@@ -214,6 +214,7 @@ export class ApiClient {
         name?: string
         description?: string | null
         noteSessionId?: string | null
+        notePrompt?: string | null
     }): Promise<UpdateGroupResponse> {
         return await this.request<UpdateGroupResponse>(
             `/api/groups/${encodeURIComponent(groupId)}`,
@@ -248,12 +249,14 @@ export class ApiClient {
         type: 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
         payload?: unknown
         text?: string
+        attachments?: AttachmentMetadata[]
         traceId?: string
         taskId?: string
         source?: string
         actorSessionId?: string
         actorName?: string
         targetSessionIds?: string[]
+        quotedMessageId?: string
     }): Promise<PostGroupMessageResponse> {
         return await this.request<PostGroupMessageResponse>(
             `/api/groups/${encodeURIComponent(groupId)}/messages`,

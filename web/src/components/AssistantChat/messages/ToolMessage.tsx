@@ -57,7 +57,7 @@ function HappyNestedBlockList(props: {
         <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
             {props.blocks.map((block) => {
                 if (block.kind === 'user-text') {
-                    const userBubbleClass = 'w-fit max-w-[92%] ml-auto rounded-xl bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] shadow-sm'
+                    const userBubbleClass = 'ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
                     const status = block.status
                     const canRetry = status === 'failed' && typeof block.localId === 'string' && Boolean(ctx.onRetryMessage)
                     const onRetry = canRetry ? () => ctx.onRetryMessage!(block.localId!) : undefined
@@ -87,7 +87,9 @@ function HappyNestedBlockList(props: {
                 }
 
                 if (block.kind === 'cli-output') {
-                    const alignClass = block.source === 'user' ? 'ml-auto w-full max-w-[92%]' : ''
+                    const alignClass = block.source === 'user'
+                        ? 'ml-auto w-full max-w-[88%] sm:max-w-[84%] lg:max-w-[76%]'
+                        : ''
                     return (
                         <div key={`cli:${block.id}`} className="px-1 min-w-0 max-w-full overflow-x-hidden">
                             <div className={alignClass}>
@@ -101,7 +103,7 @@ function HappyNestedBlockList(props: {
                     const presentation = getEventPresentation(block.event)
                     return (
                         <div key={`event:${block.id}`} className="py-1">
-                            <div className="mx-auto w-fit max-w-[92%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80">
+                            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
                                 <span className="inline-flex items-center gap-1">
                                     {presentation.icon ? <span aria-hidden="true">{presentation.icon}</span> : null}
                                     <span>{presentation.text}</span>

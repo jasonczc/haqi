@@ -131,6 +131,69 @@ describe('SyncEngine note refresh write-back', () => {
         expect(note?.content ?? '').not.toContain('```')
     })
 
+    it('mirrors note refresh summary output into chat timeline', () => {
+        const harness = createHarness()
+        harnesses.push(harness)
+
+        const noteSession = harness.store.sessions.getOrCreateSession(
+            'note-summary-session',
+            { path: '/repo/note-summary', host: 'dev', flavor: 'claude' },
+            null,
+            'default'
+        )
+
+        const group = harness.engine.createGroup({
+            namespace: 'default',
+            name: 'Note Refresh Summary Group',
+            noteSessionId: noteSession.id,
+            sessionMemberIds: [noteSession.id]
+        })
+
+        const routeContext = {
+            groupId: group.group.id,
+            taskId: 'note-refresh:trace-summary-1',
+            traceId: 'trace-summary-1',
+            source: 'user:web',
+            targetSessionIds: [noteSession.id]
+        }
+
+        emitMessage(harness.engine, noteSession.id, 1, {
+            role: 'user',
+            content: { type: 'text', text: '/note refresh' },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, noteSession.id, 2, {
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'summary',
+                    summary: '## 每个agent的职责\n- note-summary-session: 汇总\n\n## 当前目标、进展以及待办事项\n- [ ] 验证同步路径',
+                    leafUuid: 'note-refresh-summary-leaf'
+                }
+            },
+            meta: {}
+        })
+
+        emitMessage(harness.engine, noteSession.id, 3, {
+            role: 'agent',
+            content: {
+                type: 'event',
+                data: { type: 'ready' }
+            },
+            meta: {}
+        })
+
+        const note = harness.engine.getGroupNote(group.group.id, 'default')
+        expect(note?.content ?? '').toContain('## 每个agent的职责')
+
+        const chats = getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')
+        expect(chats).toHaveLength(1)
+        const payload = chats[0].payload as { text?: unknown }
+        expect(payload.text).toBe(note?.content ?? '')
+    })
+
     it('ignores stale note refresh output after note executor changed', () => {
         const harness = createHarness()
         harnesses.push(harness)

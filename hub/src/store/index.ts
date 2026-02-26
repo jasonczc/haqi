@@ -30,7 +30,7 @@ export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 
-const SCHEMA_VERSION: number = 4
+const SCHEMA_VERSION: number = 5
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -135,6 +135,14 @@ export class Store {
         if (currentVersion === 3 && SCHEMA_VERSION >= 4) {
             this.migrateFromV3ToV4()
             this.setUserVersion(4)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 4 && SCHEMA_VERSION >= 5) {
+            this.migrateFromV4ToV5()
+            this.setUserVersion(5)
+            this.initSchema()
             return
         }
 
@@ -143,6 +151,7 @@ export class Store {
         }
 
         this.ensureRequiredTablesPresent()
+        this.ensureGroupMessageColumnsPresent()
     }
 
     private createSchema(): void {
@@ -269,6 +278,7 @@ export class Store {
                 actor_session_id TEXT,
                 actor_name TEXT,
                 target_session_ids TEXT,
+                quoted_message_id TEXT,
                 payload TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
@@ -473,6 +483,7 @@ export class Store {
                     actor_session_id TEXT,
                     actor_name TEXT,
                     target_session_ids TEXT,
+                    quoted_message_id TEXT,
                     payload TEXT NOT NULL,
                     created_at INTEGER NOT NULL,
                     FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
@@ -528,6 +539,25 @@ export class Store {
         }
     }
 
+    private migrateFromV4ToV5(): void {
+        const groupMessageColumns = this.getGroupMessageColumnNames()
+        if (groupMessageColumns.size === 0) {
+            return
+        }
+
+        try {
+            this.db.exec('BEGIN')
+            if (!groupMessageColumns.has('quoted_message_id')) {
+                this.db.exec('ALTER TABLE group_messages ADD COLUMN quoted_message_id TEXT')
+            }
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v4->v5 failed: ${message}`)
+        }
+    }
+
     private getMachineColumnNames(): Set<string> {
         const rows = this.db.prepare('PRAGMA table_info(machines)').all() as Array<{ name: string }>
         return new Set(rows.map((row) => row.name))
@@ -535,6 +565,11 @@ export class Store {
 
     private getSessionColumnNames(): Set<string> {
         const rows = this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>
+        return new Set(rows.map((row) => row.name))
+    }
+
+    private getGroupMessageColumnNames(): Set<string> {
+        const rows = this.db.prepare('PRAGMA table_info(group_messages)').all() as Array<{ name: string }>
         return new Set(rows.map((row) => row.name))
     }
 
@@ -574,6 +609,15 @@ export class Store {
             'Automatic schema repair was attempted and failed. ' +
             'Back up and rebuild the database, or run an offline migration to the expected schema version.'
         )
+    }
+
+    private ensureGroupMessageColumnsPresent(): void {
+        const groupMessageColumns = this.getGroupMessageColumnNames()
+        if (groupMessageColumns.size === 0 || groupMessageColumns.has('quoted_message_id')) {
+            return
+        }
+
+        this.db.exec('ALTER TABLE group_messages ADD COLUMN quoted_message_id TEXT')
     }
 
     private getMissingRequiredTables(): string[] {

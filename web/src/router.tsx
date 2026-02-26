@@ -811,6 +811,9 @@ function GroupsLayout() {
     const selectedGroupId = groupMatch ? groupMatch.groupId : null
     const isGroupsIndex = pathname === '/groups' || pathname === '/groups/'
     const showDesktopSidebar = isGroupsIndex || !desktopSidebarHidden
+    const selectedGroup = selectedGroupId
+        ? groups.find((item) => item.group.id === selectedGroupId) ?? null
+        : null
     const toggleDensityLabel = density === 'comfortable'
         ? t('sessions.display.toggleToCompact')
         : t('sessions.display.toggleToComfortable')
@@ -852,6 +855,21 @@ function GroupsLayout() {
             setDesktopSidebarHidden(false)
         }
     }, [isGroupsIndex, desktopSidebarHidden, setDesktopSidebarHidden])
+
+    useEffect(() => {
+        if (!isGroupsIndex || isLoading || groups.length === 0) {
+            return
+        }
+        const firstGroupId = groups[0]?.group.id
+        if (!firstGroupId) {
+            return
+        }
+        navigate({
+            to: '/groups/$groupId',
+            params: { groupId: firstGroupId },
+            replace: true
+        })
+    }, [groups, isGroupsIndex, isLoading, navigate])
 
     useEffect(() => {
         if (!mobileSidebarOpen) return
@@ -1112,13 +1130,22 @@ function GroupsLayout() {
                         <button
                             type="button"
                             onClick={toggleSidebarFromBar}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                             title={t('sessions.sidebar.open')}
                             aria-label={t('sessions.sidebar.open')}
                         >
                             <SidebarIcon className="h-5 w-5" />
                         </button>
-                        <div className="text-sm font-medium text-[var(--app-hint)]">Groups</div>
+                        <div className="min-w-0 flex-1">
+                            <span className="truncate text-sm font-semibold text-[var(--app-fg)]">
+                                {selectedGroup?.group.name ?? 'Group'}
+                            </span>
+                            {selectedGroup?.group.description?.trim() ? (
+                                <span className="ml-1.5 truncate text-xs text-[var(--app-hint)]">
+                                    {selectedGroup.group.description}
+                                </span>
+                            ) : null}
+                        </div>
                     </div>
                 ) : null}
                 <div className="flex-1 min-h-0">

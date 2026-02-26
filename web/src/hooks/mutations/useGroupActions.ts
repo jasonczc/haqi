@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
+import type { AttachmentMetadata } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
 
 export function useGroupActions(api: ApiClient | null, groupId: string | null): {
@@ -12,6 +13,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
     postMessage: (payload: {
         type: 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
         text?: string
+        attachments?: AttachmentMetadata[]
         payload?: unknown
         traceId?: string
         taskId?: string
@@ -19,6 +21,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
         actorSessionId?: string
         actorName?: string
         targetSessionIds?: string[]
+        quotedMessageId?: string
     }) => Promise<void>
     updateNote: (payload: { content: string; updatedBy?: string }) => Promise<void>
     refreshNote: (payload?: { source?: string; command?: string }) => Promise<void>
@@ -27,7 +30,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
     doneTask: (taskId: string) => Promise<void>
     cancelTask: (taskId: string) => Promise<void>
     addMember: (sessionId: string) => Promise<void>
-    updateGroup: (payload: { name?: string; description?: string | null; noteSessionId?: string | null }) => Promise<void>
+    updateGroup: (payload: { name?: string; description?: string | null; noteSessionId?: string | null; notePrompt?: string | null }) => Promise<void>
     deleteGroup: () => Promise<void>
     isPending: boolean
 } {
@@ -69,6 +72,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
         mutationFn: async (payload: {
             type: 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
             text?: string
+            attachments?: AttachmentMetadata[]
             payload?: unknown
             traceId?: string
             taskId?: string
@@ -76,6 +80,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
             actorSessionId?: string
             actorName?: string
             targetSessionIds?: string[]
+            quotedMessageId?: string
         }) => {
             if (!api || !groupId) {
                 throw new Error('Group unavailable')
@@ -175,7 +180,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
     })
 
     const updateGroupMutation = useMutation({
-        mutationFn: async (payload: { name?: string; description?: string | null; noteSessionId?: string | null }) => {
+        mutationFn: async (payload: { name?: string; description?: string | null; noteSessionId?: string | null; notePrompt?: string | null }) => {
             if (!api || !groupId) {
                 throw new Error('Group unavailable')
             }

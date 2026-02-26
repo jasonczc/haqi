@@ -45,6 +45,7 @@ type DbGroupMessageRow = {
     actor_session_id: string | null
     actor_name: string | null
     target_session_ids: string | null
+    quoted_message_id: string | null
     payload: string
     created_at: number
 }
@@ -124,6 +125,7 @@ function toStoredGroupMessage(row: DbGroupMessageRow): StoredGroupMessage {
         actorSessionId: row.actor_session_id,
         actorName: row.actor_name,
         targetSessionIds: parseTargetSessionIds(row.target_session_ids),
+        quotedMessageId: row.quoted_message_id,
         payload: safeJsonParse(row.payload),
         createdAt: row.created_at
     }
@@ -248,6 +250,13 @@ export function getGroupsByNamespace(db: Database, namespace: string): StoredGro
     return rows.map(toStoredGroup)
 }
 
+export function getAllGroups(db: Database): StoredGroup[] {
+    const rows = db.prepare(
+        'SELECT * FROM groups ORDER BY updated_at DESC'
+    ).all() as DbGroupRow[]
+    return rows.map(toStoredGroup)
+}
+
 export function getGroup(db: Database, groupId: string): StoredGroup | null {
     const row = db.prepare(
         'SELECT * FROM groups WHERE id = ? LIMIT 1'
@@ -342,6 +351,7 @@ export function addGroupMessage(
         actorSessionId?: string | null
         actorName?: string | null
         targetSessionIds?: string[] | null
+        quotedMessageId?: string | null
         payload: unknown
     }
 ): StoredGroupMessage {
@@ -354,10 +364,10 @@ export function addGroupMessage(
     db.prepare(`
         INSERT INTO group_messages (
             id, group_id, namespace, seq, type, trace_id, task_id, source,
-            actor_session_id, actor_name, target_session_ids, payload, created_at
+            actor_session_id, actor_name, target_session_ids, quoted_message_id, payload, created_at
         ) VALUES (
             @id, @group_id, @namespace, @seq, @type, @trace_id, @task_id, @source,
-            @actor_session_id, @actor_name, @target_session_ids, @payload, @created_at
+            @actor_session_id, @actor_name, @target_session_ids, @quoted_message_id, @payload, @created_at
         )
     `).run({
         id,
@@ -371,6 +381,7 @@ export function addGroupMessage(
         actor_session_id: options.actorSessionId ?? null,
         actor_name: options.actorName ?? null,
         target_session_ids: options.targetSessionIds ? JSON.stringify(options.targetSessionIds) : null,
+        quoted_message_id: options.quotedMessageId ?? null,
         payload: JSON.stringify(options.payload ?? {}),
         created_at: now
     })
@@ -417,6 +428,21 @@ export function getGroupMessages(
         `).all(groupId, namespace, safeLimit) as DbGroupMessageRow[]
 
     return rows.reverse().map(toStoredGroupMessage)
+}
+
+export function getGroupMessageByNamespace(
+    db: Database,
+    groupId: string,
+    namespace: string,
+    messageId: string
+): StoredGroupMessage | null {
+    const row = db.prepare(`
+        SELECT *
+        FROM group_messages
+        WHERE group_id = ? AND namespace = ? AND id = ?
+        LIMIT 1
+    `).get(groupId, namespace, messageId) as DbGroupMessageRow | undefined
+    return row ? toStoredGroupMessage(row) : null
 }
 
 export function getGroupTasks(

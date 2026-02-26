@@ -7,9 +7,11 @@ import {
     countOpenGroupTasksForSession,
     createGroup,
     deleteGroup,
+    getAllGroups,
     getGroup,
     getGroupByNamespace,
     getGroupMembersByNamespace,
+    getGroupMessageByNamespace,
     getGroupMessages,
     getGroupTasks,
     getGroupsByNamespace,
@@ -55,6 +57,10 @@ export class GroupStore {
         return getGroupsByNamespace(this.db, namespace)
     }
 
+    getAllGroups(): StoredGroup[] {
+        return getAllGroups(this.db)
+    }
+
     getGroup(groupId: string): StoredGroup | null {
         return getGroup(this.db, groupId)
     }
@@ -96,9 +102,14 @@ export class GroupStore {
         actorSessionId?: string | null
         actorName?: string | null
         targetSessionIds?: string[] | null
+        quotedMessageId?: string | null
         payload: unknown
     }): StoredGroupMessage {
         return addGroupMessage(this.db, options)
+    }
+
+    getGroupMessageByNamespace(groupId: string, namespace: string, messageId: string): StoredGroupMessage | null {
+        return getGroupMessageByNamespace(this.db, groupId, namespace, messageId)
     }
 
     getGroupMessages(groupId: string, namespace: string, limit?: number, beforeSeq?: number): StoredGroupMessage[] {

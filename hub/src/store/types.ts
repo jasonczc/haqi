@@ -81,6 +81,7 @@ export type StoredGroupMessage = {
     actorSessionId: string | null
     actorName: string | null
     targetSessionIds: string[] | null
+    quotedMessageId: string | null
     payload: unknown
     createdAt: number
 }

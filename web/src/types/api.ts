@@ -97,6 +97,14 @@ export type GroupTimelineMessage = {
     targetSessionIds?: string[]
     payload: unknown
     createdAt: number
+    // Quote support
+    quotedMessageId?: string
+    quotedMessage?: {
+        id: string
+        text: string
+        actorName?: string
+        createdAt: number
+    }
 }
 
 export type GroupTaskStatus =
@@ -133,6 +141,7 @@ export type Group = {
     name: string
     description: string | null
     noteSessionId: string | null
+    notePrompt: string | null
     createdAt: number
     updatedAt: number
 }
