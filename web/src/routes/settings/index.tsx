@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback, useId, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
@@ -28,6 +28,55 @@ const themePreferences: ThemePreference[] = ['light', 'dark', 'system']
 const queueInlinePanelModes: QueueInlinePanelMode[] = ['off', 'compact', 'full']
 const imageUploadCompressionLevels: ImageUploadCompressionLevel[] = ['light', 'balanced', 'aggressive']
 const imageUploadCompressionTargetSizes: ImageUploadCompressionTargetSize[] = ['auto', '500kb', '1mb', '2mb', '5mb']
+const SETTINGS_GROUP_EXPANDED_STORAGE_KEY = 'hapi-settings-group-expanded-v1'
+
+type SettingsGroupExpandedState = {
+    general: boolean
+    interaction: boolean
+    dataDiagnostics: boolean
+    about: boolean
+}
+
+function getDefaultSettingsGroupExpandedState(): SettingsGroupExpandedState {
+    return {
+        general: true,
+        interaction: true,
+        dataDiagnostics: false,
+        about: false
+    }
+}
+
+function readSettingsGroupExpandedState(): SettingsGroupExpandedState {
+    if (typeof window === 'undefined') {
+        return getDefaultSettingsGroupExpandedState()
+    }
+    const defaults = getDefaultSettingsGroupExpandedState()
+    try {
+        const rawValue = window.localStorage.getItem(SETTINGS_GROUP_EXPANDED_STORAGE_KEY)
+        if (!rawValue) {
+            return defaults
+        }
+        const parsed = JSON.parse(rawValue)
+        if (!parsed || typeof parsed !== 'object') {
+            return defaults
+        }
+        return {
+            general: typeof parsed.general === 'boolean' ? parsed.general : defaults.general,
+            interaction: typeof parsed.interaction === 'boolean' ? parsed.interaction : defaults.interaction,
+            dataDiagnostics: typeof parsed.dataDiagnostics === 'boolean' ? parsed.dataDiagnostics : defaults.dataDiagnostics,
+            about: typeof parsed.about === 'boolean' ? parsed.about : defaults.about
+        }
+    } catch {
+        return defaults
+    }
+}
+
+function persistSettingsGroupExpandedState(state: SettingsGroupExpandedState) {
+    if (typeof window === 'undefined') {
+        return
+    }
+    window.localStorage.setItem(SETTINGS_GROUP_EXPANDED_STORAGE_KEY, JSON.stringify(state))
+}
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -86,6 +135,44 @@ function ChevronDownIcon(props: { className?: string }) {
     )
 }
 
+type SettingsSectionProps = {
+    title: string
+    description: string
+    isExpanded: boolean
+    onToggle: () => void
+    children: ReactNode
+}
+
+function SettingsSection(props: SettingsSectionProps) {
+    const sectionContentId = useId()
+    return (
+        <section className="border-b border-[var(--app-divider)]">
+            <button
+                type="button"
+                onClick={props.onToggle}
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                aria-expanded={props.isExpanded}
+                aria-controls={sectionContentId}
+            >
+                <div className="flex min-w-0 flex-col">
+                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
+                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                </div>
+                <ChevronDownIcon
+                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                        props.isExpanded ? 'rotate-180' : ''
+                    }`}
+                />
+            </button>
+            {props.isExpanded && (
+                <div id={sectionContentId}>
+                    {props.children}
+                </div>
+            )}
+        </section>
+    )
+}
+
 export default function SettingsPage() {
     const { t, locale, setLocale } = useTranslation()
     const { api } = useAppContext()
@@ -98,6 +185,11 @@ export default function SettingsPage() {
     const [isQueuePanelOpen, setIsQueuePanelOpen] = useState(false)
     const [isImageCompressionLevelOpen, setIsImageCompressionLevelOpen] = useState(false)
     const [isImageCompressionTargetSizeOpen, setIsImageCompressionTargetSizeOpen] = useState(false)
+    const [groupExpandedState, setGroupExpandedState] = useState<SettingsGroupExpandedState>(() => readSettingsGroupExpandedState())
+    const isGeneralGroupExpanded = groupExpandedState.general
+    const isInteractionGroupExpanded = groupExpandedState.interaction
+    const isDataDiagnosticsGroupExpanded = groupExpandedState.dataDiagnostics
+    const isAboutGroupExpanded = groupExpandedState.about
     const containerRef = useRef<HTMLDivElement>(null)
     const themeContainerRef = useRef<HTMLDivElement>(null)
     const fontContainerRef = useRef<HTMLDivElement>(null)
@@ -119,7 +211,10 @@ export default function SettingsPage() {
 
     // Voice language state - read from localStorage
     const [voiceLanguage, setVoiceLanguage] = useState<string | null>(() => {
-        return localStorage.getItem('hapi-voice-lang')
+        if (typeof window === 'undefined') {
+            return null
+        }
+        return window.localStorage.getItem('hapi-voice-lang')
     })
     const [usageLoading, setUsageLoading] = useState(false)
     const [usageError, setUsageError] = useState<string | null>(null)
@@ -144,6 +239,11 @@ export default function SettingsPage() {
     )
     const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
     const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
+    const currencyFormatter = useMemo(() => new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 2
+    }), [locale])
 
     const formatNumber = useCallback((value: number): string => {
         return numberFormatter.format(value)
@@ -152,6 +252,10 @@ export default function SettingsPage() {
     const formatDateTime = useCallback((value: number): string => {
         return new Date(value).toLocaleString(locale)
     }, [locale])
+
+    const formatUsd = useCallback((value: number): string => {
+        return currencyFormatter.format(value)
+    }, [currencyFormatter])
 
     const loadUsageOverview = useCallback(async (forceRefresh = false) => {
         setUsageLoading(true)
@@ -186,6 +290,10 @@ export default function SettingsPage() {
         }
     }, [memory, isMemoryDirty])
 
+    useEffect(() => {
+        persistSettingsGroupExpandedState(groupExpandedState)
+    }, [groupExpandedState])
+
     const saveMemoryMutation = useMutation({
         mutationFn: async (content: string) => {
             return await api.updateMemory({ content, updatedBy: 'user:web:settings' })
@@ -193,11 +301,11 @@ export default function SettingsPage() {
         onSuccess: async (result) => {
             setMemorySavedContent(result.memory.content)
             setMemoryDraft(result.memory.content)
-            setMemoryStatusMessage('Saved')
+            setMemoryStatusMessage(t('settings.memory.status.saved'))
             await queryClient.invalidateQueries({ queryKey: queryKeys.memory })
         },
         onError: (error) => {
-            setMemoryStatusMessage(error instanceof Error ? error.message : 'Save failed')
+            setMemoryStatusMessage(error instanceof Error ? error.message : t('settings.memory.status.saveFailed'))
         }
     })
 
@@ -245,17 +353,66 @@ export default function SettingsPage() {
 
     const handleVoiceLanguageChange = (language: Language) => {
         setVoiceLanguage(language.code)
+        if (typeof window === 'undefined') {
+            setIsVoiceOpen(false)
+            return
+        }
         if (language.code === null) {
-            localStorage.removeItem('hapi-voice-lang')
+            window.localStorage.removeItem('hapi-voice-lang')
         } else {
-            localStorage.setItem('hapi-voice-lang', language.code)
+            window.localStorage.setItem('hapi-voice-lang', language.code)
         }
         setIsVoiceOpen(false)
     }
 
+    const handleGeneralGroupToggle = () => {
+        setGroupExpandedState((previousState) => {
+            const nextGeneralExpanded = !previousState.general
+            if (!nextGeneralExpanded) {
+                setIsOpen(false)
+                setIsThemeOpen(false)
+                setIsFontOpen(false)
+                setIsVoiceOpen(false)
+            }
+            return {
+                ...previousState,
+                general: nextGeneralExpanded
+            }
+        })
+    }
+
+    const handleInteractionGroupToggle = () => {
+        setGroupExpandedState((previousState) => {
+            const nextInteractionExpanded = !previousState.interaction
+            if (!nextInteractionExpanded) {
+                setIsQueuePanelOpen(false)
+                setIsImageCompressionLevelOpen(false)
+                setIsImageCompressionTargetSizeOpen(false)
+            }
+            return {
+                ...previousState,
+                interaction: nextInteractionExpanded
+            }
+        })
+    }
+
+    const handleDataDiagnosticsGroupToggle = () => {
+        setGroupExpandedState((previousState) => ({
+            ...previousState,
+            dataDiagnostics: !previousState.dataDiagnostics
+        }))
+    }
+
+    const handleAboutGroupToggle = () => {
+        setGroupExpandedState((previousState) => ({
+            ...previousState,
+            about: !previousState.about
+        }))
+    }
+
     const handleReloadMemory = async () => {
         if (isMemoryDirty) {
-            const confirmed = window.confirm('Discard local edits and reload MEMORY.md from disk?')
+            const confirmed = window.confirm(t('settings.memory.confirmReload'))
             if (!confirmed) {
                 return
             }
@@ -266,7 +423,7 @@ export default function SettingsPage() {
             setMemoryDraft(nextMemory.content)
             setMemorySavedContent(nextMemory.content)
         }
-        setMemoryStatusMessage('Reloaded')
+        setMemoryStatusMessage(t('settings.memory.status.reloaded'))
     }
 
     const handleSaveMemory = async () => {
@@ -383,6 +540,12 @@ export default function SettingsPage() {
 
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
+                    <SettingsSection
+                        title={t('settings.group.general.title')}
+                        description={t('settings.group.general.description')}
+                        isExpanded={isGeneralGroupExpanded}
+                        onToggle={handleGeneralGroupToggle}
+                    >
                     {/* Language section */}
                     <div className="border-b border-[var(--app-divider)]">
                         <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
@@ -604,7 +767,14 @@ export default function SettingsPage() {
                             )}
                         </div>
                     </div>
+                    </SettingsSection>
 
+                    <SettingsSection
+                        title={t('settings.group.interaction.title')}
+                        description={t('settings.group.interaction.description')}
+                        isExpanded={isInteractionGroupExpanded}
+                        onToggle={handleInteractionGroupToggle}
+                    >
                     {/* Behavior section */}
                     <div className="border-b border-[var(--app-divider)]">
                         <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
@@ -826,7 +996,14 @@ export default function SettingsPage() {
                             />
                         </div>
                     </div>
+                    </SettingsSection>
 
+                    <SettingsSection
+                        title={t('settings.group.dataDiagnostics.title')}
+                        description={t('settings.group.dataDiagnostics.description')}
+                        isExpanded={isDataDiagnosticsGroupExpanded}
+                        onToggle={handleDataDiagnosticsGroupToggle}
+                    >
                     {/* Usage section */}
                     <div className="border-b border-[var(--app-divider)]">
                         <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
@@ -884,6 +1061,24 @@ export default function SettingsPage() {
                                                     <span className="text-[var(--app-hint)]">{t('settings.usage.allTimeEvents')}</span>
                                                     <span>{formatNumber(provider.eventCount)}</span>
                                                 </div>
+                                                {provider.estimatedCost ? (
+                                                    <>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="text-[var(--app-hint)]">{t('settings.usage.allTimeEstimatedCost')}</span>
+                                                            <span className="font-semibold">≈{formatUsd(provider.estimatedCost.allTimeUsd)}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="text-[var(--app-hint)]">{t('settings.usage.last30DaysEstimatedCost')}</span>
+                                                            <span>≈{formatUsd(provider.estimatedCost.last30DaysUsd)}</span>
+                                                        </div>
+                                                        <div className="text-xs text-[var(--app-hint)]">
+                                                            {t('settings.usage.estimateHint')} {formatUsd(provider.estimatedCost.usdPerMillionTokens)}/1M tokens
+                                                            {' · '}
+                                                            {t(`settings.usage.rateSource.${provider.estimatedCost.rateSource}`)}
+                                                            {provider.estimatedCost.pricingModel ? ` · ${provider.estimatedCost.pricingModel}` : ''}
+                                                        </div>
+                                                    </>
+                                                ) : null}
                                                 {provider.parseErrors > 0 ? (
                                                     <div className="flex items-center justify-between gap-2">
                                                         <span className="text-[var(--app-hint)]">{t('settings.usage.parseErrors')}</span>
@@ -914,13 +1109,13 @@ export default function SettingsPage() {
                     {/* Memory section */}
                     <div className="border-b border-[var(--app-divider)]">
                         <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
-                            Memory
+                            {t('settings.memory.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
-                            Edit global MEMORY.md used by all sessions.
+                            {t('settings.memory.description')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)] break-all">
-                            {memory?.path ?? 'Loading path...'}
+                            {memory?.path ?? t('settings.memory.pathLoading')}
                         </div>
 
                         {memoryError ? (
@@ -935,13 +1130,13 @@ export default function SettingsPage() {
                             <textarea
                                 value={memoryDraft}
                                 onChange={(event) => setMemoryDraft(event.target.value)}
-                                placeholder={memoryLoading ? 'Loading MEMORY.md…' : 'Write durable memory here...'}
+                                placeholder={memoryLoading ? t('settings.memory.placeholder.loading') : t('settings.memory.placeholder.edit')}
                                 className="h-56 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
                                 spellCheck={false}
                             />
                             <div className="mt-2 flex items-center justify-between gap-2">
                                 <span className="text-xs text-[var(--app-hint)]">
-                                    {isMemoryDirty ? 'Unsaved changes' : memoryStatusMessage ?? 'Synced'}
+                                    {isMemoryDirty ? t('settings.memory.status.unsaved') : memoryStatusMessage ?? t('settings.memory.status.synced')}
                                 </span>
                                 <div className="flex items-center gap-2">
                                     <button
@@ -950,7 +1145,7 @@ export default function SettingsPage() {
                                         disabled={saveMemoryMutation.isPending}
                                         className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        Reload
+                                        {t('settings.memory.actions.reload')}
                                     </button>
                                     <button
                                         type="button"
@@ -958,18 +1153,22 @@ export default function SettingsPage() {
                                         disabled={!isMemoryDirty || saveMemoryMutation.isPending}
                                         className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {saveMemoryMutation.isPending ? 'Saving...' : 'Save'}
+                                        {saveMemoryMutation.isPending ? t('settings.memory.actions.saving') : t('settings.memory.actions.save')}
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    </SettingsSection>
 
+                    <SettingsSection
+                        title={t('settings.group.about.title')}
+                        description={t('settings.group.about.description')}
+                        isExpanded={isAboutGroupExpanded}
+                        onToggle={handleAboutGroupToggle}
+                    >
                     {/* About section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
-                            {t('settings.about.title')}
-                        </div>
                         <div className="flex w-full items-center justify-between px-3 py-3">
                             <span className="text-[var(--app-fg)]">{t('settings.about.website')}</span>
                             <a
@@ -990,6 +1189,7 @@ export default function SettingsPage() {
                             <span className="text-[var(--app-hint)]">{PROTOCOL_VERSION}</span>
                         </div>
                     </div>
+                    </SettingsSection>
                 </div>
             </div>
         </div>

@@ -1,10 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nContext, I18nProvider } from '@/lib/i18n-context'
 import { en } from '@/lib/locales'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 import SettingsPage from './index'
+
+const SETTINGS_GROUP_EXPANDED_STORAGE_KEY = 'hapi-settings-group-expanded-v1'
 
 const getUsageOverviewMock = vi.fn(async () => ({
     success: true,
@@ -161,16 +163,19 @@ function renderWithSpyT(ui: React.ReactElement) {
     return spyT
 }
 
+function expandGroup(name: RegExp | string) {
+    const button = screen.getAllByRole('button', { name })[0]
+    fireEvent.click(button)
+}
+
 describe('SettingsPage', () => {
+    afterEach(() => {
+        cleanup()
+    })
+
     beforeEach(() => {
         vi.clearAllMocks()
-        // Mock localStorage
-        const localStorageMock = {
-            getItem: vi.fn(() => 'en'),
-            setItem: vi.fn(),
-            removeItem: vi.fn(),
-        }
-        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+        window.localStorage.clear()
     })
 
     it('renders the About section', () => {
@@ -178,14 +183,50 @@ describe('SettingsPage', () => {
         expect(screen.getByText('About')).toBeInTheDocument()
     })
 
+    it('keeps collapsed-by-default groups hidden initially', () => {
+        renderWithProviders(<SettingsPage />)
+        expect(screen.queryByRole('button', { name: 'Refresh usage' })).not.toBeInTheDocument()
+        expect(screen.queryByText('App Version')).not.toBeInTheDocument()
+    })
+
+    it('restores persisted section expanded state', () => {
+        window.localStorage.setItem(SETTINGS_GROUP_EXPANDED_STORAGE_KEY, JSON.stringify({
+            general: false,
+            interaction: false,
+            dataDiagnostics: true,
+            about: true
+        }))
+
+        renderWithProviders(<SettingsPage />)
+
+        expect(screen.queryByText('Theme')).not.toBeInTheDocument()
+        expect(screen.getByText('Usage')).toBeInTheDocument()
+        expect(screen.getAllByText('App Version').length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('persists section expanded state changes', () => {
+        renderWithProviders(<SettingsPage />)
+        expandGroup(/About/)
+
+        const persistedState = JSON.parse(window.localStorage.getItem(SETTINGS_GROUP_EXPANDED_STORAGE_KEY) ?? '{}')
+        expect(persistedState).toMatchObject({
+            general: true,
+            interaction: true,
+            dataDiagnostics: false,
+            about: true
+        })
+    })
+
     it('displays the App Version with correct value', () => {
         renderWithProviders(<SettingsPage />)
+        expandGroup(/About/)
         expect(screen.getAllByText('App Version').length).toBeGreaterThanOrEqual(1)
         expect(screen.getAllByText(__APP_VERSION__).length).toBeGreaterThanOrEqual(1)
     })
 
     it('displays the Protocol Version with correct value', () => {
         renderWithProviders(<SettingsPage />)
+        expandGroup(/About/)
         expect(screen.getAllByText('Protocol Version').length).toBeGreaterThanOrEqual(1)
         expect(screen.getAllByText(String(PROTOCOL_VERSION)).length).toBeGreaterThanOrEqual(1)
     })
@@ -197,6 +238,7 @@ describe('SettingsPage', () => {
 
     it('displays the website link with correct URL and security attributes', () => {
         renderWithProviders(<SettingsPage />)
+        expandGroup(/About/)
         expect(screen.getAllByText('Website').length).toBeGreaterThanOrEqual(1)
         const links = screen.getAllByRole('link', { name: 'hapi.run' })
         expect(links.length).toBeGreaterThanOrEqual(1)
@@ -208,13 +250,20 @@ describe('SettingsPage', () => {
 
     it('uses correct i18n keys for About section', () => {
         const spyT = renderWithSpyT(<SettingsPage />)
+        expandGroup(/Data & Diagnostics/)
+        expandGroup(/About/)
         const calledKeys = spyT.mock.calls.map((call) => call[0])
+        expect(calledKeys).toContain('settings.group.general.title')
+        expect(calledKeys).toContain('settings.group.interaction.title')
+        expect(calledKeys).toContain('settings.group.dataDiagnostics.title')
+        expect(calledKeys).toContain('settings.group.about.title')
         expect(calledKeys).toContain('settings.display.theme')
         expect(calledKeys).toContain('settings.display.theme.system')
         expect(calledKeys).toContain('settings.behavior.imageCompression')
         expect(calledKeys).toContain('settings.behavior.imageCompression.level')
         expect(calledKeys).toContain('settings.behavior.imageCompression.targetSize')
-        expect(calledKeys).toContain('settings.about.title')
+        expect(calledKeys).toContain('settings.memory.title')
+        expect(calledKeys).toContain('settings.memory.actions.save')
         expect(calledKeys).toContain('settings.about.website')
         expect(calledKeys).toContain('settings.about.appVersion')
         expect(calledKeys).toContain('settings.about.protocolVersion')
