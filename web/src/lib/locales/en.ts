@@ -48,6 +48,7 @@ export default {
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
   'sessions.search.placeholder': 'Search sessions…',
+  'groups.search.placeholder': 'Search groups…',
   'sessions.sidebar.resize': 'Resize sidebar',
   'sessions.sidebar.open': 'Open sessions sidebar',
   'sessions.sidebar.close': 'Close sessions sidebar',

@@ -766,14 +766,32 @@ function GroupListItem(props: {
     )
 }
 
+function filterGroupsBySearch(groups: GroupDetail[], query: string): GroupDetail[] {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) {
+        return groups
+    }
+    return groups.filter((item) => {
+        const name = item.group.name.toLowerCase()
+        const description = (item.group.description ?? '').toLowerCase()
+        const groupId = item.group.id.toLowerCase()
+        return name.includes(normalizedQuery)
+            || description.includes(normalizedQuery)
+            || groupId.includes(normalizedQuery)
+    })
+}
+
 function GroupsLayout() {
     const { api } = useAppContext()
     const navigate = useNavigate()
+    const pathname = useLocation({ select: location => location.pathname })
     const matchRoute = useMatchRoute()
     const { t } = useTranslation()
     const { groups, isLoading } = useGroups(api)
-    const { density } = useSessionListDensity()
+    const { density, toggleDensity } = useSessionListDensity()
+    const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [showCreateModal, setShowCreateModal] = useState(false)
+    const [groupSearchQuery, setGroupSearchQuery] = useState('')
     const [newGroupName, setNewGroupName] = useState('')
     const [newGroupDesc, setNewGroupDesc] = useState('')
     const [createError, setCreateError] = useState<string | null>(null)
@@ -784,19 +802,32 @@ function GroupsLayout() {
     const [renameDraft, setRenameDraft] = useState('')
     const [renameError, setRenameError] = useState<string | null>(null)
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const { createGroup, isPending: isCreatingGroup } = useGroupActions(api, null)
     const { updateGroup, deleteGroup, isPending: isActionPending } = useGroupActions(api, actionGroupId)
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
 
     const groupMatch = matchRoute({ to: '/groups/$groupId', fuzzy: true })
     const selectedGroupId = groupMatch ? groupMatch.groupId : null
+    const isGroupsIndex = pathname === '/groups' || pathname === '/groups/'
+    const showDesktopSidebar = isGroupsIndex || !desktopSidebarHidden
+    const toggleDensityLabel = density === 'comfortable'
+        ? t('sessions.display.toggleToCompact')
+        : t('sessions.display.toggleToComfortable')
+    const desktopSidebarToggleLabel = showDesktopSidebar
+        ? t('sessions.sidebar.hideDesktop')
+        : t('sessions.sidebar.showDesktop')
     const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
+    const visibleGroups = useMemo(
+        () => filterGroupsBySearch(groups, groupSearchQuery),
+        [groups, groupSearchQuery]
+    )
     const actionTarget = actionGroupId
         ? groups.find((item) => item.group.id === actionGroupId) ?? null
         : null
 
     // Calculate total member count across all groups
-    const totalMemberCount = groups.reduce((acc, item) => acc + item.members.length, 0)
+    const totalMemberCount = visibleGroups.reduce((acc, item) => acc + item.members.length, 0)
 
     useEffect(() => {
         if (!actionGroupId) {
@@ -809,6 +840,36 @@ function GroupsLayout() {
             setActionGroupId(null)
         }
     }, [actionGroupId, groups])
+
+    useEffect(() => {
+        if (isGroupsIndex) {
+            setMobileSidebarOpen(false)
+        }
+    }, [isGroupsIndex])
+
+    useEffect(() => {
+        if (isGroupsIndex && desktopSidebarHidden) {
+            setDesktopSidebarHidden(false)
+        }
+    }, [isGroupsIndex, desktopSidebarHidden, setDesktopSidebarHidden])
+
+    useEffect(() => {
+        if (!mobileSidebarOpen) return
+        const previousOverflow = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+
+        const handleResize = () => {
+            if (window.innerWidth >= 1024) {
+                setMobileSidebarOpen(false)
+            }
+        }
+
+        window.addEventListener('resize', handleResize)
+        return () => {
+            window.removeEventListener('resize', handleResize)
+            document.body.style.overflow = previousOverflow
+        }
+    }, [mobileSidebarOpen])
 
     const handleCreate = async () => {
         const trimmedName = newGroupName.trim()
@@ -881,20 +942,34 @@ function GroupsLayout() {
         }
     }
 
-    return (
-        <div className="flex h-full min-h-0">
-            {/* Sidebar - matching SessionsPage width system */}
-            <div
-                className="flex w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]"
-                style={sidebarStyle}
-            >
+    const closeSidebarOnMobile = useCallback(() => {
+        setMobileSidebarOpen(false)
+    }, [])
+
+    const toggleSidebarFromBar = useCallback(() => {
+        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+            toggleDesktopSidebar()
+            return
+        }
+        setMobileSidebarOpen(true)
+    }, [toggleDesktopSidebar])
+
+    const renderSidebarContent = (options?: { inDrawer?: boolean; onClose?: () => void }) => {
+        const inDrawer = options?.inDrawer === true
+        const onClose = options?.onClose
+
+        return (
+            <>
                 <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
                     {/* Tab switcher row - exactly matching SessionsPage */}
                     <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
                         <div className="flex items-center gap-1">
                             <button
                                 type="button"
-                                onClick={() => navigate({ to: '/sessions' })}
+                                onClick={() => {
+                                    onClose?.()
+                                    navigate({ to: '/sessions' })
+                                }}
                                 className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                             >
                                 Sessions
@@ -907,6 +982,26 @@ function GroupsLayout() {
                             </button>
                         </div>
                         <div className="flex items-center gap-1.5">
+                            {!isGroupsIndex ? (
+                                <button
+                                    type="button"
+                                    onClick={toggleDesktopSidebar}
+                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                    title={desktopSidebarToggleLabel}
+                                    aria-label={desktopSidebarToggleLabel}
+                                >
+                                    <SidebarIcon className="h-4 w-4" />
+                                </button>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={toggleDensity}
+                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                title={toggleDensityLabel}
+                                aria-label={toggleDensityLabel}
+                            >
+                                <DensityIcon className="h-5 w-5" />
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => navigate({ to: '/settings' })}
@@ -924,24 +1019,48 @@ function GroupsLayout() {
                             >
                                 <PlusIcon className="h-5 w-5" />
                             </button>
+                            {inDrawer && onClose ? (
+                                <>
+                                    <span className="mx-0.5 h-5 w-px bg-[var(--app-divider)]" aria-hidden="true" />
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                        title={t('sessions.sidebar.close')}
+                                        aria-label={t('sessions.sidebar.close')}
+                                    >
+                                        <CloseIcon className="h-4 w-4" />
+                                    </button>
+                                </>
+                            ) : null}
                         </div>
                     </div>
                     {/* Count info row - matching SessionsPage */}
                     <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
                         <div className="text-xs text-[var(--app-hint)]">
-                            {groups.length} {groups.length === 1 ? 'group' : 'groups'} • {totalMemberCount} {totalMemberCount === 1 ? 'member' : 'members'}
+                            {visibleGroups.length} {visibleGroups.length === 1 ? 'group' : 'groups'} • {totalMemberCount} {totalMemberCount === 1 ? 'member' : 'members'}
                         </div>
+                    </div>
+                    <div className="mx-auto w-full max-w-content px-3 pb-2">
+                        <input
+                            value={groupSearchQuery}
+                            onChange={(e) => setGroupSearchQuery(e.target.value)}
+                            placeholder={t('groups.search.placeholder')}
+                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
+                        />
                     </div>
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto">
                     {isLoading ? (
                         <div className="px-3 py-4 text-sm text-[var(--app-hint)]">Loading...</div>
-                    ) : groups.length === 0 ? (
-                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">No groups yet.</div>
+                    ) : visibleGroups.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">
+                            {groupSearchQuery.trim() ? 'No groups match.' : 'No groups yet.'}
+                        </div>
                     ) : (
                         <div className="py-1">
-                            {groups.map((item) => (
+                            {visibleGroups.map((item) => (
                                 <GroupListItem
                                     key={item.group.id}
                                     item={item}
@@ -949,6 +1068,7 @@ function GroupsLayout() {
                                     density={density}
                                     onSelect={(groupId) => {
                                         setActionMenuOpen(false)
+                                        setMobileSidebarOpen(false)
                                         navigate({ to: '/groups/$groupId', params: { groupId } })
                                     }}
                                     onOpenActions={handleOpenGroupActions}
@@ -957,11 +1077,23 @@ function GroupsLayout() {
                         </div>
                     )}
                 </div>
+            </>
+        )
+    }
+
+    return (
+        <div className="flex h-full min-h-0">
+            {/* Sidebar - matching SessionsPage width system */}
+            <div
+                className={`${isGroupsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]`}
+                style={sidebarStyle}
+            >
+                {renderSidebarContent()}
             </div>
 
             {/* Sidebar resize handle - matching SessionsPage */}
             <div
-                className="group relative w-2 shrink-0 cursor-col-resize"
+                className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
                 role="separator"
                 aria-orientation="vertical"
                 aria-label={t('sessions.sidebar.resize')}
@@ -974,11 +1106,44 @@ function GroupsLayout() {
             </div>
 
             {/* Main area */}
-            <div className="flex min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
+            <div className={`${isGroupsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
+                {!isGroupsIndex ? (
+                    <div className="flex items-center gap-2 border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] lg:pt-2">
+                        <button
+                            type="button"
+                            onClick={toggleSidebarFromBar}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title={t('sessions.sidebar.open')}
+                            aria-label={t('sessions.sidebar.open')}
+                        >
+                            <SidebarIcon className="h-5 w-5" />
+                        </button>
+                        <div className="text-sm font-medium text-[var(--app-hint)]">Groups</div>
+                    </div>
+                ) : null}
                 <div className="flex-1 min-h-0">
                     <Outlet />
                 </div>
             </div>
+
+            {mobileSidebarOpen ? (
+                <div
+                    className="fixed inset-0 z-40 flex lg:hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Groups sidebar"
+                >
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/35"
+                        onClick={closeSidebarOnMobile}
+                        aria-label={t('sessions.sidebar.close')}
+                    />
+                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
+                        {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
+                    </div>
+                </div>
+            ) : null}
 
             {/* Create group modal */}
             {showCreateModal ? (

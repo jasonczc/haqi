@@ -602,7 +602,7 @@ function TimelineBubble(props: {
                 <div
                     className={`rounded-2xl px-3 py-2 text-sm ${
                         isUser
-                            ? 'bg-[var(--app-link)] text-white rounded-br-sm'
+                            ? 'bg-[var(--app-button)] text-[var(--app-button-text)] rounded-br-sm'
                             : 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] rounded-bl-sm'
                     } ${isCommand
                         ? 'font-mono text-xs whitespace-pre-wrap break-words'
@@ -1033,7 +1033,7 @@ export default function GroupDetailPage() {
                                         type="button"
                                         onClick={() => { void handleSaveNote() }}
                                         disabled={isPending}
-                                        className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-xs text-white disabled:opacity-60"
+                                        className="rounded-md bg-[var(--app-button)] px-3 py-1.5 text-xs text-[var(--app-button-text)] disabled:opacity-60"
                                     >
                                         Save Note
                                     </button>
@@ -1099,7 +1099,7 @@ export default function GroupDetailPage() {
                     <button
                         type="submit"
                         disabled={isPending || composer.trim().length === 0}
-                        className="shrink-0 rounded-xl bg-[var(--app-link)] px-4 py-2 text-sm text-white disabled:opacity-60"
+                        className="shrink-0 rounded-xl bg-[var(--app-button)] px-4 py-2 text-sm text-[var(--app-button-text)] disabled:opacity-60"
                     >
                         Send
                     </button>
