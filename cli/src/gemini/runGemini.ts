@@ -100,6 +100,125 @@ export async function runGemini(opts: {
         logger.debug(`[gemini] Synced session permission mode for keepalive: ${currentPermissionMode}`);
     };
 
+    const buildQueuePreview = (text: string | undefined): string | undefined => {
+        if (typeof text !== 'string') {
+            return undefined;
+        }
+        const normalized = text.trim().replace(/\s+/g, ' ');
+        if (!normalized) {
+            return undefined;
+        }
+        return normalized.length <= 180 ? normalized : `${normalized.slice(0, 180)}...`;
+    };
+
+    const getGeminiQueueSnapshot = () => {
+        const pendingCount = messageQueue.size();
+        const nextQueued = messageQueue.peek()?.message;
+        return {
+            pendingCount,
+            inQueue: pendingCount > 0,
+            taskRunning: Boolean(sessionWrapperRef.current?.thinking),
+            nextPreview: buildQueuePreview(nextQueued)
+        };
+    };
+
+    const getGeminiQueueStateSnapshot = () => {
+        const queueSnapshot = getGeminiQueueSnapshot();
+        const entries = messageQueue
+            .listEntries()
+            .map((item, index) => ({
+                id: item.id,
+                index,
+                preview: buildQueuePreview(item.message) ?? '',
+                modeHash: item.modeHash,
+                isolate: item.isolate,
+                deferredUserMessage: item.deferUserMessageUntilDequeue,
+                enqueuedAt: item.enqueuedAt
+            }));
+        return {
+            ...queueSnapshot,
+            entries
+        };
+    };
+
+    const resolveQueueItemId = (payload: unknown): string => {
+        if (!payload || typeof payload !== 'object') {
+            throw new Error('Invalid queue payload');
+        }
+        const candidate = (payload as { id?: unknown }).id;
+        if (typeof candidate !== 'string') {
+            throw new Error('Invalid queue item id');
+        }
+        const id = candidate.trim();
+        if (!id) {
+            throw new Error('Invalid queue item id');
+        }
+        return id;
+    };
+
+    const resolveQueueMovePayload = (payload: unknown): { id: string; toIndex: number } => {
+        const id = resolveQueueItemId(payload);
+        const toIndexValue = (payload as { toIndex?: unknown }).toIndex;
+        if (typeof toIndexValue !== 'number' || !Number.isFinite(toIndexValue)) {
+            throw new Error('Invalid queue target index');
+        }
+        return {
+            id,
+            toIndex: Math.max(0, Math.floor(toIndexValue))
+        };
+    };
+
+    const resolveQueueEnqueuePayload = (payload: unknown): { text: string; attachments?: Array<{
+        id: string;
+        filename: string;
+        mimeType: string;
+        size: number;
+        path: string;
+        previewUrl?: string;
+    }> } => {
+        if (!payload || typeof payload !== 'object') {
+            throw new Error('Invalid enqueue payload');
+        }
+
+        const textValue = (payload as { text?: unknown }).text;
+        if (typeof textValue !== 'string') {
+            throw new Error('Invalid enqueue text');
+        }
+        const text = textValue.trim();
+
+        const attachmentsValue = (payload as { attachments?: unknown }).attachments;
+        if (attachmentsValue !== undefined && !Array.isArray(attachmentsValue)) {
+            throw new Error('Invalid enqueue attachments');
+        }
+
+        const attachments = Array.isArray(attachmentsValue)
+            ? attachmentsValue.filter((attachment): attachment is {
+                id: string;
+                filename: string;
+                mimeType: string;
+                size: number;
+                path: string;
+                previewUrl?: string;
+            } => {
+                if (!attachment || typeof attachment !== 'object') return false;
+                const entry = attachment as Record<string, unknown>;
+                return typeof entry.id === 'string'
+                    && typeof entry.filename === 'string'
+                    && typeof entry.mimeType === 'string'
+                    && typeof entry.size === 'number'
+                    && Number.isFinite(entry.size)
+                    && typeof entry.path === 'string'
+                    && (entry.previewUrl === undefined || typeof entry.previewUrl === 'string');
+            })
+            : undefined;
+
+        if (!text && (!attachments || attachments.length === 0)) {
+            throw new Error('Message requires text or attachments');
+        }
+
+        return { text, attachments };
+    };
+
     session.onUserMessage((message) => {
         const formattedText = formatMessageWithAttachments(message.content.text, message.content.attachments);
         const mode: GeminiMode = {
@@ -129,6 +248,85 @@ export async function runGemini(opts: {
 
         syncSessionMode();
         return { applied: { permissionMode: currentPermissionMode } };
+    });
+
+    // Keep handler names aligned with existing /codex-queue HTTP API for minimal hub/web changes.
+    session.rpcHandlerManager.registerHandler('get-codex-queue', async () => {
+        try {
+            return { success: true, queue: getGeminiQueueStateSnapshot() };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getGeminiQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('enqueue-codex-message', async (payload: unknown) => {
+        try {
+            const parsed = resolveQueueEnqueuePayload(payload);
+            const formattedText = formatMessageWithAttachments(parsed.text, parsed.attachments);
+            const mode: GeminiMode = {
+                permissionMode: currentPermissionMode,
+                model: resolvedModel
+            };
+            messageQueue.push(formattedText, mode, {
+                deferUserMessageUntilDequeue: true,
+                isolate: true
+            });
+            return { success: true, queue: getGeminiQueueStateSnapshot() };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getGeminiQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('remove-codex-queue-item', async (payload: unknown) => {
+        try {
+            const id = resolveQueueItemId(payload);
+            const removed = messageQueue.removeById(id);
+            if (!removed) {
+                return { success: false, error: 'Queue item not found', queue: getGeminiQueueStateSnapshot() };
+            }
+            return {
+                success: true,
+                removedId: removed.id,
+                queue: getGeminiQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getGeminiQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('move-codex-queue-item', async (payload: unknown) => {
+        try {
+            const { id, toIndex } = resolveQueueMovePayload(payload);
+            const moved = messageQueue.moveById(id, toIndex);
+            if (!moved) {
+                return { success: false, error: 'Queue item not found', queue: getGeminiQueueStateSnapshot() };
+            }
+            return {
+                success: true,
+                movedId: id,
+                queue: getGeminiQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getGeminiQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('clear-codex-queue', async () => {
+        try {
+            const clearedCount = messageQueue.clear();
+            return {
+                success: true,
+                clearedCount,
+                queue: getGeminiQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getGeminiQueueStateSnapshot() };
+        }
     });
 
     try {

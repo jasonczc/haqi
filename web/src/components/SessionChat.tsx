@@ -327,7 +327,7 @@ export function SessionChat(props: {
     const inlineQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 10_000
     const dialogQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 6_000
     const agentFlavor = props.session.metadata?.flavor ?? null
-    const supportsQueue = agentFlavor === 'codex' || agentFlavor === 'claude'
+    const supportsQueue = agentFlavor === 'codex' || agentFlavor === 'claude' || agentFlavor === 'gemini'
     const { abortSession, switchSession, setPermissionMode, setModel } = useSessionActions(
         props.api,
         props.session.id,

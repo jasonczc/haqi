@@ -11,6 +11,8 @@ import { useRecentPaths } from '@/hooks/useRecentPaths'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizePreviewUrlInput } from '@/lib/preview-url'
 import {
+    CLAUDE_THINK_EFFORT_OPTIONS,
+    CODEX_THINK_EFFORT_OPTIONS,
     MODEL_OPTIONS,
     type AgentType,
     type ThinkEffort,
@@ -30,6 +32,16 @@ import {
 } from './preferences'
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
+
+function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
+    if (agent === 'claude') {
+        return CLAUDE_THINK_EFFORT_OPTIONS[0]?.value ?? 'auto'
+    }
+    if (agent === 'codex') {
+        return CODEX_THINK_EFFORT_OPTIONS[0]?.value ?? 'auto'
+    }
+    return 'auto'
+}
 
 export function NewSession(props: {
     api: ApiClient
@@ -54,7 +66,7 @@ export function NewSession(props: {
     const [agent, setAgent] = useState<AgentType>(loadPreferredAgent)
     const [model, setModel] = useState('auto')
     const [customModel, setCustomModel] = useState('')
-    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>('auto')
+    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(() => getDefaultThinkEffort(loadPreferredAgent()))
     const [yoloMode, setYoloMode] = useState(loadPreferredYoloMode)
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
@@ -78,9 +90,9 @@ export function NewSession(props: {
     }, [sessionType])
 
     useEffect(() => {
-        setModel(agent === 'gemini' ? 'auto-gemini-3' : 'auto')
+        setModel(MODEL_OPTIONS[agent][0]?.value ?? 'auto')
         setCustomModel('')
-        setThinkEffort('auto')
+        setThinkEffort(getDefaultThinkEffort(agent))
     }, [agent])
 
     useEffect(() => {

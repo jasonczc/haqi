@@ -104,8 +104,8 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
-        if (flavor !== 'codex' && flavor !== 'claude') {
-            return c.json({ success: false, error: 'Queue API is only supported for Codex and Claude sessions' })
+        if (flavor !== 'codex' && flavor !== 'claude' && flavor !== 'gemini') {
+            return c.json({ success: false, error: 'Queue API is only supported for Codex, Claude, and Gemini sessions' })
         }
 
         return { ...sessionResult, flavor }

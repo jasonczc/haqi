@@ -246,7 +246,7 @@ export function HappyComposer(props: {
     const threadIsDisabled = useAssistantState(({ thread }) => thread.isDisabled)
 
     const controlsDisabled = disabled || (!active && !allowSendWhenInactive) || threadIsDisabled
-    const supportsQueue = agentFlavor === 'codex' || agentFlavor === 'claude'
+    const supportsQueue = agentFlavor === 'codex' || agentFlavor === 'claude' || agentFlavor === 'gemini'
     const queueSendEnabled = supportsQueue && codexSendMode === 'queue'
     const showInlineQueuePanel = supportsQueue && codexQueueInlinePanelMode !== 'off'
     const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
