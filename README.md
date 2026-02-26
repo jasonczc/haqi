@@ -88,6 +88,31 @@ bun run build:single-exe
 
 Use this when validating frontend/CLI changes on your local running hub.
 
+Recommended: split stable runtime vs source dev runtime.
+Do not share one `HAPI_HOME` between them.
+
+```bash
+# Stable runtime (installed binary)
+export HAPI_HOME="$HOME/.hapi-stable"
+export HAPI_LISTEN_PORT=3006
+haqi runner start
+haqi hub
+```
+
+```bash
+# Source dev runtime (repo)
+export HAPI_HOME="$HOME/.hapi-dev"
+export HAPI_LISTEN_PORT=3016
+export HAPI_PUBLIC_URL="http://localhost:3016"
+bun run dev
+```
+
+If you switch branches often, use branch-specific dev homes:
+
+```bash
+export HAPI_HOME="$HOME/.hapi-dev-$(git rev-parse --abbrev-ref HEAD | tr '/' '-')"
+```
+
 ```bash
 # 1) Build all-in-one binary (web + hub + cli)
 bun run build:single-exe
@@ -99,6 +124,12 @@ install -m 755 ./cli/dist-exe/bun-linux-x64/hapi ~/.local/bin/haqi
 # 3) Restart runtime processes
 haqi runner stop || true
 haqi runner start
+```
+
+Or use the helper script:
+
+```bash
+./scripts/deploy-local-binary.sh
 ```
 
 Optional status check:

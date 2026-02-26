@@ -23,6 +23,8 @@ export type SessionMetadataSummary = {
     host: string
     version?: string
     name?: string
+    model?: string
+    availableModels?: string[]
     os?: string
     summary?: { text: string; updatedAt: number }
     machineId?: string

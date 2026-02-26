@@ -1,15 +1,17 @@
-import type { AgentType } from './types'
+import type { AgentType, ModelOption } from './types'
 import { MODEL_OPTIONS } from './types'
 import { useTranslation } from '@/lib/use-translation'
 
 export function ModelSelector(props: {
     agent: AgentType
     model: string
+    customModel: string
     isDisabled: boolean
     onModelChange: (value: string) => void
+    onCustomModelChange: (value: string) => void
 }) {
     const { t } = useTranslation()
-    const options = MODEL_OPTIONS[props.agent]
+    const options: ModelOption[] = MODEL_OPTIONS[props.agent]
     if (options.length === 0) {
         return null
     }
@@ -32,6 +34,17 @@ export function ModelSelector(props: {
                     </option>
                 ))}
             </select>
+            <input
+                type="text"
+                value={props.customModel}
+                onChange={(e) => props.onCustomModelChange(e.target.value)}
+                disabled={props.isDisabled}
+                placeholder={t('newSession.model.customPlaceholder')}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-text)] focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+            />
+            <span className="text-[11px] text-[var(--app-hint)]">
+                {t('newSession.model.customHint')}
+            </span>
         </div>
     )
 }

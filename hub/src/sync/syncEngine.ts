@@ -7,6 +7,7 @@
  * - No E2E encryption; data is stored as JSON in SQLite
  */
 
+import { inferClaudeModelModeFromModel } from '@hapi/protocol'
 import type { DecryptedMessage, ModelMode, PermissionMode, Session, SyncEvent } from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
 import type { PreviewUrlHistoryEntry, Store } from '../store'
@@ -302,16 +303,17 @@ export class SyncEngine {
         config: {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
+            model?: string
         }
     ): Promise<void> {
-        let applied: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } | undefined
+        let applied: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode']; model?: string } | undefined
 
         try {
             const result = await this.rpcGateway.requestSessionConfig(sessionId, config)
             if (!result || typeof result !== 'object') {
                 throw new Error('Invalid response from session config RPC')
             }
-            const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode'] } }
+            const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode']; model?: string } }
             const fromRpc = obj.applied
             if (!fromRpc || typeof fromRpc !== 'object') {
                 throw new Error('Missing applied session config')
@@ -323,11 +325,37 @@ export class SyncEngine {
             }
             applied = {
                 permissionMode: config.permissionMode,
-                modelMode: config.modelMode
+                modelMode: config.modelMode,
+                model: config.model
             }
         }
 
-        this.sessionCache.applySessionConfig(sessionId, applied)
+        const session = this.getSession(sessionId)
+        const flavor = session?.metadata?.flavor ?? null
+        const resolvedModelMode = applied.modelMode
+            ?? (flavor === 'claude' ? inferClaudeModelModeFromModel(applied.model) : undefined)
+
+        this.sessionCache.applySessionConfig(sessionId, {
+            permissionMode: applied.permissionMode,
+            modelMode: resolvedModelMode
+        })
+
+        if (flavor === 'claude' && (applied.model !== undefined || config.model !== undefined)) {
+            const rawModel = applied.model ?? config.model
+            const model = (() => {
+                if (typeof rawModel !== 'string') return undefined
+                const trimmed = rawModel.trim()
+                if (!trimmed) return undefined
+                const lowered = trimmed.toLowerCase()
+                return lowered === 'default' || lowered === 'auto' ? undefined : trimmed
+            })()
+            const fallbackMetadata = session?.metadata ?? { path: '', host: '' }
+            await this.sessionCache.updateSessionMetadata(sessionId, (metadata) => ({
+                ...(metadata ?? fallbackMetadata),
+                model
+            }))
+        }
+
         if (applied.permissionMode === 'auto-approve') {
             void this.maybeAutoApprovePendingRequests(sessionId)
         }
@@ -335,7 +363,7 @@ export class SyncEngine {
 
     private shouldFallbackSessionConfig(
         sessionId: string,
-        config: { permissionMode?: PermissionMode; modelMode?: ModelMode },
+        config: { permissionMode?: PermissionMode; modelMode?: ModelMode; model?: string },
         error: unknown
     ): boolean {
         if (config.permissionMode !== 'auto-approve') {
@@ -579,6 +607,39 @@ export class SyncEngine {
 
     async clearCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
         return await this.rpcGateway.clearCodexQueue(sessionId)
+    }
+
+    async getClaudeQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.getClaudeQueue(sessionId)
+    }
+
+    async enqueueClaudeMessage(
+        sessionId: string,
+        payload: {
+            text: string
+            attachments?: Array<{
+                id: string
+                filename: string
+                mimeType: string
+                size: number
+                path: string
+                previewUrl?: string
+            }>
+        }
+    ): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.enqueueClaudeMessage(sessionId, payload)
+    }
+
+    async removeClaudeQueueItem(sessionId: string, id: string): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.removeClaudeQueueItem(sessionId, id)
+    }
+
+    async moveClaudeQueueItem(sessionId: string, id: string, toIndex: number): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.moveClaudeQueueItem(sessionId, id, toIndex)
+    }
+
+    async clearClaudeQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        return await this.rpcGateway.clearClaudeQueue(sessionId)
     }
 
     async readSessionFile(

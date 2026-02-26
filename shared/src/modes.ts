@@ -22,7 +22,7 @@ export const PERMISSION_MODES = [
 ] as const
 export type PermissionMode = typeof PERMISSION_MODES[number]
 
-export const MODEL_MODES = ['default', 'sonnet', 'opus'] as const
+export const MODEL_MODES = ['default', 'haiku', 'sonnet', 'opus'] as const
 export type ModelMode = typeof MODEL_MODES[number]
 
 export type AgentFlavor = 'claude' | 'codex' | 'gemini' | 'opencode'
@@ -59,8 +59,30 @@ export type PermissionModeOption = {
 
 export const MODEL_MODE_LABELS: Record<ModelMode, string> = {
     default: 'Default',
+    haiku: 'Haiku',
     sonnet: 'Sonnet',
     opus: 'Opus'
+}
+
+export function inferClaudeModelModeFromModel(model: string | null | undefined): ModelMode {
+    if (typeof model !== 'string') {
+        return 'default'
+    }
+
+    const normalized = model.trim().toLowerCase()
+    if (!normalized || normalized === 'default' || normalized === 'auto') {
+        return 'default'
+    }
+    if (normalized === 'haiku' || normalized.includes('haiku')) {
+        return 'haiku'
+    }
+    if (normalized === 'opus' || normalized.includes('opus')) {
+        return 'opus'
+    }
+    if (normalized === 'sonnet' || normalized.includes('sonnet')) {
+        return 'sonnet'
+    }
+    return 'default'
 }
 
 export function getPermissionModeLabel(mode: PermissionMode): string {

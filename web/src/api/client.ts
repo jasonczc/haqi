@@ -385,11 +385,15 @@ export class ApiClient {
         })
     }
 
-    async setModelMode(sessionId: string, model: ModelMode): Promise<void> {
+    async setModel(sessionId: string, model: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/model`, {
             method: 'POST',
             body: JSON.stringify({ model })
         })
+    }
+
+    async setModelMode(sessionId: string, model: ModelMode): Promise<void> {
+        await this.setModel(sessionId, model)
     }
 
     async approvePermission(

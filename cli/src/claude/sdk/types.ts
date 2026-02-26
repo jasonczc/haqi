@@ -5,6 +5,7 @@
 
 import type { Readable } from 'node:stream'
 import type { ClaudePermissionMode } from '@hapi/protocol/types'
+import type { ClaudeThinkEffort } from '@/claude/modelMode'
 
 /**
  * SDK message types
@@ -50,6 +51,8 @@ export interface SDKSystemMessage extends SDKMessage {
     subtype: string
     session_id?: string
     model?: string
+    available_models?: string[]
+    models?: string[]
     cwd?: string
     tools?: string[]
     slash_commands?: string[]
@@ -170,6 +173,7 @@ export interface QueryOptions {
     continue?: boolean
     resume?: string
     model?: string
+    effort?: ClaudeThinkEffort
     fallbackModel?: string
     settingsPath?: string
     strictMcpConfig?: boolean

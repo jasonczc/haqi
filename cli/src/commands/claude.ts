@@ -49,6 +49,23 @@ export const claudeCommand: CommandDefinition = {
                 }
                 options.model = model
                 unknownArgs.push('--model', model)
+            } else if (arg === '--effort') {
+                const effort = args[++i]
+                if (!effort) {
+                    throw new Error('Missing --effort value')
+                }
+                if (effort !== 'low' && effort !== 'medium' && effort !== 'high') {
+                    throw new Error('Invalid --effort value (expected low, medium, or high)')
+                }
+                options.thinkEffort = effort
+                unknownArgs.push('--effort', effort)
+            } else if (arg.startsWith('--effort=')) {
+                const effort = arg.slice('--effort='.length)
+                if (effort !== 'low' && effort !== 'medium' && effort !== 'high') {
+                    throw new Error('Invalid --effort value (expected low, medium, or high)')
+                }
+                options.thinkEffort = effort
+                unknownArgs.push(arg)
             } else if (arg === '--started-by') {
                 options.startedBy = args[++i] as 'runner' | 'terminal'
             } else {

@@ -270,6 +270,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
             let pending: {
                 message: string;
                 mode: EnhancedMode;
+                deferUserMessageUntilDequeue: boolean;
             } | null = null;
 
             let previousSessionId: string | null = null;
@@ -310,6 +311,9 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 let p = pending;
                                 pending = null;
                                 permissionHandler.handleModeChange(p.mode.permissionMode);
+                                if (p.deferUserMessageUntilDequeue) {
+                                    session.client.sendUserMessage(p.message);
+                                }
                                 return p;
                             }
 
@@ -324,9 +328,13 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 modeHash = msg.hash;
                                 mode = msg.mode;
                                 permissionHandler.handleModeChange(mode.permissionMode);
+                                if (msg.deferUserMessageUntilDequeue) {
+                                    session.client.sendUserMessage(msg.message);
+                                }
                                 return {
                                     message: msg.message,
-                                    mode: msg.mode
+                                    mode: msg.mode,
+                                    deferUserMessageUntilDequeue: msg.deferUserMessageUntilDequeue
                                 };
                             }
 

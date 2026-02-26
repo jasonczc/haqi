@@ -7,7 +7,6 @@ import type {
     CodexQueueState,
     CodexStatusResponse,
     DecryptedMessage,
-    ModelMode,
     PermissionMode,
     Session
 } from '@/types/api'
@@ -328,7 +327,8 @@ export function SessionChat(props: {
     const inlineQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 10_000
     const dialogQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 6_000
     const agentFlavor = props.session.metadata?.flavor ?? null
-    const { abortSession, switchSession, setPermissionMode, setModelMode } = useSessionActions(
+    const supportsQueue = agentFlavor === 'codex' || agentFlavor === 'claude'
+    const { abortSession, switchSession, setPermissionMode, setModel } = useSessionActions(
         props.api,
         props.session.id,
         agentFlavor
@@ -520,17 +520,17 @@ export function SessionChat(props: {
         }
     }, [setPermissionMode, props.onRefresh, haptic])
 
-    // Model mode change handler
-    const handleModelModeChange = useCallback(async (mode: ModelMode) => {
+    // Model change handler
+    const handleModelChange = useCallback(async (model: string) => {
         try {
-            await setModelMode(mode)
+            await setModel(model)
             haptic.notification('success')
             props.onRefresh()
         } catch (e) {
             haptic.notification('error')
-            console.error('Failed to set model mode:', e)
+            console.error('Failed to set model:', e)
         }
-    }, [setModelMode, props.onRefresh, haptic])
+    }, [setModel, props.onRefresh, haptic])
 
     // Abort handler
     const handleAbort = useCallback(async () => {
@@ -584,7 +584,7 @@ export function SessionChat(props: {
     }, [])
 
     const refreshCodexQueue = useCallback(async (options?: { silent?: boolean }): Promise<void> => {
-        if (agentFlavor !== 'codex') {
+        if (!supportsQueue) {
             return
         }
 
@@ -618,7 +618,7 @@ export function SessionChat(props: {
                 setIsCodexQueueLoading(false)
             }
         }
-    }, [agentFlavor, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+    }, [supportsQueue, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
 
     const handleCodexQueueModeChange = useCallback((mode: CodexSendMode) => {
         setCodexSendMode(mode)
@@ -626,28 +626,28 @@ export function SessionChat(props: {
     }, [props.session.id])
 
     const handleCodexQueueRefreshAfterSend = useCallback(() => {
-        if (agentFlavor !== 'codex') {
+        if (!supportsQueue) {
             return
         }
         setTimeout(() => {
             void refreshCodexQueue({ silent: true })
         }, 150)
-    }, [agentFlavor, refreshCodexQueue])
+    }, [supportsQueue, refreshCodexQueue])
 
     const handleCodexQueueOpen = useCallback(() => {
-        if (agentFlavor !== 'codex') {
+        if (!supportsQueue) {
             return
         }
         setIsCodexQueueDialogOpen(true)
         setCodexQueueError(null)
         void refreshCodexQueue()
-    }, [agentFlavor, refreshCodexQueue])
+    }, [supportsQueue, refreshCodexQueue])
 
     const handleCodexQueueEnqueue = useCallback(async (payload: {
         text: string
         attachments?: AttachmentMetadata[]
     }) => {
-        if (agentFlavor !== 'codex') {
+        if (!supportsQueue) {
             return
         }
 
@@ -666,12 +666,12 @@ export function SessionChat(props: {
         setCodexQueueError(null)
         setCodexQueueState(result.queue ?? null)
         applyCodexQueueSummary(result.queue ?? null)
-    }, [agentFlavor, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+    }, [supportsQueue, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
 
     const runCodexQueueAction = useCallback(async (
         action: () => Promise<{ success: boolean; error?: string; queue?: CodexQueueState | null }>
     ) => {
-        if (agentFlavor !== 'codex') {
+        if (!supportsQueue) {
             return
         }
         setIsCodexQueueMutating(true)
@@ -697,7 +697,7 @@ export function SessionChat(props: {
         } finally {
             setIsCodexQueueMutating(false)
         }
-    }, [agentFlavor, applyCodexQueueSummary, haptic, t])
+    }, [supportsQueue, applyCodexQueueSummary, haptic, t])
 
     const handleCodexQueueClear = useCallback(() => {
         void runCodexQueueAction(async () => {
@@ -768,14 +768,14 @@ export function SessionChat(props: {
     }, [agentFlavor, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
 
     useEffect(() => {
-        if (agentFlavor !== 'codex') {
+        if (!supportsQueue) {
             return
         }
         void refreshCodexQueue({ silent: true })
-    }, [agentFlavor, props.session.id, props.session.thinking, codexQueueInlinePanelMode, refreshCodexQueue])
+    }, [supportsQueue, props.session.id, props.session.thinking, codexQueueInlinePanelMode, refreshCodexQueue])
 
     useEffect(() => {
-        if (agentFlavor !== 'codex') {
+        if (!supportsQueue) {
             return
         }
         if (codexQueueInlinePanelMode === 'off' || isCodexQueueDialogOpen) {
@@ -785,17 +785,17 @@ export function SessionChat(props: {
             void refreshCodexQueue({ silent: true })
         }, inlineQueuePollIntervalMs)
         return () => window.clearInterval(timer)
-    }, [agentFlavor, codexQueueInlinePanelMode, isCodexQueueDialogOpen, inlineQueuePollIntervalMs, refreshCodexQueue])
+    }, [supportsQueue, codexQueueInlinePanelMode, isCodexQueueDialogOpen, inlineQueuePollIntervalMs, refreshCodexQueue])
 
     useEffect(() => {
-        if (agentFlavor !== 'codex' || !isCodexQueueDialogOpen) {
+        if (!supportsQueue || !isCodexQueueDialogOpen) {
             return
         }
         const timer = window.setInterval(() => {
             void refreshCodexQueue({ silent: true })
         }, dialogQueuePollIntervalMs)
         return () => window.clearInterval(timer)
-    }, [agentFlavor, isCodexQueueDialogOpen, dialogQueuePollIntervalMs, refreshCodexQueue])
+    }, [supportsQueue, isCodexQueueDialogOpen, dialogQueuePollIntervalMs, refreshCodexQueue])
 
     const attachmentAdapter = useMemo(() => {
         if (!props.session.active) {
@@ -930,6 +930,7 @@ export function SessionChat(props: {
                         disabled={props.isSending}
                         permissionMode={props.session.permissionMode}
                         modelMode={props.session.modelMode}
+                        model={props.session.metadata?.model}
                         agentFlavor={agentFlavor}
                         active={props.session.active}
                         allowSendWhenInactive
@@ -938,19 +939,19 @@ export function SessionChat(props: {
                         contextSize={reduced.latestUsage?.contextSize}
                         controlledByUser={props.session.agentState?.controlledByUser === true}
                         onPermissionModeChange={handlePermissionModeChange}
-                        onModelModeChange={handleModelModeChange}
+                        onModelChange={handleModelChange}
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
                         onCodexStatus={agentFlavor === 'codex' ? handleCodexStatus : undefined}
                         codexSendMode={codexSendMode}
-                        onCodexSendModeChange={agentFlavor === 'codex' ? handleCodexQueueModeChange : undefined}
+                        onCodexSendModeChange={supportsQueue ? handleCodexQueueModeChange : undefined}
                         codexQueuePendingCount={codexQueuePendingCount}
                         codexQueueSummary={codexQueueSummary}
                         codexQueueEntries={codexQueueEntries}
                         codexQueueInlinePanelMode={codexQueueInlinePanelMode}
-                        onCodexQueueOpen={agentFlavor === 'codex' ? handleCodexQueueOpen : undefined}
-                        onCodexQueueUpdated={agentFlavor === 'codex' ? handleCodexQueueRefreshAfterSend : undefined}
-                        onCodexQueueEnqueue={agentFlavor === 'codex' ? handleCodexQueueEnqueue : undefined}
+                        onCodexQueueOpen={supportsQueue ? handleCodexQueueOpen : undefined}
+                        onCodexQueueUpdated={supportsQueue ? handleCodexQueueRefreshAfterSend : undefined}
+                        onCodexQueueEnqueue={supportsQueue ? handleCodexQueueEnqueue : undefined}
                         autocompleteSuggestions={props.autocompleteSuggestions}
                         voiceStatus={voice?.status}
                         voiceMicMuted={voice?.micMuted}

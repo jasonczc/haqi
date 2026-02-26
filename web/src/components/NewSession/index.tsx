@@ -10,7 +10,12 @@ import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizePreviewUrlInput } from '@/lib/preview-url'
-import type { AgentType, CodexThinkEffort, SessionType } from './types'
+import {
+    MODEL_OPTIONS,
+    type AgentType,
+    type ThinkEffort,
+    type SessionType
+} from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
@@ -48,7 +53,8 @@ export function NewSession(props: {
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
     const [agent, setAgent] = useState<AgentType>(loadPreferredAgent)
     const [model, setModel] = useState('auto')
-    const [thinkEffort, setThinkEffort] = useState<CodexThinkEffort>('auto')
+    const [customModel, setCustomModel] = useState('')
+    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>('auto')
     const [yoloMode, setYoloMode] = useState(loadPreferredYoloMode)
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
@@ -72,7 +78,8 @@ export function NewSession(props: {
     }, [sessionType])
 
     useEffect(() => {
-        setModel('auto')
+        setModel(agent === 'gemini' ? 'auto-gemini-3' : 'auto')
+        setCustomModel('')
         setThinkEffort('auto')
     }, [agent])
 
@@ -106,6 +113,21 @@ export function NewSession(props: {
         () => getRecentPaths(machineId),
         [getRecentPaths, machineId]
     )
+
+    const modelOptions = useMemo(() => {
+        return MODEL_OPTIONS[agent]
+    }, [agent])
+    const defaultModelValue = modelOptions[0]?.value ?? 'auto'
+
+    useEffect(() => {
+        if (customModel.trim() || model === defaultModelValue) {
+            return
+        }
+        if (modelOptions.some((option) => option.value === model)) {
+            return
+        }
+        setModel(defaultModelValue)
+    }, [customModel, model, modelOptions, defaultModelValue])
 
     const previewUrlHistoryQuery = useQuery({
         queryKey: queryKeys.previewUrlHistory,
@@ -249,9 +271,18 @@ export function NewSession(props: {
                 return
             }
 
-            const resolvedModel = model !== 'auto' && agent !== 'opencode' ? model : undefined
+            const customModelValue = customModel.trim()
+            const isAutoModel = model === 'auto'
+                || model === 'auto-gemini-3'
+                || model === 'auto-gemini-2.5'
+            const isGeminiManualModel = agent === 'gemini' && model === 'manual'
+            const resolvedModel = customModelValue
+                ? customModelValue
+                : (!isAutoModel && !isGeminiManualModel && agent !== 'opencode' ? model : undefined)
             const resolvedThinkEffort = agent === 'codex' && thinkEffort !== 'auto'
                 ? thinkEffort
+                : agent === 'claude' && thinkEffort !== 'auto' && thinkEffort !== 'xhigh'
+                    ? thinkEffort
                 : undefined
             const result = await spawnSession({
                 machineId,
@@ -350,8 +381,10 @@ export function NewSession(props: {
             <ModelSelector
                 agent={agent}
                 model={model}
+                customModel={customModel}
                 isDisabled={isFormDisabled}
                 onModelChange={setModel}
+                onCustomModelChange={setCustomModel}
             />
             <ThinkEffortSelector
                 agent={agent}

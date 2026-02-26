@@ -10,8 +10,8 @@ const permissionModeSchema = z.object({
     mode: PermissionModeSchema
 })
 
-const modelModeSchema = z.object({
-    model: ModelModeSchema
+const modelUpdateSchema = z.object({
+    model: z.string().min(1).max(255)
 })
 
 const renameSessionSchema = z.object({
@@ -90,7 +90,7 @@ function normalizePreviewUrl(raw: string | null): { ok: true; value: string | nu
 export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
-    const requireActiveCodexSession = (
+    const requireActiveQueueSession = (
         c: Context<WebAppEnv>,
         engine: SyncEngine
     ) => {
@@ -104,10 +104,24 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
-        if (flavor !== 'codex') {
-            return c.json({ success: false, error: 'Codex API is only supported for Codex sessions' })
+        if (flavor !== 'codex' && flavor !== 'claude') {
+            return c.json({ success: false, error: 'Queue API is only supported for Codex and Claude sessions' })
         }
 
+        return { ...sessionResult, flavor }
+    }
+
+    const requireActiveCodexSession = (
+        c: Context<WebAppEnv>,
+        engine: SyncEngine
+    ) => {
+        const sessionResult = requireActiveQueueSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+        if (sessionResult.flavor !== 'codex') {
+            return c.json({ success: false, error: 'Codex API is only supported for Codex sessions' })
+        }
         return sessionResult
     }
 
@@ -198,13 +212,15 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
 
         try {
-            const result = await engine.getCodexQueue(sessionResult.sessionId)
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.getClaudeQueue(sessionResult.sessionId)
+                : await engine.getCodexQueue(sessionResult.sessionId)
             return c.json(result)
         } catch (error) {
             return c.json({
@@ -220,7 +236,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -236,10 +252,15 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         try {
-            const result = await engine.enqueueCodexMessage(sessionResult.sessionId, {
-                text: parsed.data.text,
-                attachments: parsed.data.attachments
-            })
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.enqueueClaudeMessage(sessionResult.sessionId, {
+                    text: parsed.data.text,
+                    attachments: parsed.data.attachments
+                })
+                : await engine.enqueueCodexMessage(sessionResult.sessionId, {
+                    text: parsed.data.text,
+                    attachments: parsed.data.attachments
+                })
             return c.json(result)
         } catch (error) {
             return c.json({
@@ -255,7 +276,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -267,7 +288,9 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         try {
-            const result = await engine.removeCodexQueueItem(sessionResult.sessionId, parsed.data.id)
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.removeClaudeQueueItem(sessionResult.sessionId, parsed.data.id)
+                : await engine.removeCodexQueueItem(sessionResult.sessionId, parsed.data.id)
             return c.json(result)
         } catch (error) {
             return c.json({
@@ -283,7 +306,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -295,11 +318,17 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         try {
-            const result = await engine.moveCodexQueueItem(
-                sessionResult.sessionId,
-                parsed.data.id,
-                parsed.data.toIndex
-            )
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.moveClaudeQueueItem(
+                    sessionResult.sessionId,
+                    parsed.data.id,
+                    parsed.data.toIndex
+                )
+                : await engine.moveCodexQueueItem(
+                    sessionResult.sessionId,
+                    parsed.data.id,
+                    parsed.data.toIndex
+                )
             return c.json(result)
         } catch (error) {
             return c.json({
@@ -315,13 +344,15 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
 
         try {
-            const result = await engine.clearCodexQueue(sessionResult.sessionId)
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.clearClaudeQueue(sessionResult.sessionId)
+                : await engine.clearCodexQueue(sessionResult.sessionId)
             return c.json(result)
         } catch (error) {
             return c.json({
@@ -516,18 +547,33 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         const body = await c.req.json().catch(() => null)
-        const parsed = modelModeSchema.safeParse(body)
+        const parsed = modelUpdateSchema.safeParse(body)
         if (!parsed.success) {
             return c.json({ error: 'Invalid body' }, 400)
         }
 
         const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
-        if (!isModelModeAllowedForFlavor(parsed.data.model, flavor)) {
+        const requestedModel = parsed.data.model.trim()
+        if (!requestedModel) {
+            return c.json({ error: 'Invalid model value' }, 400)
+        }
+
+        const parsedMode = ModelModeSchema.safeParse(requestedModel)
+        const requestedMode = parsedMode.success ? parsedMode.data : undefined
+
+        if (requestedMode && !isModelModeAllowedForFlavor(requestedMode, flavor)) {
             return c.json({ error: 'Model mode is only supported for Claude sessions' }, 400)
         }
 
+        if (!requestedMode && flavor !== 'claude') {
+            return c.json({ error: 'Custom model is only supported for Claude sessions' }, 400)
+        }
+
         try {
-            await engine.applySessionConfig(sessionResult.sessionId, { modelMode: parsed.data.model })
+            await engine.applySessionConfig(sessionResult.sessionId, {
+                modelMode: requestedMode,
+                model: requestedModel
+            })
             return c.json({ ok: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply model mode'

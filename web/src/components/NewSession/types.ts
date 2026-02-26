@@ -1,8 +1,16 @@
 export type AgentType = 'claude' | 'codex' | 'gemini' | 'opencode'
 export type SessionType = 'simple' | 'worktree'
-export type CodexThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+export type ThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+export type ModelOption = { value: string; label: string }
 
-export const CODEX_THINK_EFFORT_OPTIONS: { value: CodexThinkEffort; label: string }[] = [
+export const CLAUDE_THINK_EFFORT_OPTIONS: { value: ThinkEffort; label: string }[] = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+]
+
+export const CODEX_THINK_EFFORT_OPTIONS: { value: ThinkEffort; label: string }[] = [
     { value: 'auto', label: 'Auto' },
     { value: 'low', label: 'Low' },
     { value: 'medium', label: 'Medium' },
@@ -10,11 +18,14 @@ export const CODEX_THINK_EFFORT_OPTIONS: { value: CodexThinkEffort; label: strin
     { value: 'xhigh', label: 'XHigh' }
 ]
 
-export const MODEL_OPTIONS: Record<AgentType, { value: string; label: string }[]> = {
+export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
     claude: [
-        { value: 'auto', label: 'Auto' },
-        { value: 'opus', label: 'Opus' },
-        { value: 'sonnet', label: 'Sonnet' },
+        { value: 'auto', label: 'Default (recommended)' },
+        { value: 'us.anthropic.claude-sonnet-4-6', label: 'Sonnet 4.6' },
+        { value: 'us.anthropic.claude-sonnet-4-6[1m]', label: 'Sonnet (1M context)' },
+        { value: 'global.anthropic.claude-opus-4-6-v1', label: 'Opus 4.6' },
+        { value: 'global.anthropic.claude-opus-4-6-v1[1m]', label: 'Opus (1M context)' },
+        { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
     ],
     codex: [
         { value: 'auto', label: 'Auto' },
@@ -25,10 +36,9 @@ export const MODEL_OPTIONS: Record<AgentType, { value: string; label: string }[]
         { value: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini' },
     ],
     gemini: [
-        { value: 'auto', label: 'Auto' },
-        { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
-        { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-        { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+        { value: 'auto-gemini-3', label: 'Auto (Gemini 3)' },
+        { value: 'auto-gemini-2.5', label: 'Auto (Gemini 2.5)' },
+        { value: 'manual', label: 'Manual' },
     ],
     opencode: [],
 }
