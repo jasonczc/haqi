@@ -81,6 +81,159 @@ export type MessagesResponse = {
 export type MachinesResponse = { machines: Machine[] }
 export type MachinePathsExistsResponse = { exists: Record<string, boolean> }
 
+export type GroupTimelineMessageType = 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
+
+export type GroupTimelineMessage = {
+    id: string
+    groupId: string
+    namespace: string
+    seq: number
+    type: GroupTimelineMessageType
+    traceId?: string
+    taskId?: string
+    source: string
+    actorSessionId?: string
+    actorName?: string
+    targetSessionIds?: string[]
+    payload: unknown
+    createdAt: number
+}
+
+export type GroupTaskStatus =
+    | 'pending'
+    | 'enqueued'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'expired'
+    | 'canceled'
+    | 'manual_done'
+
+export type GroupTask = {
+    id: string
+    groupId: string
+    namespace: string
+    traceId: string
+    source: string
+    targetSessionId: string
+    command: string
+    status: GroupTaskStatus
+    dedupeKey: string | null
+    expiresAt: number | null
+    createdAt: number
+    updatedAt: number
+    startedAt: number | null
+    completedAt: number | null
+    error: string | null
+}
+
+export type Group = {
+    id: string
+    namespace: string
+    name: string
+    description: string | null
+    noteSessionId: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type GroupMember = {
+    id: number
+    groupId: string
+    namespace: string
+    memberType: 'session' | 'human'
+    sessionId: string | null
+    userId: number | null
+    role: string
+    createdAt: number
+}
+
+export type GroupNote = {
+    groupId: string
+    namespace: string
+    content: string
+    version: number
+    updatedBy: string | null
+    updatedAt: number
+}
+
+export type GroupDetail = {
+    group: Group
+    members: GroupMember[]
+    note: GroupNote | null
+}
+
+export type GroupsResponse = {
+    groups: GroupDetail[]
+}
+
+export type GroupResponse = {
+    group: GroupDetail
+}
+
+export type GroupMessagesResponse = {
+    messages: GroupTimelineMessage[]
+    page: {
+        limit: number
+        beforeSeq: number | null
+        nextBeforeSeq: number | null
+        hasMore: boolean
+    }
+}
+
+export type GroupTasksResponse = {
+    tasks: GroupTask[]
+}
+
+export type CreateGroupResponse = {
+    group: GroupDetail
+}
+
+export type AddGroupMemberResponse = {
+    group: GroupDetail
+}
+
+export type UpdateGroupResponse = {
+    group: GroupDetail
+}
+
+export type PostGroupMessageResponse = {
+    message: GroupTimelineMessage
+    createdTasks: GroupTask[]
+}
+
+export type GroupNoteResponse = {
+    note: GroupNote | null
+}
+
+export type UpdateGroupNoteResponse = {
+    note: GroupNote
+}
+
+export type RefreshGroupNoteResponse = {
+    triggered: boolean
+    reason?: string
+}
+
+export type GroupTaskActionResponse = {
+    task: GroupTask
+}
+
+export type GlobalMemory = {
+    path: string
+    content: string
+    updatedAt: number
+    bytes: number
+}
+
+export type MemoryResponse = {
+    memory: GlobalMemory
+}
+
+export type UpdateMemoryResponse = {
+    memory: GlobalMemory
+}
+
 export type UsageTotals = {
     inputTokens: number
     cachedInputTokens: number

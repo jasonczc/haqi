@@ -46,6 +46,82 @@ export type StoredMessage = {
     localId: string | null
 }
 
+export type StoredGroup = {
+    id: string
+    namespace: string
+    name: string
+    description: string | null
+    noteSessionId: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredGroupMember = {
+    id: number
+    groupId: string
+    namespace: string
+    memberType: 'session' | 'human'
+    sessionId: string | null
+    userId: number | null
+    role: string
+    createdAt: number
+}
+
+export type StoredGroupMessageType = 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
+
+export type StoredGroupMessage = {
+    id: string
+    groupId: string
+    namespace: string
+    seq: number
+    type: StoredGroupMessageType
+    traceId: string | null
+    taskId: string | null
+    source: string
+    actorSessionId: string | null
+    actorName: string | null
+    targetSessionIds: string[] | null
+    payload: unknown
+    createdAt: number
+}
+
+export type StoredGroupTaskStatus =
+    | 'pending'
+    | 'enqueued'
+    | 'running'
+    | 'completed'
+    | 'failed'
+    | 'expired'
+    | 'canceled'
+    | 'manual_done'
+
+export type StoredGroupTask = {
+    id: string
+    groupId: string
+    namespace: string
+    traceId: string
+    source: string
+    targetSessionId: string
+    command: string
+    status: StoredGroupTaskStatus
+    dedupeKey: string | null
+    expiresAt: number | null
+    createdAt: number
+    updatedAt: number
+    startedAt: number | null
+    completedAt: number | null
+    error: string | null
+}
+
+export type StoredGroupNote = {
+    groupId: string
+    namespace: string
+    content: string
+    version: number
+    updatedBy: string | null
+    updatedAt: number
+}
+
 export type StoredUser = {
     id: number
     platform: string

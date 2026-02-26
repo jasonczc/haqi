@@ -245,6 +245,15 @@ export class RpcGateway {
         sessionId: string,
         payload: {
             text: string
+            meta?: {
+                routeContext?: {
+                    groupId: string
+                    taskId?: string
+                    traceId?: string
+                    source: string
+                    targetSessionIds?: string[]
+                }
+            }
             attachments?: Array<{
                 id: string
                 filename: string
@@ -328,6 +337,15 @@ export class RpcGateway {
         sessionId: string,
         payload: {
             text: string
+            meta?: {
+                routeContext?: {
+                    groupId: string
+                    taskId?: string
+                    traceId?: string
+                    source: string
+                    targetSessionIds?: string[]
+                }
+            }
             attachments?: Array<{
                 id: string
                 filename: string

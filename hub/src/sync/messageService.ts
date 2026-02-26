@@ -70,6 +70,7 @@ export class MessageService {
             localId?: string | null
             attachments?: AttachmentMetadata[]
             sentFrom?: 'telegram-bot' | 'webapp'
+            meta?: Record<string, unknown>
         }
     ): Promise<void> {
         const sentFrom = payload.sentFrom ?? 'webapp'
@@ -82,6 +83,7 @@ export class MessageService {
                 attachments: payload.attachments
             },
             meta: {
+                ...payload.meta,
                 sentFrom
             }
         }

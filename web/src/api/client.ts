@@ -12,6 +12,20 @@ import type {
     MachinePathsExistsResponse,
     MachinesResponse,
     MessagesResponse,
+    GroupMessagesResponse,
+    GroupTasksResponse,
+    GroupNoteResponse,
+    UpdateGroupNoteResponse,
+    RefreshGroupNoteResponse,
+    GroupTaskActionResponse,
+    GroupsResponse,
+    GroupResponse,
+    MemoryResponse,
+    UpdateMemoryResponse,
+    CreateGroupResponse,
+    AddGroupMemberResponse,
+    UpdateGroupResponse,
+    PostGroupMessageResponse,
     ModelMode,
     PermissionMode,
     PreviewUrlHistoryResponse,
@@ -164,6 +178,152 @@ export class ApiClient {
 
     async getSessions(): Promise<SessionsResponse> {
         return await this.request<SessionsResponse>('/api/sessions')
+    }
+
+    async getGroups(): Promise<GroupsResponse> {
+        return await this.request<GroupsResponse>('/api/groups')
+    }
+
+    async getGroup(groupId: string): Promise<GroupResponse> {
+        return await this.request<GroupResponse>(`/api/groups/${encodeURIComponent(groupId)}`)
+    }
+
+    async createGroup(payload: {
+        name: string
+        description?: string
+        noteSessionId?: string
+        sessionMemberIds?: string[]
+    }): Promise<CreateGroupResponse> {
+        return await this.request<CreateGroupResponse>('/api/groups', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async addGroupMember(groupId: string, payload: { sessionId: string }): Promise<AddGroupMemberResponse> {
+        return await this.request<AddGroupMemberResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/members`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            }
+        )
+    }
+
+    async updateGroup(groupId: string, payload: {
+        name?: string
+        description?: string | null
+        noteSessionId?: string | null
+    }): Promise<UpdateGroupResponse> {
+        return await this.request<UpdateGroupResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}`,
+            {
+                method: 'PATCH',
+                body: JSON.stringify(payload)
+            }
+        )
+    }
+
+    async getGroupMessages(groupId: string, options?: { beforeSeq?: number | null; limit?: number }): Promise<GroupMessagesResponse> {
+        const params = new URLSearchParams()
+        if (options?.beforeSeq !== undefined && options.beforeSeq !== null) {
+            params.set('beforeSeq', `${options.beforeSeq}`)
+        }
+        if (options?.limit !== undefined && options.limit !== null) {
+            params.set('limit', `${options.limit}`)
+        }
+        const qs = params.toString()
+        return await this.request<GroupMessagesResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/messages${qs ? `?${qs}` : ''}`
+        )
+    }
+
+    async postGroupMessage(groupId: string, payload: {
+        type: 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
+        payload?: unknown
+        text?: string
+        traceId?: string
+        taskId?: string
+        source?: string
+        actorSessionId?: string
+        actorName?: string
+        targetSessionIds?: string[]
+    }): Promise<PostGroupMessageResponse> {
+        return await this.request<PostGroupMessageResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/messages`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            }
+        )
+    }
+
+    async getGroupTasks(groupId: string, options?: { limit?: number }): Promise<GroupTasksResponse> {
+        const params = new URLSearchParams()
+        if (typeof options?.limit === 'number' && Number.isFinite(options.limit)) {
+            params.set('limit', `${Math.max(1, Math.floor(options.limit))}`)
+        }
+        const qs = params.toString()
+        return await this.request<GroupTasksResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/tasks${qs ? `?${qs}` : ''}`
+        )
+    }
+
+    async getGroupNote(groupId: string): Promise<GroupNoteResponse> {
+        return await this.request<GroupNoteResponse>(`/api/groups/${encodeURIComponent(groupId)}/note`)
+    }
+
+    async updateGroupNote(groupId: string, payload: { content: string; updatedBy?: string }): Promise<UpdateGroupNoteResponse> {
+        return await this.request<UpdateGroupNoteResponse>(`/api/groups/${encodeURIComponent(groupId)}/note`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async refreshGroupNote(groupId: string, payload?: { source?: string; command?: string }): Promise<RefreshGroupNoteResponse> {
+        return await this.request<RefreshGroupNoteResponse>(`/api/groups/${encodeURIComponent(groupId)}/note/refresh`, {
+            method: 'POST',
+            body: JSON.stringify(payload ?? {})
+        })
+    }
+
+    async broadcastGroupNote(groupId: string): Promise<{ success: boolean }> {
+        return await this.request<{ success: boolean }>(`/api/groups/${encodeURIComponent(groupId)}/broadcast-note`, {
+            method: 'POST',
+            body: JSON.stringify({})
+        })
+    }
+
+    async claimGroupTask(groupId: string, taskId: string): Promise<GroupTaskActionResponse> {
+        return await this.request<GroupTaskActionResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/tasks/${encodeURIComponent(taskId)}/claim`,
+            { method: 'POST', body: JSON.stringify({}) }
+        )
+    }
+
+    async doneGroupTask(groupId: string, taskId: string): Promise<GroupTaskActionResponse> {
+        return await this.request<GroupTaskActionResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/tasks/${encodeURIComponent(taskId)}/done`,
+            { method: 'POST', body: JSON.stringify({}) }
+        )
+    }
+
+    async cancelGroupTask(groupId: string, taskId: string): Promise<GroupTaskActionResponse> {
+        return await this.request<GroupTaskActionResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/tasks/${encodeURIComponent(taskId)}/cancel`,
+            { method: 'POST', body: JSON.stringify({}) }
+        )
+    }
+
+    async getMemory(): Promise<MemoryResponse> {
+        return await this.request<MemoryResponse>('/api/memory')
+    }
+
+    async updateMemory(payload: { content: string; updatedBy?: string }): Promise<UpdateMemoryResponse> {
+        return await this.request<UpdateMemoryResponse>('/api/memory', {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
     }
 
     async getPushVapidPublicKey(): Promise<PushVapidPublicKeyResponse> {

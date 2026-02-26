@@ -8,6 +8,7 @@ import { ApiClient, ApiSessionClient } from '@/lib';
 import type { CodexCliOverrides } from './utils/codexCliOverrides';
 import type { CodexPermissionMode } from '@hapi/protocol/types';
 import type { CollaborationMode, ReasoningEffort } from './appServerTypes';
+import type { MessageRouteContext } from '@/api/types';
 
 export type PermissionMode = CodexPermissionMode;
 
@@ -16,6 +17,7 @@ export interface EnhancedMode {
     model?: string;
     effort?: ReasoningEffort;
     collaborationMode?: CollaborationMode['mode'];
+    routeContext?: MessageRouteContext;
 }
 
 interface LoopOptions {

@@ -1,6 +1,6 @@
 import { logger } from '@/ui/logger';
 import { loop } from '@/claude/loop';
-import { AgentState, SessionModelMode } from '@/api/types';
+import { AgentState, MessageRouteContextSchema, SessionModelMode } from '@/api/types';
 import { EnhancedMode, PermissionMode } from './loop';
 import { MessageQueue2 } from '@/utils/MessageQueue2';
 import { hashObject } from '@/utils/deterministicJson';
@@ -216,7 +216,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         customSystemPrompt: mode.customSystemPrompt,
         appendSystemPrompt: mode.appendSystemPrompt,
         allowedTools: mode.allowedTools,
-        disallowedTools: mode.disallowedTools
+        disallowedTools: mode.disallowedTools,
+        routeContext: mode.routeContext
     }));
 
     function syncSessionModes() {
@@ -327,6 +328,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     const resolveEnqueuePayload = (payload: unknown): {
         text: string
+        routeContext?: EnhancedMode['routeContext']
         attachments?: Array<{
             id: string
             filename: string
@@ -347,6 +349,13 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         const attachmentsValue = (payload as { attachments?: unknown }).attachments;
         if (attachmentsValue !== undefined && !Array.isArray(attachmentsValue)) {
             throw new Error('Invalid enqueue attachments');
+        }
+        const routeContextValue = (payload as { meta?: { routeContext?: unknown } }).meta?.routeContext;
+        const routeContextResult = routeContextValue === undefined
+            ? { success: true as const, data: undefined }
+            : MessageRouteContextSchema.safeParse(routeContextValue);
+        if (!routeContextResult.success) {
+            throw new Error('Invalid enqueue route context');
         }
         const attachments = Array.isArray(attachmentsValue)
             ? attachmentsValue.filter((attachment): attachment is {
@@ -371,7 +380,11 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (!text && (!attachments || attachments.length === 0)) {
             throw new Error('Message requires text or attachments');
         }
-        return { text, attachments };
+        return {
+            text,
+            routeContext: routeContextResult.data,
+            attachments
+        };
     };
     session.onUserMessage((message) => {
         if (isClaudeStatusCommand(message.content.text)) {
@@ -470,7 +483,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 customSystemPrompt: messageCustomSystemPrompt,
                 appendSystemPrompt: messageAppendSystemPrompt,
                 allowedTools: messageAllowedTools,
-                disallowedTools: messageDisallowedTools
+                disallowedTools: messageDisallowedTools,
+                routeContext: message.meta?.routeContext
             };
             // Use raw text only, ignore attachments for special commands
             const commandText = specialCommand.originalMessage || message.content.text;
@@ -489,7 +503,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 customSystemPrompt: messageCustomSystemPrompt,
                 appendSystemPrompt: messageAppendSystemPrompt,
                 allowedTools: messageAllowedTools,
-                disallowedTools: messageDisallowedTools
+                disallowedTools: messageDisallowedTools,
+                routeContext: message.meta?.routeContext
             };
             // Use raw text only, ignore attachments for special commands
             const commandText = specialCommand.originalMessage || message.content.text;
@@ -507,9 +522,12 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             customSystemPrompt: messageCustomSystemPrompt,
             appendSystemPrompt: messageAppendSystemPrompt,
             allowedTools: messageAllowedTools,
-            disallowedTools: messageDisallowedTools
+            disallowedTools: messageDisallowedTools,
+            routeContext: message.meta?.routeContext
         };
-        messageQueue.push(formattedText, enhancedMode);
+        messageQueue.push(formattedText, enhancedMode, {
+            isolate: Boolean(message.meta?.routeContext)
+        });
         logger.debugLargeJson('User message pushed to queue:', message)
     });
 
@@ -679,7 +697,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 customSystemPrompt: currentCustomSystemPrompt,
                 appendSystemPrompt: currentAppendSystemPrompt,
                 allowedTools: currentAllowedTools,
-                disallowedTools: currentDisallowedTools
+                disallowedTools: currentDisallowedTools,
+                routeContext: parsed.routeContext
             };
             messageQueue.push(formattedText, enhancedMode, {
                 deferUserMessageUntilDequeue: true,

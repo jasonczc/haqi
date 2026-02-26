@@ -8,6 +8,7 @@ export type SSESubscription = {
     all: boolean
     sessionId: string | null
     machineId: string | null
+    groupId: string | null
 }
 
 type SSEConnection = SSESubscription & {
@@ -32,6 +33,7 @@ export class SSEManager {
         all?: boolean
         sessionId?: string | null
         machineId?: string | null
+        groupId?: string | null
         visibility?: VisibilityState
         send: (event: SyncEvent) => void | Promise<void>
         sendHeartbeat: () => void | Promise<void>
@@ -42,6 +44,7 @@ export class SSEManager {
             all: Boolean(options.all),
             sessionId: options.sessionId ?? null,
             machineId: options.machineId ?? null,
+            groupId: options.groupId ?? null,
             send: options.send,
             sendHeartbeat: options.sendHeartbeat
         }
@@ -58,7 +61,8 @@ export class SSEManager {
             namespace: subscription.namespace,
             all: subscription.all,
             sessionId: subscription.sessionId,
-            machineId: subscription.machineId
+            machineId: subscription.machineId,
+            groupId: subscription.groupId
         }
     }
 
@@ -157,6 +161,19 @@ export class SSEManager {
 
         if (event.type === 'message-received') {
             return connection.sessionId === event.sessionId
+        }
+
+        if (event.type === 'group-message-received'
+            || event.type === 'group-added'
+            || event.type === 'group-updated'
+            || event.type === 'group-removed'
+            || event.type === 'group-task-updated'
+            || event.type === 'group-note-updated'
+        ) {
+            if (connection.groupId) {
+                return connection.groupId === event.groupId
+            }
+            return connection.all
         }
 
         if (event.type === 'connection-changed') {

@@ -113,13 +113,24 @@ export const CreateMachineResponseSchema = z.object({
 
 export type CreateMachineResponse = z.infer<typeof CreateMachineResponseSchema>
 
+export const MessageRouteContextSchema = z.object({
+    groupId: z.string(),
+    taskId: z.string().optional(),
+    traceId: z.string().optional(),
+    source: z.string(),
+    targetSessionIds: z.array(z.string()).optional()
+})
+
+export type MessageRouteContext = z.infer<typeof MessageRouteContextSchema>
+
 export const MessageMetaSchema = z.object({
     sentFrom: z.string().optional(),
     fallbackModel: z.string().nullable().optional(),
     customSystemPrompt: z.string().nullable().optional(),
     appendSystemPrompt: z.string().nullable().optional(),
     allowedTools: z.array(z.string()).nullable().optional(),
-    disallowedTools: z.array(z.string()).nullable().optional()
+    disallowedTools: z.array(z.string()).nullable().optional(),
+    routeContext: MessageRouteContextSchema.optional()
 })
 
 export type MessageMeta = z.infer<typeof MessageMetaSchema>

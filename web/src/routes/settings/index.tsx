@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
@@ -7,6 +8,8 @@ import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useThemePreference, type ThemePreference } from '@/hooks/useTheme'
 import { useAppContext } from '@/lib/app-context'
+import { useMemory } from '@/hooks/queries/useMemory'
+import { queryKeys } from '@/lib/query-keys'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
@@ -78,6 +81,7 @@ function ChevronDownIcon(props: { className?: string }) {
 export default function SettingsPage() {
     const { t, locale, setLocale } = useTranslation()
     const { api } = useAppContext()
+    const queryClient = useQueryClient()
     const goBack = useAppGoBack()
     const [isOpen, setIsOpen] = useState(false)
     const [isThemeOpen, setIsThemeOpen] = useState(false)
@@ -100,6 +104,11 @@ export default function SettingsPage() {
     const [usageLoading, setUsageLoading] = useState(false)
     const [usageError, setUsageError] = useState<string | null>(null)
     const [usageOverview, setUsageOverview] = useState<Awaited<ReturnType<typeof api.getUsageOverview>>['overview'] | null>(null)
+    const { memory, isLoading: memoryLoading, error: memoryError, refetch: refetchMemory } = useMemory(api)
+    const [memoryDraft, setMemoryDraft] = useState('')
+    const [memorySavedContent, setMemorySavedContent] = useState('')
+    const [memoryStatusMessage, setMemoryStatusMessage] = useState<string | null>(null)
+    const isMemoryDirty = memoryDraft !== memorySavedContent
 
     const fontScaleOptions = getFontScaleOptions()
     const currentLocale = locales.find((loc) => loc.value === locale)
@@ -141,6 +150,31 @@ export default function SettingsPage() {
         void loadUsageOverview(false)
     }, [loadUsageOverview])
 
+    useEffect(() => {
+        if (!memory) {
+            return
+        }
+        if (!isMemoryDirty) {
+            setMemoryDraft(memory.content)
+            setMemorySavedContent(memory.content)
+        }
+    }, [memory, isMemoryDirty])
+
+    const saveMemoryMutation = useMutation({
+        mutationFn: async (content: string) => {
+            return await api.updateMemory({ content, updatedBy: 'user:web:settings' })
+        },
+        onSuccess: async (result) => {
+            setMemorySavedContent(result.memory.content)
+            setMemoryDraft(result.memory.content)
+            setMemoryStatusMessage('Saved')
+            await queryClient.invalidateQueries({ queryKey: queryKeys.memory })
+        },
+        onError: (error) => {
+            setMemoryStatusMessage(error instanceof Error ? error.message : 'Save failed')
+        }
+    })
+
     const handleLocaleChange = (newLocale: Locale) => {
         setLocale(newLocale)
         setIsOpen(false)
@@ -173,6 +207,27 @@ export default function SettingsPage() {
             localStorage.setItem('hapi-voice-lang', language.code)
         }
         setIsVoiceOpen(false)
+    }
+
+    const handleReloadMemory = async () => {
+        if (isMemoryDirty) {
+            const confirmed = window.confirm('Discard local edits and reload MEMORY.md from disk?')
+            if (!confirmed) {
+                return
+            }
+        }
+        const result = await refetchMemory()
+        const nextMemory = result.data?.memory
+        if (nextMemory) {
+            setMemoryDraft(nextMemory.content)
+            setMemorySavedContent(nextMemory.content)
+        }
+        setMemoryStatusMessage('Reloaded')
+    }
+
+    const handleSaveMemory = async () => {
+        setMemoryStatusMessage(null)
+        await saveMemoryMutation.mutateAsync(memoryDraft)
     }
 
     // Close dropdown when clicking outside
@@ -622,6 +677,60 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                         ) : null}
+                    </div>
+
+                    {/* Memory section */}
+                    <div className="border-b border-[var(--app-divider)]">
+                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            Memory
+                        </div>
+                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
+                            Edit global MEMORY.md used by all sessions.
+                        </div>
+                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)] break-all">
+                            {memory?.path ?? 'Loading path...'}
+                        </div>
+
+                        {memoryError ? (
+                            <div className="px-3 pb-2">
+                                <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                    {memoryError}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        <div className="px-3 pb-3">
+                            <textarea
+                                value={memoryDraft}
+                                onChange={(event) => setMemoryDraft(event.target.value)}
+                                placeholder={memoryLoading ? 'Loading MEMORY.md…' : 'Write durable memory here...'}
+                                className="h-56 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                spellCheck={false}
+                            />
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {isMemoryDirty ? 'Unsaved changes' : memoryStatusMessage ?? 'Synced'}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleReloadMemory() }}
+                                        disabled={saveMemoryMutation.isPending}
+                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        Reload
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleSaveMemory() }}
+                                        disabled={!isMemoryDirty || saveMemoryMutation.isPending}
+                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {saveMemoryMutation.isPending ? 'Saving...' : 'Save'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* About section */}

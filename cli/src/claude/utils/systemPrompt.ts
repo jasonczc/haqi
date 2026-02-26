@@ -1,5 +1,6 @@
 import { trimIdent } from "@/utils/trimIdent";
 import { shouldIncludeCoAuthoredBy } from "./claudeSettings";
+import { buildPromptWithHaqiAgentInstructions } from "@/agent/utils/haqiAgentInstructions";
 
 /**
  * Base system prompt shared across all configurations
@@ -34,3 +35,7 @@ export const systemPrompt = (() => {
     return BASE_SYSTEM_PROMPT;
   }
 })();
+
+export function buildClaudeSystemPrompt(startDir: string): string {
+  return buildPromptWithHaqiAgentInstructions(systemPrompt, startDir);
+}

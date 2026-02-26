@@ -115,6 +115,8 @@ function AppInner() {
     const queryClient = useQueryClient()
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId' })
     const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
+    const groupMatch = matchRoute({ to: '/groups/$groupId' })
+    const selectedGroupId = groupMatch ? groupMatch.groupId : null
     const { isSyncing, startSync, endSync } = useSyncingState()
     const [sseDisconnected, setSseDisconnected] = useState(false)
     const syncTokenRef = useRef(0)
@@ -196,8 +198,16 @@ function AppInner() {
         }
         const invalidations = [
             queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.memory }),
             ...(selectedSessionId ? [
                 queryClient.invalidateQueries({ queryKey: queryKeys.session(selectedSessionId) })
+            ] : []),
+            ...(selectedGroupId ? [
+                queryClient.invalidateQueries({ queryKey: queryKeys.groups }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.group(selectedGroupId) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.groupMessages(selectedGroupId) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.groupTasks(selectedGroupId) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.groupNote(selectedGroupId) })
             ] : [])
         ]
         const refreshMessages = (selectedSessionId && api)
@@ -213,7 +223,7 @@ function AppInner() {
                     endSync()
                 }
             })
-    }, [api, queryClient, selectedSessionId, startSync, endSync])
+    }, [api, queryClient, selectedSessionId, selectedGroupId, startSync, endSync])
 
     const handleSseDisconnect = useCallback(() => {
         // Only show reconnecting banner if we've already connected once
@@ -236,8 +246,13 @@ function AppInner() {
         if (selectedSessionId) {
             return { sessionId: selectedSessionId }
         }
+        if (selectedGroupId) {
+            // Group pages also need session lifecycle events to keep member status fresh.
+            // Keep groupId filter for group events, but subscribe to all session updates.
+            return { all: true, groupId: selectedGroupId }
+        }
         return { all: true }
-    }, [selectedSessionId])
+    }, [selectedSessionId, selectedGroupId])
 
     const { subscriptionId } = useSSE({
         enabled: Boolean(api && token),

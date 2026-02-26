@@ -2,7 +2,7 @@ import { logger } from '@/ui/logger';
 import { restoreTerminalState } from '@/ui/terminalState';
 import { spawnWithAbort } from '@/utils/spawnWithAbort';
 import { buildMcpServerConfigArgs, buildDeveloperInstructionsArg } from './utils/codexMcpConfig';
-import { codexSystemPrompt } from './utils/systemPrompt';
+import { buildCodexSystemPrompt } from './utils/systemPrompt';
 
 /**
  * Filter out 'resume' subcommand which is managed internally by hapi.
@@ -54,7 +54,8 @@ export async function codexLocal(opts: {
     }
 
     // Add developer instructions (system prompt)
-    args.push(...buildDeveloperInstructionsArg(codexSystemPrompt));
+    const resolvedSystemPrompt = buildCodexSystemPrompt(opts.path);
+    args.push(...buildDeveloperInstructionsArg(resolvedSystemPrompt));
 
     if (opts.codexArgs) {
         const safeArgs = filterResumeSubcommand(opts.codexArgs);

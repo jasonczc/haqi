@@ -61,6 +61,7 @@ export default {
   'session.item.worktree': '工作树',
   'session.item.pending': '待处理',
   'session.item.thinking': '思考中',
+  'session.item.completed': '工作完成',
   'session.time.justNow': '刚刚',
   'session.time.minutesAgo': '{n} 分钟前',
   'session.time.hoursAgo': '{n} 小时前',

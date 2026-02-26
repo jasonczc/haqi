@@ -35,6 +35,7 @@ export function buildCodexStartConfig(args: {
     first: boolean;
     mcpServers: Record<string, { command: string; args: string[] }>;
     cliOverrides?: CodexCliOverrides;
+    baseInstructions?: string;
     developerInstructions?: string;
 }): CodexSessionConfig {
     const approvalPolicy = resolveApprovalPolicy(args.mode);
@@ -45,7 +46,7 @@ export function buildCodexStartConfig(args: {
     const resolvedSandbox = cliOverrides?.sandbox ?? sandbox;
 
     const prompt = args.message;
-    const baseInstructions = codexSystemPrompt;
+    const baseInstructions = args.baseInstructions ?? codexSystemPrompt;
     const config: Record<string, unknown> = {
         mcp_servers: args.mcpServers,
         developer_instructions: args.developerInstructions

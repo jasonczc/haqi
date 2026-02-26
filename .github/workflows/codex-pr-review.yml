@@ -74,9 +74,13 @@ jobs:
             ${{ github.event.pull_request.base.ref }} \
             +refs/pull/${{ github.event.pull_request.number }}/head
 
+      - name: Skip when OPENAI_API_KEY is missing
+        if: steps.check_bot.outputs.has_bot != 'true' && secrets.OPENAI_API_KEY == ''
+        run: echo "::warning::OPENAI_API_KEY is not configured; skipping Codex PR review."
+
       - name: Run Codex for PR Review
         id: run_codex
-        if: steps.check_bot.outputs.has_bot != 'true'
+        if: steps.check_bot.outputs.has_bot != 'true' && secrets.OPENAI_API_KEY != ''
         uses: openai/codex-action@v1
         env:
           GH_TOKEN: ${{ github.token }}

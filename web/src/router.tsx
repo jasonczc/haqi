@@ -27,6 +27,7 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { useSlashCommands } from '@/hooks/queries/useSlashCommands'
 import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
+import { useGroupActions } from '@/hooks/mutations/useGroupActions'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
@@ -39,6 +40,8 @@ import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
 import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
+import GroupDetailPage from '@/routes/groups/detail'
+import { useGroups } from '@/hooks/queries/useGroups'
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -95,6 +98,28 @@ function SettingsIcon(props: { className?: string }) {
         >
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+    )
+}
+
+function GroupsIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <path d="M20 8v6" />
+            <path d="M23 11h-6" />
         </svg>
     )
 }
@@ -290,11 +315,24 @@ function SessionsPage() {
         return (
             <>
                 <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                            <div className="text-xs text-[var(--app-hint)]">
-                                {t('sessions.count', { n: sessions.length, m: projectCount })}
-                            </div>
+                    {/* Tab switcher row */}
+                    <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-link)] text-white font-medium"
+                            >
+                                Sessions
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/groups' })}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Groups
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-1.5">
                             {!isSessionsIndex ? (
                                 <button
                                     type="button"
@@ -306,8 +344,6 @@ function SessionsPage() {
                                     <SidebarIcon className="h-4 w-4" />
                                 </button>
                             ) : null}
-                        </div>
-                        <div className="flex items-center gap-1.5">
                             <button
                                 type="button"
                                 onClick={toggleDensity}
@@ -347,6 +383,11 @@ function SessionsPage() {
                                     </button>
                                 </>
                             ) : null}
+                        </div>
+                    </div>
+                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
+                        <div className="text-xs text-[var(--app-hint)]">
+                            {t('sessions.count', { n: sessions.length, m: projectCount })}
                         </div>
                     </div>
                 </div>
@@ -665,6 +706,202 @@ function NewSessionPage() {
     )
 }
 
+function GroupsLayout() {
+    const { api } = useAppContext()
+    const navigate = useNavigate()
+    const matchRoute = useMatchRoute()
+    const { t } = useTranslation()
+    const { groups, isLoading } = useGroups(api)
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [newGroupName, setNewGroupName] = useState('')
+    const [newGroupDesc, setNewGroupDesc] = useState('')
+    const [createError, setCreateError] = useState<string | null>(null)
+    const { createGroup, isPending } = useGroupActions(api, null)
+    const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
+
+    const groupMatch = matchRoute({ to: '/groups/$groupId', fuzzy: true })
+    const selectedGroupId = groupMatch ? groupMatch.groupId : null
+    const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
+
+    // Calculate total member count across all groups
+    const totalMemberCount = groups.reduce((acc, item) => acc + item.members.length, 0)
+
+    const handleCreate = async () => {
+        const trimmedName = newGroupName.trim()
+        if (!trimmedName) {
+            setCreateError('Name is required')
+            return
+        }
+        setCreateError(null)
+        try {
+            const groupId = await createGroup({
+                name: trimmedName,
+                description: newGroupDesc.trim() || undefined
+            })
+            setShowCreateModal(false)
+            setNewGroupName('')
+            setNewGroupDesc('')
+            navigate({ to: '/groups/$groupId', params: { groupId } })
+        } catch (error) {
+            setCreateError(error instanceof Error ? error.message : 'Failed to create group')
+        }
+    }
+
+    return (
+        <div className="flex h-full min-h-0">
+            {/* Sidebar - matching SessionsPage width system */}
+            <div
+                className="flex w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]"
+                style={sidebarStyle}
+            >
+                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
+                    {/* Tab switcher row - exactly matching SessionsPage */}
+                    <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/sessions' })}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Sessions
+                            </button>
+                            <button
+                                type="button"
+                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-link)] text-white font-medium"
+                            >
+                                Groups
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/settings' })}
+                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                title={t('settings.title')}
+                            >
+                                <SettingsIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowCreateModal(true)}
+                                className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
+                                title="New Group"
+                                aria-label="New Group"
+                            >
+                                <PlusIcon className="h-5 w-5" />
+                            </button>
+                        </div>
+                    </div>
+                    {/* Count info row - matching SessionsPage */}
+                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
+                        <div className="text-xs text-[var(--app-hint)]">
+                            {groups.length} {groups.length === 1 ? 'group' : 'groups'} • {totalMemberCount} {totalMemberCount === 1 ? 'member' : 'members'}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                    {isLoading ? (
+                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">Loading...</div>
+                    ) : groups.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">No groups yet.</div>
+                    ) : (
+                        <div className="py-1">
+                            {groups.map((item) => (
+                                <button
+                                    key={item.group.id}
+                                    type="button"
+                                    onClick={() => navigate({ to: '/groups/$groupId', params: { groupId: item.group.id } })}
+                                    className={`w-full pl-5 pr-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)] ${selectedGroupId === item.group.id ? 'bg-[var(--app-subtle-bg)]' : ''}`}
+                                >
+                                    <div className="truncate text-sm font-medium text-[var(--app-fg)]">
+                                        {item.group.name}
+                                    </div>
+                                    <div className="truncate text-xs text-[var(--app-hint)]">
+                                        {item.members.length} {item.members.length === 1 ? 'member' : 'members'}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Sidebar resize handle - matching SessionsPage */}
+            <div
+                className="group relative w-2 shrink-0 cursor-col-resize"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('sessions.sidebar.resize')}
+                title={t('sessions.sidebar.resize')}
+                onPointerDown={startSidebarResize}
+            >
+                <div
+                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
+                />
+            </div>
+
+            {/* Main area */}
+            <div className="flex min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
+                <div className="flex-1 min-h-0">
+                    <Outlet />
+                </div>
+            </div>
+
+            {/* Create group modal */}
+            {showCreateModal ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-sm rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-xl">
+                        <div className="mb-3 font-semibold text-[var(--app-fg)]">New Group</div>
+                        <input
+                            autoFocus
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { void handleCreate() } }}
+                            placeholder="Group name"
+                            className="mb-2 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                        />
+                        <input
+                            value={newGroupDesc}
+                            onChange={(e) => setNewGroupDesc(e.target.value)}
+                            placeholder="Description (optional)"
+                            className="mb-3 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                        />
+                        {createError ? (
+                            <div className="mb-2 text-xs text-red-600">{createError}</div>
+                        ) : null}
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => { setShowCreateModal(false); setCreateError(null) }}
+                                className="rounded-md border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { void handleCreate() }}
+                                disabled={isPending}
+                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                            >
+                                {isPending ? 'Creating...' : 'Create'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function GroupsIndexPage() {
+    return (
+        <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+            Select a group to get started
+        </div>
+    )
+}
+
 const rootRoute = createRootRoute({
     component: App,
 })
@@ -782,6 +1019,24 @@ const settingsRoute = createRoute({
     component: SettingsPage,
 })
 
+const groupsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/groups',
+    component: GroupsLayout,
+})
+
+const groupsIndexRoute = createRoute({
+    getParentRoute: () => groupsRoute,
+    path: '/',
+    component: GroupsIndexPage,
+})
+
+const groupDetailRoute = createRoute({
+    getParentRoute: () => groupsRoute,
+    path: '$groupId',
+    component: GroupDetailPage,
+})
+
 export const routeTree = rootRoute.addChildren([
     indexRoute,
     sessionsRoute.addChildren([
@@ -793,6 +1048,10 @@ export const routeTree = rootRoute.addChildren([
             sessionFilesRoute,
             sessionFileRoute,
         ]),
+    ]),
+    groupsRoute.addChildren([
+        groupsIndexRoute,
+        groupDetailRoute,
     ]),
     settingsRoute,
 ])

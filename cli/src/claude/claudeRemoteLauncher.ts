@@ -324,7 +324,10 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 pending = null;
                                 permissionHandler.handleModeChange(p.mode.permissionMode);
                                 if (p.deferUserMessageUntilDequeue) {
-                                    session.client.sendUserMessage(p.message);
+                                    session.client.sendUserMessage(
+                                        p.message,
+                                        p.mode.routeContext ? { routeContext: p.mode.routeContext } : undefined
+                                    );
                                 }
                                 return {
                                     message: p.message,
@@ -344,7 +347,10 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 mode = msg.mode;
                                 permissionHandler.handleModeChange(mode.permissionMode);
                                 if (msg.deferUserMessageUntilDequeue) {
-                                    session.client.sendUserMessage(msg.message);
+                                    session.client.sendUserMessage(
+                                        msg.message,
+                                        msg.mode.routeContext ? { routeContext: msg.mode.routeContext } : undefined
+                                    );
                                 }
                                 return {
                                     message: msg.message,
