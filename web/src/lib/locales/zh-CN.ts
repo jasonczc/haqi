@@ -71,6 +71,7 @@ export default {
 
   // Session header
   'session.title': '文件',
+  'session.mcpStatus': 'MCP 状态',
   'session.more': '更多操作',
 
   // Session actions
@@ -241,6 +242,34 @@ export default {
   'queueStatus.usage.reasoningOutputTokens': '推理输出 Token',
   'queueStatus.usage.messages': '扫描消息数',
   'queueStatus.usage.lastUpdated': '最近用量时间',
+
+  // MCP 状态弹窗
+  'mcp.dialog.title': 'MCP 状态',
+  'mcp.dialog.description': '当前会话的 MCP 服务可用性',
+  'mcp.dialog.loading': '正在加载 MCP 状态…',
+  'mcp.dialog.fetchError': '加载 MCP 状态失败',
+  'mcp.dialog.empty': '当前会话没有可见 MCP 服务',
+  'mcp.dialog.refresh': '刷新',
+  'mcp.dialog.flavor': '代理',
+  'mcp.server.available': '可用',
+  'mcp.server.unavailable': '不可用',
+  'mcp.server.status': '状态',
+  'mcp.server.transport': '传输',
+  'mcp.server.source': '来源',
+  'mcp.server.target': '目标',
+  'mcp.server.auth': '认证',
+  'mcp.guide.title': '内置 MCP 指南',
+  'mcp.guide.open': '打开指南',
+  'mcp.guide.insertPrompt': '填入输入框',
+  'mcp.guide.expand': '展开',
+  'mcp.guide.collapse': '收起',
+  'mcp.guide.promptPrefixPage': '按照页面要求给我添加这个mcp：',
+  'mcp.guide.promptPrefixUser': '按照用户需求给我添加这个mcp：',
+  'mcp.guide.linear': '任务与项目管理 MCP',
+  'mcp.guide.notion': '文档与数据库 MCP',
+  'mcp.guide.playwright': '浏览器自动化与 E2E MCP',
+  'mcp.guide.custom.title': '自定义 MCP',
+  'mcp.guide.custom.placeholder': '输入你想添加的 MCP 名称或链接',
 
   // 队列
   'queue.mode.direct': '直发',

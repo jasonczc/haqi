@@ -1581,7 +1581,18 @@ export default function GroupDetailPage() {
             }
         }
 
-    }, [mentionQuery, mentionCandidates, mentionIndex, insertMention])
+        if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.nativeEvent.isComposing) {
+                return
+            }
+            e.preventDefault()
+            if (isPending) {
+                return
+            }
+            void handleSend()
+        }
+
+    }, [mentionQuery, mentionCandidates, mentionIndex, insertMention, isPending, handleSend])
 
     const handleSaveNote = async () => {
         setActionError(null)

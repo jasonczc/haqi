@@ -85,6 +85,28 @@ function SidebarIcon(props: { className?: string }) {
     )
 }
 
+function PlugIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <path d="M12 2v7" />
+            <path d="M9 5h6" />
+            <path d="M6 9h12v2a6 6 0 0 1-6 6 6 6 0 0 1-6-6z" />
+            <path d="M12 17v5" />
+        </svg>
+    )
+}
+
 function MoreVerticalIcon(props: { className?: string }) {
     return (
         <svg
@@ -109,6 +131,7 @@ export function SessionHeader(props: {
     sidebarVisible?: boolean
     onViewPreview?: () => void
     onViewFiles?: () => void
+    onViewMcpStatus?: () => void
     api: ApiClient | null
     onSessionDeleted?: () => void
 }) {
@@ -243,6 +266,18 @@ export function SessionHeader(props: {
                             title={t('session.title')}
                         >
                             <FilesIcon />
+                        </button>
+                    ) : null}
+
+                    {props.onViewMcpStatus ? (
+                        <button
+                            type="button"
+                            onClick={props.onViewMcpStatus}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title={t('session.mcpStatus')}
+                            aria-label={t('session.mcpStatus')}
+                        >
+                            <PlugIcon />
                         </button>
                     ) : null}
 

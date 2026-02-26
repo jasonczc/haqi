@@ -33,6 +33,7 @@ import type {
     PushUnsubscribePayload,
     PushVapidPublicKeyResponse,
     SlashCommandsResponse,
+    McpServersResponse,
     SkillsResponse,
     SpawnResponse,
     UsageOverviewResponse,
@@ -692,6 +693,12 @@ export class ApiClient {
     async getSkills(sessionId: string): Promise<SkillsResponse> {
         return await this.request<SkillsResponse>(
             `/api/sessions/${encodeURIComponent(sessionId)}/skills`
+        )
+    }
+
+    async getSessionMcpServers(sessionId: string): Promise<McpServersResponse> {
+        return await this.request<McpServersResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/mcp`
         )
     }
 

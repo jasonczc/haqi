@@ -71,6 +71,7 @@ export default {
 
   // Session header
   'session.title': 'Files',
+  'session.mcpStatus': 'MCP status',
   'session.more': 'More actions',
 
   // Session actions
@@ -239,6 +240,34 @@ export default {
   'queueStatus.usage.reasoningOutputTokens': 'Reasoning output tokens',
   'queueStatus.usage.messages': 'Messages scanned',
   'queueStatus.usage.lastUpdated': 'Last usage',
+
+  // MCP dialog
+  'mcp.dialog.title': 'MCP status',
+  'mcp.dialog.description': 'Availability of MCP servers for this session',
+  'mcp.dialog.loading': 'Loading MCP status…',
+  'mcp.dialog.fetchError': 'Failed to load MCP status',
+  'mcp.dialog.empty': 'No MCP servers found for this session',
+  'mcp.dialog.refresh': 'Refresh',
+  'mcp.dialog.flavor': 'Agent',
+  'mcp.server.available': 'available',
+  'mcp.server.unavailable': 'unavailable',
+  'mcp.server.status': 'Status',
+  'mcp.server.transport': 'Transport',
+  'mcp.server.source': 'Source',
+  'mcp.server.target': 'Target',
+  'mcp.server.auth': 'Auth',
+  'mcp.guide.title': 'Built-in MCP guides',
+  'mcp.guide.open': 'Open guide',
+  'mcp.guide.insertPrompt': 'Insert prompt',
+  'mcp.guide.expand': 'Expand',
+  'mcp.guide.collapse': 'Collapse',
+  'mcp.guide.promptPrefixPage': 'Please add this MCP according to the page instructions:',
+  'mcp.guide.promptPrefixUser': 'Please add this MCP according to user requirements:',
+  'mcp.guide.linear': 'Issue and project management MCP',
+  'mcp.guide.notion': 'Workspace docs and database MCP',
+  'mcp.guide.playwright': 'Browser automation and E2E MCP',
+  'mcp.guide.custom.title': 'Custom MCP',
+  'mcp.guide.custom.placeholder': 'Type MCP name/link you want to add',
 
   // Queue dialog
   'queue.mode.direct': 'Direct',

@@ -27,7 +27,13 @@ export class AcpSdkBackend implements AgentBackend {
         maxDelay: 5000
     };
 
-    constructor(private readonly options: { command: string; args?: string[]; env?: Record<string, string> }) {}
+    private readonly promptTimeoutMs: number;
+
+    constructor(private readonly options: { command: string; args?: string[]; env?: Record<string, string>; promptTimeoutMs?: number }) {
+        this.promptTimeoutMs = typeof options.promptTimeoutMs === 'number'
+            ? options.promptTimeoutMs
+            : Number.POSITIVE_INFINITY;
+    }
 
     async initialize(): Promise<void> {
         if (this.transport) return;
@@ -145,18 +151,24 @@ export class AcpSdkBackend implements AgentBackend {
         this.isProcessingMessage = true;
 
         try {
-            // No timeout for prompt requests - they can run for extended periods
-            // during complex tasks, tool-heavy operations, or slow model responses
             const response = await this.transport.sendRequest('session/prompt', {
                 sessionId,
                 prompt: content
-            }, { timeoutMs: Infinity });
+            }, { timeoutMs: this.promptTimeoutMs });
 
             const stopReason = isObject(response) ? asString(response.stopReason) : null;
             if (stopReason) {
                 this.messageHandler?.flushText();
                 onUpdate({ type: 'turn_complete', stopReason });
             }
+        } catch (error) {
+            if (this.isPromptTimeoutError(error)) {
+                logger.warn(
+                    `[ACP] session/prompt timed out after ${this.promptTimeoutMs}ms, sending session/cancel for ${sessionId}`
+                );
+                this.transport.sendNotification('session/cancel', { sessionId });
+            }
+            throw error;
         } finally {
             this.messageHandler?.flushText();
             this.messageHandler = null;
@@ -298,5 +310,15 @@ export class AcpSdkBackend implements AgentBackend {
         for (const resolve of resolvers) {
             resolve();
         }
+    }
+
+    private isPromptTimeoutError(error: unknown): boolean {
+        if (!Number.isFinite(this.promptTimeoutMs)) {
+            return false;
+        }
+        if (!(error instanceof Error)) {
+            return false;
+        }
+        return error.message.includes("ACP request 'session/prompt' timed out");
     }
 }

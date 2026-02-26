@@ -20,6 +20,7 @@ import { MessageService } from './messageService'
 import {
     type RpcCodexQueueResponse,
     type RpcCodexStatusResponse,
+    type RpcMcpServersResponse,
     RpcGateway,
     type RpcCommandResponse,
     type RpcDeleteUploadResponse,
@@ -38,6 +39,7 @@ export type {
     RpcCodexStatusResponse,
     RpcCommandResponse,
     RpcDeleteUploadResponse,
+    RpcMcpServersResponse,
     RpcListDirectoryResponse,
     RpcPathExistsResponse,
     RpcReadFileResponse,
@@ -1750,6 +1752,10 @@ ${note.content}
         error?: string
     }> {
         return await this.rpcGateway.listSkills(sessionId)
+    }
+
+    async listMcpServers(sessionId: string): Promise<RpcMcpServersResponse> {
+        return await this.rpcGateway.listMcpServers(sessionId)
     }
 
     private async persistSessionPreviewUrlWithRetry(sessionId: string, previewUrl: string): Promise<void> {

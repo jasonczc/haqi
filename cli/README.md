@@ -78,6 +78,7 @@ See `src/configuration.ts` for all options.
 - `HAPI_EXPERIMENTAL` - Enable experimental features (true/1/yes).
 - `HAPI_CLAUDE_PATH` - Path to a specific `claude` executable.
 - `HAPI_HTTP_MCP_URL` - Default MCP target for `haqi mcp`.
+- `HAPI_GEMINI_PROMPT_TIMEOUT_MS` - Gemini ACP prompt timeout in milliseconds (default: 1800000; set `0` or negative to disable).
 
 ### Runner
 

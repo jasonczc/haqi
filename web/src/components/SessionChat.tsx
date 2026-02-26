@@ -4,6 +4,7 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type {
     AttachmentMetadata,
+    McpServerSummary,
     QueueState,
     QueueStatusResponse,
     SessionUsageOverview,
@@ -35,6 +36,34 @@ type CodexStatusRow = {
     label: string
     value: string
 }
+
+type McpGuideItem = {
+    id: string
+    label: string
+    url: string
+    descriptionKey: string
+}
+
+const MCP_GUIDES: McpGuideItem[] = [
+    {
+        id: 'linear',
+        label: 'Linear',
+        url: 'https://linear.app/docs/mcp',
+        descriptionKey: 'mcp.guide.linear'
+    },
+    {
+        id: 'notion',
+        label: 'Notion',
+        url: 'https://developers.notion.com/docs/mcp',
+        descriptionKey: 'mcp.guide.notion'
+    },
+    {
+        id: 'playwright',
+        label: 'Playwright',
+        url: 'https://github.com/microsoft/playwright-mcp',
+        descriptionKey: 'mcp.guide.playwright'
+    }
+]
 
 function parseCodexStatusRows(message: string): CodexStatusRow[] {
     return message
@@ -357,6 +386,17 @@ export function SessionChat(props: {
     const [codexSendMode, setCodexSendMode] = useState<CodexSendMode>(() => readCodexSendMode(props.session.id))
     const [dismissedCodexPlanSignature, setDismissedCodexPlanSignature] = useState<string | null>(null)
     const [isCodexPlanCollapsed, setIsCodexPlanCollapsed] = useState(false)
+    const [isMcpDialogOpen, setIsMcpDialogOpen] = useState(false)
+    const [isMcpLoading, setIsMcpLoading] = useState(false)
+    const [mcpServers, setMcpServers] = useState<McpServerSummary[]>([])
+    const [mcpFlavor, setMcpFlavor] = useState<string | null>(null)
+    const [mcpCheckedAt, setMcpCheckedAt] = useState<number | null>(null)
+    const [mcpWarning, setMcpWarning] = useState<string | null>(null)
+    const [mcpError, setMcpError] = useState<string | null>(null)
+    const [isMcpGuideExpanded, setIsMcpGuideExpanded] = useState(false)
+    const [customMcpGuideInput, setCustomMcpGuideInput] = useState('')
+    const [composerInjectedPrompt, setComposerInjectedPrompt] = useState<{ id: number; text: string } | null>(null)
+    const composerPromptIdRef = useRef(0)
     const codexStatusRows = useMemo(() => parseCodexStatusRows(codexStatusMessage), [codexStatusMessage])
     const usageNumberFormatter = useMemo(() => new Intl.NumberFormat(), [])
     const formatUsageNumber = useCallback((value: number): string => usageNumberFormatter.format(value), [usageNumberFormatter])
@@ -509,6 +549,17 @@ export function SessionChat(props: {
         setCodexSendMode(readCodexSendMode(props.session.id))
         setDismissedCodexPlanSignature(null)
         setIsCodexPlanCollapsed(false)
+        setIsMcpDialogOpen(false)
+        setIsMcpLoading(false)
+        setMcpServers([])
+        setMcpFlavor(null)
+        setMcpCheckedAt(null)
+        setMcpWarning(null)
+        setMcpError(null)
+        setIsMcpGuideExpanded(false)
+        setCustomMcpGuideInput('')
+        setComposerInjectedPrompt(null)
+        composerPromptIdRef.current = 0
     }, [props.session.id])
 
     const normalizedMessages: NormalizedMessage[] = useMemo(() => {
@@ -857,6 +908,75 @@ export function SessionChat(props: {
         })()
     }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
 
+    const refreshMcpStatus = useCallback(async (options?: { silent?: boolean; applyDefaultGuideExpansion?: boolean }) => {
+        if (!options?.silent) {
+            setIsMcpLoading(true)
+        }
+
+        try {
+            const result = await props.api.getSessionMcpServers(props.session.id)
+            if (result.success) {
+                const servers = result.servers ?? []
+                setMcpServers(servers)
+                setMcpFlavor(result.flavor ?? null)
+                setMcpCheckedAt(result.checkedAt ?? Date.now())
+                setMcpWarning(result.warning ?? null)
+                setMcpError(null)
+                if (options?.applyDefaultGuideExpansion) {
+                    setIsMcpGuideExpanded(servers.length === 0)
+                }
+            } else {
+                const servers = result.servers ?? []
+                setMcpServers(servers)
+                setMcpFlavor(result.flavor ?? null)
+                setMcpCheckedAt(result.checkedAt ?? Date.now())
+                setMcpWarning(result.warning ?? null)
+                setMcpError(result.error ?? t('mcp.dialog.fetchError'))
+                if (options?.applyDefaultGuideExpansion) {
+                    setIsMcpGuideExpanded(servers.length === 0)
+                }
+                haptic.notification('error')
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : t('mcp.dialog.fetchError')
+            setMcpError(message)
+            haptic.notification('error')
+        } finally {
+            if (!options?.silent) {
+                setIsMcpLoading(false)
+            }
+        }
+    }, [props.api, props.session.id, t, haptic])
+
+    const handleMcpStatus = useCallback(() => {
+        setIsMcpDialogOpen(true)
+        setMcpError(null)
+        void refreshMcpStatus({ applyDefaultGuideExpansion: true })
+    }, [refreshMcpStatus])
+
+    const handleInsertMcpGuidePrompt = useCallback((guide: McpGuideItem) => {
+        composerPromptIdRef.current += 1
+        setComposerInjectedPrompt({
+            id: composerPromptIdRef.current,
+            text: `${t('mcp.guide.promptPrefixPage')} ${guide.label} (${guide.url})`
+        })
+        setIsMcpDialogOpen(false)
+    }, [t])
+
+    const handleInsertCustomMcpGuidePrompt = useCallback(() => {
+        const customValue = customMcpGuideInput.trim()
+        if (!customValue) {
+            return
+        }
+        composerPromptIdRef.current += 1
+        setComposerInjectedPrompt({
+            id: composerPromptIdRef.current,
+            text: `${t('mcp.guide.promptPrefixUser')} ${customValue}`
+        })
+        setCustomMcpGuideInput('')
+        setIsMcpDialogOpen(false)
+    }, [customMcpGuideInput, t])
+
     useEffect(() => {
         if (!supportsQueueControls) {
             return
@@ -913,6 +1033,7 @@ export function SessionChat(props: {
                 sidebarVisible={props.sidebarVisible}
                 onViewPreview={handleViewPreview}
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
+                onViewMcpStatus={handleMcpStatus}
                 api={props.api}
                 onSessionDeleted={props.onBack}
             />
@@ -1043,6 +1164,7 @@ export function SessionChat(props: {
                         onCodexQueueUpdated={supportsQueueControls ? handleCodexQueueRefreshAfterSend : undefined}
                         onCodexQueueEnqueue={supportsQueueControls ? handleCodexQueueEnqueue : undefined}
                         autocompleteSuggestions={props.autocompleteSuggestions}
+                        injectedPrompt={composerInjectedPrompt}
                         voiceStatus={voice?.status}
                         voiceMicMuted={voice?.micMuted}
                         onVoiceToggle={voice ? handleVoiceToggle : undefined}
@@ -1050,6 +1172,199 @@ export function SessionChat(props: {
                     />
                 </div>
             </AssistantRuntimeProvider>
+
+            <Dialog open={isMcpDialogOpen} onOpenChange={setIsMcpDialogOpen}>
+                <DialogContent className="max-h-[85vh] max-w-2xl overflow-hidden">
+                    <DialogHeader>
+                        <DialogTitle>{t('mcp.dialog.title')}</DialogTitle>
+                        <DialogDescription>{t('mcp.dialog.description')}</DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-3 max-h-[calc(85vh-7rem)] space-y-3 overflow-y-auto pr-1">
+                        <div
+                            className={`rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 ${!isMcpGuideExpanded ? 'cursor-pointer' : ''}`}
+                            onClick={() => {
+                                if (!isMcpGuideExpanded) {
+                                    setIsMcpGuideExpanded(true)
+                                }
+                            }}
+                            onKeyDown={(event) => {
+                                if (isMcpGuideExpanded) {
+                                    return
+                                }
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault()
+                                    setIsMcpGuideExpanded(true)
+                                }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            aria-expanded={isMcpGuideExpanded}
+                        >
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                    {t('mcp.guide.title')}
+                                </div>
+                                <button
+                                    type="button"
+                                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={() => setIsMcpGuideExpanded((prev) => !prev)}
+                                >
+                                    {isMcpGuideExpanded ? t('mcp.guide.collapse') : t('mcp.guide.expand')}
+                                </button>
+                            </div>
+                            {isMcpGuideExpanded ? (
+                                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                    {MCP_GUIDES.map((guide) => (
+                                        <div
+                                            key={guide.id}
+                                            className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2.5"
+                                        >
+                                            <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                                {guide.label}
+                                            </div>
+                                            <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                                {t(guide.descriptionKey)}
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <a
+                                                    href={guide.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                                >
+                                                    {t('mcp.guide.open')}
+                                                </a>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleInsertMcpGuidePrompt(guide)}
+                                                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                                >
+                                                    {t('mcp.guide.insertPrompt')}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2.5">
+                                        <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                            {t('mcp.guide.custom.title')}
+                                        </div>
+                                        <div className="mt-2 space-y-2">
+                                            <input
+                                                type="text"
+                                                value={customMcpGuideInput}
+                                                onChange={(event) => setCustomMcpGuideInput(event.target.value)}
+                                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1.5 text-xs text-[var(--app-fg)] outline-none transition-colors focus:border-[var(--app-link)]"
+                                                placeholder={t('mcp.guide.custom.placeholder')}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleInsertCustomMcpGuidePrompt}
+                                                disabled={customMcpGuideInput.trim().length === 0}
+                                                className="w-full rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {t('mcp.guide.insertPrompt')}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-xs text-[var(--app-hint)]">
+                                {mcpFlavor ? `${t('mcp.dialog.flavor')}: ${mcpFlavor}` : null}
+                                {mcpCheckedAt ? ` · ${new Date(mcpCheckedAt).toLocaleString()}` : null}
+                            </div>
+                            <button
+                                type="button"
+                                className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                onClick={() => void refreshMcpStatus()}
+                                disabled={isMcpLoading}
+                            >
+                                {t('mcp.dialog.refresh')}
+                            </button>
+                        </div>
+
+                        {isMcpLoading ? (
+                            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                {t('mcp.dialog.loading')}
+                            </div>
+                        ) : null}
+
+                        {mcpError ? (
+                            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                {mcpError}
+                            </div>
+                        ) : null}
+
+                        {mcpWarning ? (
+                            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600">
+                                {mcpWarning}
+                            </div>
+                        ) : null}
+
+                        {!isMcpLoading && mcpServers.length === 0 && !mcpError ? (
+                            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                {t('mcp.dialog.empty')}
+                            </div>
+                        ) : null}
+
+                        {mcpServers.length > 0 ? (
+                            <div className="space-y-2">
+                                {mcpServers.map((server) => (
+                                    <div
+                                        key={`${server.name}:${server.source ?? 'unknown'}`}
+                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                                {server.name}
+                                            </div>
+                                            <span
+                                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                    server.available
+                                                        ? 'bg-emerald-500/10 text-emerald-600'
+                                                        : 'bg-red-500/10 text-red-500'
+                                                }`}
+                                            >
+                                                {server.available ? t('mcp.server.available') : t('mcp.server.unavailable')}
+                                            </span>
+                                        </div>
+                                        <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-[var(--app-hint)] sm:grid-cols-2">
+                                            <div>
+                                                <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.status')}</span>
+                                                <div className="mt-1 break-all text-sm text-[var(--app-fg)]">{server.status}</div>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.transport')}</span>
+                                                <div className="mt-1 text-sm text-[var(--app-fg)]">{server.transport ?? 'unknown'}</div>
+                                            </div>
+                                            {server.source ? (
+                                                <div>
+                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.source')}</span>
+                                                    <div className="mt-1 text-sm text-[var(--app-fg)]">{server.source}</div>
+                                                </div>
+                                            ) : null}
+                                            {server.target ? (
+                                                <div>
+                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.target')}</span>
+                                                    <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">{server.target}</div>
+                                                </div>
+                                            ) : null}
+                                            {server.auth ? (
+                                                <div className="sm:col-span-2">
+                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.auth')}</span>
+                                                    <div className="mt-1 break-all text-sm text-[var(--app-fg)]">{server.auth}</div>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={isCodexStatusDialogOpen} onOpenChange={setIsCodexStatusDialogOpen}>
                 <DialogContent className="max-w-2xl">

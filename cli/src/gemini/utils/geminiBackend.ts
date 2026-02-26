@@ -1,5 +1,5 @@
 import { AcpSdkBackend } from '@/agent/backends/acp';
-import { buildGeminiEnv, resolveGeminiRuntimeConfig } from './config';
+import { buildGeminiEnv, resolveGeminiPromptTimeoutMs, resolveGeminiRuntimeConfig } from './config';
 
 function filterEnv(env: NodeJS.ProcessEnv): Record<string, string> {
     const result: Record<string, string> = {};
@@ -41,6 +41,7 @@ export function createGeminiBackend(opts: {
     return new AcpSdkBackend({
         command: 'gemini',
         args,
-        env: filterEnv(env)
+        env: filterEnv(env),
+        promptTimeoutMs: resolveGeminiPromptTimeoutMs()
     });
 }

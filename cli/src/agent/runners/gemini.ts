@@ -1,5 +1,6 @@
 import { AgentRegistry } from '@/agent/AgentRegistry';
 import { AcpSdkBackend } from '@/agent/backends/acp';
+import { resolveGeminiPromptTimeoutMs } from '@/gemini/utils/config';
 
 function buildEnv(): Record<string, string> {
     return Object.keys(process.env).reduce((acc, key) => {
@@ -18,6 +19,7 @@ export function registerGeminiAgent(yolo: boolean): void {
     AgentRegistry.register('gemini', () => new AcpSdkBackend({
         command: 'gemini',
         args,
-        env: buildEnv()
+        env: buildEnv(),
+        promptTimeoutMs: resolveGeminiPromptTimeoutMs()
     }));
 }

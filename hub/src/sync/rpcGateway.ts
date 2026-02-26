@@ -83,6 +83,27 @@ export type RpcCodexQueueResponse = {
     clearedCount?: number
 }
 
+export type RpcMcpServerResponse = {
+    name: string
+    status: string
+    available: boolean
+    enabled?: boolean
+    connected?: boolean
+    transport?: 'http' | 'stdio' | 'sse' | 'unknown'
+    target?: string
+    auth?: string
+    source?: 'cli-config' | 'runtime-bridge' | 'combined'
+}
+
+export type RpcMcpServersResponse = {
+    success: boolean
+    flavor?: string
+    servers?: RpcMcpServerResponse[]
+    checkedAt?: number
+    warning?: string
+    error?: string
+}
+
 export class RpcGateway {
     constructor(
         private readonly io: Server,
@@ -460,6 +481,20 @@ export class RpcGateway {
             success: boolean
             skills?: Array<{ name: string; description?: string }>
             error?: string
+        }
+    }
+
+    async listMcpServers(sessionId: string): Promise<RpcMcpServersResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'listMcpServers', {}) as RpcMcpServersResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'listMcpServers')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'MCP availability check is unavailable for this session. Please restart the session.'
+            }
         }
     }
 

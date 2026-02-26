@@ -23,6 +23,7 @@ class GeminiRemoteLauncher extends RemoteLauncherBase {
     private displayModel: string | null = null;
     private displayPermissionMode: PermissionMode | null = null;
     private instructionsSent = false;
+    private acpSessionId: string | null = null;
 
     constructor(session: GeminiSession, opts: { model?: string; hookSettingsPath?: string }) {
         super(process.env.DEBUG ? session.logPath : undefined);
@@ -75,6 +76,7 @@ class GeminiRemoteLauncher extends RemoteLauncherBase {
             cwd: session.path,
             mcpServers: toAcpMcpServers(mcpServers)
         });
+        this.acpSessionId = acpSessionId;
         session.onSessionFound(acpSessionId);
 
         this.permissionHandler = new GeminiPermissionHandler(
@@ -127,11 +129,16 @@ class GeminiRemoteLauncher extends RemoteLauncherBase {
                 });
             } catch (error) {
                 logger.warn('[gemini-remote] prompt failed', error);
+                const isTimeout = error instanceof Error
+                    && error.message.includes("ACP request 'session/prompt' timed out");
+                const failureMessage = isTimeout
+                    ? 'Gemini response timed out and this turn was canceled. Please retry.'
+                    : 'Gemini prompt failed. Check logs for details.';
                 session.sendSessionEvent({
                     type: 'message',
-                    message: 'Gemini prompt failed. Check logs for details.'
+                    message: failureMessage
                 });
-                messageBuffer.addMessage('Gemini prompt failed', 'status');
+                messageBuffer.addMessage(failureMessage, 'status');
             } finally {
                 session.onThinkingChange(false);
                 await this.permissionHandler?.cancelAll('Prompt finished');
@@ -154,6 +161,7 @@ class GeminiRemoteLauncher extends RemoteLauncherBase {
             await this.backend.disconnect();
             this.backend = null;
         }
+        this.acpSessionId = null;
 
         if (this.happyServer) {
             this.happyServer.stop();
@@ -206,8 +214,8 @@ class GeminiRemoteLauncher extends RemoteLauncherBase {
 
     private async handleAbort(): Promise<void> {
         const backend = this.backend;
-        if (backend && this.session.sessionId) {
-            await backend.cancelPrompt(this.session.sessionId);
+        if (backend && this.acpSessionId) {
+            await backend.cancelPrompt(this.acpSessionId);
         }
         await this.permissionHandler?.cancelAll('User aborted');
         this.session.queue.reset();

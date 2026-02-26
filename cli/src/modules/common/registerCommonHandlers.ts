@@ -7,9 +7,16 @@ import { registerGitHandlers } from './handlers/git'
 import { registerRipgrepHandlers } from './handlers/ripgrep'
 import { registerSlashCommandHandlers } from './handlers/slashCommands'
 import { registerSkillsHandlers } from './handlers/skills'
+import { registerMcpHandlers } from './handlers/mcp'
 import { registerUploadHandlers } from './handlers/uploads'
 
-export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, workingDirectory: string): void {
+export function registerCommonHandlers(
+    rpcHandlerManager: RpcHandlerManager,
+    workingDirectory: string,
+    options: {
+        flavor?: string
+    } = {}
+): void {
     registerBashHandlers(rpcHandlerManager, workingDirectory)
     registerFileHandlers(rpcHandlerManager, workingDirectory)
     registerDirectoryHandlers(rpcHandlerManager, workingDirectory)
@@ -17,6 +24,7 @@ export function registerCommonHandlers(rpcHandlerManager: RpcHandlerManager, wor
     registerDifftasticHandlers(rpcHandlerManager, workingDirectory)
     registerSlashCommandHandlers(rpcHandlerManager)
     registerSkillsHandlers(rpcHandlerManager)
+    registerMcpHandlers(rpcHandlerManager, { flavor: options.flavor })
     registerGitHandlers(rpcHandlerManager, workingDirectory)
     registerUploadHandlers(rpcHandlerManager)
 }

@@ -456,6 +456,27 @@ export type SkillsResponse = {
     error?: string
 }
 
+export type McpServerSummary = {
+    name: string
+    status: string
+    available: boolean
+    enabled?: boolean
+    connected?: boolean
+    transport?: 'http' | 'stdio' | 'sse' | 'unknown'
+    target?: string
+    auth?: string
+    source?: 'cli-config' | 'runtime-bridge' | 'combined'
+}
+
+export type McpServersResponse = {
+    success: boolean
+    flavor?: string
+    servers?: McpServerSummary[]
+    checkedAt?: number
+    warning?: string
+    error?: string
+}
+
 export type PushSubscriptionKeys = {
     p256dh: string
     auth: string

@@ -6,7 +6,9 @@ import { logger } from '@/ui/logger';
 export const GEMINI_API_KEY_ENV = 'GEMINI_API_KEY';
 export const GOOGLE_API_KEY_ENV = 'GOOGLE_API_KEY';
 export const GEMINI_MODEL_ENV = 'GEMINI_MODEL';
+export const HAPI_GEMINI_PROMPT_TIMEOUT_MS_ENV = 'HAPI_GEMINI_PROMPT_TIMEOUT_MS';
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-pro';
+export const DEFAULT_GEMINI_PROMPT_TIMEOUT_MS = 30 * 60 * 1000;
 
 export type GeminiLocalConfig = {
     token?: string;
@@ -99,6 +101,30 @@ export function resolveGeminiRuntimeConfig(opts: {
         ?? local.token;
 
     return { model, token };
+}
+
+export function resolveGeminiPromptTimeoutMs(): number {
+    const raw = process.env[HAPI_GEMINI_PROMPT_TIMEOUT_MS_ENV];
+    if (raw === undefined) {
+        return DEFAULT_GEMINI_PROMPT_TIMEOUT_MS;
+    }
+
+    const normalized = raw.trim();
+    if (normalized.length === 0) {
+        return DEFAULT_GEMINI_PROMPT_TIMEOUT_MS;
+    }
+
+    const parsed = Number(normalized);
+    if (!Number.isFinite(parsed)) {
+        logger.debug(`[gemini-config] Invalid ${HAPI_GEMINI_PROMPT_TIMEOUT_MS_ENV}: "${raw}". Using default ${DEFAULT_GEMINI_PROMPT_TIMEOUT_MS}ms`);
+        return DEFAULT_GEMINI_PROMPT_TIMEOUT_MS;
+    }
+
+    if (parsed <= 0) {
+        return Number.POSITIVE_INFINITY;
+    }
+
+    return Math.floor(parsed);
 }
 
 export function buildGeminiEnv(opts: {

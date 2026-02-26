@@ -807,5 +807,32 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
     })
 
+    app.get('/sessions/:id/mcp', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        // Current session check requires an active CLI socket.
+        const sessionResult = requireSessionFromParam(c, engine, { requireActive: true })
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        try {
+            const flavor = sessionResult.session.metadata?.flavor ?? undefined
+            const result = await engine.listMcpServers(sessionResult.sessionId)
+            return c.json({
+                ...result,
+                ...(flavor ? { flavor } : {})
+            })
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to inspect MCP availability'
+            })
+        }
+    })
+
     return app
 }

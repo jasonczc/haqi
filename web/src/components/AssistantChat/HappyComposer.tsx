@@ -56,6 +56,11 @@ type ComposerModelOption = {
     label: string
 }
 
+type ComposerInjectedPrompt = {
+    id: number
+    text: string
+}
+
 const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
 const COMPOSER_DRAFT_STORAGE_PREFIX = 'hapi:sessionComposerDraft:'
 
@@ -181,6 +186,7 @@ export function HappyComposer(props: {
     onCodexQueueEnqueue?: (payload: QueueEnqueuePayload) => Promise<void>
     autocompletePrefixes?: string[]
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
+    injectedPrompt?: ComposerInjectedPrompt | null
     // Voice assistant props
     voiceStatus?: ConversationStatus
     voiceMicMuted?: boolean
@@ -217,6 +223,7 @@ export function HappyComposer(props: {
         onCodexQueueEnqueue,
         autocompletePrefixes = ['@', '/', '$'],
         autocompleteSuggestions = defaultSuggestionHandler,
+        injectedPrompt = null,
         voiceStatus = 'disconnected',
         voiceMicMuted = false,
         onVoiceToggle,
@@ -302,6 +309,7 @@ export function HappyComposer(props: {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
     const pendingDraftRestoreRef = useRef<{ sessionId: string; text: string } | null>(null)
+    const lastInjectedPromptIdRef = useRef<number | null>(null)
 
     useEffect(() => {
         const restoredDraft = readComposerDraft(sessionId) ?? ''
@@ -332,6 +340,23 @@ export function HappyComposer(props: {
             return { text: composerText, selection: { start: newPos, end: newPos } }
         })
     }, [composerText])
+
+    useEffect(() => {
+        if (!injectedPrompt || !injectedPrompt.text.trim()) {
+            return
+        }
+        if (lastInjectedPromptIdRef.current === injectedPrompt.id) {
+            return
+        }
+
+        const injectedText = injectedPrompt.text.trim()
+        const baseText = composerText
+        const separator = baseText.trim().length > 0 ? '\n' : ''
+        const nextText = `${baseText}${separator}${injectedText}`
+
+        lastInjectedPromptIdRef.current = injectedPrompt.id
+        api.composer().setText(nextText)
+    }, [api, composerText, injectedPrompt])
 
     // Track one-time "continue" hint after switching from local to remote.
     useEffect(() => {
