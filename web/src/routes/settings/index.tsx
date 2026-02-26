@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation, type Locale } from '@/lib/use-translation'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
-import { useCodexQueueInlinePanel, type CodexQueueInlinePanelMode } from '@/hooks/useCodexQueueInlinePanel'
+import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useThemePreference, type ThemePreference } from '@/hooks/useTheme'
+import { useAppContext } from '@/lib/app-context'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
@@ -15,7 +16,7 @@ const locales: { value: Locale; nativeLabel: string }[] = [
 
 const voiceLanguages = getElevenLabsSupportedLanguages()
 const themePreferences: ThemePreference[] = ['light', 'dark', 'system']
-const codexQueueInlinePanelModes: CodexQueueInlinePanelMode[] = ['off', 'compact', 'full']
+const queueInlinePanelModes: QueueInlinePanelMode[] = ['off', 'compact', 'full']
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -76,6 +77,7 @@ function ChevronDownIcon(props: { className?: string }) {
 
 export default function SettingsPage() {
     const { t, locale, setLocale } = useTranslation()
+    const { api } = useAppContext()
     const goBack = useAppGoBack()
     const [isOpen, setIsOpen] = useState(false)
     const [isThemeOpen, setIsThemeOpen] = useState(false)
@@ -89,20 +91,55 @@ export default function SettingsPage() {
     const queuePanelContainerRef = useRef<HTMLDivElement>(null)
     const { fontScale, setFontScale } = useFontScale()
     const { themePreference, setThemePreference } = useThemePreference()
-    const { codexQueueInlinePanelMode, setCodexQueueInlinePanelMode } = useCodexQueueInlinePanel()
+    const { queueInlinePanelMode, setQueueInlinePanelMode } = useQueueInlinePanel()
 
     // Voice language state - read from localStorage
     const [voiceLanguage, setVoiceLanguage] = useState<string | null>(() => {
         return localStorage.getItem('hapi-voice-lang')
     })
+    const [usageLoading, setUsageLoading] = useState(false)
+    const [usageError, setUsageError] = useState<string | null>(null)
+    const [usageOverview, setUsageOverview] = useState<Awaited<ReturnType<typeof api.getUsageOverview>>['overview'] | null>(null)
 
     const fontScaleOptions = getFontScaleOptions()
     const currentLocale = locales.find((loc) => loc.value === locale)
     const currentThemeLabel = t(`settings.display.theme.${themePreference}`)
     const currentFontScaleLabel = fontScaleOptions.find((opt) => opt.value === fontScale)?.label ?? '100%'
     const currentVoiceLanguage = voiceLanguages.find((lang) => lang.code === voiceLanguage)
-    const currentQueuePanelLabel = t(`settings.behavior.codexQueueInlinePanel.${codexQueueInlinePanelMode}`)
+    const currentQueuePanelLabel = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}`)
     const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
+    const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
+
+    const formatNumber = useCallback((value: number): string => {
+        return numberFormatter.format(value)
+    }, [numberFormatter])
+
+    const formatDateTime = useCallback((value: number): string => {
+        return new Date(value).toLocaleString(locale)
+    }, [locale])
+
+    const loadUsageOverview = useCallback(async (forceRefresh = false) => {
+        setUsageLoading(true)
+        setUsageError(null)
+        try {
+            const result = await api.getUsageOverview({ refresh: forceRefresh })
+            if (!result.success || !result.overview) {
+                setUsageOverview(null)
+                setUsageError(result.error ?? t('settings.usage.loadError'))
+                return
+            }
+            setUsageOverview(result.overview)
+        } catch (error) {
+            setUsageOverview(null)
+            setUsageError(error instanceof Error ? error.message : t('settings.usage.loadError'))
+        } finally {
+            setUsageLoading(false)
+        }
+    }, [api, t])
+
+    useEffect(() => {
+        void loadUsageOverview(false)
+    }, [loadUsageOverview])
 
     const handleLocaleChange = (newLocale: Locale) => {
         setLocale(newLocale)
@@ -123,8 +160,8 @@ export default function SettingsPage() {
         setSkipArchiveConfirmation(value)
     }
 
-    const handleQueuePanelModeChange = (mode: CodexQueueInlinePanelMode) => {
-        setCodexQueueInlinePanelMode(mode)
+    const handleQueuePanelModeChange = (mode: QueueInlinePanelMode) => {
+        setQueueInlinePanelMode(mode)
         setIsQueuePanelOpen(false)
     }
 
@@ -436,10 +473,10 @@ export default function SettingsPage() {
                             >
                                 <div className="flex flex-col">
                                     <span className="text-[var(--app-fg)]">
-                                        {t('settings.behavior.codexQueueInlinePanel')}
+                                        {t('settings.behavior.queueInlinePanel')}
                                     </span>
                                     <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.behavior.codexQueueInlinePanel.description')}
+                                        {t('settings.behavior.queueInlinePanel.description')}
                                     </span>
                                 </div>
                                 <span className="flex items-center gap-1 text-[var(--app-hint)]">
@@ -452,10 +489,10 @@ export default function SettingsPage() {
                                 <div
                                     className="absolute right-3 top-full mt-1 min-w-[180px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
                                     role="listbox"
-                                    aria-label={t('settings.behavior.codexQueueInlinePanel')}
+                                    aria-label={t('settings.behavior.queueInlinePanel')}
                                 >
-                                    {codexQueueInlinePanelModes.map((mode) => {
-                                        const isSelected = codexQueueInlinePanelMode === mode
+                                    {queueInlinePanelModes.map((mode) => {
+                                        const isSelected = queueInlinePanelMode === mode
                                         return (
                                             <button
                                                 key={mode}
@@ -469,7 +506,7 @@ export default function SettingsPage() {
                                                         : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
                                                 }`}
                                             >
-                                                <span>{t(`settings.behavior.codexQueueInlinePanel.${mode}`)}</span>
+                                                <span>{t(`settings.behavior.queueInlinePanel.${mode}`)}</span>
                                                 {isSelected && (
                                                     <span className="ml-2 text-[var(--app-link)]">
                                                         <CheckIcon />
@@ -501,6 +538,90 @@ export default function SettingsPage() {
                                 <span className="absolute left-0.5 h-4 w-4 rounded-full bg-[var(--app-bg)] transition-transform peer-checked:translate-x-4" />
                             </label>
                         </div>
+                    </div>
+
+                    {/* Usage section */}
+                    <div className="border-b border-[var(--app-divider)]">
+                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            {t('settings.usage.title')}
+                        </div>
+                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
+                            {t('settings.usage.description')}
+                        </div>
+                        <div className="px-3 pb-3">
+                            <button
+                                type="button"
+                                onClick={() => void loadUsageOverview(true)}
+                                disabled={usageLoading}
+                                className="inline-flex rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {usageLoading ? t('settings.usage.loading') : t('settings.usage.refresh')}
+                            </button>
+                        </div>
+
+                        {usageError ? (
+                            <div className="px-3 pb-3">
+                                <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                    {usageError}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {usageOverview ? (
+                            <div className="space-y-2 px-3 pb-3">
+                                {([usageOverview.claude, usageOverview.codex] as const).map((provider) => (
+                                    <div
+                                        key={provider.provider}
+                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="font-medium text-[var(--app-fg)]">
+                                                {t(`settings.usage.provider.${provider.provider}`)}
+                                            </div>
+                                            <span className="text-xs text-[var(--app-hint)]">
+                                                {t('settings.usage.files')}: {formatNumber(provider.filesScanned)}
+                                            </span>
+                                        </div>
+
+                                        {provider.available ? (
+                                            <div className="mt-2 space-y-1 text-sm text-[var(--app-fg)]">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[var(--app-hint)]">{t('settings.usage.allTimeTotalTokens')}</span>
+                                                    <span className="font-semibold">{formatNumber(provider.allTime.totalTokens)}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[var(--app-hint)]">{t('settings.usage.last30DaysTotalTokens')}</span>
+                                                    <span>{formatNumber(provider.last30Days.totalTokens)}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[var(--app-hint)]">{t('settings.usage.allTimeEvents')}</span>
+                                                    <span>{formatNumber(provider.eventCount)}</span>
+                                                </div>
+                                                {provider.parseErrors > 0 ? (
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="text-[var(--app-hint)]">{t('settings.usage.parseErrors')}</span>
+                                                        <span>{formatNumber(provider.parseErrors)}</span>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : (
+                                            <div className="mt-2 text-sm text-[var(--app-hint)]">
+                                                {t('settings.usage.unavailable')}
+                                            </div>
+                                        )}
+
+                                        {provider.roots.length > 0 ? (
+                                            <div className="mt-2 break-all text-xs text-[var(--app-hint)]">
+                                                {provider.roots.join(', ')}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ))}
+                                <div className="text-xs text-[var(--app-hint)]">
+                                    {t('settings.usage.updatedAt')}: {formatDateTime(usageOverview.generatedAt)}
+                                </div>
+                            </div>
+                        ) : null}
                     </div>
 
                     {/* About section */}

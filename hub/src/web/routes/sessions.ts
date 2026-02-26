@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { SyncEngine, Session } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
+import { buildSessionUsageOverview } from '../../usage/sessionUsage'
 
 const permissionModeSchema = z.object({
     mode: PermissionModeSchema
@@ -85,6 +86,37 @@ function normalizePreviewUrl(raw: string | null): { ok: true; value: string | nu
     } catch {
         return { ok: false, error: 'Invalid preview URL' }
     }
+}
+
+function collectAllSessionMessages(engine: SyncEngine, sessionId: string): ReturnType<SyncEngine['getMessagesAfter']> {
+    const collected: ReturnType<SyncEngine['getMessagesAfter']> = []
+    let beforeSeq: number | null = null
+    const seenBeforeSeq = new Set<number | null>()
+
+    while (true) {
+        if (seenBeforeSeq.has(beforeSeq)) {
+            break
+        }
+        seenBeforeSeq.add(beforeSeq)
+
+        const page = engine.getMessagesPage(sessionId, {
+            limit: 200,
+            beforeSeq
+        })
+
+        if (page.messages.length === 0) {
+            break
+        }
+
+        collected.unshift(...page.messages)
+        if (!page.page.hasMore || page.page.nextBeforeSeq === null) {
+            break
+        }
+
+        beforeSeq = page.page.nextBeforeSeq
+    }
+
+    return collected
 }
 
 export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
@@ -184,13 +216,13 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         return c.json({ session: sessionResult.session })
     })
 
-    app.get('/sessions/:id/codex-status', async (c) => {
+    const handleQueueStatus = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -201,12 +233,12 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to get Codex status'
+                error: error instanceof Error ? error.message : 'Failed to get queue status'
             })
         }
-    })
+    }
 
-    app.get('/sessions/:id/codex-queue', async (c) => {
+    const handleQueueState = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
@@ -225,12 +257,12 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to get Codex queue'
+                error: error instanceof Error ? error.message : 'Failed to get queue'
             }, 500)
         }
-    })
+    }
 
-    app.post('/sessions/:id/codex-queue/enqueue', async (c) => {
+    const handleQueueEnqueue = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
@@ -265,12 +297,12 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to enqueue Codex message'
+                error: error instanceof Error ? error.message : 'Failed to enqueue queue message'
             }, 500)
         }
-    })
+    }
 
-    app.post('/sessions/:id/codex-queue/remove', async (c) => {
+    const handleQueueRemove = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
@@ -295,12 +327,12 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to remove Codex queue item'
+                error: error instanceof Error ? error.message : 'Failed to remove queue item'
             }, 500)
         }
-    })
+    }
 
-    app.post('/sessions/:id/codex-queue/move', async (c) => {
+    const handleQueueMove = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
@@ -333,12 +365,12 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to move Codex queue item'
+                error: error instanceof Error ? error.message : 'Failed to move queue item'
             }, 500)
         }
-    })
+    }
 
-    app.post('/sessions/:id/codex-queue/clear', async (c) => {
+    const handleQueueClear = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
@@ -357,7 +389,52 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to clear Codex queue'
+                error: error instanceof Error ? error.message : 'Failed to clear queue'
+            }, 500)
+        }
+    }
+
+    const queueStatusPaths = ['/sessions/:id/codex-status', '/sessions/:id/queue-status'] as const
+    queueStatusPaths.forEach((path) => {
+        app.get(path, handleQueueStatus)
+    })
+
+    const queuePaths = ['/sessions/:id/codex-queue', '/sessions/:id/queue'] as const
+    queuePaths.forEach((path) => {
+        app.get(path, handleQueueState)
+    })
+
+    const queueActionPaths = ['/sessions/:id/codex-queue', '/sessions/:id/queue'] as const
+    queueActionPaths.forEach((path) => {
+        app.post(`${path}/enqueue`, handleQueueEnqueue)
+        app.post(`${path}/remove`, handleQueueRemove)
+        app.post(`${path}/move`, handleQueueMove)
+        app.post(`${path}/clear`, handleQueueClear)
+    })
+
+    app.get('/sessions/:id/usage', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        try {
+            const messages = collectAllSessionMessages(engine, sessionResult.sessionId)
+            const usage = buildSessionUsageOverview({
+                sessionId: sessionResult.sessionId,
+                flavor: sessionResult.session.metadata?.flavor ?? null,
+                messages
+            })
+            return c.json({ success: true, usage })
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to compute session usage'
             }, 500)
         }
     })

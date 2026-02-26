@@ -4,8 +4,9 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type {
     AttachmentMetadata,
-    CodexQueueState,
-    CodexStatusResponse,
+    QueueState,
+    QueueStatusResponse,
+    SessionUsageOverview,
     DecryptedMessage,
     PermissionMode,
     Session
@@ -21,13 +22,14 @@ import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
 import { usePlatform } from '@/hooks/usePlatform'
-import { useCodexQueueInlinePanel } from '@/hooks/useCodexQueueInlinePanel'
+import { useQueueInlinePanel } from '@/hooks/useQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTranslation } from '@/lib/use-translation'
 import { useVoiceOptional } from '@/lib/voice-context'
 import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
+import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 
 type CodexStatusRow = {
     label: string
@@ -169,6 +171,51 @@ function parseCodexPlanFromText(text: string, updatedAt: number): CodexPlanSnaps
     }
 }
 
+function parseCodexPlanFromTodoWrite(input: unknown, updatedAt: number): CodexPlanSnapshot | null {
+    if (!input || typeof input !== 'object') {
+        return null
+    }
+
+    const value = input as Record<string, unknown>
+    const todosValue = value.todos
+    if (!Array.isArray(todosValue)) {
+        return null
+    }
+
+    const entries: CodexPlanEntry[] = todosValue
+        .map((todo) => {
+            if (!todo || typeof todo !== 'object') return null
+            const entry = todo as Record<string, unknown>
+            const stepValue = typeof entry.content === 'string'
+                ? entry.content.trim()
+                : typeof entry.step === 'string'
+                    ? entry.step.trim()
+                    : ''
+            if (!stepValue) return null
+            return {
+                step: stepValue,
+                status: normalizeCodexPlanStatus(entry.status)
+            } satisfies CodexPlanEntry
+        })
+        .filter((entry): entry is CodexPlanEntry => entry !== null)
+
+    if (entries.length === 0) {
+        return null
+    }
+
+    const explanationRaw = typeof value.explanation === 'string'
+        ? value.explanation.trim()
+        : ''
+    const explanation = explanationRaw.length > 0 ? explanationRaw : null
+
+    return {
+        explanation,
+        entries,
+        updatedAt,
+        signature: buildCodexPlanSignature(explanation, entries)
+    }
+}
+
 function extractLatestCodexPlan(messages: NormalizedMessage[]): CodexPlanSnapshot | null {
     for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
         const message = messages[messageIndex]
@@ -209,6 +256,16 @@ function extractLatestCodexPlan(messages: NormalizedMessage[]): CodexPlanSnapsho
 
         for (let partIndex = message.content.length - 1; partIndex >= 0; partIndex -= 1) {
             const part = message.content[partIndex]
+            if (part.type === 'tool-call') {
+                const toolName = part.name.trim().toLowerCase()
+                if (toolName === 'todowrite') {
+                    const parsedFromTodo = parseCodexPlanFromTodoWrite(part.input, message.createdAt)
+                    if (parsedFromTodo) {
+                        return parsedFromTodo
+                    }
+                }
+                continue
+            }
             if (part.type !== 'text') continue
             const parsed = parseCodexPlanFromText(part.text, message.createdAt)
             if (parsed) {
@@ -279,7 +336,7 @@ export function SessionChat(props: {
 }) {
     const { t } = useTranslation()
     const { haptic } = usePlatform()
-    const { codexQueueInlinePanelMode } = useCodexQueueInlinePanel()
+    const { queueInlinePanelMode } = useQueueInlinePanel()
     const navigate = useNavigate()
     const sessionInactive = !props.session.active
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
@@ -289,8 +346,10 @@ export function SessionChat(props: {
     const [isCodexStatusLoading, setIsCodexStatusLoading] = useState(false)
     const [codexStatusMessage, setCodexStatusMessage] = useState('')
     const [codexStatusError, setCodexStatusError] = useState<string | null>(null)
-    const [codexQueueStatus, setCodexQueueStatus] = useState<CodexStatusResponse['queue'] | null>(null)
-    const [codexQueueState, setCodexQueueState] = useState<CodexQueueState | null>(null)
+    const [sessionUsage, setSessionUsage] = useState<SessionUsageOverview | null>(null)
+    const [sessionUsageError, setSessionUsageError] = useState<string | null>(null)
+    const [codexQueueStatus, setCodexQueueStatus] = useState<QueueStatusResponse['queue'] | null>(null)
+    const [codexQueueState, setCodexQueueState] = useState<QueueState | null>(null)
     const [isCodexQueueDialogOpen, setIsCodexQueueDialogOpen] = useState(false)
     const [isCodexQueueLoading, setIsCodexQueueLoading] = useState(false)
     const [isCodexQueueMutating, setIsCodexQueueMutating] = useState(false)
@@ -299,6 +358,8 @@ export function SessionChat(props: {
     const [dismissedCodexPlanSignature, setDismissedCodexPlanSignature] = useState<string | null>(null)
     const [isCodexPlanCollapsed, setIsCodexPlanCollapsed] = useState(false)
     const codexStatusRows = useMemo(() => parseCodexStatusRows(codexStatusMessage), [codexStatusMessage])
+    const usageNumberFormatter = useMemo(() => new Intl.NumberFormat(), [])
+    const formatUsageNumber = useCallback((value: number): string => usageNumberFormatter.format(value), [usageNumberFormatter])
     const codexStatusDetailRows = useMemo(
         () => codexQueueStatus
             ? codexStatusRows.filter((row) => !isQueueStatusField(row.label))
@@ -327,7 +388,7 @@ export function SessionChat(props: {
     const inlineQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 10_000
     const dialogQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 6_000
     const agentFlavor = props.session.metadata?.flavor ?? null
-    const supportsQueue = agentFlavor === 'codex' || agentFlavor === 'claude' || agentFlavor === 'gemini'
+    const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
     const { abortSession, switchSession, setPermissionMode, setModel } = useSessionActions(
         props.api,
         props.session.id,
@@ -437,6 +498,8 @@ export function SessionChat(props: {
         setIsCodexStatusLoading(false)
         setCodexStatusMessage('')
         setCodexStatusError(null)
+        setSessionUsage(null)
+        setSessionUsageError(null)
         setCodexQueueStatus(null)
         setCodexQueueState(null)
         setIsCodexQueueDialogOpen(false)
@@ -482,7 +545,7 @@ export function SessionChat(props: {
         () => extractLatestCodexPlan(normalizedMessages),
         [normalizedMessages]
     )
-    const showCodexPlanNotebook = agentFlavor === 'codex'
+    const showCodexPlanNotebook = supportsQueueControls
         && latestCodexPlan !== null
         && latestCodexPlan.signature !== dismissedCodexPlanSignature
 
@@ -570,7 +633,7 @@ export function SessionChat(props: {
         setForceScrollToken((token) => token + 1)
     }, [props.onSend])
 
-    const applyCodexQueueSummary = useCallback((queue: CodexStatusResponse['queue'] | CodexQueueState | null | undefined) => {
+    const applyCodexQueueSummary = useCallback((queue: QueueStatusResponse['queue'] | QueueState | null | undefined) => {
         if (!queue) {
             setCodexQueueStatus(null)
             return
@@ -584,7 +647,7 @@ export function SessionChat(props: {
     }, [])
 
     const refreshCodexQueue = useCallback(async (options?: { silent?: boolean }): Promise<void> => {
-        if (!supportsQueue) {
+        if (!supportsQueueControls) {
             return
         }
 
@@ -593,13 +656,13 @@ export function SessionChat(props: {
         }
 
         try {
-            const result = await props.api.getCodexQueue(props.session.id)
+            const result = await props.api.getQueue(props.session.id)
             if (result.success) {
                 setCodexQueueState(result.queue ?? null)
                 applyCodexQueueSummary(result.queue)
                 setCodexQueueError(null)
             } else {
-                const message = result.error ?? t('codexQueue.dialog.fetchError')
+                const message = result.error ?? t('queue.dialog.fetchError')
                 setCodexQueueError(message)
                 setCodexQueueState(result.queue ?? null)
                 applyCodexQueueSummary(result.queue)
@@ -608,7 +671,7 @@ export function SessionChat(props: {
                 }
             }
         } catch (error) {
-            const message = error instanceof Error ? error.message : t('codexQueue.dialog.fetchError')
+            const message = error instanceof Error ? error.message : t('queue.dialog.fetchError')
             setCodexQueueError(message)
             if (!options?.silent) {
                 haptic.notification('error')
@@ -618,7 +681,7 @@ export function SessionChat(props: {
                 setIsCodexQueueLoading(false)
             }
         }
-    }, [supportsQueue, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
 
     const handleCodexQueueModeChange = useCallback((mode: CodexSendMode) => {
         setCodexSendMode(mode)
@@ -626,34 +689,34 @@ export function SessionChat(props: {
     }, [props.session.id])
 
     const handleCodexQueueRefreshAfterSend = useCallback(() => {
-        if (!supportsQueue) {
+        if (!supportsQueueControls) {
             return
         }
         setTimeout(() => {
             void refreshCodexQueue({ silent: true })
         }, 150)
-    }, [supportsQueue, refreshCodexQueue])
+    }, [supportsQueueControls, refreshCodexQueue])
 
     const handleCodexQueueOpen = useCallback(() => {
-        if (!supportsQueue) {
+        if (!supportsQueueControls) {
             return
         }
         setIsCodexQueueDialogOpen(true)
         setCodexQueueError(null)
         void refreshCodexQueue()
-    }, [supportsQueue, refreshCodexQueue])
+    }, [supportsQueueControls, refreshCodexQueue])
 
     const handleCodexQueueEnqueue = useCallback(async (payload: {
         text: string
         attachments?: AttachmentMetadata[]
     }) => {
-        if (!supportsQueue) {
+        if (!supportsQueueControls) {
             return
         }
 
-        const result = await props.api.enqueueCodexMessage(props.session.id, payload)
+        const result = await props.api.enqueueQueueMessage(props.session.id, payload)
         if (!result.success) {
-            const message = result.error ?? t('codexQueue.dialog.actionError')
+            const message = result.error ?? t('queue.dialog.actionError')
             setCodexQueueError(message)
             if (result.queue) {
                 setCodexQueueState(result.queue)
@@ -666,12 +729,12 @@ export function SessionChat(props: {
         setCodexQueueError(null)
         setCodexQueueState(result.queue ?? null)
         applyCodexQueueSummary(result.queue ?? null)
-    }, [supportsQueue, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
 
     const runCodexQueueAction = useCallback(async (
-        action: () => Promise<{ success: boolean; error?: string; queue?: CodexQueueState | null }>
+        action: () => Promise<{ success: boolean; error?: string; queue?: QueueState | null }>
     ) => {
-        if (!supportsQueue) {
+        if (!supportsQueueControls) {
             return
         }
         setIsCodexQueueMutating(true)
@@ -683,7 +746,7 @@ export function SessionChat(props: {
                 applyCodexQueueSummary(result.queue ?? null)
                 return
             }
-            const message = result.error ?? t('codexQueue.dialog.actionError')
+            const message = result.error ?? t('queue.dialog.actionError')
             setCodexQueueError(message)
             if (result.queue) {
                 setCodexQueueState(result.queue)
@@ -691,17 +754,17 @@ export function SessionChat(props: {
             }
             haptic.notification('error')
         } catch (error) {
-            const message = error instanceof Error ? error.message : t('codexQueue.dialog.actionError')
+            const message = error instanceof Error ? error.message : t('queue.dialog.actionError')
             setCodexQueueError(message)
             haptic.notification('error')
         } finally {
             setIsCodexQueueMutating(false)
         }
-    }, [supportsQueue, applyCodexQueueSummary, haptic, t])
+    }, [supportsQueueControls, applyCodexQueueSummary, haptic, t])
 
     const handleCodexQueueClear = useCallback(() => {
         void runCodexQueueAction(async () => {
-            const result = await props.api.clearCodexQueue(props.session.id)
+            const result = await props.api.clearQueue(props.session.id)
             return {
                 success: result.success,
                 error: result.error,
@@ -712,7 +775,7 @@ export function SessionChat(props: {
 
     const handleCodexQueueRemove = useCallback((id: string) => {
         void runCodexQueueAction(async () => {
-            const result = await props.api.removeCodexQueueItem(props.session.id, id)
+            const result = await props.api.removeQueueItem(props.session.id, id)
             return {
                 success: result.success,
                 error: result.error,
@@ -723,7 +786,7 @@ export function SessionChat(props: {
 
     const handleCodexQueueMove = useCallback((id: string, toIndex: number) => {
         void runCodexQueueAction(async () => {
-            const result = await props.api.moveCodexQueueItem(props.session.id, id, toIndex)
+            const result = await props.api.moveQueueItem(props.session.id, id, toIndex)
             return {
                 success: result.success,
                 error: result.error,
@@ -733,69 +796,96 @@ export function SessionChat(props: {
     }, [props.api, props.session.id, runCodexQueueAction])
 
     const handleCodexStatus = useCallback(() => {
-        if (agentFlavor !== 'codex') {
+        if (!supportsQueueControls) {
             return
         }
 
         setIsCodexStatusDialogOpen(true)
         setIsCodexStatusLoading(true)
         setCodexStatusError(null)
+        setSessionUsageError(null)
 
         void (async () => {
-            try {
-                const result = await props.api.getCodexStatus(props.session.id)
-                if (result.success) {
-                    setCodexStatusMessage(result.message ?? '')
-                    applyCodexQueueSummary(result.queue ?? null)
-                    return
-                }
+            let hadError = false
+            const [statusResult, usageResult] = await Promise.allSettled([
+                props.api.getQueueStatus(props.session.id),
+                props.api.getSessionUsage(props.session.id)
+            ])
 
-                const errorMessage = result.error ?? t('codexStatus.dialog.fetchError')
-                setCodexStatusMessage('')
-                setCodexStatusError(errorMessage)
-                applyCodexQueueSummary(result.queue ?? null)
-                haptic.notification('error')
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : t('codexStatus.dialog.fetchError')
+            if (statusResult.status === 'fulfilled') {
+                if (statusResult.value.success) {
+                    setCodexStatusMessage(statusResult.value.message ?? '')
+                    applyCodexQueueSummary(statusResult.value.queue ?? null)
+                } else {
+                    const errorMessage = statusResult.value.error ?? t('queueStatus.dialog.fetchError')
+                    setCodexStatusMessage('')
+                    setCodexStatusError(errorMessage)
+                    applyCodexQueueSummary(statusResult.value.queue ?? null)
+                    hadError = true
+                }
+            } else {
+                const errorMessage = statusResult.reason instanceof Error
+                    ? statusResult.reason.message
+                    : t('queueStatus.dialog.fetchError')
                 setCodexStatusMessage('')
                 setCodexStatusError(errorMessage)
                 applyCodexQueueSummary(null)
-                haptic.notification('error')
-            } finally {
-                setIsCodexStatusLoading(false)
+                hadError = true
             }
+
+            if (usageResult.status === 'fulfilled') {
+                if (usageResult.value.success && usageResult.value.usage) {
+                    setSessionUsage(usageResult.value.usage)
+                    setSessionUsageError(null)
+                } else {
+                    setSessionUsage(null)
+                    setSessionUsageError(usageResult.value.error ?? t('queueStatus.usage.fetchError'))
+                    hadError = true
+                }
+            } else {
+                setSessionUsage(null)
+                setSessionUsageError(usageResult.reason instanceof Error
+                    ? usageResult.reason.message
+                    : t('queueStatus.usage.fetchError'))
+                hadError = true
+            }
+
+            if (hadError) {
+                haptic.notification('error')
+            }
+            setIsCodexStatusLoading(false)
         })()
-    }, [agentFlavor, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
 
     useEffect(() => {
-        if (!supportsQueue) {
+        if (!supportsQueueControls) {
             return
         }
         void refreshCodexQueue({ silent: true })
-    }, [supportsQueue, props.session.id, props.session.thinking, codexQueueInlinePanelMode, refreshCodexQueue])
+    }, [supportsQueueControls, props.session.id, props.session.thinking, queueInlinePanelMode, refreshCodexQueue])
 
     useEffect(() => {
-        if (!supportsQueue) {
+        if (!supportsQueueControls) {
             return
         }
-        if (codexQueueInlinePanelMode === 'off' || isCodexQueueDialogOpen) {
+        if (queueInlinePanelMode === 'off' || isCodexQueueDialogOpen) {
             return
         }
         const timer = window.setInterval(() => {
             void refreshCodexQueue({ silent: true })
         }, inlineQueuePollIntervalMs)
         return () => window.clearInterval(timer)
-    }, [supportsQueue, codexQueueInlinePanelMode, isCodexQueueDialogOpen, inlineQueuePollIntervalMs, refreshCodexQueue])
+    }, [supportsQueueControls, queueInlinePanelMode, isCodexQueueDialogOpen, inlineQueuePollIntervalMs, refreshCodexQueue])
 
     useEffect(() => {
-        if (!supportsQueue || !isCodexQueueDialogOpen) {
+        if (!supportsQueueControls || !isCodexQueueDialogOpen) {
             return
         }
         const timer = window.setInterval(() => {
             void refreshCodexQueue({ silent: true })
         }, dialogQueuePollIntervalMs)
         return () => window.clearInterval(timer)
-    }, [supportsQueue, isCodexQueueDialogOpen, dialogQueuePollIntervalMs, refreshCodexQueue])
+    }, [supportsQueueControls, isCodexQueueDialogOpen, dialogQueuePollIntervalMs, refreshCodexQueue])
 
     const attachmentAdapter = useMemo(() => {
         if (!props.session.active) {
@@ -842,10 +932,10 @@ export function SessionChat(props: {
                             <div className="mx-auto w-full max-w-content rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/50 p-2.5">
                                 <div className="flex items-center gap-2">
                                     <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
-                                        {t('codexPlan.title')}
+                                        {t('queuePlan.title')}
                                     </span>
                                     <span className="text-[10px] text-[var(--app-hint)]">
-                                        {t('codexPlan.updated', {
+                                        {t('queuePlan.updated', {
                                             time: new Date(latestCodexPlan.updatedAt).toLocaleTimeString([], {
                                                 hour: '2-digit',
                                                 minute: '2-digit'
@@ -858,14 +948,14 @@ export function SessionChat(props: {
                                             className="rounded px-1.5 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                             onClick={() => setIsCodexPlanCollapsed((prev) => !prev)}
                                         >
-                                            {isCodexPlanCollapsed ? t('codexPlan.expand') : t('codexPlan.collapse')}
+                                            {isCodexPlanCollapsed ? t('queuePlan.expand') : t('queuePlan.collapse')}
                                         </button>
                                         <button
                                             type="button"
                                             className="rounded px-1.5 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                             onClick={() => setDismissedCodexPlanSignature(latestCodexPlan.signature)}
                                         >
-                                            {t('codexPlan.close')}
+                                            {t('queuePlan.close')}
                                         </button>
                                     </div>
                                 </div>
@@ -884,10 +974,10 @@ export function SessionChat(props: {
                                                         className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getCodexPlanStatusBadgeClass(entry.status)}`}
                                                     >
                                                         {entry.status === 'completed'
-                                                            ? t('codexPlan.status.completed')
+                                                            ? t('queuePlan.status.completed')
                                                             : entry.status === 'in_progress'
-                                                                ? t('codexPlan.status.inProgress')
-                                                                : t('codexPlan.status.pending')}
+                                                                ? t('queuePlan.status.inProgress')
+                                                                : t('queuePlan.status.pending')}
                                                     </span>
                                                     <span className="min-w-0 flex-1 break-words text-[var(--app-fg)]">
                                                         {entry.step}
@@ -942,16 +1032,16 @@ export function SessionChat(props: {
                         onModelChange={handleModelChange}
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
-                        onCodexStatus={agentFlavor === 'codex' ? handleCodexStatus : undefined}
+                        onCodexStatus={supportsQueueControls ? handleCodexStatus : undefined}
                         codexSendMode={codexSendMode}
-                        onCodexSendModeChange={supportsQueue ? handleCodexQueueModeChange : undefined}
+                        onCodexSendModeChange={supportsQueueControls ? handleCodexQueueModeChange : undefined}
                         codexQueuePendingCount={codexQueuePendingCount}
                         codexQueueSummary={codexQueueSummary}
                         codexQueueEntries={codexQueueEntries}
-                        codexQueueInlinePanelMode={codexQueueInlinePanelMode}
-                        onCodexQueueOpen={supportsQueue ? handleCodexQueueOpen : undefined}
-                        onCodexQueueUpdated={supportsQueue ? handleCodexQueueRefreshAfterSend : undefined}
-                        onCodexQueueEnqueue={supportsQueue ? handleCodexQueueEnqueue : undefined}
+                        codexQueueInlinePanelMode={queueInlinePanelMode}
+                        onCodexQueueOpen={supportsQueueControls ? handleCodexQueueOpen : undefined}
+                        onCodexQueueUpdated={supportsQueueControls ? handleCodexQueueRefreshAfterSend : undefined}
+                        onCodexQueueEnqueue={supportsQueueControls ? handleCodexQueueEnqueue : undefined}
                         autocompleteSuggestions={props.autocompleteSuggestions}
                         voiceStatus={voice?.status}
                         voiceMicMuted={voice?.micMuted}
@@ -964,144 +1054,237 @@ export function SessionChat(props: {
             <Dialog open={isCodexStatusDialogOpen} onOpenChange={setIsCodexStatusDialogOpen}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>{t('codexStatus.dialog.title')}</DialogTitle>
-                        <DialogDescription>{t('codexStatus.dialog.description')}</DialogDescription>
+                        <DialogTitle>{t('queueStatus.dialog.title')}</DialogTitle>
+                        <DialogDescription>{t('queueStatus.dialog.description')}</DialogDescription>
                     </DialogHeader>
                     <div className="mt-3 max-h-[75vh] overflow-auto">
                         {isCodexStatusLoading ? (
                             <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
-                                {t('codexStatus.dialog.loading')}
-                            </div>
-                        ) : codexStatusError ? (
-                            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
-                                {codexStatusError}
-                            </div>
-                        ) : codexStatusDetailRows.length > 0 || codexQueueStatus ? (
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                {codexQueueStatus ? (
-                                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 sm:col-span-2">
-                                        <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
-                                            Queue
-                                        </div>
-                                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                                                    Pending
-                                                </div>
-                                                <div className="mt-1 text-lg font-semibold text-[var(--app-fg)]">
-                                                    {codexQueueStatus.pendingCount}
-                                                </div>
-                                            </div>
-                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                                                    In queue
-                                                </div>
-                                                <div className="mt-1">
-                                                    <span
-                                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                            codexQueueStatus.inQueue
-                                                                ? 'bg-emerald-500/10 text-emerald-600'
-                                                                : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
-                                                        }`}
-                                                    >
-                                                        {codexQueueStatus.inQueue ? 'yes' : 'no'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                                                    Task running
-                                                </div>
-                                                <div className="mt-1">
-                                                    <span
-                                                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                            codexQueueStatus.taskRunning
-                                                                ? 'bg-blue-500/10 text-blue-600'
-                                                                : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
-                                                        }`}
-                                                    >
-                                                        {codexQueueStatus.taskRunning ? 'yes' : 'no'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {codexQueueStatus.nextPreview ? (
-                                            <div className="mt-2 rounded-md bg-[var(--app-subtle-bg)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                                                    Next queued message
-                                                </div>
-                                                <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">
-                                                    {codexQueueStatus.nextPreview}
-                                                </div>
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                ) : null}
-                                {codexStatusDetailRows.map((row) => {
-                                    const rowKey = `${row.label}:${row.value}`
-                                    const isWide = isWideStatusField(row.label)
-                                    const booleanTone = getBooleanValueTone(row.value)
-                                    const isRateLimit = row.label.toLowerCase().includes('rate limit')
-                                    const rateLimit = isRateLimit ? parseRateLimitValue(row.value) : null
-                                    const usedPercent = rateLimit?.usedPercent ?? null
-                                    const progressToneClass = usedPercent === null
-                                        ? 'bg-[var(--app-border)]'
-                                        : usedPercent >= 85
-                                            ? 'bg-red-500'
-                                            : usedPercent >= 60
-                                                ? 'bg-amber-500'
-                                                : 'bg-emerald-500'
-                                    const booleanToneClass = booleanTone === 'yes'
-                                        ? 'bg-emerald-500/10 text-emerald-600'
-                                        : booleanTone === 'no'
-                                            ? 'bg-red-500/10 text-red-600'
-                                            : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
-
-                                    return (
-                                        <div
-                                            key={rowKey}
-                                            className={`rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 ${isWide ? 'sm:col-span-2' : ''}`}
-                                        >
-                                            <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
-                                                {row.label}
-                                            </div>
-                                            {isRateLimit && rateLimit ? (
-                                                <div className="mt-2 space-y-2">
-                                                    <div className="flex items-center justify-between gap-3">
-                                                        <span className="text-sm font-semibold">
-                                                            {usedPercent === null ? t('codexStatus.dialog.empty') : `${usedPercent}%`}
-                                                        </span>
-                                                        <span className="text-xs text-[var(--app-hint)] break-all">
-                                                            {rateLimit.resetAt}
-                                                        </span>
-                                                    </div>
-                                                    {usedPercent !== null ? (
-                                                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--app-subtle-bg)]">
-                                                            <div
-                                                                className={`h-full rounded-full ${progressToneClass}`}
-                                                                style={{ width: `${Math.max(0, Math.min(100, usedPercent))}%` }}
-                                                            />
-                                                        </div>
-                                                    ) : null}
-                                                </div>
-                                            ) : booleanTone ? (
-                                                <div className="mt-2">
-                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${booleanToneClass}`}>
-                                                        {row.value}
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <div className="mt-2 break-all text-sm font-mono text-[var(--app-fg)]">
-                                                    {row.value || t('codexStatus.dialog.empty')}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                })}
+                                {t('queueStatus.dialog.loading')}
                             </div>
                         ) : (
-                            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
-                                {codexStatusMessage || t('codexStatus.dialog.empty')}
+                            <div className="space-y-3">
+                                {codexStatusError ? (
+                                    <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                        {codexStatusError}
+                                    </div>
+                                ) : null}
+
+                                {codexStatusDetailRows.length > 0 || codexQueueStatus ? (
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        {codexQueueStatus ? (
+                                            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 sm:col-span-2">
+                                                <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    Queue
+                                                </div>
+                                                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                                    <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                            Pending
+                                                        </div>
+                                                        <div className="mt-1 text-lg font-semibold text-[var(--app-fg)]">
+                                                            {codexQueueStatus.pendingCount}
+                                                        </div>
+                                                    </div>
+                                                    <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                            In queue
+                                                        </div>
+                                                        <div className="mt-1">
+                                                            <span
+                                                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                                    codexQueueStatus.inQueue
+                                                                        ? 'bg-emerald-500/10 text-emerald-600'
+                                                                        : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+                                                                }`}
+                                                            >
+                                                                {codexQueueStatus.inQueue ? 'yes' : 'no'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                            Task running
+                                                        </div>
+                                                        <div className="mt-1">
+                                                            <span
+                                                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                                    codexQueueStatus.taskRunning
+                                                                        ? 'bg-blue-500/10 text-blue-600'
+                                                                        : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+                                                                }`}
+                                                            >
+                                                                {codexQueueStatus.taskRunning ? 'yes' : 'no'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {codexQueueStatus.nextPreview ? (
+                                                    <div className="mt-2 rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                            Next queued message
+                                                        </div>
+                                                        <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">
+                                                            {codexQueueStatus.nextPreview}
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+                                        {codexStatusDetailRows.map((row) => {
+                                            const rowKey = `${row.label}:${row.value}`
+                                            const isWide = isWideStatusField(row.label)
+                                            const booleanTone = getBooleanValueTone(row.value)
+                                            const isRateLimit = row.label.toLowerCase().includes('rate limit')
+                                            const rateLimit = isRateLimit ? parseRateLimitValue(row.value) : null
+                                            const usedPercent = rateLimit?.usedPercent ?? null
+                                            const progressToneClass = usedPercent === null
+                                                ? 'bg-[var(--app-border)]'
+                                                : usedPercent >= 85
+                                                    ? 'bg-red-500'
+                                                    : usedPercent >= 60
+                                                        ? 'bg-amber-500'
+                                                        : 'bg-emerald-500'
+                                            const booleanToneClass = booleanTone === 'yes'
+                                                ? 'bg-emerald-500/10 text-emerald-600'
+                                                : booleanTone === 'no'
+                                                    ? 'bg-red-500/10 text-red-600'
+                                                    : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+
+                                            return (
+                                                <div
+                                                    key={rowKey}
+                                                    className={`rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 ${isWide ? 'sm:col-span-2' : ''}`}
+                                                >
+                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                        {row.label}
+                                                    </div>
+                                                    {isRateLimit && rateLimit ? (
+                                                        <div className="mt-2 space-y-2">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <span className="text-sm font-semibold">
+                                                                    {usedPercent === null ? t('queueStatus.dialog.empty') : `${usedPercent}%`}
+                                                                </span>
+                                                                <span className="text-xs text-[var(--app-hint)] break-all">
+                                                                    {rateLimit.resetAt}
+                                                                </span>
+                                                            </div>
+                                                            {usedPercent !== null ? (
+                                                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--app-subtle-bg)]">
+                                                                    <div
+                                                                        className={`h-full rounded-full ${progressToneClass}`}
+                                                                        style={{ width: `${Math.max(0, Math.min(100, usedPercent))}%` }}
+                                                                    />
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : booleanTone ? (
+                                                        <div className="mt-2">
+                                                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${booleanToneClass}`}>
+                                                                {row.value}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="mt-2 break-all text-sm font-mono text-[var(--app-fg)]">
+                                                            {row.value || t('queueStatus.dialog.empty')}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                ) : !codexStatusError ? (
+                                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                        {codexStatusMessage || t('queueStatus.dialog.empty')}
+                                    </div>
+                                ) : null}
+
+                                {sessionUsage ? (
+                                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                {t('queueStatus.usage.title')}
+                                            </div>
+                                            <div className="text-xs text-[var(--app-hint)]">
+                                                {sessionUsage.provider === 'claude'
+                                                    ? t('settings.usage.provider.claude')
+                                                    : sessionUsage.provider === 'codex'
+                                                        ? t('settings.usage.provider.codex')
+                                                        : sessionUsage.provider}
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    {t('queueStatus.usage.totalTokens')}
+                                                </div>
+                                                <div className="mt-1 text-lg font-semibold text-[var(--app-fg)]">
+                                                    {formatUsageNumber(sessionUsage.allTime.totalTokens)}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    {t('queueStatus.usage.events')}
+                                                </div>
+                                                <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                                    {formatUsageNumber(sessionUsage.usageEventCount)}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    {t('queueStatus.usage.inputTokens')}
+                                                </div>
+                                                <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                                    {formatUsageNumber(sessionUsage.allTime.inputTokens)}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    {t('queueStatus.usage.outputTokens')}
+                                                </div>
+                                                <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                                    {formatUsageNumber(sessionUsage.allTime.outputTokens)}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    {t('queueStatus.usage.cachedInputTokens')}
+                                                </div>
+                                                <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                                    {formatUsageNumber(sessionUsage.allTime.cachedInputTokens)}
+                                                </div>
+                                            </div>
+                                            <div className="rounded-md bg-[var(--app-subtle-bg)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                    {t('queueStatus.usage.cacheCreationTokens')}
+                                                </div>
+                                                <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                                    {formatUsageNumber(sessionUsage.allTime.cacheCreationTokens)}
+                                                </div>
+                                            </div>
+                                            {sessionUsage.allTime.reasoningOutputTokens > 0 ? (
+                                                <div className="rounded-md bg-[var(--app-subtle-bg)] p-2 sm:col-span-2">
+                                                    <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                        {t('queueStatus.usage.reasoningOutputTokens')}
+                                                    </div>
+                                                    <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                                        {formatUsageNumber(sessionUsage.allTime.reasoningOutputTokens)}
+                                                    </div>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                        <div className="mt-2 text-[10px] text-[var(--app-hint)]">
+                                            {t('queueStatus.usage.messages')}: {formatUsageNumber(sessionUsage.messageCount)}
+                                            {sessionUsage.lastUsageAt
+                                                ? ` · ${t('queueStatus.usage.lastUpdated')}: ${new Date(sessionUsage.lastUsageAt).toLocaleString()}`
+                                                : ''}
+                                        </div>
+                                    </div>
+                                ) : sessionUsageError ? (
+                                    <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                        {sessionUsageError}
+                                    </div>
+                                ) : null}
                             </div>
                         )}
                     </div>
@@ -1111,15 +1294,15 @@ export function SessionChat(props: {
             <Dialog open={isCodexQueueDialogOpen} onOpenChange={setIsCodexQueueDialogOpen}>
                 <DialogContent className="max-w-2xl">
                     <DialogHeader>
-                        <DialogTitle>{t('codexQueue.dialog.title')}</DialogTitle>
-                        <DialogDescription>{t('codexQueue.dialog.description')}</DialogDescription>
+                        <DialogTitle>{t('queue.dialog.title')}</DialogTitle>
+                        <DialogDescription>{t('queue.dialog.description')}</DialogDescription>
                     </DialogHeader>
                     <div className="mt-3 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="text-xs text-[var(--app-hint)]">
-                                {t('codexQueue.dialog.modeLabel')}: {codexSendMode === 'queue'
-                                    ? t('codexQueue.mode.queue')
-                                    : t('codexQueue.mode.direct')}
+                                {t('queue.dialog.modeLabel')}: {codexSendMode === 'queue'
+                                    ? t('queue.mode.queue')
+                                    : t('queue.mode.direct')}
                             </div>
                             <div className="flex items-center gap-2">
                                 <button
@@ -1128,7 +1311,7 @@ export function SessionChat(props: {
                                     onClick={() => void refreshCodexQueue()}
                                     disabled={isCodexQueueLoading || isCodexQueueMutating}
                                 >
-                                    {t('codexQueue.dialog.refresh')}
+                                    {t('queue.dialog.refresh')}
                                 </button>
                                 <button
                                     type="button"
@@ -1136,14 +1319,14 @@ export function SessionChat(props: {
                                     onClick={handleCodexQueueClear}
                                     disabled={isCodexQueueMutating || codexQueueEntries.length === 0}
                                 >
-                                    {t('codexQueue.dialog.clear')}
+                                    {t('queue.dialog.clear')}
                                 </button>
                             </div>
                         </div>
 
                         {isCodexQueueLoading ? (
                             <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
-                                {t('codexQueue.dialog.loading')}
+                                {t('queue.dialog.loading')}
                             </div>
                         ) : null}
 
@@ -1157,7 +1340,7 @@ export function SessionChat(props: {
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                                 <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
                                     <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                                        {t('codexQueue.summary.pending')}
+                                        {t('queue.summary.pending')}
                                     </div>
                                     <div className="mt-1 text-lg font-semibold text-[var(--app-fg)]">
                                         {codexQueueStatus.pendingCount}
@@ -1165,7 +1348,7 @@ export function SessionChat(props: {
                                 </div>
                                 <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
                                     <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                                        {t('codexQueue.summary.inQueue')}
+                                        {t('queue.summary.inQueue')}
                                     </div>
                                     <div className="mt-1 text-sm text-[var(--app-fg)]">
                                         {codexQueueStatus.inQueue ? 'yes' : 'no'}
@@ -1173,7 +1356,7 @@ export function SessionChat(props: {
                                 </div>
                                 <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
                                     <div className="text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                                        {t('codexQueue.summary.taskRunning')}
+                                        {t('queue.summary.taskRunning')}
                                     </div>
                                     <div className="mt-1 text-sm text-[var(--app-fg)]">
                                         {codexQueueStatus.taskRunning ? 'yes' : 'no'}
@@ -1193,10 +1376,10 @@ export function SessionChat(props: {
                                             <div className="min-w-0 flex-1">
                                                 <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
                                                     #{index + 1}
-                                                    {entry.isolate ? ` · ${t('codexQueue.entry.isolate')}` : ''}
+                                                    {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
                                                 </div>
                                                 <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">
-                                                    {entry.preview || t('codexQueue.dialog.emptyMessage')}
+                                                    {entry.preview || t('queue.dialog.emptyMessage')}
                                                 </div>
                                                 <div className="mt-1 text-[10px] text-[var(--app-hint)]">
                                                     {new Date(entry.enqueuedAt).toLocaleTimeString()}
@@ -1205,8 +1388,8 @@ export function SessionChat(props: {
                                             <div className="ml-2 flex items-center gap-1">
                                                 <button
                                                     type="button"
-                                                    aria-label={t('codexQueue.entry.moveUp')}
-                                                    title={t('codexQueue.entry.moveUp')}
+                                                    aria-label={t('queue.entry.moveUp')}
+                                                    title={t('queue.entry.moveUp')}
                                                     className="rounded border border-[var(--app-border)] px-1.5 py-1 text-xs text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
                                                     onClick={() => handleCodexQueueMove(entry.id, index - 1)}
                                                     disabled={isCodexQueueMutating || index <= 0}
@@ -1215,8 +1398,8 @@ export function SessionChat(props: {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    aria-label={t('codexQueue.entry.moveDown')}
-                                                    title={t('codexQueue.entry.moveDown')}
+                                                    aria-label={t('queue.entry.moveDown')}
+                                                    title={t('queue.entry.moveDown')}
                                                     className="rounded border border-[var(--app-border)] px-1.5 py-1 text-xs text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
                                                     onClick={() => handleCodexQueueMove(entry.id, index + 1)}
                                                     disabled={isCodexQueueMutating || index >= codexQueueEntries.length - 1}
@@ -1225,8 +1408,8 @@ export function SessionChat(props: {
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    aria-label={t('codexQueue.entry.remove')}
-                                                    title={t('codexQueue.entry.remove')}
+                                                    aria-label={t('queue.entry.remove')}
+                                                    title={t('queue.entry.remove')}
                                                     className="rounded border border-red-500/40 px-1.5 py-1 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
                                                     onClick={() => handleCodexQueueRemove(entry.id)}
                                                     disabled={isCodexQueueMutating}
@@ -1240,7 +1423,7 @@ export function SessionChat(props: {
                             </div>
                         ) : (
                             <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
-                                {t('codexQueue.dialog.empty')}
+                                {t('queue.dialog.empty')}
                             </div>
                         )}
                     </div>

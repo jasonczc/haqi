@@ -1,8 +1,9 @@
 import type {
     AttachmentMetadata,
     AuthResponse,
-    CodexQueueResponse,
-    CodexStatusResponse,
+    QueueResponse,
+    SessionUsageResponse,
+    QueueStatusResponse,
     DeleteUploadResponse,
     ListDirectoryResponse,
     FileReadResponse,
@@ -20,6 +21,7 @@ import type {
     SlashCommandsResponse,
     SkillsResponse,
     SpawnResponse,
+    UsageOverviewResponse,
     UploadFileResponse,
     VisibilityPayload,
     SessionPreviewUrlResponse,
@@ -238,12 +240,40 @@ export class ApiClient {
         return await this.request<GitCommandResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/git-diff-file?${params.toString()}`)
     }
 
-    async getCodexStatus(sessionId: string): Promise<CodexStatusResponse> {
-        return await this.request<CodexStatusResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-status`)
+    async getQueueStatus(sessionId: string): Promise<QueueStatusResponse> {
+        return await this.request<QueueStatusResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue-status`)
     }
 
-    async getCodexQueue(sessionId: string): Promise<CodexQueueResponse> {
-        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue`)
+    async getCodexStatus(sessionId: string): Promise<QueueStatusResponse> {
+        return await this.getQueueStatus(sessionId)
+    }
+
+    async getQueue(sessionId: string): Promise<QueueResponse> {
+        return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue`)
+    }
+
+    async getCodexQueue(sessionId: string): Promise<QueueResponse> {
+        return await this.getQueue(sessionId)
+    }
+
+    async enqueueQueueMessage(
+        sessionId: string,
+        payload: {
+            text: string
+            attachments?: Array<{
+                id: string
+                filename: string
+                mimeType: string
+                size: number
+                path: string
+                previewUrl?: string
+            }>
+        }
+    ): Promise<QueueResponse> {
+        return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue/enqueue`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
     }
 
     async enqueueCodexMessage(
@@ -259,32 +289,54 @@ export class ApiClient {
                 previewUrl?: string
             }>
         }
-    ): Promise<CodexQueueResponse> {
-        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/enqueue`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        })
+    ): Promise<QueueResponse> {
+        return await this.enqueueQueueMessage(sessionId, payload)
     }
 
-    async removeCodexQueueItem(sessionId: string, id: string): Promise<CodexQueueResponse> {
-        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/remove`, {
+    async removeQueueItem(sessionId: string, id: string): Promise<QueueResponse> {
+        return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue/remove`, {
             method: 'POST',
             body: JSON.stringify({ id })
         })
     }
 
-    async moveCodexQueueItem(sessionId: string, id: string, toIndex: number): Promise<CodexQueueResponse> {
-        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/move`, {
+    async removeCodexQueueItem(sessionId: string, id: string): Promise<QueueResponse> {
+        return await this.removeQueueItem(sessionId, id)
+    }
+
+    async moveQueueItem(sessionId: string, id: string, toIndex: number): Promise<QueueResponse> {
+        return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue/move`, {
             method: 'POST',
             body: JSON.stringify({ id, toIndex })
         })
     }
 
-    async clearCodexQueue(sessionId: string): Promise<CodexQueueResponse> {
-        return await this.request<CodexQueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/clear`, {
+    async moveCodexQueueItem(sessionId: string, id: string, toIndex: number): Promise<QueueResponse> {
+        return await this.moveQueueItem(sessionId, id, toIndex)
+    }
+
+    async clearQueue(sessionId: string): Promise<QueueResponse> {
+        return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue/clear`, {
             method: 'POST',
             body: JSON.stringify({})
         })
+    }
+
+    async clearCodexQueue(sessionId: string): Promise<QueueResponse> {
+        return await this.clearQueue(sessionId)
+    }
+
+    async getUsageOverview(options?: { refresh?: boolean }): Promise<UsageOverviewResponse> {
+        const params = new URLSearchParams()
+        if (options?.refresh) {
+            params.set('refresh', '1')
+        }
+        const qs = params.toString()
+        return await this.request<UsageOverviewResponse>(`/api/usage/overview${qs ? `?${qs}` : ''}`)
+    }
+
+    async getSessionUsage(sessionId: string): Promise<SessionUsageResponse> {
+        return await this.request<SessionUsageResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/usage`)
     }
 
     async searchSessionFiles(sessionId: string, query: string, limit?: number): Promise<FileSearchResponse> {

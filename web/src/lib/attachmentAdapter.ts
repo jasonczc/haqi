@@ -11,6 +11,36 @@ type PendingUploadAttachment = PendingAttachment & {
     previewUrl?: string
 }
 
+const preservedUploadPathsBySession = new Map<string, Set<string>>()
+
+function consumePreservedUploadPath(sessionId: string, path: string): boolean {
+    const preserved = preservedUploadPathsBySession.get(sessionId)
+    if (!preserved) {
+        return false
+    }
+    if (!preserved.delete(path)) {
+        return false
+    }
+    if (preserved.size === 0) {
+        preservedUploadPathsBySession.delete(sessionId)
+    }
+    return true
+}
+
+export function preserveUploadPathsForQueue(sessionId: string, paths: string[]): void {
+    const normalized = paths
+        .map((path) => path.trim())
+        .filter((path) => path.length > 0)
+    if (normalized.length === 0) {
+        return
+    }
+    const preserved = preservedUploadPathsBySession.get(sessionId) ?? new Set<string>()
+    for (const path of normalized) {
+        preserved.add(path)
+    }
+    preservedUploadPathsBySession.set(sessionId, preserved)
+}
+
 export function createAttachmentAdapter(api: ApiClient, sessionId: string): AttachmentAdapter {
     const cancelledAttachmentIds = new Set<string>()
 
@@ -121,6 +151,9 @@ export function createAttachmentAdapter(api: ApiClient, sessionId: string): Atta
         async remove(attachment: Attachment): Promise<void> {
             cancelledAttachmentIds.add(attachment.id)
             const path = (attachment as PendingUploadAttachment).path
+            if (path && consumePreservedUploadPath(sessionId, path)) {
+                return
+            }
             await deleteUpload(path)
         },
 

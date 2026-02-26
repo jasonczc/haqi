@@ -57,8 +57,8 @@ https://github.com/user-attachments/assets/38230353-94c6-4dbe-9c29-b2a2cc457546
 ## Getting Started
 
 ```bash
-npx @twsxtd/haqi hub --relay     # start hub with E2E encrypted relay
-npx @twsxtd/haqi                 # run claude code
+npx @jasonczc/haqi hub --relay   # start hub with E2E encrypted relay
+npx @jasonczc/haqi               # run claude code
 ```
 
 `haqi server` remains supported as an alias.
@@ -83,6 +83,21 @@ For self-hosted options (Cloudflare Tunnel, Tailscale), see [Installation](docs/
 bun install
 bun run build:single-exe
 ```
+
+## Release (tag + GitHub Actions + npm OIDC)
+
+This repo publishes `@jasonczc/haqi` and platform packages from the `Release` workflow.
+
+1. Bump `cli/package.json` version (must match the tag).
+2. Push a tag like `v0.15.3`.
+3. GitHub Actions will:
+   - build all binaries,
+   - publish platform npm packages + main package,
+   - create a GitHub Release.
+
+> npm must be configured with **Trusted Publishing** (OIDC) for:
+> `@jasonczc/haqi`, `@jasonczc/haqi-darwin-arm64`, `@jasonczc/haqi-darwin-x64`,
+> `@jasonczc/haqi-linux-arm64`, `@jasonczc/haqi-linux-x64`, `@jasonczc/haqi-win32-x64`.
 
 ## Development workflow: rebuild + deploy locally
 

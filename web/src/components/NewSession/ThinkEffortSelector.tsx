@@ -1,6 +1,6 @@
 import { useTranslation } from '@/lib/use-translation'
 import type { AgentType, ThinkEffort } from './types'
-import { CLAUDE_THINK_EFFORT_OPTIONS, CODEX_THINK_EFFORT_OPTIONS } from './types'
+import { getThinkEffortOptions } from './types'
 
 export function ThinkEffortSelector(props: {
     agent: AgentType
@@ -9,12 +9,10 @@ export function ThinkEffortSelector(props: {
     onThinkEffortChange: (value: ThinkEffort) => void
 }) {
     const { t } = useTranslation()
-    if (props.agent !== 'claude' && props.agent !== 'codex') {
+    const options = getThinkEffortOptions(props.agent)
+    if (options.length === 0) {
         return null
     }
-    const options = props.agent === 'claude'
-        ? CLAUDE_THINK_EFFORT_OPTIONS
-        : CODEX_THINK_EFFORT_OPTIONS
 
     return (
         <div className="flex flex-col gap-1.5 px-3 py-3">

@@ -5,6 +5,68 @@ import { en } from '@/lib/locales'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 import SettingsPage from './index'
 
+const getUsageOverviewMock = vi.fn(async () => ({
+    success: true,
+    overview: {
+        generatedAt: Date.now(),
+        windowDays: 30,
+        claude: {
+            provider: 'claude',
+            available: false,
+            roots: [],
+            filesScanned: 0,
+            parseErrors: 0,
+            eventCount: 0,
+            last30DaysEventCount: 0,
+            allTime: {
+                inputTokens: 0,
+                cachedInputTokens: 0,
+                cacheReadTokens: 0,
+                cacheCreationTokens: 0,
+                outputTokens: 0,
+                reasoningOutputTokens: 0,
+                totalTokens: 0
+            },
+            last30Days: {
+                inputTokens: 0,
+                cachedInputTokens: 0,
+                cacheReadTokens: 0,
+                cacheCreationTokens: 0,
+                outputTokens: 0,
+                reasoningOutputTokens: 0,
+                totalTokens: 0
+            }
+        },
+        codex: {
+            provider: 'codex',
+            available: false,
+            roots: [],
+            filesScanned: 0,
+            parseErrors: 0,
+            eventCount: 0,
+            last30DaysEventCount: 0,
+            allTime: {
+                inputTokens: 0,
+                cachedInputTokens: 0,
+                cacheReadTokens: 0,
+                cacheCreationTokens: 0,
+                outputTokens: 0,
+                reasoningOutputTokens: 0,
+                totalTokens: 0
+            },
+            last30Days: {
+                inputTokens: 0,
+                cachedInputTokens: 0,
+                cacheReadTokens: 0,
+                cacheCreationTokens: 0,
+                outputTokens: 0,
+                reasoningOutputTokens: 0,
+                totalTokens: 0
+            }
+        }
+    }
+}))
+
 // Mock the router hooks
 vi.mock('@tanstack/react-router', () => ({
     useNavigate: () => vi.fn(),
@@ -33,6 +95,14 @@ vi.mock('@/lib/languages', () => ({
         { code: 'en', name: 'English' },
     ],
     getLanguageDisplayName: (lang: { code: string | null; name: string }) => lang.name,
+}))
+
+vi.mock('@/lib/app-context', () => ({
+    useAppContext: () => ({
+        api: {
+            getUsageOverview: getUsageOverviewMock
+        }
+    })
 }))
 
 function renderWithProviders(ui: React.ReactElement) {

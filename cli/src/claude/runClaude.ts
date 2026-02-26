@@ -30,6 +30,27 @@ export interface StartOptions {
     startedBy?: 'runner' | 'terminal'
 }
 
+type ClaudeQueueSnapshot = {
+    pendingCount: number
+    inQueue: boolean
+    taskRunning: boolean
+    nextPreview?: string
+}
+
+type ClaudeQueueEntrySnapshot = {
+    id: string
+    index: number
+    preview: string
+    modeHash: string
+    isolate: boolean
+    deferredUserMessage: boolean
+    enqueuedAt: number
+}
+
+type ClaudeQueueStateSnapshot = ClaudeQueueSnapshot & {
+    entries: ClaudeQueueEntrySnapshot[]
+}
+
 export async function runClaude(options: StartOptions = {}): Promise<void> {
     const workingDirectory = process.env.HAPI_WORKING_DIRECTORY ?? process.cwd();
     const startedBy = options.startedBy ?? 'terminal';
@@ -206,8 +227,175 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         sessionInstance.setPermissionMode(currentPermissionMode);
         sessionInstance.setModelMode(currentModelMode);
         logger.debug(`[loop] Synced session modes for keepalive: permissionMode=${currentPermissionMode}, modelMode=${currentModelMode}`);
-    }
+    };
+
+    const buildQueuePreview = (text: string | undefined): string | undefined => {
+        if (typeof text !== 'string') {
+            return undefined;
+        }
+        const normalized = text
+            .trim()
+            .replace(/\s+/g, ' ');
+        if (!normalized) {
+            return undefined;
+        }
+        return normalized.length <= 180 ? normalized : `${normalized.slice(0, 180)}...`;
+    };
+
+    const getClaudeQueueSnapshot = (): ClaudeQueueSnapshot => {
+        const pendingCount = messageQueue.size();
+        const nextQueued = messageQueue.peek()?.message;
+        return {
+            pendingCount,
+            inQueue: pendingCount > 0,
+            taskRunning: Boolean(currentSessionRef.current?.thinking),
+            nextPreview: buildQueuePreview(nextQueued)
+        };
+    };
+
+    const getClaudeQueueStateSnapshot = (): ClaudeQueueStateSnapshot => {
+        const summary = getClaudeQueueSnapshot();
+        const entries = messageQueue
+            .listEntries()
+            .map((item, index) => ({
+                id: item.id,
+                index,
+                preview: buildQueuePreview(item.message) ?? '',
+                modeHash: item.modeHash,
+                isolate: item.isolate,
+                deferredUserMessage: item.deferUserMessageUntilDequeue,
+                enqueuedAt: item.enqueuedAt
+            }));
+        return {
+            ...summary,
+            entries
+        };
+    };
+
+    const formatBoolean = (value: boolean): string => value ? 'yes' : 'no';
+
+    const getClaudeStatusMessage = (): string => {
+        const sessionInstance = currentSessionRef.current;
+        const queueSnapshot = getClaudeQueueSnapshot();
+        const lines = [
+            'Claude status',
+            `- Mode: ${sessionInstance?.mode ?? startingMode}`,
+            `- Session: ${sessionInstance?.sessionId ?? 'not established'}`,
+            `- Permission mode: ${currentPermissionMode}`,
+            `- Model mode: ${currentModelMode}`,
+            `- Queue pending: ${queueSnapshot.pendingCount}`,
+            `- In queue: ${formatBoolean(queueSnapshot.inQueue)}`,
+            `- Task running: ${formatBoolean(queueSnapshot.taskRunning)}`
+        ];
+
+        if (queueSnapshot.nextPreview) {
+            lines.push(`- Next queued message: ${queueSnapshot.nextPreview}`);
+        }
+
+        return lines.join('\n');
+    };
+
+    const isClaudeStatusCommand = (text: string): boolean => {
+        const trimmed = text.trim();
+        return trimmed === '/status' || trimmed === '/claude-status';
+    };
+
+    const resolveQueueItemId = (payload: unknown): string => {
+        if (!payload || typeof payload !== 'object') {
+            throw new Error('Invalid queue payload');
+        }
+        const candidate = (payload as { id?: unknown }).id;
+        if (typeof candidate !== 'string') {
+            throw new Error('Invalid queue item id');
+        }
+        const id = candidate.trim();
+        if (!id) {
+            throw new Error('Invalid queue item id');
+        }
+        return id;
+    };
+
+    const resolveQueueMovePayload = (payload: unknown): { id: string; toIndex: number } => {
+        const id = resolveQueueItemId(payload);
+        const toIndexValue = (payload as { toIndex?: unknown }).toIndex;
+        if (typeof toIndexValue !== 'number' || !Number.isFinite(toIndexValue)) {
+            throw new Error('Invalid queue target index');
+        }
+        const toIndex = Math.max(0, Math.floor(toIndexValue));
+        return { id, toIndex };
+    };
+
+    const resolveEnqueuePayload = (payload: unknown): {
+        text: string
+        attachments?: Array<{
+            id: string
+            filename: string
+            mimeType: string
+            size: number
+            path: string
+            previewUrl?: string
+        }>
+    } => {
+        if (!payload || typeof payload !== 'object') {
+            throw new Error('Invalid enqueue payload');
+        }
+        const textValue = (payload as { text?: unknown }).text;
+        if (typeof textValue !== 'string') {
+            throw new Error('Invalid enqueue text');
+        }
+        const text = textValue.trim();
+        const attachmentsValue = (payload as { attachments?: unknown }).attachments;
+        if (attachmentsValue !== undefined && !Array.isArray(attachmentsValue)) {
+            throw new Error('Invalid enqueue attachments');
+        }
+        const attachments = Array.isArray(attachmentsValue)
+            ? attachmentsValue.filter((attachment): attachment is {
+                id: string
+                filename: string
+                mimeType: string
+                size: number
+                path: string
+                previewUrl?: string
+            } => {
+                if (!attachment || typeof attachment !== 'object') return false;
+                const entry = attachment as Record<string, unknown>;
+                return typeof entry.id === 'string'
+                    && typeof entry.filename === 'string'
+                    && typeof entry.mimeType === 'string'
+                    && typeof entry.size === 'number'
+                    && Number.isFinite(entry.size)
+                    && typeof entry.path === 'string'
+                    && (entry.previewUrl === undefined || typeof entry.previewUrl === 'string');
+            })
+            : undefined;
+        if (!text && (!attachments || attachments.length === 0)) {
+            throw new Error('Message requires text or attachments');
+        }
+        return { text, attachments };
+    };
     session.onUserMessage((message) => {
+        if (isClaudeStatusCommand(message.content.text)) {
+            logger.debug('[start] Detected /status command for Claude');
+            try {
+                const statusMessage = getClaudeStatusMessage();
+                session.sendCodexMessage({
+                    type: 'message',
+                    message: statusMessage
+                });
+            } catch (error) {
+                const reason = error instanceof Error ? error.message : String(error);
+                session.sendCodexMessage({
+                    type: 'message',
+                    message: `Failed to get Claude status: ${reason}`
+                });
+            } finally {
+                if (!currentSessionRef.current?.thinking) {
+                    session.sendSessionEvent({ type: 'ready' });
+                }
+            }
+            return;
+        }
+
         const sessionPermissionMode = currentSessionRef.current?.getPermissionMode();
         if (sessionPermissionMode && isPermissionModeAllowedForFlavor(sessionPermissionMode, 'claude')) {
             currentPermissionMode = sessionPermissionMode as PermissionMode;
@@ -341,128 +529,6 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         return parsed.data;
     };
 
-    const buildQueuePreview = (text: string | undefined): string | undefined => {
-        if (typeof text !== 'string') {
-            return undefined;
-        }
-        const normalized = text
-            .trim()
-            .replace(/\s+/g, ' ');
-        if (!normalized) {
-            return undefined;
-        }
-        return normalized.length <= 180 ? normalized : `${normalized.slice(0, 180)}...`;
-    };
-
-    const getClaudeQueueSnapshot = () => {
-        const pendingCount = messageQueue.size();
-        const nextQueued = messageQueue.peek()?.message;
-        return {
-            pendingCount,
-            inQueue: pendingCount > 0,
-            taskRunning: Boolean(currentSessionRef.current?.thinking),
-            nextPreview: buildQueuePreview(nextQueued)
-        };
-    };
-
-    const getClaudeQueueStateSnapshot = () => {
-        const queueSnapshot = getClaudeQueueSnapshot();
-        const entries = messageQueue
-            .listEntries()
-            .map((item, index) => ({
-                id: item.id,
-                index,
-                preview: buildQueuePreview(item.message) ?? '',
-                modeHash: item.modeHash,
-                isolate: item.isolate,
-                deferredUserMessage: item.deferUserMessageUntilDequeue,
-                enqueuedAt: item.enqueuedAt
-            }));
-
-        return {
-            ...queueSnapshot,
-            entries
-        };
-    };
-
-    const resolveQueueItemId = (payload: unknown): string => {
-        if (!payload || typeof payload !== 'object') {
-            throw new Error('Invalid queue payload');
-        }
-        const candidate = (payload as { id?: unknown }).id;
-        if (typeof candidate !== 'string') {
-            throw new Error('Invalid queue item id');
-        }
-        const id = candidate.trim();
-        if (!id) {
-            throw new Error('Invalid queue item id');
-        }
-        return id;
-    };
-
-    const resolveQueueMovePayload = (payload: unknown): { id: string; toIndex: number } => {
-        const id = resolveQueueItemId(payload);
-        const toIndexValue = (payload as { toIndex?: unknown }).toIndex;
-        if (typeof toIndexValue !== 'number' || !Number.isFinite(toIndexValue)) {
-            throw new Error('Invalid queue target index');
-        }
-        return {
-            id,
-            toIndex: Math.max(0, Math.floor(toIndexValue))
-        };
-    };
-
-    const resolveQueueEnqueuePayload = (payload: unknown): { text: string; attachments?: Array<{
-        id: string;
-        filename: string;
-        mimeType: string;
-        size: number;
-        path: string;
-        previewUrl?: string;
-    }> } => {
-        if (!payload || typeof payload !== 'object') {
-            throw new Error('Invalid enqueue payload');
-        }
-
-        const textValue = (payload as { text?: unknown }).text;
-        if (typeof textValue !== 'string') {
-            throw new Error('Invalid enqueue text');
-        }
-        const text = textValue.trim();
-
-        const attachmentsValue = (payload as { attachments?: unknown }).attachments;
-        if (attachmentsValue !== undefined && !Array.isArray(attachmentsValue)) {
-            throw new Error('Invalid enqueue attachments');
-        }
-
-        const attachments = Array.isArray(attachmentsValue)
-            ? attachmentsValue.filter((attachment): attachment is {
-                id: string;
-                filename: string;
-                mimeType: string;
-                size: number;
-                path: string;
-                previewUrl?: string;
-            } => {
-                if (!attachment || typeof attachment !== 'object') return false;
-                const entry = attachment as Record<string, unknown>;
-                return typeof entry.id === 'string'
-                    && typeof entry.filename === 'string'
-                    && typeof entry.mimeType === 'string'
-                    && typeof entry.size === 'number'
-                    && Number.isFinite(entry.size)
-                    && typeof entry.path === 'string'
-                    && (entry.previewUrl === undefined || typeof entry.previewUrl === 'string');
-            })
-            : undefined;
-
-        if (!text && (!attachments || attachments.length === 0)) {
-            throw new Error('Message requires text or attachments');
-        }
-
-        return { text, attachments };
-    };
-
     session.rpcHandlerManager.registerHandler('set-session-config', async (payload: unknown) => {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
@@ -510,7 +576,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     session.rpcHandlerManager.registerHandler('enqueue-claude-message', async (payload: unknown) => {
         try {
-            const parsed = resolveQueueEnqueuePayload(payload);
+            const parsed = resolveEnqueuePayload(payload);
             const formattedText = formatMessageWithAttachments(parsed.text, parsed.attachments);
             const enhancedMode: EnhancedMode = {
                 permissionMode: currentPermissionMode ?? 'default',
@@ -570,6 +636,99 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
     });
 
     session.rpcHandlerManager.registerHandler('clear-claude-queue', async () => {
+        try {
+            const clearedCount = messageQueue.clear();
+            return {
+                success: true,
+                clearedCount,
+                queue: getClaudeQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getClaudeQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('get-codex-status', async () => {
+        try {
+            const message = getClaudeStatusMessage();
+            return { success: true, message, queue: getClaudeQueueSnapshot() };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getClaudeQueueSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('get-codex-queue', async () => {
+        try {
+            return { success: true, queue: getClaudeQueueStateSnapshot() };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getClaudeQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('enqueue-codex-message', async (payload: unknown) => {
+        try {
+            const parsed = resolveEnqueuePayload(payload);
+            const formattedText = formatMessageWithAttachments(parsed.text, parsed.attachments);
+            const enhancedMode: EnhancedMode = {
+                permissionMode: currentPermissionMode ?? 'default',
+                model: currentModelMode === 'default' ? undefined : currentModelMode,
+                fallbackModel: currentFallbackModel,
+                customSystemPrompt: currentCustomSystemPrompt,
+                appendSystemPrompt: currentAppendSystemPrompt,
+                allowedTools: currentAllowedTools,
+                disallowedTools: currentDisallowedTools
+            };
+            messageQueue.push(formattedText, enhancedMode, {
+                deferUserMessageUntilDequeue: true,
+                isolate: true
+            });
+            return { success: true, queue: getClaudeQueueStateSnapshot() };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getClaudeQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('remove-codex-queue-item', async (payload: unknown) => {
+        try {
+            const id = resolveQueueItemId(payload);
+            const removed = messageQueue.removeById(id);
+            if (!removed) {
+                return { success: false, error: 'Queue item not found', queue: getClaudeQueueStateSnapshot() };
+            }
+            return {
+                success: true,
+                removedId: removed.id,
+                queue: getClaudeQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getClaudeQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('move-codex-queue-item', async (payload: unknown) => {
+        try {
+            const { id, toIndex } = resolveQueueMovePayload(payload);
+            const moved = messageQueue.moveById(id, toIndex);
+            if (!moved) {
+                return { success: false, error: 'Queue item not found', queue: getClaudeQueueStateSnapshot() };
+            }
+            return {
+                success: true,
+                movedId: id,
+                queue: getClaudeQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getClaudeQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('clear-codex-queue', async () => {
         try {
             const clearedCount = messageQueue.clear();
             return {

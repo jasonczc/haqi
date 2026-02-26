@@ -17,6 +17,7 @@ describe('NewSession model options', () => {
     it('includes GPT-5.3 Codex in codex model options', () => {
         const codexValues = MODEL_OPTIONS.codex.map((option) => option.value)
         expect(codexValues).toContain('gpt-5.3-codex')
+        expect(codexValues).toContain('gpt-5.3-codex-spark')
     })
 
     it('uses Gemini auto/manual presets', () => {
