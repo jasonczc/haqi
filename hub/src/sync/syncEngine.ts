@@ -63,8 +63,32 @@ type MessageEnvelope = {
     meta: Record<string, unknown> | null
 }
 
+type MirroredPayload = {
+    sessionId: string
+    contentType: string
+    text: string
+    codexType?: string
+    isCodexExecutionDetail?: boolean
+    merged?: boolean
+    chunkCount?: number
+}
+
+type BufferedCodexGroupMirror = {
+    route: GroupRouteContext
+    chunks: string[]
+}
+
 const NOTE_REFRESH_TASK_PREFIX = 'note-refresh:'
 const MAX_NOTE_REFRESH_CONTENT_LENGTH = 20_000
+const MAX_GROUP_MIRROR_TEXT_LENGTH = 8_000
+const CODEX_TOOL_PROCESS_EVENT_TYPES = new Set([
+    'tool-call',
+    'tool-call-result',
+    'reasoning',
+    'reasoning-delta',
+    'token_count',
+    'plan-update'
+])
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object') {
@@ -148,8 +172,8 @@ function extractClaudeText(data: unknown): string | null {
     }
     const type = asString(record.type)
     if (type === 'summary') {
-        const summary = asString(record.summary)?.trim()
-        return summary && summary.length > 0 ? summary : null
+        // Summary payloads are metadata updates (e.g. title sync), not timeline chat content.
+        return null
     }
     if (type !== 'assistant') {
         return null
@@ -204,6 +228,86 @@ function extractCodexText(data: unknown): string | null {
     return null
 }
 
+function isCodexExecutionDetailText(text: string): boolean {
+    const normalized = text.trim().toLowerCase()
+    if (!normalized) {
+        return true
+    }
+
+    const isTitleToolProgress = /\b(changing|updating|setting|calling|initiating)\b.*\b(task title|chat title|session title|title change|change_title)\b/.test(normalized)
+        || /\b(task title|chat title|session title|title change|change_title)\b.*\b(changing|updating|setting|calling|initiating)\b/.test(normalized)
+        || normalized.includes('change_title')
+
+    return normalized.startsWith('[model rerouted]')
+        || normalized.startsWith('[context compacted]')
+        || normalized === 'starting task...'
+        || normalized === 'task completed'
+        || normalized === 'turn aborted'
+        || normalized.startsWith('task failed')
+        || normalized.startsWith('title changed')
+        || normalized.startsWith('title updated')
+        || normalized.startsWith('chat title changed')
+        || normalized.startsWith('session title changed')
+        || isTitleToolProgress
+}
+
+function isTitleMutationNoiseText(text: string): boolean {
+    const normalized = text.trim().toLowerCase()
+    if (!normalized) {
+        return false
+    }
+
+    return normalized.startsWith('title changed')
+        || normalized.startsWith('title updated')
+        || normalized.startsWith('chat title changed')
+        || normalized.startsWith('session title changed')
+        || normalized.startsWith('successfully changed chat title')
+        || normalized.startsWith('failed to change chat title')
+}
+
+function isCodexToolProcessEventType(type: string): boolean {
+    return CODEX_TOOL_PROCESS_EVENT_TYPES.has(type)
+}
+
+function extractCodexMirrorPayload(data: unknown): {
+    text: string
+    codexType: string
+    isCodexExecutionDetail: boolean
+} | null {
+    const record = asRecord(data)
+    if (!record) {
+        return null
+    }
+
+    const codexType = asString(record.type)
+    if (!codexType) {
+        return null
+    }
+    if (isCodexToolProcessEventType(codexType)) {
+        return null
+    }
+
+    const message = asString(record.message)?.trim()
+    if (message && message.length > 0) {
+        return {
+            text: message,
+            codexType,
+            isCodexExecutionDetail: codexType !== 'message' || isCodexExecutionDetailText(message)
+        }
+    }
+
+    const error = asString(record.error)?.trim()
+    if (error && error.length > 0) {
+        return {
+            text: `${codexType}: ${error}`,
+            codexType,
+            isCodexExecutionDetail: true
+        }
+    }
+
+    return null
+}
+
 function isReadyEvent(envelope: MessageEnvelope): boolean {
     if (envelope.contentType !== 'event') {
         return false
@@ -212,21 +316,25 @@ function isReadyEvent(envelope: MessageEnvelope): boolean {
     return asString(eventData?.type) === 'ready'
 }
 
-function buildMirroredPayload(sessionId: string, envelope: MessageEnvelope): {
-    sessionId: string
-    contentType: string
-    text: string
-} | null {
+function buildMirroredPayload(sessionId: string, envelope: MessageEnvelope): MirroredPayload | null {
     const contentType = envelope.contentType
     if (!contentType) {
         return null
     }
 
     let text: string | null = null
+    let codexType: string | undefined
+    let isCodexExecutionDetail: boolean | undefined
     if (contentType === 'output') {
         text = extractClaudeText(envelope.data)
     } else if (contentType === 'codex') {
-        text = extractCodexText(envelope.data)
+        const codexPayload = extractCodexMirrorPayload(envelope.data)
+        if (!codexPayload) {
+            return null
+        }
+        text = codexPayload.text
+        codexType = codexPayload.codexType
+        isCodexExecutionDetail = codexPayload.isCodexExecutionDetail
     } else if (contentType === 'event') {
         const eventData = asRecord(envelope.data)
         if (asString(eventData?.type) !== 'message') {
@@ -242,7 +350,9 @@ function buildMirroredPayload(sessionId: string, envelope: MessageEnvelope): {
     return {
         sessionId,
         contentType,
-        text: truncateText(text, 8_000)
+        text: truncateText(text, MAX_GROUP_MIRROR_TEXT_LENGTH),
+        ...(codexType ? { codexType } : {}),
+        ...(isCodexExecutionDetail !== undefined ? { isCodexExecutionDetail } : {})
     }
 }
 
@@ -281,6 +391,7 @@ export class SyncEngine {
     // Routes registered at queue-dispatch time for flavors (claude/gemini) that don't
     // echo routeContext in their user-message echo. Prevents the echo from clearing the route.
     private readonly queuePendingRoutes: Map<string, GroupRouteContext> = new Map()
+    private readonly bufferedCodexMirrorsBySession: Map<string, BufferedCodexGroupMirror> = new Map()
     private readonly pendingNoteRefreshDraftByTaskKey: Map<string, string> = new Map()
     private inactivityTimer: NodeJS.Timeout | null = null
 
@@ -859,6 +970,100 @@ export class SyncEngine {
         }
     }
 
+    private isSameGroupRoute(left: GroupRouteContext, right: GroupRouteContext): boolean {
+        return left.groupId === right.groupId
+            && (left.taskId ?? null) === (right.taskId ?? null)
+            && (left.traceId ?? null) === (right.traceId ?? null)
+    }
+
+    private isCodexGroupSession(sessionId: string, namespace: string): boolean {
+        const session = this.getSessionByNamespace(sessionId, namespace)
+        return session?.metadata?.flavor === 'codex'
+    }
+
+    private emitMirroredGroupMessage(
+        route: GroupRouteContext,
+        sessionId: string,
+        namespace: string,
+        payload: MirroredPayload
+    ): void {
+        void this.groupService.addTimelineMessage({
+            groupId: route.groupId,
+            namespace,
+            type: 'chat',
+            source: `session:${sessionId}`,
+            actorSessionId: sessionId,
+            traceId: route.traceId ?? null,
+            taskId: route.taskId ?? null,
+            targetSessionIds: route.targetSessionIds ?? null,
+            payload
+        }).catch((error) => {
+            const message = error instanceof Error ? error.message : String(error)
+            console.warn(`[SyncEngine] Failed to mirror group message for ${sessionId}: ${message}`)
+        })
+    }
+
+    private flushBufferedCodexMirror(sessionId: string, namespace: string): void {
+        const buffered = this.bufferedCodexMirrorsBySession.get(sessionId)
+        if (!buffered) {
+            return
+        }
+        this.bufferedCodexMirrorsBySession.delete(sessionId)
+
+        const merged = truncateText(
+            buffered.chunks.join('\n\n').trim(),
+            MAX_GROUP_MIRROR_TEXT_LENGTH
+        )
+        if (!merged) {
+            return
+        }
+
+        this.emitMirroredGroupMessage(
+            buffered.route,
+            sessionId,
+            namespace,
+            {
+                sessionId,
+                contentType: 'codex',
+                text: merged,
+                merged: true,
+                chunkCount: buffered.chunks.length
+            }
+        )
+    }
+
+    private bufferCodexMirror(
+        sessionId: string,
+        namespace: string,
+        route: GroupRouteContext,
+        text: string
+    ): void {
+        const normalized = text.trim()
+        if (!normalized) {
+            return
+        }
+
+        const existing = this.bufferedCodexMirrorsBySession.get(sessionId)
+        if (existing && !this.isSameGroupRoute(existing.route, route)) {
+            this.flushBufferedCodexMirror(sessionId, namespace)
+        }
+
+        const active = this.bufferedCodexMirrorsBySession.get(sessionId)
+        if (!active) {
+            this.bufferedCodexMirrorsBySession.set(sessionId, {
+                route,
+                chunks: [normalized]
+            })
+            return
+        }
+
+        const lastChunk = active.chunks[active.chunks.length - 1]
+        if (lastChunk === normalized) {
+            return
+        }
+        active.chunks.push(normalized)
+    }
+
     private handleGroupRoutedMessage(
         sessionId: string,
         namespace: string,
@@ -870,13 +1075,23 @@ export class SyncEngine {
         }
 
         const routeFromMeta = parseRouteContext(envelope.meta?.routeContext)
+        const isCodexSession = this.isCodexGroupSession(sessionId, namespace)
         if (envelope.role === 'user') {
             if (routeFromMeta) {
                 const group = this.groupService.getGroupByNamespace(routeFromMeta.groupId, namespace)
                 if (!group) {
                     this.clearPendingNoteRefreshDraft(routeFromMeta)
+                    if (isCodexSession) {
+                        this.flushBufferedCodexMirror(sessionId, namespace)
+                    }
                     this.activeGroupRoutesBySession.delete(sessionId)
                     return
+                }
+                if (isCodexSession) {
+                    const activeRoute = this.activeGroupRoutesBySession.get(sessionId)
+                    if (activeRoute && !this.isSameGroupRoute(activeRoute, routeFromMeta)) {
+                        this.flushBufferedCodexMirror(sessionId, namespace)
+                    }
                 }
                 this.activeGroupRoutesBySession.set(sessionId, routeFromMeta)
                 if (routeFromMeta.taskId) {
@@ -899,6 +1114,9 @@ export class SyncEngine {
                     if (activeRoute) {
                         this.clearPendingNoteRefreshDraft(activeRoute)
                     }
+                    if (isCodexSession) {
+                        this.flushBufferedCodexMirror(sessionId, namespace)
+                    }
                     this.activeGroupRoutesBySession.delete(sessionId)
                 }
             }
@@ -911,18 +1129,30 @@ export class SyncEngine {
 
         const route = routeFromMeta ?? this.activeGroupRoutesBySession.get(sessionId)
         if (!route) {
+            if (isCodexSession) {
+                this.flushBufferedCodexMirror(sessionId, namespace)
+            }
             return
         }
 
         const group = this.groupService.getGroupByNamespace(route.groupId, namespace)
         if (!group) {
             this.clearPendingNoteRefreshDraft(route)
+            if (isCodexSession) {
+                this.flushBufferedCodexMirror(sessionId, namespace)
+            }
             this.activeGroupRoutesBySession.delete(sessionId)
             this.queuePendingRoutes.delete(sessionId)
             return
         }
 
         if (routeFromMeta) {
+            if (isCodexSession) {
+                const activeRoute = this.activeGroupRoutesBySession.get(sessionId)
+                if (activeRoute && !this.isSameGroupRoute(activeRoute, route)) {
+                    this.flushBufferedCodexMirror(sessionId, namespace)
+                }
+            }
             this.activeGroupRoutesBySession.set(sessionId, route)
         }
 
@@ -938,6 +1168,9 @@ export class SyncEngine {
         this.capturePendingNoteRefreshDraft(route, envelope)
 
         if (isReadyEvent(envelope)) {
+            if (isCodexSession) {
+                this.flushBufferedCodexMirror(sessionId, namespace)
+            }
             this.applyPendingNoteRefreshDraft(route, namespace, sessionId)
             if (route.taskId) {
                 this.groupService.updateTaskExecutionStatus({
@@ -957,20 +1190,23 @@ export class SyncEngine {
             return
         }
 
-        void this.groupService.addTimelineMessage({
-            groupId: route.groupId,
-            namespace,
-            type: 'chat',
-            source: `session:${sessionId}`,
-            actorSessionId: sessionId,
-            traceId: route.traceId ?? null,
-            taskId: route.taskId ?? null,
-            targetSessionIds: route.targetSessionIds ?? null,
-            payload
-        }).catch((error) => {
-            const message = error instanceof Error ? error.message : String(error)
-            console.warn(`[SyncEngine] Failed to mirror group message for ${sessionId}: ${message}`)
-        })
+        if (isTitleMutationNoiseText(payload.text)) {
+            return
+        }
+
+        if (isCodexSession && payload.contentType === 'codex') {
+            if (payload.isCodexExecutionDetail) {
+                return
+            }
+            this.bufferCodexMirror(sessionId, namespace, route, payload.text)
+            return
+        }
+
+        if (isCodexSession && payload.contentType === 'event' && isCodexExecutionDetailText(payload.text)) {
+            return
+        }
+
+        this.emitMirroredGroupMessage(route, sessionId, namespace, payload)
     }
 
     private async dispatchGroupTask(payload: {

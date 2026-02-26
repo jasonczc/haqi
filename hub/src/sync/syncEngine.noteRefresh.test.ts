@@ -40,6 +40,13 @@ function emitMessage(engine: SyncEngine, sessionId: string, seq: number, content
     engine.handleRealtimeEvent(event)
 }
 
+function getGroupMessages(engine: SyncEngine, groupId: string): ReturnType<SyncEngine['getGroupMessagesPage']>['messages'] {
+    return engine.getGroupMessagesPage(groupId, 'default', {
+        limit: 200,
+        beforeSeq: null
+    }).messages
+}
+
 const harnesses: Harness[] = []
 
 afterEach(() => {
@@ -193,5 +200,490 @@ describe('SyncEngine note refresh write-back', () => {
 
         const note = harness.engine.getGroupNote(group.group.id, 'default')
         expect(note?.content ?? '').toBe('')
+    })
+})
+
+describe('SyncEngine codex group mirror filtering', () => {
+    it('merges codex routed output and skips execution detail messages', () => {
+        const harness = createHarness()
+        harnesses.push(harness)
+
+        const codexSession = harness.store.sessions.getOrCreateSession(
+            'codex-worker',
+            { path: '/repo/codex', host: 'dev', flavor: 'codex' },
+            null,
+            'default'
+        )
+
+        const group = harness.engine.createGroup({
+            namespace: 'default',
+            name: 'Codex Mirror Group',
+            noteSessionId: codexSession.id,
+            sessionMemberIds: [codexSession.id]
+        })
+
+        const routeContext = {
+            groupId: group.group.id,
+            traceId: 'trace-codex-1',
+            source: 'user:web',
+            targetSessionIds: [codexSession.id]
+        }
+
+        emitMessage(harness.engine, codexSession.id, 1, {
+            role: 'user',
+            content: { type: 'text', text: '@codex-worker 执行任务' },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 2, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'reasoning',
+                    message: '先分析目录结构'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 3, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'message',
+                    message: '[Context compacted]'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 4, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'message',
+                    message: '完成了第一步，已更新依赖。'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 5, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'message',
+                    message: '完成了第二步，测试通过。'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        expect(getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')).toHaveLength(0)
+
+        emitMessage(harness.engine, codexSession.id, 6, {
+            role: 'agent',
+            content: {
+                type: 'event',
+                data: { type: 'ready' }
+            },
+            meta: {}
+        })
+
+        const chatMessages = getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')
+        expect(chatMessages).toHaveLength(1)
+        expect(chatMessages[0].traceId).toBe('trace-codex-1')
+
+        const payload = chatMessages[0].payload as { text?: unknown; chunkCount?: unknown }
+        expect(payload.chunkCount).toBe(2)
+        expect(typeof payload.text).toBe('string')
+        const mergedText = payload.text as string
+        expect(mergedText).toContain('完成了第一步，已更新依赖。')
+        expect(mergedText).toContain('完成了第二步，测试通过。')
+        expect(mergedText).not.toContain('[Context compacted]')
+        expect(mergedText).not.toContain('先分析目录结构')
+    })
+
+    it('flushes pending codex mirror output when route switches before ready', () => {
+        const harness = createHarness()
+        harnesses.push(harness)
+
+        const codexSession = harness.store.sessions.getOrCreateSession(
+            'codex-switch',
+            { path: '/repo/codex', host: 'dev', flavor: 'codex' },
+            null,
+            'default'
+        )
+
+        const group = harness.engine.createGroup({
+            namespace: 'default',
+            name: 'Codex Route Switch Group',
+            noteSessionId: codexSession.id,
+            sessionMemberIds: [codexSession.id]
+        })
+
+        const routeA = {
+            groupId: group.group.id,
+            traceId: 'trace-route-a',
+            source: 'user:web',
+            targetSessionIds: [codexSession.id]
+        }
+        const routeB = {
+            groupId: group.group.id,
+            traceId: 'trace-route-b',
+            source: 'user:web',
+            targetSessionIds: [codexSession.id]
+        }
+
+        emitMessage(harness.engine, codexSession.id, 1, {
+            role: 'user',
+            content: { type: 'text', text: '@codex-switch 处理A' },
+            meta: { routeContext: routeA }
+        })
+        emitMessage(harness.engine, codexSession.id, 2, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'message',
+                    message: 'A 路由输出片段'
+                }
+            },
+            meta: { routeContext: routeA }
+        })
+        emitMessage(harness.engine, codexSession.id, 3, {
+            role: 'user',
+            content: { type: 'text', text: '@codex-switch 处理B' },
+            meta: { routeContext: routeB }
+        })
+
+        const afterSwitch = getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')
+        expect(afterSwitch).toHaveLength(1)
+        expect(afterSwitch[0].traceId).toBe('trace-route-a')
+        const firstPayload = afterSwitch[0].payload as { text?: unknown }
+        expect(firstPayload.text).toBe('A 路由输出片段')
+
+        emitMessage(harness.engine, codexSession.id, 4, {
+            role: 'agent',
+            content: {
+                type: 'event',
+                data: { type: 'ready' }
+            },
+            meta: {}
+        })
+
+        const finalChats = getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')
+        expect(finalChats).toHaveLength(1)
+    })
+
+    it('filters codex tool process events by event type', () => {
+        const harness = createHarness()
+        harnesses.push(harness)
+
+        const codexSession = harness.store.sessions.getOrCreateSession(
+            'codex-tools',
+            { path: '/repo/codex', host: 'dev', flavor: 'codex' },
+            null,
+            'default'
+        )
+
+        const group = harness.engine.createGroup({
+            namespace: 'default',
+            name: 'Codex Tool Process Group',
+            noteSessionId: codexSession.id,
+            sessionMemberIds: [codexSession.id]
+        })
+
+        const routeContext = {
+            groupId: group.group.id,
+            traceId: 'trace-tools',
+            source: 'user:web',
+            targetSessionIds: [codexSession.id]
+        }
+
+        emitMessage(harness.engine, codexSession.id, 1, {
+            role: 'user',
+            content: { type: 'text', text: '@codex-tools 执行工具任务' },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 2, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'tool-call',
+                    message: 'Using WebSearch...'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 3, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'tool-call-result',
+                    message: 'Result: done'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 4, {
+            role: 'agent',
+            content: {
+                type: 'event',
+                data: { type: 'ready' }
+            },
+            meta: {}
+        })
+
+        const chats = getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')
+        expect(chats).toHaveLength(0)
+    })
+
+    it('filters codex title changed event messages', () => {
+        const harness = createHarness()
+        harnesses.push(harness)
+
+        const codexSession = harness.store.sessions.getOrCreateSession(
+            'codex-title',
+            { path: '/repo/codex', host: 'dev', flavor: 'codex' },
+            null,
+            'default'
+        )
+
+        const group = harness.engine.createGroup({
+            namespace: 'default',
+            name: 'Codex Title Event Group',
+            noteSessionId: codexSession.id,
+            sessionMemberIds: [codexSession.id]
+        })
+
+        const routeContext = {
+            groupId: group.group.id,
+            traceId: 'trace-title',
+            source: 'user:web',
+            targetSessionIds: [codexSession.id]
+        }
+
+        emitMessage(harness.engine, codexSession.id, 1, {
+            role: 'user',
+            content: { type: 'text', text: '@codex-title 处理任务' },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 2, {
+            role: 'agent',
+            content: {
+                type: 'event',
+                data: {
+                    type: 'message',
+                    message: 'Title changed to "Refactor auth module"'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 3, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'message',
+                    message: '主任务执行完成。'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 4, {
+            role: 'agent',
+            content: {
+                type: 'event',
+                data: { type: 'ready' }
+            },
+            meta: {}
+        })
+
+        const chats = getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')
+        expect(chats).toHaveLength(1)
+        const payload = chats[0].payload as { text?: unknown }
+        expect(payload.text).toBe('主任务执行完成。')
+    })
+
+    it('filters codex title tool progress messages', () => {
+        const harness = createHarness()
+        harnesses.push(harness)
+
+        const codexSession = harness.store.sessions.getOrCreateSession(
+            'codex-title-tool-progress',
+            { path: '/repo/codex', host: 'dev', flavor: 'codex' },
+            null,
+            'default'
+        )
+
+        const group = harness.engine.createGroup({
+            namespace: 'default',
+            name: 'Codex Title Tool Progress Group',
+            noteSessionId: codexSession.id,
+            sessionMemberIds: [codexSession.id]
+        })
+
+        const routeContext = {
+            groupId: group.group.id,
+            traceId: 'trace-title-tool-progress',
+            source: 'user:web',
+            targetSessionIds: [codexSession.id]
+        }
+
+        emitMessage(harness.engine, codexSession.id, 1, {
+            role: 'user',
+            content: { type: 'text', text: '@codex-title-tool-progress 执行任务' },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 2, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'message',
+                    message: 'Changing task title'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 3, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'message',
+                    message: 'Initiating title change and loading memory'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 4, {
+            role: 'agent',
+            content: {
+                type: 'codex',
+                data: {
+                    type: 'message',
+                    message: '主任务执行完成。'
+                }
+            },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, codexSession.id, 5, {
+            role: 'agent',
+            content: {
+                type: 'event',
+                data: { type: 'ready' }
+            },
+            meta: {}
+        })
+
+        const chats = getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')
+        expect(chats).toHaveLength(1)
+        const payload = chats[0].payload as { text?: unknown }
+        expect(payload.text).toBe('主任务执行完成。')
+    })
+
+    it('filters claude title sync summary and title mutation text', () => {
+        const harness = createHarness()
+        harnesses.push(harness)
+
+        const claudeSession = harness.store.sessions.getOrCreateSession(
+            'claude-title',
+            { path: '/repo/claude', host: 'dev', flavor: 'claude' },
+            null,
+            'default'
+        )
+
+        const group = harness.engine.createGroup({
+            namespace: 'default',
+            name: 'Claude Title Noise Group',
+            noteSessionId: claudeSession.id,
+            sessionMemberIds: [claudeSession.id]
+        })
+
+        const routeContext = {
+            groupId: group.group.id,
+            traceId: 'trace-claude-title',
+            source: 'user:web',
+            targetSessionIds: [claudeSession.id]
+        }
+
+        emitMessage(harness.engine, claudeSession.id, 1, {
+            role: 'user',
+            content: { type: 'text', text: '@claude-title 执行任务' },
+            meta: { routeContext }
+        })
+
+        emitMessage(harness.engine, claudeSession.id, 2, {
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'summary',
+                    summary: 'Refactor auth module',
+                    leafUuid: 'leaf-title-sync'
+                }
+            },
+            meta: {}
+        })
+
+        emitMessage(harness.engine, claudeSession.id, 3, {
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'assistant',
+                    message: {
+                        content: 'Successfully changed chat title to: "Refactor auth module"'
+                    }
+                }
+            },
+            meta: {}
+        })
+
+        emitMessage(harness.engine, claudeSession.id, 4, {
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'assistant',
+                    message: {
+                        content: '主任务执行完成。'
+                    }
+                }
+            },
+            meta: {}
+        })
+
+        emitMessage(harness.engine, claudeSession.id, 5, {
+            role: 'agent',
+            content: {
+                type: 'event',
+                data: { type: 'ready' }
+            },
+            meta: {}
+        })
+
+        const chats = getGroupMessages(harness.engine, group.group.id).filter((msg) => msg.type === 'chat')
+        expect(chats).toHaveLength(1)
+        const payload = chats[0].payload as { text?: unknown }
+        expect(payload.text).toBe('主任务执行完成。')
     })
 })

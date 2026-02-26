@@ -604,7 +604,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 customSystemPrompt: currentCustomSystemPrompt,
                 appendSystemPrompt: currentAppendSystemPrompt,
                 allowedTools: currentAllowedTools,
-                disallowedTools: currentDisallowedTools
+                disallowedTools: currentDisallowedTools,
+                routeContext: parsed.routeContext
             };
             messageQueue.push(formattedText, enhancedMode, {
                 deferUserMessageUntilDequeue: true,

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
+import ReactMarkdown from 'react-markdown'
 import { useAppContext } from '@/lib/app-context'
 import { useGroup } from '@/hooks/queries/useGroup'
 import { useGroupMessages } from '@/hooks/queries/useGroupMessages'
@@ -9,6 +10,8 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { useMachines } from '@/hooks/queries/useMachines'
 import type { GroupMember, GroupTimelineMessage, GroupTaskStatus, SessionSummary } from '@/types/api'
 import { LoadingState } from '@/components/LoadingState'
+import { MARKDOWN_PLUGINS, defaultComponents } from '@/components/assistant-ui/markdown-text'
+import { cn } from '@/lib/utils'
 import { NewSession } from '@/components/NewSession'
 import { useTranslation } from '@/lib/use-translation'
 import { getSessionTitle } from '@/lib/session-title'
@@ -108,11 +111,14 @@ function getSessionAvatarTone(session: SessionSummary | undefined): string {
     return 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-divider)]'
 }
 
-type MemberWorkStatus = 'offline' | 'working' | 'completed'
+type MemberWorkStatus = 'offline' | 'pending' | 'working' | 'completed'
 
 function getMemberWorkStatus(session: SessionSummary | undefined): MemberWorkStatus {
     if (!session?.active) {
         return 'offline'
+    }
+    if ((session.pendingRequestsCount ?? 0) > 0) {
+        return 'pending'
     }
     if (session.thinking) {
         return 'working'
@@ -122,12 +128,14 @@ function getMemberWorkStatus(session: SessionSummary | undefined): MemberWorkSta
 
 function getMemberStatusDotClass(status: MemberWorkStatus): string {
     if (status === 'working') return 'bg-[#007AFF] animate-pulse'
+    if (status === 'pending') return 'bg-amber-500'
     if (status === 'completed') return 'bg-[var(--app-badge-success-text)]'
     return 'bg-[var(--app-hint)]'
 }
 
 function getMemberStatusBadgeClass(status: MemberWorkStatus): string {
     if (status === 'working') return 'bg-blue-100 text-blue-700'
+    if (status === 'pending') return 'bg-amber-100 text-amber-700'
     if (status === 'completed') return 'bg-green-100 text-green-700'
     return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
 }
@@ -136,6 +144,9 @@ function getMemberStatusLabel(
     status: MemberWorkStatus,
     t: (key: string, params?: Record<string, string | number>) => string
 ): string {
+    if (status === 'pending') {
+        return t('session.item.pending')
+    }
     if (status === 'working') {
         return t('session.item.thinking')
     }
@@ -195,6 +206,43 @@ function getActorSessionId(message: GroupTimelineMessage): string | null {
         return value || null
     }
     return null
+}
+
+function BubbleMarkdown(props: {
+    content: string
+    isUser: boolean
+}) {
+    return (
+        <div
+            className={cn(
+                'aui-md min-w-0 max-w-full break-words text-sm',
+                props.isUser
+                    ? '[&_.aui-md-a]:text-white/90 [&_.aui-md-a]:decoration-white/70 [&_.aui-md-code]:bg-white/20 [&_.aui-md-blockquote]:border-white/50'
+                    : ''
+            )}
+        >
+            <ReactMarkdown
+                remarkPlugins={MARKDOWN_PLUGINS}
+                components={defaultComponents}
+            >
+                {props.content}
+            </ReactMarkdown>
+        </div>
+    )
+}
+
+const COMPOSER_MIN_HEIGHT_PX = 38
+const COMPOSER_MAX_HEIGHT_PX = 120
+
+function resizeComposerTextarea(el: HTMLTextAreaElement | null): void {
+    if (!el) return
+    el.style.height = 'auto'
+    const nextHeight = Math.min(
+        Math.max(el.scrollHeight, COMPOSER_MIN_HEIGHT_PX),
+        COMPOSER_MAX_HEIGHT_PX
+    )
+    el.style.height = `${nextHeight}px`
+    el.style.overflowY = el.scrollHeight > COMPOSER_MAX_HEIGHT_PX ? 'auto' : 'hidden'
 }
 
 // ─── AddMemberModal ───────────────────────────────────────────────────────────
@@ -556,9 +604,14 @@ function TimelineBubble(props: {
                         isUser
                             ? 'bg-[var(--app-link)] text-white rounded-br-sm'
                             : 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] rounded-bl-sm'
-                    } ${isCommand ? 'font-mono text-xs' : ''}`}
+                    } ${isCommand
+                        ? 'font-mono text-xs whitespace-pre-wrap break-words'
+                        : isUser
+                            ? '[&_.aui-md]:text-sm [&_.aui-md-a]:text-white/90 [&_.aui-md-a]:decoration-white/70 [&_.aui-md-code]:bg-white/20 [&_.aui-md-blockquote]:border-white/50'
+                            : '[&_.aui-md]:text-sm'
+                    }`}
                 >
-                    {text}
+                    {isCommand ? text : <BubbleMarkdown content={text} isUser={isUser} />}
                 </div>
                 {/* Task states collapsible — only for command messages with tasks */}
                 {isCommand && props.taskStates && props.taskStates.size > 0 ? (
@@ -625,6 +678,10 @@ export default function GroupDetailPage() {
     useEffect(() => {
         setNoteDraft(note?.content ?? '')
     }, [note?.content])
+
+    useLayoutEffect(() => {
+        resizeComposerTextarea(composerRef.current)
+    }, [composer])
 
     useEffect(() => {
         if (timelineRef.current) {
@@ -722,6 +779,7 @@ export default function GroupDetailPage() {
     }, [])
 
     const handleComposerChange = useCallback((e: ChangeEvent<HTMLTextAreaElement>) => {
+        resizeComposerTextarea(e.target)
         setComposer(e.target.value)
         detectMention(e.target.value, e.target.selectionStart ?? e.target.value.length)
     }, [detectMention])
@@ -901,18 +959,20 @@ export default function GroupDetailPage() {
 
             {/* C. Group Note (collapsible) */}
             <div className="border-b border-[var(--app-divider)]">
-                <button
-                    type="button"
-                    onClick={() => setNoteOpen((o) => !o)}
-                    className="flex w-full items-center gap-2 pl-3.5 pr-3 py-2 text-left text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                >
-                    {noteOpen ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
-                    <span className="font-medium uppercase tracking-wide">Note</span>
-                    {note ? <span className="text-[10px]">v{note.version}</span> : null}
-                    <div className="flex gap-1 ml-auto">
+                <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--app-hint)]">
+                    <button
+                        type="button"
+                        onClick={() => setNoteOpen((o) => !o)}
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--app-fg)] transition-colors"
+                    >
+                        {noteOpen ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
+                        <span className="font-medium uppercase tracking-wide">Note</span>
+                        {note ? <span className="text-[10px]">v{note.version}</span> : null}
+                    </button>
+                    <div className="ml-auto flex gap-1">
                         <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); void handleBroadcastNote() }}
+                            onClick={() => { void handleBroadcastNote() }}
                             disabled={isPending || !note?.content}
                             className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
                             title="广播当前Note内容到所有群组成员"
@@ -921,14 +981,14 @@ export default function GroupDetailPage() {
                         </button>
                         <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); void handleRefreshNote() }}
+                            onClick={() => { void handleRefreshNote() }}
                             disabled={isPending}
                             className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
                         >
                             Refresh
                         </button>
                     </div>
-                </button>
+                </div>
                 {noteOpen ? (
                     <div className="pl-3.5 pr-3 pb-3 pt-1">
                         {noteLoading ? (
