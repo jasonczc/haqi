@@ -12,6 +12,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { NewSession } from '@/components/NewSession'
 import { useTranslation } from '@/lib/use-translation'
 import { getSessionTitle } from '@/lib/session-title'
+import { matchesSessionSearch } from '@/lib/session-search'
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -216,21 +217,9 @@ function AddMemberModal(props: {
     const onlineMachines = useMemo(() => machines.filter((m) => m.active), [machines])
 
     const { online, offline } = useMemo(() => {
-        const q = search.trim().toLowerCase()
         const available = sessions.filter((s) => {
             if (props.existingMemberSessionIds.has(s.id)) return false
-            if (!q) return true
-            const name = getSessionTitle(s, { fallbackIdLength: 12 }).toLowerCase()
-            const rawName = (s.metadata?.name ?? '').toLowerCase()
-            const summary = (s.metadata?.summary?.text ?? '').toLowerCase()
-            const path = (s.metadata?.path ?? '').toLowerCase()
-            return (
-                name.includes(q)
-                || rawName.includes(q)
-                || summary.includes(q)
-                || path.includes(q)
-                || s.id.toLowerCase().includes(q)
-            )
+            return matchesSessionSearch(s, search)
         })
         return {
             online: available.filter((s) => s.active),

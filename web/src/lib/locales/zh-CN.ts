@@ -47,6 +47,7 @@ export default {
   'sessions.projectOffline.disable': '取消项目离线',
   'sessions.display.toggleToCompact': '切换到紧凑视图',
   'sessions.display.toggleToComfortable': '切换到舒适视图',
+  'sessions.search.placeholder': '搜索会话…',
   'sessions.sidebar.resize': '调整侧边栏宽度',
   'sessions.sidebar.open': '打开会话侧边栏',
   'sessions.sidebar.close': '关闭会话侧边栏',

@@ -47,6 +47,7 @@ export default {
   'sessions.projectOffline.disable': 'Unmark project offline',
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
+  'sessions.search.placeholder': 'Search sessions…',
   'sessions.sidebar.resize': 'Resize sidebar',
   'sessions.sidebar.open': 'Open sessions sidebar',
   'sessions.sidebar.close': 'Close sessions sidebar',

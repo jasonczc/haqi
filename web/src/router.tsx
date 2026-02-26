@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type CSSProperties } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     Navigate,
@@ -40,6 +40,7 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { GroupDetail } from '@/types/api'
+import { filterSessionsBySearch } from '@/lib/session-search'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
@@ -231,6 +232,12 @@ function SessionsPage() {
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+    const [sessionSearchQuery, setSessionSearchQuery] = useState('')
+
+    const visibleSessions = useMemo(
+        () => filterSessionsBySearch(sessions, sessionSearchQuery),
+        [sessions, sessionSearchQuery]
+    )
 
     const handleRefresh = useCallback(() => {
         void refetch()
@@ -244,7 +251,7 @@ function SessionsPage() {
         })
     }, [navigate])
 
-    const projectCount = new Set(sessions.map(s => s.metadata?.worktree?.basePath ?? s.metadata?.path ?? 'Other')).size
+    const projectCount = new Set(visibleSessions.map(s => s.metadata?.worktree?.basePath ?? s.metadata?.path ?? 'Other')).size
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
     const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
     const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
@@ -325,7 +332,7 @@ function SessionsPage() {
                         <div className="flex items-center gap-1">
                             <button
                                 type="button"
-                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-link)] text-white font-medium"
+                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
                             >
                                 Sessions
                             </button>
@@ -392,8 +399,16 @@ function SessionsPage() {
                     </div>
                     <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
                         <div className="text-xs text-[var(--app-hint)]">
-                            {t('sessions.count', { n: sessions.length, m: projectCount })}
+                            {t('sessions.count', { n: visibleSessions.length, m: projectCount })}
                         </div>
+                    </div>
+                    <div className="mx-auto w-full max-w-content px-3 pb-2">
+                        <input
+                            value={sessionSearchQuery}
+                            onChange={(e) => setSessionSearchQuery(e.target.value)}
+                            placeholder={t('sessions.search.placeholder')}
+                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
+                        />
                     </div>
                 </div>
 
@@ -405,7 +420,7 @@ function SessionsPage() {
                     ) : null}
                     <div className="min-h-0 flex-1">
                         <SessionList
-                            sessions={sessions}
+                            sessions={visibleSessions}
                             selectedSessionId={selectedSessionId}
                             onSelect={selectSession}
                             onNewSession={openNewSession}
@@ -886,7 +901,7 @@ function GroupsLayout() {
                             </button>
                             <button
                                 type="button"
-                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-link)] text-white font-medium"
+                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
                             >
                                 Groups
                             </button>
