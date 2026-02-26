@@ -35,6 +35,11 @@ import { fetchLatestMessages, seedMessageWindowFromSession } from '@/lib/message
 import { useSessionListDensity, type SessionListDensity } from '@/hooks/useSessionListDensity'
 import { useSessionSidebarWidth } from '@/hooks/useSessionSidebarWidth'
 import { useSessionSidebarVisibility } from '@/hooks/useSessionSidebarVisibility'
+import { useLongPress } from '@/hooks/useLongPress'
+import { usePlatform } from '@/hooks/usePlatform'
+import { SessionActionMenu } from '@/components/SessionActionMenu'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import type { GroupDetail } from '@/types/api'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
@@ -706,6 +711,44 @@ function NewSessionPage() {
     )
 }
 
+function GroupListItem(props: {
+    item: GroupDetail
+    selected: boolean
+    onSelect: (groupId: string) => void
+    onOpenActions: (groupId: string, point: { x: number; y: number }) => void
+}) {
+    const { item, selected, onSelect, onOpenActions } = props
+    const { haptic } = usePlatform()
+
+    const longPressHandlers = useLongPress({
+        onLongPress: (point) => {
+            haptic.impact('medium')
+            onOpenActions(item.group.id, point)
+        },
+        onClick: () => {
+            onSelect(item.group.id)
+        },
+        threshold: 500
+    })
+
+    return (
+        <button
+            type="button"
+            {...longPressHandlers}
+            className={`session-list-item flex w-full flex-col gap-1.5 pl-5 pr-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none hover:bg-[var(--app-subtle-bg)] ${selected ? 'bg-[var(--app-subtle-bg)]' : ''}`}
+            style={{ WebkitTouchCallout: 'none' }}
+            aria-current={selected ? 'page' : undefined}
+        >
+            <div className="truncate text-sm font-medium text-[var(--app-fg)]">
+                {item.group.name}
+            </div>
+            <div className="truncate text-xs text-[var(--app-hint)]">
+                {item.members.length} {item.members.length === 1 ? 'member' : 'members'}
+            </div>
+        </button>
+    )
+}
+
 function GroupsLayout() {
     const { api } = useAppContext()
     const navigate = useNavigate()
@@ -716,15 +759,38 @@ function GroupsLayout() {
     const [newGroupName, setNewGroupName] = useState('')
     const [newGroupDesc, setNewGroupDesc] = useState('')
     const [createError, setCreateError] = useState<string | null>(null)
-    const { createGroup, isPending } = useGroupActions(api, null)
+    const [actionMenuOpen, setActionMenuOpen] = useState(false)
+    const [actionAnchorPoint, setActionAnchorPoint] = useState({ x: 0, y: 0 })
+    const [actionGroupId, setActionGroupId] = useState<string | null>(null)
+    const [renameModalOpen, setRenameModalOpen] = useState(false)
+    const [renameDraft, setRenameDraft] = useState('')
+    const [renameError, setRenameError] = useState<string | null>(null)
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const { createGroup, isPending: isCreatingGroup } = useGroupActions(api, null)
+    const { updateGroup, deleteGroup, isPending: isActionPending } = useGroupActions(api, actionGroupId)
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
 
     const groupMatch = matchRoute({ to: '/groups/$groupId', fuzzy: true })
     const selectedGroupId = groupMatch ? groupMatch.groupId : null
     const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
+    const actionTarget = actionGroupId
+        ? groups.find((item) => item.group.id === actionGroupId) ?? null
+        : null
 
     // Calculate total member count across all groups
     const totalMemberCount = groups.reduce((acc, item) => acc + item.members.length, 0)
+
+    useEffect(() => {
+        if (!actionGroupId) {
+            return
+        }
+        if (!groups.some((item) => item.group.id === actionGroupId)) {
+            setActionMenuOpen(false)
+            setRenameModalOpen(false)
+            setDeleteModalOpen(false)
+            setActionGroupId(null)
+        }
+    }, [actionGroupId, groups])
 
     const handleCreate = async () => {
         const trimmedName = newGroupName.trim()
@@ -744,6 +810,56 @@ function GroupsLayout() {
             navigate({ to: '/groups/$groupId', params: { groupId } })
         } catch (error) {
             setCreateError(error instanceof Error ? error.message : 'Failed to create group')
+        }
+    }
+
+    const handleOpenGroupActions = (groupId: string, point: { x: number; y: number }) => {
+        setActionGroupId(groupId)
+        setActionAnchorPoint(point)
+        setActionMenuOpen(true)
+    }
+
+    const handleOpenRename = () => {
+        if (!actionTarget) {
+            return
+        }
+        setRenameError(null)
+        setRenameDraft(actionTarget.group.name)
+        setRenameModalOpen(true)
+    }
+
+    const handleRenameGroup = async () => {
+        if (!actionTarget) {
+            return
+        }
+        const nextName = renameDraft.trim()
+        if (!nextName) {
+            setRenameError('Name is required')
+            return
+        }
+        if (nextName === actionTarget.group.name) {
+            setRenameModalOpen(false)
+            return
+        }
+        setRenameError(null)
+        try {
+            await updateGroup({ name: nextName })
+            setRenameModalOpen(false)
+        } catch (error) {
+            setRenameError(error instanceof Error ? error.message : 'Failed to rename group')
+        }
+    }
+
+    const handleDeleteGroup = async () => {
+        if (!actionTarget) {
+            return
+        }
+        const removedGroupId = actionTarget.group.id
+        await deleteGroup()
+        setDeleteModalOpen(false)
+        setActionMenuOpen(false)
+        if (selectedGroupId === removedGroupId) {
+            navigate({ to: '/groups' })
         }
     }
 
@@ -808,19 +924,16 @@ function GroupsLayout() {
                     ) : (
                         <div className="py-1">
                             {groups.map((item) => (
-                                <button
+                                <GroupListItem
                                     key={item.group.id}
-                                    type="button"
-                                    onClick={() => navigate({ to: '/groups/$groupId', params: { groupId: item.group.id } })}
-                                    className={`w-full pl-5 pr-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)] ${selectedGroupId === item.group.id ? 'bg-[var(--app-subtle-bg)]' : ''}`}
-                                >
-                                    <div className="truncate text-sm font-medium text-[var(--app-fg)]">
-                                        {item.group.name}
-                                    </div>
-                                    <div className="truncate text-xs text-[var(--app-hint)]">
-                                        {item.members.length} {item.members.length === 1 ? 'member' : 'members'}
-                                    </div>
-                                </button>
+                                    item={item}
+                                    selected={selectedGroupId === item.group.id}
+                                    onSelect={(groupId) => {
+                                        setActionMenuOpen(false)
+                                        navigate({ to: '/groups/$groupId', params: { groupId } })
+                                    }}
+                                    onOpenActions={handleOpenGroupActions}
+                                />
                             ))}
                         </div>
                     )}
@@ -881,15 +994,84 @@ function GroupsLayout() {
                             <button
                                 type="button"
                                 onClick={() => { void handleCreate() }}
-                                disabled={isPending}
+                                disabled={isCreatingGroup}
                                 className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
                             >
-                                {isPending ? 'Creating...' : 'Create'}
+                                {isCreatingGroup ? 'Creating...' : 'Create'}
                             </button>
                         </div>
                     </div>
                 </div>
             ) : null}
+
+            <SessionActionMenu
+                isOpen={actionMenuOpen && Boolean(actionTarget)}
+                onClose={() => setActionMenuOpen(false)}
+                sessionActive={false}
+                onRename={handleOpenRename}
+                onArchive={() => {}}
+                onDelete={() => {
+                    setRenameModalOpen(false)
+                    setRenameError(null)
+                    setDeleteModalOpen(true)
+                }}
+                anchorPoint={actionAnchorPoint}
+            />
+
+            {renameModalOpen && actionTarget ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-sm rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-xl">
+                        <div className="mb-3 font-semibold text-[var(--app-fg)]">Rename Group</div>
+                        <input
+                            autoFocus
+                            value={renameDraft}
+                            onChange={(e) => setRenameDraft(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { void handleRenameGroup() } }}
+                            placeholder="Group name"
+                            className="mb-2 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                        />
+                        {renameError ? (
+                            <div className="mb-2 text-xs text-red-600">{renameError}</div>
+                        ) : null}
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setRenameModalOpen(false)
+                                    setRenameError(null)
+                                }}
+                                className="rounded-md border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { void handleRenameGroup() }}
+                                disabled={isActionPending}
+                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                            >
+                                {isActionPending ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            <ConfirmDialog
+                isOpen={deleteModalOpen && Boolean(actionTarget)}
+                onClose={() => setDeleteModalOpen(false)}
+                title="Delete Group"
+                description={
+                    actionTarget
+                        ? `Are you sure you want to delete "${actionTarget.group.name}"? This action cannot be undone.`
+                        : 'Are you sure you want to delete this group?'
+                }
+                confirmLabel="Delete"
+                confirmingLabel="Deleting..."
+                onConfirm={handleDeleteGroup}
+                isPending={isActionPending}
+                destructive
+            />
         </div>
     )
 }

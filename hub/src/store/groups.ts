@@ -262,6 +262,64 @@ export function getGroupByNamespace(db: Database, groupId: string, namespace: st
     return row ? toStoredGroup(row) : null
 }
 
+export function deleteGroup(
+    db: Database,
+    options: {
+        groupId: string
+        namespace: string
+    }
+): boolean {
+    const existing = getGroupByNamespace(db, options.groupId, options.namespace)
+    if (!existing) {
+        return false
+    }
+
+    try {
+        db.exec('BEGIN')
+        db.prepare(`
+            DELETE FROM group_members
+            WHERE group_id = @group_id AND namespace = @namespace
+        `).run({
+            group_id: options.groupId,
+            namespace: options.namespace
+        })
+        db.prepare(`
+            DELETE FROM group_messages
+            WHERE group_id = @group_id AND namespace = @namespace
+        `).run({
+            group_id: options.groupId,
+            namespace: options.namespace
+        })
+        db.prepare(`
+            DELETE FROM group_tasks
+            WHERE group_id = @group_id AND namespace = @namespace
+        `).run({
+            group_id: options.groupId,
+            namespace: options.namespace
+        })
+        db.prepare(`
+            DELETE FROM group_notes
+            WHERE group_id = @group_id AND namespace = @namespace
+        `).run({
+            group_id: options.groupId,
+            namespace: options.namespace
+        })
+
+        const result = db.prepare(`
+            DELETE FROM groups
+            WHERE id = @group_id AND namespace = @namespace
+        `).run({
+            group_id: options.groupId,
+            namespace: options.namespace
+        })
+        db.exec('COMMIT')
+        return result.changes > 0
+    } catch (error) {
+        db.exec('ROLLBACK')
+        throw error
+    }
+}
+
 export function getGroupMembersByNamespace(db: Database, groupId: string, namespace: string): StoredGroupMember[] {
     const rows = db.prepare(`
         SELECT *

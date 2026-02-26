@@ -6,6 +6,7 @@ import {
     addGroupTask,
     countOpenGroupTasksForSession,
     createGroup,
+    deleteGroup,
     getGroup,
     getGroupByNamespace,
     getGroupMembersByNamespace,
@@ -41,6 +42,13 @@ export class GroupStore {
         }>
     }): StoredGroup {
         return createGroup(this.db, options)
+    }
+
+    deleteGroup(options: {
+        groupId: string
+        namespace: string
+    }): boolean {
+        return deleteGroup(this.db, options)
     }
 
     getGroupsByNamespace(namespace: string): StoredGroup[] {

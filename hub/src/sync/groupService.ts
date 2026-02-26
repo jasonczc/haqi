@@ -268,6 +268,20 @@ export class GroupService {
         return groupData
     }
 
+    deleteGroup(namespace: string, groupId: string, actorMachineId?: string): void {
+        void actorMachineId
+        this.requireGroup(groupId, namespace)
+        const deleted = this.store.groups.deleteGroup({ groupId, namespace })
+        if (!deleted) {
+            throw new Error('Failed to delete group')
+        }
+        this.publisher.emit({
+            type: 'group-removed',
+            groupId,
+            namespace
+        })
+    }
+
     getMessagesPage(
         groupId: string,
         namespace: string,

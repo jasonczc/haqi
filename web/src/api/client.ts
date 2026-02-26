@@ -224,6 +224,12 @@ export class ApiClient {
         )
     }
 
+    async deleteGroup(groupId: string): Promise<void> {
+        await this.request(`/api/groups/${encodeURIComponent(groupId)}`, {
+            method: 'DELETE'
+        })
+    }
+
     async getGroupMessages(groupId: string, options?: { beforeSeq?: number | null; limit?: number }): Promise<GroupMessagesResponse> {
         const params = new URLSearchParams()
         if (options?.beforeSeq !== undefined && options.beforeSeq !== null) {

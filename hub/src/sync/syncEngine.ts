@@ -489,6 +489,10 @@ export class SyncEngine {
         return this.groupService.updateGroup(options)
     }
 
+    deleteGroup(namespace: string, groupId: string, actorMachineId?: string): void {
+        this.groupService.deleteGroup(namespace, groupId, actorMachineId)
+    }
+
     getMessagesPage(sessionId: string, options: { limit: number; beforeSeq: number | null }): {
         messages: DecryptedMessage[]
         page: {

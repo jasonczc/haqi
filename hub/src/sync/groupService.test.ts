@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import type { Database } from 'bun:sqlite'
+import type { SyncEvent } from '@hapi/protocol/types'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,10 +27,17 @@ function createService(
     store: Store,
     options?: {
         executeNoteRefresh?: (payload: ExecuteNoteRefreshPayload) => Promise<{ accepted: boolean; reason?: string }>
+        events?: SyncEvent[]
     }
 ): GroupService {
     const publisher = new EventPublisher(
-        { broadcast: () => {} } as unknown as SSEManager,
+        {
+            broadcast: (event: SyncEvent) => {
+                if (options?.events) {
+                    options.events.push(event)
+                }
+            }
+        } as unknown as SSEManager,
         () => 'default'
     )
 
@@ -192,5 +200,53 @@ describe('GroupService createGroup', () => {
             }
             rmSync(dir, { recursive: true, force: true })
         }
+    })
+
+    it('deletes group and related records, then emits group-removed', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('session-delete', { path: '/repo/delete' }, null, 'default')
+        const events: SyncEvent[] = []
+        const service = createService(store, { events })
+
+        const created = service.createGroup({
+            namespace: 'default',
+            name: 'Delete Group',
+            sessionMemberIds: [session.id]
+        })
+
+        store.groups.addGroupMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: 'user:web',
+            payload: { text: 'before delete' }
+        })
+        store.groups.addGroupTask({
+            groupId: created.group.id,
+            namespace: 'default',
+            traceId: 'trace-delete',
+            source: 'user:web',
+            targetSessionId: session.id,
+            command: 'cleanup',
+            status: 'pending'
+        })
+        service.updateGroupNote({
+            groupId: created.group.id,
+            namespace: 'default',
+            content: 'delete me',
+            updatedBy: 'test'
+        })
+
+        service.deleteGroup('default', created.group.id)
+
+        expect(store.groups.getGroupByNamespace(created.group.id, 'default')).toBeNull()
+        expect(store.groups.getGroupMembersByNamespace(created.group.id, 'default')).toHaveLength(0)
+        expect(store.groups.getGroupMessages(created.group.id, 'default')).toHaveLength(0)
+        expect(store.groups.getGroupTasks(created.group.id, 'default')).toHaveLength(0)
+        expect(store.groups.getGroupNote(created.group.id, 'default')).toBeNull()
+
+        const removed = events.find((event) => event.type === 'group-removed' && event.groupId === created.group.id)
+        expect(removed).toBeDefined()
+        expect(removed?.namespace).toBe('default')
     })
 })

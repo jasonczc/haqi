@@ -145,6 +145,21 @@ export function createGroupsRoutes(getSyncEngine: () => SyncEngine | null): Hono
         }
     })
 
+    app.delete('/groups/:id', (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const namespace = c.get('namespace')
+        try {
+            engine.deleteGroup(namespace, c.req.param('id'))
+            return c.json({ success: true })
+        } catch (error) {
+            return toErrorResponse(c, error)
+        }
+    })
+
     app.post('/groups/:id/members', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {

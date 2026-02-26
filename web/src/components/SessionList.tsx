@@ -23,6 +23,7 @@ import {
     persistSessionGroupOrder,
     reconcileSessionGroupOrder
 } from '@/components/sessionGroupOrder'
+import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 
@@ -281,20 +282,6 @@ function ChevronIcon(props: { className?: string; collapsed?: boolean }) {
             <polyline points="9 18 15 12 9 6" />
         </svg>
     )
-}
-
-function getSessionTitle(session: SessionSummary): string {
-    if (session.metadata?.name) {
-        return session.metadata.name
-    }
-    if (session.metadata?.summary?.text) {
-        return session.metadata.summary.text
-    }
-    if (session.metadata?.path) {
-        const parts = session.metadata.path.split('/').filter(Boolean)
-        return parts.length > 0 ? parts[parts.length - 1] : session.id.slice(0, 8)
-    }
-    return session.id.slice(0, 8)
 }
 
 function getTodoProgress(session: SessionSummary): { completed: number; total: number } | null {

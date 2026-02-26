@@ -11,6 +11,7 @@ import type { GroupMember, GroupTimelineMessage, GroupTaskStatus, SessionSummary
 import { LoadingState } from '@/components/LoadingState'
 import { NewSession } from '@/components/NewSession'
 import { useTranslation } from '@/lib/use-translation'
+import { getSessionTitle } from '@/lib/session-title'
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -86,25 +87,6 @@ function extractBubbleText(message: GroupTimelineMessage): string {
 
 function formatTime(ms: number): string {
     return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-}
-
-function getSessionTitle(session: SessionSummary | undefined, sessionId?: string | null): string {
-    if (session?.metadata?.name) {
-        return session.metadata.name
-    }
-    if (session?.metadata?.summary?.text) {
-        return session.metadata.summary.text
-    }
-    if (session?.metadata?.path) {
-        const parts = session.metadata.path.split(/[\\/]+/).filter(Boolean)
-        if (parts.length > 0) {
-            return parts[parts.length - 1]
-        }
-    }
-    if (sessionId) {
-        return sessionId.slice(0, 12)
-    }
-    return 'unknown'
 }
 
 function getAvatarInitial(label: string): string {
@@ -272,7 +254,7 @@ function AddMemberModal(props: {
     }
 
     const renderSessionRow = (s: (typeof sessions)[0]) => {
-        const title = s.metadata?.name ?? s.id.slice(0, 16)
+        const title = getSessionTitle(s, { fallbackIdLength: 12 })
         const path = s.metadata?.path ?? ''
         return (
             <button
@@ -399,7 +381,7 @@ function MemberPill(props: {
 }) {
     const { t } = useTranslation()
     const { member, session, status } = props
-    const title = getSessionTitle(session, member.sessionId)
+    const title = getSessionTitle(session, { fallbackSessionId: member.sessionId, fallbackIdLength: 12 })
     const idText = member.sessionId ?? `user:${member.userId ?? member.id}`
     const avatarInitial = getAvatarInitial(title)
     const avatarTone = getSessionAvatarTone(session)
@@ -520,7 +502,7 @@ function TimelineBubble(props: {
     const actorSessionId = getActorSessionId(message)
     const actorSession = actorSessionId ? props.sessionMap.get(actorSessionId) : undefined
     const actorTitle = actorSessionId
-        ? getSessionTitle(actorSession, actorSessionId)
+        ? getSessionTitle(actorSession, { fallbackSessionId: actorSessionId, fallbackIdLength: 12 })
         : (message.actorName || message.source)
     const actorId = actorSessionId ?? null
     const actorInitial = getAvatarInitial(actorTitle)
@@ -881,25 +863,35 @@ export default function GroupDetailPage() {
 
     return (
         <div className="flex h-full flex-col bg-[var(--app-bg)]">
-            {/* Members Row */}
+            {/* A. Group Meta */}
+            <div className="border-b border-[var(--app-divider)] pl-3.5 pr-3 py-3">
+                <div className="min-w-0">
+                    <div className="truncate text-base font-semibold text-[var(--app-fg)]">{group.group.name}</div>
+                    <div className="mt-1 text-xs text-[var(--app-hint)] break-words">
+                        {group.group.description?.trim() || 'No description'}
+                    </div>
+                </div>
+            </div>
+
+            {/* B. Members Row */}
             <div className="flex flex-wrap items-center gap-2 border-b border-[var(--app-divider)] pl-3.5 pr-3 py-2">
-                    {members.map((member) => {
-                        const s = member.sessionId ? sessionMap.get(member.sessionId) : undefined
-                        const status = getMemberWorkStatus(s)
-                        return (
-                            <MemberPill
-                                key={member.id}
-                                member={member}
-                                session={s}
-                                status={status}
-                                onClick={() => {
-                                    if (member.sessionId) {
-                                        navigate({ to: '/sessions/$sessionId', params: { sessionId: member.sessionId } })
-                                    }
-                                }}
-                            />
-                        )
-                    })}
+                {members.map((member) => {
+                    const s = member.sessionId ? sessionMap.get(member.sessionId) : undefined
+                    const status = getMemberWorkStatus(s)
+                    return (
+                        <MemberPill
+                            key={member.id}
+                            member={member}
+                            session={s}
+                            status={status}
+                            onClick={() => {
+                                if (member.sessionId) {
+                                    navigate({ to: '/sessions/$sessionId', params: { sessionId: member.sessionId } })
+                                }
+                            }}
+                        />
+                    )
+                })}
                 <button
                     type="button"
                     onClick={() => setShowAddMember(true)}
@@ -970,7 +962,7 @@ export default function GroupDetailPage() {
                                             .map((member) => {
                                                 const sessionId = member.sessionId as string
                                                 const session = sessionMap.get(sessionId)
-                                                const title = getSessionTitle(session, sessionId)
+                                                const title = getSessionTitle(session, { fallbackSessionId: sessionId, fallbackIdLength: 12 })
                                                 return (
                                                     <option key={sessionId} value={sessionId}>
                                                         {`${title} (${sessionId.slice(0, 8)})`}

@@ -28,6 +28,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
     cancelTask: (taskId: string) => Promise<void>
     addMember: (sessionId: string) => Promise<void>
     updateGroup: (payload: { name?: string; description?: string | null; noteSessionId?: string | null }) => Promise<void>
+    deleteGroup: () => Promise<void>
     isPending: boolean
 } {
     const queryClient = useQueryClient()
@@ -185,6 +186,18 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
         }
     })
 
+    const deleteGroupMutation = useMutation({
+        mutationFn: async () => {
+            if (!api || !groupId) {
+                throw new Error('Group unavailable')
+            }
+            await api.deleteGroup(groupId)
+        },
+        onSuccess: async () => {
+            await invalidateGroup(groupId)
+        }
+    })
+
     return {
         createGroup: createGroupMutation.mutateAsync,
         postMessage: postMessageMutation.mutateAsync,
@@ -196,6 +209,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
         cancelTask: cancelTaskMutation.mutateAsync,
         addMember: addMemberMutation.mutateAsync,
         updateGroup: updateGroupMutation.mutateAsync,
+        deleteGroup: deleteGroupMutation.mutateAsync,
         isPending: createGroupMutation.isPending
             || postMessageMutation.isPending
             || updateNoteMutation.isPending
@@ -206,5 +220,6 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
             || cancelTaskMutation.isPending
             || addMemberMutation.isPending
             || updateGroupMutation.isPending
+            || deleteGroupMutation.isPending
     }
 }
