@@ -7,15 +7,57 @@ on:
 
 permissions:
     contents: write
+    id-token: write
 
 jobs:
     release:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  registry-url: 'https://registry.npmjs.org'
+            - run: npm install -g npm@latest
+            - run: node -v && npm -v
             - uses: oven-sh/setup-bun@v2
             - run: bun install
+            - name: Verify tag matches CLI version
+              run: |
+                  TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+                  PKG_VERSION="$(node -p "require('./cli/package.json').version")"
+                  if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+                      echo "Tag version (v$TAG_VERSION) does not match cli/package.json version ($PKG_VERSION)"
+                      exit 1
+                  fi
             - run: bun run build:single-exe:all
+            - name: Prepare npm packages
+              run: cd cli && bun run prepare-npm-packages
+            - name: Publish npm packages (OIDC)
+              run: |
+                  set -euo pipefail
+
+                  publish_dir() {
+                      local dir="$1"
+                      local name version
+                      name="$(cd "$dir" && node -p "require('./package.json').name")"
+                      version="$(cd "$dir" && node -p "require('./package.json').version")"
+
+                      if npm view "${name}@${version}" version >/dev/null 2>&1; then
+                          echo "Skipping ${name}@${version} (already published)"
+                          return
+                      fi
+
+                      echo "Publishing ${name}@${version}"
+                      (cd "$dir" && npm publish --access public --provenance)
+                  }
+
+                  publish_dir cli/npm/darwin-arm64
+                  publish_dir cli/npm/darwin-x64
+                  publish_dir cli/npm/linux-arm64
+                  publish_dir cli/npm/linux-x64
+                  publish_dir cli/npm/win32-x64
+                  publish_dir cli/npm/main
             - name: Package release artifacts
               run: |
                   cd cli/dist-exe

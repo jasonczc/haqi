@@ -1,4 +1,4 @@
-import { getPermissionModeOptionsForFlavor, MODEL_MODE_LABELS, MODEL_MODES } from '@hapi/protocol'
+import { getPermissionModeOptionsForFlavor } from '@hapi/protocol'
 import { ComposerPrimitive, useAssistantApi, useAssistantState } from '@assistant-ui/react'
 import type { Attachment } from '@assistant-ui/react'
 import {
@@ -16,21 +16,22 @@ import {
 import type {
     AgentState,
     AttachmentMetadata,
-    CodexQueueEntry,
-    CodexQueueSummary,
+    QueueEntry,
+    QueueSummary,
     ModelMode,
     PermissionMode
 } from '@/types/api'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import type { ConversationStatus } from '@/realtime/types'
-import type { CodexQueueInlinePanelMode } from '@/hooks/useCodexQueueInlinePanel'
+import type { QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useActiveWord } from '@/hooks/useActiveWord'
 import { useActiveSuggestions } from '@/hooks/useActiveSuggestions'
 import { applySuggestion } from '@/utils/applySuggestion'
 import { usePlatform } from '@/hooks/usePlatform'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
-import { isCodexFamilyFlavor } from '@/lib/agentFlavorUtils'
+import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import { markSkillUsed } from '@/lib/recent-skills'
+import { preserveUploadPathsForQueue } from '@/lib/attachmentAdapter'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { StatusBar } from '@/components/AssistantChat/StatusBar'
@@ -48,6 +49,11 @@ export type CodexSendMode = 'direct' | 'queue'
 type QueueEnqueuePayload = {
     text: string
     attachments?: AttachmentMetadata[]
+}
+
+type ComposerModelOption = {
+    value: string
+    label: string
 }
 
 const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
@@ -127,11 +133,31 @@ function parseAttachmentMetadataFromAttachment(attachment: Attachment): Attachme
     }
 }
 
+function buildClaudeModelOptions(
+    currentModel: string | undefined
+): ComposerModelOption[] {
+    const options: ComposerModelOption[] = [
+        { value: 'auto', label: 'Default (recommended)' },
+        { value: 'us.anthropic.claude-sonnet-4-6', label: 'Sonnet 4.6' },
+        { value: 'us.anthropic.claude-sonnet-4-6[1m]', label: 'Sonnet (1M context)' },
+        { value: 'global.anthropic.claude-opus-4-6-v1', label: 'Opus 4.6' },
+        { value: 'global.anthropic.claude-opus-4-6-v1[1m]', label: 'Opus (1M context)' },
+        { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
+    ]
+
+    if (currentModel && !options.some((option) => option.value === currentModel)) {
+        options.push({ value: currentModel, label: currentModel })
+    }
+
+    return options
+}
+
 export function HappyComposer(props: {
     sessionId: string
     disabled?: boolean
     permissionMode?: PermissionMode
     modelMode?: ModelMode
+    model?: string
     active?: boolean
     allowSendWhenInactive?: boolean
     thinking?: boolean
@@ -140,16 +166,16 @@ export function HappyComposer(props: {
     controlledByUser?: boolean
     agentFlavor?: string | null
     onPermissionModeChange?: (mode: PermissionMode) => void
-    onModelModeChange?: (mode: ModelMode) => void
+    onModelChange?: (model: string) => void
     onSwitchToRemote?: () => void
     onTerminal?: () => void
     onCodexStatus?: () => void
     codexSendMode?: CodexSendMode
     onCodexSendModeChange?: (mode: CodexSendMode) => void
     codexQueuePendingCount?: number
-    codexQueueSummary?: CodexQueueSummary | null
-    codexQueueEntries?: CodexQueueEntry[]
-    codexQueueInlinePanelMode?: CodexQueueInlinePanelMode
+    codexQueueSummary?: QueueSummary | null
+    codexQueueEntries?: QueueEntry[]
+    codexQueueInlinePanelMode?: QueueInlinePanelMode
     onCodexQueueOpen?: () => void
     onCodexQueueUpdated?: () => void
     onCodexQueueEnqueue?: (payload: QueueEnqueuePayload) => Promise<void>
@@ -167,6 +193,7 @@ export function HappyComposer(props: {
         disabled = false,
         permissionMode: rawPermissionMode,
         modelMode: rawModelMode,
+        model: rawModel,
         active = true,
         allowSendWhenInactive = false,
         thinking = false,
@@ -175,7 +202,7 @@ export function HappyComposer(props: {
         controlledByUser = false,
         agentFlavor,
         onPermissionModeChange,
-        onModelModeChange,
+        onModelChange,
         onSwitchToRemote,
         onTerminal,
         onCodexStatus,
@@ -199,6 +226,20 @@ export function HappyComposer(props: {
     // Use ?? so missing values fall back to default (destructuring defaults only handle undefined)
     const permissionMode = rawPermissionMode ?? 'default'
     const modelMode = rawModelMode ?? 'default'
+    const model = typeof rawModel === 'string' && rawModel.trim()
+        ? rawModel.trim()
+        : undefined
+    const currentModelValue = model ?? (modelMode === 'default' ? 'auto' : modelMode)
+    const modelOptions = useMemo(
+        () => agentFlavor === 'claude'
+            ? buildClaudeModelOptions(model)
+            : [],
+        [agentFlavor, model]
+    )
+    const modelValues = useMemo(
+        () => modelOptions.map((option) => option.value),
+        [modelOptions]
+    )
 
     const api = useAssistantApi()
     const composerText = useAssistantState(({ composer }) => composer.text)
@@ -207,25 +248,25 @@ export function HappyComposer(props: {
     const threadIsDisabled = useAssistantState(({ thread }) => thread.isDisabled)
 
     const controlsDisabled = disabled || (!active && !allowSendWhenInactive) || threadIsDisabled
-    const isCodexSession = agentFlavor === 'codex'
-    const queueSendEnabled = isCodexSession && codexSendMode === 'queue'
-    const showInlineQueuePanel = isCodexSession && codexQueueInlinePanelMode !== 'off'
+    const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
+    const queueSendEnabled = supportsQueueControls && codexSendMode === 'queue'
+    const showInlineQueuePanel = supportsQueueControls && codexQueueInlinePanelMode !== 'off'
     const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
     const inlineQueueInQueue = codexQueueSummary?.inQueue ?? false
     const inlineQueueTaskRunning = codexQueueSummary?.taskRunning ?? false
     const inlineQueueNextPreview = codexQueueSummary?.nextPreview?.trim() ?? ''
     const inlineQueueHeadline = useMemo(() => {
         if (inlineQueueNextPreview.length > 0) {
-            return `${t('codexQueue.inline.next')}: ${inlineQueueNextPreview}`
+            return `${t('queue.inline.next')}: ${inlineQueueNextPreview}`
         }
         const firstEntryPreview = codexQueueEntries[0]?.preview?.trim()
         if (firstEntryPreview) {
-            return `${t('codexQueue.inline.next')}: ${firstEntryPreview}`
+            return `${t('queue.inline.next')}: ${firstEntryPreview}`
         }
         if (inlineQueuePendingCount > 0) {
-            return t('codexQueue.inline.pending', { count: inlineQueuePendingCount })
+            return t('queue.inline.pending', { count: inlineQueuePendingCount })
         }
-        return t('codexQueue.inline.empty')
+        return t('queue.inline.empty')
     }, [inlineQueueNextPreview, codexQueueEntries, inlineQueuePendingCount, t])
     const trimmed = composerText.trim()
     const hasText = trimmed.length > 0
@@ -371,8 +412,8 @@ export function HappyComposer(props: {
     const switchDisabled = controlsDisabled || isSwitching || !controlledByUser
     const showSwitchButton = Boolean(controlledByUser && onSwitchToRemote)
     const showTerminalButton = Boolean(onTerminal)
-    const showStatusButton = Boolean(agentFlavor === 'codex' && onCodexStatus)
-    const showQueueButton = Boolean(isCodexSession && onCodexQueueOpen)
+    const showStatusButton = Boolean(supportsQueueControls && onCodexStatus)
+    const showQueueButton = Boolean(supportsQueueControls && onCodexQueueOpen)
 
     useEffect(() => {
         if (!isAborting) return
@@ -443,6 +484,10 @@ export function HappyComposer(props: {
                     text: trimmed,
                     attachments: queueAttachments.length > 0 ? queueAttachments : undefined
                 })
+                preserveUploadPathsForQueue(
+                    sessionId,
+                    queueAttachments.map((attachment) => attachment.path)
+                )
                 await api.composer().clearAttachments()
                 api.composer().setText('')
                 onCodexQueueUpdated?.()
@@ -552,18 +597,24 @@ export function HappyComposer(props: {
 
     useEffect(() => {
         const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
-            if (e.key === 'm' && (e.metaKey || e.ctrlKey) && onModelModeChange && !isCodexFamilyFlavor(agentFlavor)) {
+            if (
+                e.key === 'm'
+                && (e.metaKey || e.ctrlKey)
+                && onModelChange
+                && agentFlavor === 'claude'
+                && modelValues.length > 0
+            ) {
                 e.preventDefault()
-                const currentIndex = MODEL_MODES.indexOf(modelMode as typeof MODEL_MODES[number])
-                const nextIndex = (currentIndex + 1) % MODEL_MODES.length
-                onModelModeChange(MODEL_MODES[nextIndex])
+                const currentIndex = modelValues.indexOf(currentModelValue)
+                const nextIndex = (currentIndex + 1) % modelValues.length
+                onModelChange(modelValues[nextIndex] ?? 'auto')
                 haptic('light')
             }
         }
 
         window.addEventListener('keydown', handleGlobalKeyDown)
         return () => window.removeEventListener('keydown', handleGlobalKeyDown)
-    }, [modelMode, onModelModeChange, haptic, agentFlavor])
+    }, [onModelChange, haptic, agentFlavor, modelValues, currentModelValue])
 
     const handleChange = useCallback((e: ReactChangeEvent<HTMLTextAreaElement>) => {
         const selection = {
@@ -625,15 +676,15 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onPermissionModeChange, controlsDisabled, haptic])
 
-    const handleModelChange = useCallback((mode: ModelMode) => {
-        if (!onModelModeChange || controlsDisabled) return
-        onModelModeChange(mode)
+    const handleModelChange = useCallback((modelValue: string) => {
+        if (!onModelChange || controlsDisabled) return
+        onModelChange(modelValue)
         setShowSettings(false)
         haptic('light')
-    }, [onModelModeChange, controlsDisabled, haptic])
+    }, [onModelChange, controlsDisabled, haptic])
 
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
-    const showModelSettings = Boolean(onModelModeChange && !isCodexFamilyFlavor(agentFlavor))
+    const showModelSettings = Boolean(onModelChange && agentFlavor === 'claude' && modelOptions.length > 0)
     const showSettingsButton = Boolean(showPermissionSettings || showModelSettings)
     const showAbortButton = true
     const voiceEnabled = Boolean(onVoiceToggle)
@@ -689,9 +740,9 @@ export function HappyComposer(props: {
                                 <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
                                     {t('misc.model')}
                                 </div>
-                                {MODEL_MODES.map((mode) => (
+                                {modelOptions.map((option) => (
                                     <button
-                                        key={mode}
+                                        key={option.value}
                                         type="button"
                                         disabled={controlsDisabled}
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
@@ -699,22 +750,22 @@ export function HappyComposer(props: {
                                                 ? 'cursor-not-allowed opacity-50'
                                                 : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
                                         }`}
-                                        onClick={() => handleModelChange(mode)}
+                                        onClick={() => handleModelChange(option.value)}
                                         onMouseDown={(e) => e.preventDefault()}
                                     >
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                                                modelMode === mode
+                                                currentModelValue === option.value
                                                     ? 'border-[var(--app-link)]'
                                                     : 'border-[var(--app-hint)]'
                                             }`}
                                         >
-                                            {modelMode === mode && (
+                                            {currentModelValue === option.value && (
                                                 <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
                                             )}
                                         </div>
-                                        <span className={modelMode === mode ? 'text-[var(--app-link)]' : ''}>
-                                            {MODEL_MODE_LABELS[mode]}
+                                        <span className={currentModelValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                            {option.label}
                                         </span>
                                     </button>
                                 ))}
@@ -748,7 +799,8 @@ export function HappyComposer(props: {
         selectedIndex,
         controlsDisabled,
         permissionMode,
-        modelMode,
+        currentModelValue,
+        modelOptions,
         permissionModeOptions,
         handlePermissionChange,
         handleModelChange,
@@ -777,19 +829,19 @@ export function HappyComposer(props: {
                             <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
-                                        {t('codexQueue.dialog.title')}
+                                        {t('queue.dialog.title')}
                                     </span>
                                     <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
-                                        {t('codexQueue.inline.pending', { count: inlineQueuePendingCount })}
+                                        {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                     </span>
                                     {inlineQueueTaskRunning ? (
                                         <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
-                                            {t('codexQueue.inline.running')}
+                                            {t('queue.inline.running')}
                                         </span>
                                     ) : null}
                                     {inlineQueueInQueue ? (
                                         <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
-                                            {t('codexQueue.summary.inQueue')}
+                                            {t('queue.summary.inQueue')}
                                         </span>
                                     ) : null}
                                     <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">
@@ -801,7 +853,7 @@ export function HappyComposer(props: {
                                         onClick={handleCodexQueueOpen}
                                         disabled={controlsDisabled || !onCodexQueueOpen}
                                     >
-                                        {t('codexQueue.inline.open')}
+                                        {t('queue.inline.open')}
                                     </button>
                                 </div>
 
@@ -818,7 +870,7 @@ export function HappyComposer(props: {
                                                             #{index + 1}
                                                         </span>
                                                         <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]">
-                                                            {entry.preview || t('codexQueue.dialog.emptyMessage')}
+                                                            {entry.preview || t('queue.dialog.emptyMessage')}
                                                         </span>
                                                         <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
                                                             {new Date(entry.enqueuedAt).toLocaleTimeString([], {
@@ -836,11 +888,11 @@ export function HappyComposer(props: {
                                             </>
                                         ) : inlineQueuePendingCount > 0 ? (
                                             <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                {t('codexQueue.inline.pending', { count: inlineQueuePendingCount })}
+                                                {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                             </div>
                                         ) : (
                                             <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                {t('codexQueue.dialog.empty')}
+                                                {t('queue.dialog.empty')}
                                             </div>
                                         )}
                                     </div>
@@ -886,7 +938,7 @@ export function HappyComposer(props: {
                             queueDisabled={controlsDisabled}
                             queuePendingCount={Math.max(0, codexQueuePendingCount)}
                             onQueue={handleCodexQueueOpen}
-                            showSendModeToggle={isCodexSession}
+                            showSendModeToggle={supportsQueueControls}
                             sendMode={codexSendMode}
                             sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
                             onSendModeChange={handleCodexSendModeChange}

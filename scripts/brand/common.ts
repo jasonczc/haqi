@@ -55,9 +55,14 @@ type ReplacementRule = {
 
 const BRAND_REPLACEMENT_RULES: ReplacementRule[] = [
     {
-        description: 'NPM package scope in docs/examples',
+        description: 'NPM package scope in docs/examples (legacy hapi scope)',
         pattern: /@twsxtd\/hapi\b/g,
-        replacement: '@twsxtd/haqi'
+        replacement: '@jasonczc/haqi'
+    },
+    {
+        description: 'NPM package scope in docs/examples (legacy haqi scope)',
+        pattern: /@twsxtd\/haqi\b/g,
+        replacement: '@jasonczc/haqi'
     },
     {
         description: 'MCP tool namespace (functions)',

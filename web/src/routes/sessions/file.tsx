@@ -13,11 +13,52 @@ import { decodeBase64 } from '@/lib/utils'
 import { isOutsideWorkspacePathCandidate } from '@/lib/pathLinks'
 
 const MAX_COPYABLE_FILE_BYTES = 1_000_000
+const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    bmp: 'image/bmp',
+    avif: 'image/avif',
+    ico: 'image/x-icon'
+}
 
 function decodePath(value: string): string {
     if (!value) return ''
     const decoded = decodeBase64(value)
     return decoded.ok ? decoded.text : value
+}
+
+function extensionFromPath(path: string): string | null {
+    const normalized = path.replace(/\\/g, '/')
+    const fileName = normalized.split('/').pop() ?? ''
+    const dotIndex = fileName.lastIndexOf('.')
+    if (dotIndex <= 0 || dotIndex === fileName.length - 1) {
+        return null
+    }
+    return fileName.slice(dotIndex + 1).toLowerCase()
+}
+
+function imageMimeFromPath(path: string): string | null {
+    const extension = extensionFromPath(path)
+    if (!extension) return null
+    return IMAGE_MIME_BY_EXTENSION[extension] ?? null
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index)
+    }
+    return bytes
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+    const buffer = new ArrayBuffer(bytes.byteLength)
+    new Uint8Array(buffer).set(bytes)
+    return buffer
 }
 
 function BackIcon(props: { className?: string }) {
@@ -171,6 +212,7 @@ export default function FilePage() {
         : false
 
     const language = useMemo(() => resolveLanguage(filePath), [filePath])
+    const imageMimeType = useMemo(() => imageMimeFromPath(filePath), [filePath])
     const highlighted = useShikiHighlighter(decodedContent, language)
     const contentSizeBytes = useMemo(
         () => (decodedContent ? getUtf8ByteLength(decodedContent) : 0),
@@ -182,6 +224,7 @@ export default function FilePage() {
         && contentSizeBytes <= MAX_COPYABLE_FILE_BYTES
 
     const [displayMode, setDisplayMode] = useState<'diff' | 'file'>('diff')
+    const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
 
     useEffect(() => {
         if (diffSuccess && !diffContent) {
@@ -190,8 +233,49 @@ export default function FilePage() {
         }
         if (diffFailed) {
             setDisplayMode('file')
+            return
         }
-    }, [diffSuccess, diffFailed, diffContent])
+        if (diffError && !diffContent) {
+            setDisplayMode('file')
+        }
+    }, [diffSuccess, diffFailed, diffContent, diffError])
+
+    useEffect(() => {
+        if (!imageMimeType || !fileContentResult?.success || fileContentResult.truncated || !fileContentResult.content) {
+            setImagePreviewUrl((current) => {
+                if (current) {
+                    URL.revokeObjectURL(current)
+                }
+                return null
+            })
+            return
+        }
+
+        try {
+            const bytes = base64ToBytes(fileContentResult.content)
+            const nextUrl = URL.createObjectURL(new Blob([toArrayBuffer(bytes)], { type: imageMimeType }))
+            setImagePreviewUrl((current) => {
+                if (current) {
+                    URL.revokeObjectURL(current)
+                }
+                return nextUrl
+            })
+        } catch {
+            setImagePreviewUrl((current) => {
+                if (current) {
+                    URL.revokeObjectURL(current)
+                }
+                return null
+            })
+        }
+    }, [fileContentResult, imageMimeType])
+
+    useEffect(() => {
+        if (!imagePreviewUrl) return
+        return () => {
+            URL.revokeObjectURL(imagePreviewUrl)
+        }
+    }, [imagePreviewUrl])
 
     const loading = diffQuery.isLoading || fileQuery.isLoading
     const fileError = fileContentResult && !fileContentResult.success
@@ -269,6 +353,26 @@ export default function FilePage() {
                         <FileContentSkeleton />
                     ) : fileError ? (
                         <div className="text-sm text-[var(--app-hint)]">{fileError}</div>
+                    ) : imageMimeType && (displayMode === 'file' || !diffContent) ? (
+                        fileContentResult?.truncated ? (
+                            <div className="text-sm text-[var(--app-hint)]">
+                                Image preview unavailable because the file content is truncated.
+                            </div>
+                        ) : imagePreviewUrl ? (
+                            <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-2">
+                                <div className="max-h-[75vh] overflow-auto">
+                                    <img
+                                        src={imagePreviewUrl}
+                                        alt={filePath || fileName}
+                                        className="mx-auto max-h-[70vh] max-w-full object-contain"
+                                    />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="text-sm text-[var(--app-hint)]">
+                                Failed to render image preview.
+                            </div>
+                        )
                     ) : binaryFile ? (
                         <div className="text-sm text-[var(--app-hint)]">
                             This looks like a binary file. It cannot be displayed.

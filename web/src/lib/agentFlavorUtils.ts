@@ -2,6 +2,10 @@ export function isCodexFamilyFlavor(flavor?: string | null): boolean {
     return flavor === 'codex' || flavor === 'gemini' || flavor === 'opencode'
 }
 
+export function supportsQueueControlsFlavor(flavor?: string | null): boolean {
+    return flavor === 'codex' || flavor === 'claude' || flavor === 'gemini'
+}
+
 export function isClaudeFlavor(flavor?: string | null): boolean {
     return flavor === 'claude'
 }

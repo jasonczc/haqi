@@ -1,6 +1,6 @@
 import { AgentStateSchema, MetadataSchema } from '@hapi/protocol/schemas'
 import type { ModelMode, PermissionMode, Session } from '@hapi/protocol/types'
-import type { Store } from '../store'
+import type { PreviewUrlHistoryEntry, Store } from '../store'
 import { clampAliveTime } from './aliveTime'
 import { EventPublisher } from './eventPublisher'
 import { extractTodoWriteTodosFromMessageContent, TodosSchema } from './todos'
@@ -34,6 +34,10 @@ export class SessionCache {
             return undefined
         }
         return session
+    }
+
+    getPreviewUrlHistory(namespace: string, limit?: number): PreviewUrlHistoryEntry[] {
+        return this.store.sessions.getPreviewUrlHistory(namespace, limit)
     }
 
     resolveSessionAccess(
@@ -110,6 +114,7 @@ export class SessionCache {
             seq: stored.seq,
             createdAt: stored.createdAt,
             updatedAt: stored.updatedAt,
+            previewUrl: stored.previewUrl ?? undefined,
             active: existing?.active ?? stored.active,
             activeAt: existing?.activeAt ?? (stored.activeAt ?? stored.createdAt),
             metadata,
@@ -265,6 +270,49 @@ export class SessionCache {
         this.refreshSession(sessionId)
     }
 
+    async updateSessionMetadata(
+        sessionId: string,
+        updater: (metadata: Session['metadata']) => Session['metadata']
+    ): Promise<void> {
+        const session = this.sessions.get(sessionId) ?? this.refreshSession(sessionId)
+        if (!session) {
+            throw new Error('Session not found')
+        }
+
+        const nextMetadata = updater(session.metadata ?? null)
+        const result = this.store.sessions.updateSessionMetadata(
+            sessionId,
+            nextMetadata,
+            session.metadataVersion,
+            session.namespace,
+            { touchUpdatedAt: false }
+        )
+
+        if (result.result === 'error') {
+            throw new Error('Failed to update session metadata')
+        }
+
+        if (result.result === 'version-mismatch') {
+            throw new Error('Session metadata was modified concurrently. Please try again.')
+        }
+
+        this.refreshSession(sessionId)
+    }
+
+    async setPreviewUrl(sessionId: string, previewUrl: string | null): Promise<void> {
+        const session = this.sessions.get(sessionId) ?? this.refreshSession(sessionId)
+        if (!session) {
+            throw new Error('Session not found')
+        }
+
+        const updated = this.store.sessions.setSessionPreviewUrl(sessionId, previewUrl, session.namespace)
+        if (!updated) {
+            throw new Error('Failed to update session preview URL')
+        }
+
+        this.refreshSession(sessionId)
+    }
+
     async deleteSession(sessionId: string): Promise<void> {
         const session = this.sessions.get(sessionId)
         if (!session) {
@@ -328,6 +376,10 @@ export class SessionCache {
                 oldStored.todosUpdatedAt,
                 namespace
             )
+        }
+
+        if (oldStored.previewUrl && !newStored.previewUrl) {
+            this.store.sessions.setSessionPreviewUrl(newSessionId, oldStored.previewUrl, namespace)
         }
 
         const deleted = this.store.sessions.deleteSession(oldSessionId, namespace)

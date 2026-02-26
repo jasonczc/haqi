@@ -57,8 +57,8 @@ https://github.com/user-attachments/assets/38230353-94c6-4dbe-9c29-b2a2cc457546
 ## Getting Started
 
 ```bash
-npx @twsxtd/haqi hub --relay     # start hub with E2E encrypted relay
-npx @twsxtd/haqi                 # run claude code
+npx @jasonczc/haqi hub --relay   # start hub with E2E encrypted relay
+npx @jasonczc/haqi               # run claude code
 ```
 
 `haqi server` remains supported as an alias.
@@ -84,9 +84,49 @@ bun install
 bun run build:single-exe
 ```
 
+## Release (tag + GitHub Actions + npm OIDC)
+
+This repo publishes `@jasonczc/haqi` and platform packages from the `Release` workflow.
+
+1. Bump `cli/package.json` version (must match the tag).
+2. Push a tag like `v0.15.3`.
+3. GitHub Actions will:
+   - build all binaries,
+   - publish platform npm packages + main package,
+   - create a GitHub Release.
+
+> npm must be configured with **Trusted Publishing** (OIDC) for:
+> `@jasonczc/haqi`, `@jasonczc/haqi-darwin-arm64`, `@jasonczc/haqi-darwin-x64`,
+> `@jasonczc/haqi-linux-arm64`, `@jasonczc/haqi-linux-x64`, `@jasonczc/haqi-win32-x64`.
+
 ## Development workflow: rebuild + deploy locally
 
 Use this when validating frontend/CLI changes on your local running hub.
+
+Recommended: split stable runtime vs source dev runtime.
+Do not share one `HAPI_HOME` between them.
+
+```bash
+# Stable runtime (installed binary)
+export HAPI_HOME="$HOME/.hapi-stable"
+export HAPI_LISTEN_PORT=3006
+haqi runner start
+haqi hub
+```
+
+```bash
+# Source dev runtime (repo)
+export HAPI_HOME="$HOME/.hapi-dev"
+export HAPI_LISTEN_PORT=3016
+export HAPI_PUBLIC_URL="http://localhost:3016"
+bun run dev
+```
+
+If you switch branches often, use branch-specific dev homes:
+
+```bash
+export HAPI_HOME="$HOME/.hapi-dev-$(git rev-parse --abbrev-ref HEAD | tr '/' '-')"
+```
 
 ```bash
 # 1) Build all-in-one binary (web + hub + cli)
@@ -99,6 +139,12 @@ install -m 755 ./cli/dist-exe/bun-linux-x64/hapi ~/.local/bin/haqi
 # 3) Restart runtime processes
 haqi runner stop || true
 haqi runner start
+```
+
+Or use the helper script:
+
+```bash
+./scripts/deploy-local-binary.sh
 ```
 
 Optional status check:

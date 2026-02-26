@@ -11,6 +11,7 @@ import { SDKToLogConverter } from "./utils/sdkToLogConverter";
 import { PLAN_FAKE_REJECT } from "./sdk/prompts";
 import { EnhancedMode } from "./loop";
 import { OutgoingMessageQueue } from "./utils/OutgoingMessageQueue";
+import { parseTodoWritePlanUpdate } from "./utils/todoPlan";
 import type { ClaudePermissionMode } from "@hapi/protocol/types";
 import {
     RemoteLauncherBase,
@@ -140,6 +141,17 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                         if (c.type === 'tool_use') {
                             logger.debug('[remote]: detected tool use ' + c.id! + ' parent: ' + umessage.parent_tool_use_id);
                             ongoingToolCalls.set(c.id!, { parentToolCallId: umessage.parent_tool_use_id ?? null });
+
+                            const toolName = typeof c.name === 'string' ? c.name.trim().toLowerCase() : '';
+                            if (toolName === 'todowrite') {
+                                const planUpdate = parseTodoWritePlanUpdate((c as { input?: unknown }).input);
+                                if (planUpdate) {
+                                    session.client.sendCodexMessage({
+                                        type: 'plan-update',
+                                        ...planUpdate
+                                    });
+                                }
+                            }
                         }
                     }
                 }
@@ -270,6 +282,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
             let pending: {
                 message: string;
                 mode: EnhancedMode;
+                deferUserMessageUntilDequeue: boolean;
             } | null = null;
 
             let previousSessionId: string | null = null;
@@ -310,7 +323,13 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 let p = pending;
                                 pending = null;
                                 permissionHandler.handleModeChange(p.mode.permissionMode);
-                                return p;
+                                if (p.deferUserMessageUntilDequeue) {
+                                    session.client.sendUserMessage(p.message);
+                                }
+                                return {
+                                    message: p.message,
+                                    mode: p.mode
+                                };
                             }
 
                             let msg = await session.queue.waitForMessagesAndGetAsString(controller.signal);
@@ -324,9 +343,13 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 modeHash = msg.hash;
                                 mode = msg.mode;
                                 permissionHandler.handleModeChange(mode.permissionMode);
+                                if (msg.deferUserMessageUntilDequeue) {
+                                    session.client.sendUserMessage(msg.message);
+                                }
                                 return {
                                     message: msg.message,
-                                    mode: msg.mode
+                                    mode: msg.mode,
+                                    deferUserMessageUntilDequeue: msg.deferUserMessageUntilDequeue
                                 };
                             }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
-const GITHUB_REPO = "tiann/hapi";
-const CACHE_KEY = "hapi-latest-version";
+const GITHUB_REPO = "jasonczc/haqi";
+const CACHE_KEY = "haqi-latest-version";
 const CACHE_TTL = 1000 * 60 * 60; // 1 hour
 
 interface CachedVersion {

@@ -12,6 +12,7 @@ type SpawnInput = {
     yolo?: boolean
     sessionType?: 'simple' | 'worktree'
     worktreeName?: string
+    previewUrl?: string
 }
 
 export function useSpawnSession(api: ApiClient | null): {
@@ -34,7 +35,8 @@ export function useSpawnSession(api: ApiClient | null): {
                 input.thinkEffort,
                 input.yolo,
                 input.sessionType,
-                input.worktreeName
+                input.worktreeName,
+                input.previewUrl
             )
         },
         onSuccess: () => {

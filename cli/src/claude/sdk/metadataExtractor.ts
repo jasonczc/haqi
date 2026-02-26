@@ -10,6 +10,19 @@ import { logger } from '@/ui/logger'
 export interface SDKMetadata {
     tools?: string[]
     slashCommands?: string[]
+    model?: string
+    availableModels?: string[]
+}
+
+function resolveStringArray(value: unknown): string[] | undefined {
+    if (!Array.isArray(value)) {
+        return undefined
+    }
+    const cleaned = value
+        .filter((entry): entry is string => typeof entry === 'string')
+        .map((entry) => entry.trim())
+        .filter(Boolean)
+    return cleaned.length > 0 ? cleaned : undefined
 }
 
 /**
@@ -36,10 +49,15 @@ export async function extractSDKMetadata(): Promise<SDKMetadata> {
         for await (const message of sdkQuery) {
             if (message.type === 'system' && message.subtype === 'init') {
                 const systemMessage = message as SDKSystemMessage
+                const availableModels = resolveStringArray(
+                    systemMessage.available_models ?? (systemMessage as Record<string, unknown>).availableModels ?? systemMessage.models
+                )
                 
                 const metadata: SDKMetadata = {
                     tools: systemMessage.tools,
-                    slashCommands: systemMessage.slash_commands
+                    slashCommands: systemMessage.slash_commands,
+                    model: systemMessage.model,
+                    availableModels
                 }
                 
                 logger.debug('[metadataExtractor] Captured SDK metadata:', metadata)
@@ -72,7 +90,7 @@ export async function extractSDKMetadata(): Promise<SDKMetadata> {
 export function extractSDKMetadataAsync(onComplete: (metadata: SDKMetadata) => void): void {
     extractSDKMetadata()
         .then(metadata => {
-            if (metadata.tools || metadata.slashCommands) {
+            if (metadata.tools || metadata.slashCommands || metadata.model || metadata.availableModels) {
                 onComplete(metadata)
             }
         })

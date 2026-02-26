@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
 import { usePlatform } from '@/hooks/usePlatform'
@@ -7,7 +8,16 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
 import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
-import type { AgentType, CodexThinkEffort, SessionType } from './types'
+import { queryKeys } from '@/lib/query-keys'
+import { normalizePreviewUrlInput } from '@/lib/preview-url'
+import {
+    CLAUDE_THINK_EFFORT_OPTIONS,
+    CODEX_THINK_EFFORT_OPTIONS,
+    MODEL_OPTIONS,
+    type AgentType,
+    type ThinkEffort,
+    type SessionType
+} from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
@@ -22,6 +32,16 @@ import {
 } from './preferences'
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
+
+function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
+    if (agent === 'claude') {
+        return CLAUDE_THINK_EFFORT_OPTIONS[0]?.value ?? 'auto'
+    }
+    if (agent === 'codex') {
+        return CODEX_THINK_EFFORT_OPTIONS[0]?.value ?? 'auto'
+    }
+    return 'auto'
+}
 
 export function NewSession(props: {
     api: ApiClient
@@ -45,10 +65,12 @@ export function NewSession(props: {
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
     const [agent, setAgent] = useState<AgentType>(loadPreferredAgent)
     const [model, setModel] = useState('auto')
-    const [thinkEffort, setThinkEffort] = useState<CodexThinkEffort>('auto')
+    const [customModel, setCustomModel] = useState('')
+    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(() => getDefaultThinkEffort(loadPreferredAgent()))
     const [yoloMode, setYoloMode] = useState(loadPreferredYoloMode)
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
+    const [previewUrlInput, setPreviewUrlInput] = useState('')
     const [error, setError] = useState<string | null>(null)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
     const hasPresetDirectory = Boolean(props.initialDirectory?.trim())
@@ -68,8 +90,9 @@ export function NewSession(props: {
     }, [sessionType])
 
     useEffect(() => {
-        setModel('auto')
-        setThinkEffort('auto')
+        setModel(MODEL_OPTIONS[agent][0]?.value ?? 'auto')
+        setCustomModel('')
+        setThinkEffort(getDefaultThinkEffort(agent))
     }, [agent])
 
     useEffect(() => {
@@ -102,6 +125,35 @@ export function NewSession(props: {
         () => getRecentPaths(machineId),
         [getRecentPaths, machineId]
     )
+
+    const modelOptions = useMemo(() => {
+        return MODEL_OPTIONS[agent]
+    }, [agent])
+    const defaultModelValue = modelOptions[0]?.value ?? 'auto'
+
+    useEffect(() => {
+        if (customModel.trim() || model === defaultModelValue) {
+            return
+        }
+        if (modelOptions.some((option) => option.value === model)) {
+            return
+        }
+        setModel(defaultModelValue)
+    }, [customModel, model, modelOptions, defaultModelValue])
+
+    const previewUrlHistoryQuery = useQuery({
+        queryKey: queryKeys.previewUrlHistory,
+        queryFn: async () => {
+            if (!props.api) {
+                throw new Error('API unavailable')
+            }
+            return await props.api.getPreviewUrlHistory(20)
+        },
+        enabled: Boolean(props.api),
+        staleTime: 30_000
+    })
+
+    const previewUrlHistory = previewUrlHistoryQuery.data?.urls ?? []
 
     const allPaths = useDirectorySuggestions(machineId, sessions, recentPaths)
 
@@ -225,9 +277,24 @@ export function NewSession(props: {
 
         setError(null)
         try {
-            const resolvedModel = model !== 'auto' && agent !== 'opencode' ? model : undefined
+            const normalizedPreviewUrl = normalizePreviewUrlInput(previewUrlInput)
+            if (normalizedPreviewUrl.error) {
+                setError(normalizedPreviewUrl.error)
+                return
+            }
+
+            const customModelValue = customModel.trim()
+            const isAutoModel = model === 'auto'
+                || model === 'auto-gemini-3'
+                || model === 'auto-gemini-2.5'
+            const isGeminiManualModel = agent === 'gemini' && model === 'manual'
+            const resolvedModel = customModelValue
+                ? customModelValue
+                : (!isAutoModel && !isGeminiManualModel && agent !== 'opencode' ? model : undefined)
             const resolvedThinkEffort = agent === 'codex' && thinkEffort !== 'auto'
                 ? thinkEffort
+                : agent === 'claude' && thinkEffort !== 'auto' && thinkEffort !== 'xhigh'
+                    ? thinkEffort
                 : undefined
             const result = await spawnSession({
                 machineId,
@@ -237,7 +304,8 @@ export function NewSession(props: {
                 thinkEffort: resolvedThinkEffort,
                 yolo: yoloMode,
                 sessionType,
-                worktreeName: sessionType === 'worktree' ? (worktreeName.trim() || undefined) : undefined
+                worktreeName: sessionType === 'worktree' ? (worktreeName.trim() || undefined) : undefined,
+                previewUrl: normalizedPreviewUrl.value ?? undefined
             })
 
             if (result.type === 'success') {
@@ -280,6 +348,35 @@ export function NewSession(props: {
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
             />
+            <div className="flex flex-col gap-1.5 px-3 py-3">
+                <label className="text-xs font-medium text-[var(--app-hint)]">
+                    Preview URL (optional)
+                </label>
+                <input
+                    type="text"
+                    placeholder="http://localhost:3000"
+                    value={previewUrlInput}
+                    onChange={(event) => setPreviewUrlInput(event.target.value)}
+                    disabled={isFormDisabled}
+                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                />
+                {previewUrlHistory.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 pt-1">
+                        {previewUrlHistory.slice(0, 8).map((url) => (
+                            <button
+                                key={url}
+                                type="button"
+                                onClick={() => setPreviewUrlInput(url)}
+                                disabled={isFormDisabled}
+                                className="max-w-[240px] truncate rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:opacity-50"
+                                title={url}
+                            >
+                                {url}
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
+            </div>
             <SessionTypeSelector
                 sessionType={sessionType}
                 worktreeName={worktreeName}
@@ -296,8 +393,10 @@ export function NewSession(props: {
             <ModelSelector
                 agent={agent}
                 model={model}
+                customModel={customModel}
                 isDisabled={isFormDisabled}
                 onModelChange={setModel}
+                onCustomModelChange={setCustomModel}
             />
             <ThinkEffortSelector
                 agent={agent}

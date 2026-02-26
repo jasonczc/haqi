@@ -67,6 +67,38 @@ bun run dev             # hub + web concurrently
 bun run build:single-exe # All-in-one binary
 ```
 
+## Local dev isolation (stable + dev)
+
+Do not share one `HAPI_HOME` between installed binary and source `bun run dev`.
+Reason: avoids SQLite schema mismatch + port conflicts.
+
+```bash
+# Stable runtime (installed haqi/hapi)
+export HAPI_HOME="$HOME/.hapi-stable"
+export HAPI_LISTEN_PORT=3006
+
+# Source dev runtime (hub/web from repo)
+export HAPI_HOME="$HOME/.hapi-dev"
+export HAPI_LISTEN_PORT=3016
+export HAPI_PUBLIC_URL="http://localhost:3016"
+```
+
+Quick split workflow:
+
+```bash
+# Terminal A: stable runtime
+export HAPI_HOME="$HOME/.hapi-stable"
+export HAPI_LISTEN_PORT=3006
+haqi runner start
+haqi hub
+
+# Terminal B: source dev runtime
+export HAPI_HOME="$HOME/.hapi-dev"
+export HAPI_LISTEN_PORT=3016
+export HAPI_PUBLIC_URL="http://localhost:3016"
+bun run dev
+```
+
 ## Build + deploy flow (local Linux dev)
 
 Use this flow after web/cli changes that must be verified in running hub:

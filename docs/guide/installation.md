@@ -70,7 +70,7 @@ HAQI has three components:
 ## Install the CLI
 
 ```bash
-npm install -g @twsxtd/haqi
+npm install -g @jasonczc/haqi
 ```
 
 Or with Homebrew:
@@ -85,14 +85,14 @@ brew install tiann/tap/hapi
 <summary>npx (no install)</summary>
 
 ```bash
-npx @twsxtd/haqi
+npx @jasonczc/haqi
 ```
 </details>
 
 <details>
 <summary>Prebuilt binary</summary>
 
-Download the latest release from [GitHub Releases](https://github.com/tiann/hapi/releases).
+Download the latest release from [GitHub Releases](https://github.com/jasonczc/haqi/releases).
 
 ```bash
 xattr -d com.apple.quarantine ./hapi
@@ -105,8 +105,8 @@ sudo mv ./hapi /usr/local/bin/
 <summary>Build from source</summary>
 
 ```bash
-git clone https://github.com/tiann/hapi.git
-cd hapi
+git clone https://github.com/jasonczc/haqi.git
+cd haqi
 bun install
 bun build:single-exe
 

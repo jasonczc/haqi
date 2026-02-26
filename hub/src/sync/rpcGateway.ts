@@ -133,6 +133,7 @@ export class RpcGateway {
         config: {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
+            model?: string
         }
     ): Promise<unknown> {
         return await this.sessionRpc(sessionId, 'set-session-config', config)
@@ -226,7 +227,7 @@ export class RpcGateway {
             const summary = fallbackStatus?.queue
             return {
                 success: false,
-                error: 'Codex queue management is unavailable for this session. Please restart the session.',
+                error: 'Queue management is unavailable for this session. Please restart the session.',
                 queue: summary
                     ? {
                         pendingCount: summary.pendingCount,
@@ -262,7 +263,7 @@ export class RpcGateway {
             }
             return {
                 success: false,
-                error: 'Codex queue enqueue is unavailable for this session. Please restart the session.'
+                error: 'Queue enqueue is unavailable for this session. Please restart the session.'
             }
         }
     }
@@ -300,6 +301,89 @@ export class RpcGateway {
             return await this.sessionRpc(sessionId, 'clear-codex-queue', {}) as RpcCodexQueueResponse
         } catch (error) {
             if (!this.isMissingRpcHandler(error, 'clear-codex-queue')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue mutation is unavailable for this session. Please restart the session.'
+            }
+        }
+    }
+
+    async getClaudeQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'get-claude-queue', {}) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'get-claude-queue')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Claude queue management is unavailable for this session. Please restart the session.'
+            }
+        }
+    }
+
+    async enqueueClaudeMessage(
+        sessionId: string,
+        payload: {
+            text: string
+            attachments?: Array<{
+                id: string
+                filename: string
+                mimeType: string
+                size: number
+                path: string
+                previewUrl?: string
+            }>
+        }
+    ): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'enqueue-claude-message', payload) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'enqueue-claude-message')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Claude queue enqueue is unavailable for this session. Please restart the session.'
+            }
+        }
+    }
+
+    async removeClaudeQueueItem(sessionId: string, id: string): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'remove-claude-queue-item', { id }) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'remove-claude-queue-item')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue mutation is unavailable for this session. Please restart the session.'
+            }
+        }
+    }
+
+    async moveClaudeQueueItem(sessionId: string, id: string, toIndex: number): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'move-claude-queue-item', { id, toIndex }) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'move-claude-queue-item')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue mutation is unavailable for this session. Please restart the session.'
+            }
+        }
+    }
+
+    async clearClaudeQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'clear-claude-queue', {}) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'clear-claude-queue')) {
                 throw error
             }
             return {

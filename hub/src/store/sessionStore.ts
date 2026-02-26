@@ -1,13 +1,15 @@
 import type { Database } from 'bun:sqlite'
 
-import type { StoredSession, VersionedUpdateResult } from './types'
+import type { PreviewUrlHistoryEntry, StoredSession, VersionedUpdateResult } from './types'
 import {
+    getPreviewUrlHistory,
     deleteSession,
     getOrCreateSession,
     getSession,
     getSessionByNamespace,
     getSessions,
     getSessionsByNamespace,
+    setSessionPreviewUrl,
     setSessionTodos,
     updateSessionAgentState,
     updateSessionMetadata
@@ -45,6 +47,14 @@ export class SessionStore {
 
     setSessionTodos(id: string, todos: unknown, todosUpdatedAt: number, namespace: string): boolean {
         return setSessionTodos(this.db, id, todos, todosUpdatedAt, namespace)
+    }
+
+    setSessionPreviewUrl(id: string, previewUrl: string | null, namespace: string): boolean {
+        return setSessionPreviewUrl(this.db, id, previewUrl, namespace)
+    }
+
+    getPreviewUrlHistory(namespace: string, limit?: number): PreviewUrlHistoryEntry[] {
+        return getPreviewUrlHistory(this.db, namespace, limit)
     }
 
     getSession(id: string): StoredSession | null {

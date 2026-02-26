@@ -15,6 +15,7 @@ import { isProcessAlive, isWindows, killProcess, killProcessByChildProcess } fro
 import { withRetry } from '@/utils/time';
 import { isRetryableConnectionError } from '@/utils/errorUtils';
 import { maybeAutoStartServer } from '@/utils/autoStartServer';
+import { isBunCompiled, projectPath } from '@/projectPath';
 
 import { cleanupRunnerState, getInstalledCliMtimeMs, isRunnerRunningCurrentlyInstalledHappyVersion, stopRunner } from './controlClient';
 import { startRunnerControlServer } from './controlServer';
@@ -327,6 +328,13 @@ export async function startRunner(): Promise<void> {
           };
         }
 
+        if (agent === 'claude' && thinkEffort && thinkEffort !== 'auto' && thinkEffort !== 'xhigh') {
+          extraEnv = {
+            ...extraEnv,
+            CLAUDE_CODE_EFFORT_LEVEL: thinkEffort
+          };
+        }
+
         // Construct arguments for the CLI
         const agentCommand = agent === 'codex'
           ? 'codex'
@@ -348,6 +356,9 @@ export async function startRunner(): Promise<void> {
           args.push('--model', options.model);
         }
         if (agent === 'codex' && thinkEffort) {
+          args.push('--effort', thinkEffort);
+        }
+        if (agent === 'claude' && (thinkEffort === 'low' || thinkEffort === 'medium' || thinkEffort === 'high')) {
           args.push('--effort', thinkEffort);
         }
         if (yolo) {
@@ -377,7 +388,9 @@ export async function startRunner(): Promise<void> {
           logger.debug('[RUNNER RUN] Child stderr tail', trimmed);
         };
 
-        const executionCwd = spawnDirectory;
+        // In development mode, Bun path aliases only resolve reliably when cwd is cli project root.
+        // Keep actual target directory in HAPI_WORKING_DIRECTORY to preserve session behavior.
+        const executionCwd = isBunCompiled() ? spawnDirectory : projectPath();
 
         happyProcess = spawnHappyCLI(args, {
           cwd: executionCwd,

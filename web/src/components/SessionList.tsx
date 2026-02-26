@@ -10,6 +10,7 @@ import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
+import { ProjectActionMenu } from '@/components/ProjectActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
@@ -439,7 +440,7 @@ function SessionItem(props: {
                             </span>
                             {getAgentLabel(s)}
                         </span>
-                        <span>{t('session.item.modelMode')}: {s.modelMode || 'default'}</span>
+                        <span>{t('session.item.model')}: {s.metadata?.model?.trim() || s.modelMode || 'default'}</span>
                         {s.metadata?.worktree?.branch ? (
                             <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
                         ) : null}
@@ -503,6 +504,8 @@ function SessionGroupRow(props: {
 }) {
     const { t } = useTranslation()
     const { group, isProjectOffline, isCollapsed, density, onToggleGroup, onToggleProjectOffline, onCreateInGroup } = props
+    const [menuOpen, setMenuOpen] = useState(false)
+    const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const { setNodeRef, transform, transition, isDragging, isOver, listeners } = useSortable({
         id: group.directory
     })
@@ -518,6 +521,12 @@ function SessionGroupRow(props: {
             ref={setNodeRef}
             style={dragStyle}
             className={`z-10 flex w-full items-center gap-1 border-b border-[var(--app-divider)] cursor-grab active:cursor-grabbing select-none ${isDropTarget ? 'bg-[var(--app-secondary-bg)]' : 'bg-[var(--app-bg)]'} ${isDragging ? 'opacity-70' : ''} ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}
+            onContextMenu={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                setMenuAnchorPoint({ x: event.clientX, y: event.clientY })
+                setMenuOpen(true)
+            }}
             {...listeners}
         >
             <button
@@ -543,23 +552,6 @@ function SessionGroupRow(props: {
                     </span>
                 </div>
             </button>
-            <button
-                type="button"
-                onMouseDown={(event) => event.stopPropagation()}
-                onTouchStart={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                    event.stopPropagation()
-                    onToggleProjectOffline(group.directory, isProjectOffline)
-                }}
-                className={`shrink-0 rounded p-1.5 transition-colors hover:bg-[var(--app-secondary-bg)] ${
-                    isProjectOffline ? 'text-[var(--app-hint)]' : 'text-[var(--app-link)]'
-                }`}
-                title={isProjectOffline ? t('sessions.projectOffline.disable') : t('sessions.projectOffline.enable')}
-                aria-label={isProjectOffline ? t('sessions.projectOffline.disable') : t('sessions.projectOffline.enable')}
-            >
-                <BulbIcon className="h-4 w-4" />
-            </button>
             {group.directory !== 'Other' ? (
                 <button
                     type="button"
@@ -580,6 +572,18 @@ function SessionGroupRow(props: {
                     <PlusIcon className="h-4 w-4" />
                 </button>
             ) : null}
+            <ProjectActionMenu
+                isOpen={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                anchorPoint={menuAnchorPoint}
+                isProjectOffline={isProjectOffline}
+                canCreateInProject={group.directory !== 'Other'}
+                onToggleProjectOffline={() => onToggleProjectOffline(group.directory, isProjectOffline)}
+                onCreateInProject={() => onCreateInGroup({
+                    directory: group.directory,
+                    machineId: getGroupMachineId(group)
+                })}
+            />
         </div>
     )
 }

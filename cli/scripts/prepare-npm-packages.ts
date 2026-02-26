@@ -75,6 +75,29 @@ interface MainPackageJson {
     bin?: Record<string, string>;
 }
 
+function parsePackageName(name: string): { scope: string | null; packageName: string } {
+    if (name.startsWith('@')) {
+        const slashIndex = name.indexOf('/');
+        if (slashIndex > 0 && slashIndex < name.length - 1) {
+            return {
+                scope: name.slice(0, slashIndex),
+                packageName: name.slice(slashIndex + 1)
+            };
+        }
+    }
+
+    return {
+        scope: null,
+        packageName: name
+    };
+}
+
+function makePlatformPackageName(mainPackageName: string, platformName: string): string {
+    const { scope, packageName } = parsePackageName(mainPackageName);
+    const platformPackage = `${packageName}-${platformName}`;
+    return scope ? `${scope}/${platformPackage}` : platformPackage;
+}
+
 async function readMainPackageJson(): Promise<MainPackageJson> {
     const pkgPath = join(projectRoot, 'package.json');
     const content = await Bun.file(pkgPath).text();
@@ -85,10 +108,11 @@ function generatePlatformPackageJson(
     platform: typeof PLATFORMS[number],
     mainPkg: MainPackageJson
 ): object {
+    const { packageName } = parsePackageName(mainPkg.name);
     return {
-        name: `@twsxtd/hapi-${platform.name}`,
+        name: makePlatformPackageName(mainPkg.name, platform.name),
         version: mainPkg.version,
-        description: `hapi binary for ${platform.os} ${platform.cpu}`,
+        description: `${packageName} binary for ${platform.os} ${platform.cpu}`,
         os: [platform.os],
         cpu: [platform.cpu],
         bin: {
@@ -100,11 +124,11 @@ function generatePlatformPackageJson(
     };
 }
 
-function buildOptionalDependencies(version: string): Record<string, string> {
+function buildOptionalDependencies(mainPackageName: string, version: string): Record<string, string> {
     const optionalDependencies: Record<string, string> = {};
 
     for (const platform of PLATFORMS) {
-        optionalDependencies[`@twsxtd/hapi-${platform.name}`] = version;
+        optionalDependencies[makePlatformPackageName(mainPackageName, platform.name)] = version;
     }
 
     return optionalDependencies;
@@ -140,7 +164,7 @@ function prepareMainPackage(
 ): void {
     const mainDir = join(npmDir, 'main');
     const binDir = join(mainDir, 'bin');
-    const optionalDependencies = buildOptionalDependencies(mainPkg.version);
+    const optionalDependencies = buildOptionalDependencies(mainPkg.name, mainPkg.version);
 
     mkdirSync(binDir, { recursive: true });
 
@@ -194,7 +218,7 @@ async function preparePlatform(
     console.log(`Copied: ${srcBin} -> ${destBin}`);
 }
 
-function updateMainPackageOptionalDeps(version: string): void {
+function updateMainPackageOptionalDeps(mainPackageName: string, version: string): void {
     const pkgPath = join(projectRoot, 'package.json');
     const content = readFileSync(pkgPath, 'utf-8');
     const pkg = JSON.parse(content);
@@ -204,7 +228,7 @@ function updateMainPackageOptionalDeps(version: string): void {
         pkg.optionalDependencies = {};
     }
 
-    pkg.optionalDependencies = buildOptionalDependencies(version);
+    pkg.optionalDependencies = buildOptionalDependencies(mainPackageName, version);
 
     writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
     console.log(`Updated optionalDependencies in package.json to version ${version}`);
@@ -217,7 +241,7 @@ async function main(): Promise<void> {
     console.log(`Version: ${mainPkg.version}\n`);
 
     // Update optionalDependencies in main package.json
-    updateMainPackageOptionalDeps(mainPkg.version);
+    updateMainPackageOptionalDeps(mainPkg.name, mainPkg.version);
 
     const distExeDir = join(projectRoot, 'dist-exe');
     const npmDir = join(projectRoot, 'npm');

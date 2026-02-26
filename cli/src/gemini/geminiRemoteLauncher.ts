@@ -100,6 +100,9 @@ class GeminiRemoteLauncher extends RemoteLauncherBase {
             }
 
             this.applyDisplayMode(batch.mode.permissionMode, batch.mode.model);
+            if (batch.deferUserMessageUntilDequeue) {
+                session.sendUserMessage(batch.message);
+            }
             messageBuffer.addMessage(batch.message, 'user');
 
             const promptContent: PromptContent[] = [{

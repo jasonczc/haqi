@@ -5,17 +5,26 @@ import { z } from 'zod'
 import type { SyncEngine, Session } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
+import { buildSessionUsageOverview } from '../../usage/sessionUsage'
 
 const permissionModeSchema = z.object({
     mode: PermissionModeSchema
 })
 
-const modelModeSchema = z.object({
-    model: ModelModeSchema
+const modelUpdateSchema = z.object({
+    model: z.string().min(1).max(255)
 })
 
 const renameSessionSchema = z.object({
     name: z.string().min(1).max(255)
+})
+
+const previewUrlSchema = z.object({
+    url: z.string().max(2048).nullable()
+})
+
+const previewUrlHistoryQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(100).optional()
 })
 
 const uploadSchema = z.object({
@@ -58,10 +67,62 @@ function estimateBase64Bytes(base64: string): number {
     return Math.floor((len * 3) / 4) - padding
 }
 
+function normalizePreviewUrl(raw: string | null): { ok: true; value: string | null } | { ok: false; error: string } {
+    if (raw === null) {
+        return { ok: true, value: null }
+    }
+
+    const trimmed = raw.trim()
+    if (!trimmed) {
+        return { ok: true, value: null }
+    }
+
+    try {
+        const url = new URL(trimmed)
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            return { ok: false, error: 'Preview URL must use http:// or https://' }
+        }
+        return { ok: true, value: url.toString() }
+    } catch {
+        return { ok: false, error: 'Invalid preview URL' }
+    }
+}
+
+function collectAllSessionMessages(engine: SyncEngine, sessionId: string): ReturnType<SyncEngine['getMessagesAfter']> {
+    const collected: ReturnType<SyncEngine['getMessagesAfter']> = []
+    let beforeSeq: number | null = null
+    const seenBeforeSeq = new Set<number | null>()
+
+    while (true) {
+        if (seenBeforeSeq.has(beforeSeq)) {
+            break
+        }
+        seenBeforeSeq.add(beforeSeq)
+
+        const page = engine.getMessagesPage(sessionId, {
+            limit: 200,
+            beforeSeq
+        })
+
+        if (page.messages.length === 0) {
+            break
+        }
+
+        collected.unshift(...page.messages)
+        if (!page.page.hasMore || page.page.nextBeforeSeq === null) {
+            break
+        }
+
+        beforeSeq = page.page.nextBeforeSeq
+    }
+
+    return collected
+}
+
 export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
-    const requireActiveCodexSession = (
+    const requireActiveQueueSession = (
         c: Context<WebAppEnv>,
         engine: SyncEngine
     ) => {
@@ -75,10 +136,24 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
-        if (flavor !== 'codex') {
-            return c.json({ success: false, error: 'Codex API is only supported for Codex sessions' })
+        if (flavor !== 'codex' && flavor !== 'claude' && flavor !== 'gemini') {
+            return c.json({ success: false, error: 'Queue API is only supported for Codex, Claude, and Gemini sessions' })
         }
 
+        return { ...sessionResult, flavor }
+    }
+
+    const requireActiveCodexSession = (
+        c: Context<WebAppEnv>,
+        engine: SyncEngine
+    ) => {
+        const sessionResult = requireActiveQueueSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+        if (sessionResult.flavor !== 'codex') {
+            return c.json({ success: false, error: 'Codex API is only supported for Codex sessions' })
+        }
         return sessionResult
     }
 
@@ -111,6 +186,22 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         return c.json({ sessions })
     })
 
+    app.get('/sessions/preview-url-history', (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const parsed = previewUrlHistoryQuerySchema.safeParse(c.req.query())
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid query' }, 400)
+        }
+
+        const namespace = c.get('namespace')
+        const entries = engine.getPreviewUrlHistory(namespace, parsed.data.limit)
+        return c.json({ urls: entries.map((entry) => entry.url), entries })
+    })
+
     app.get('/sessions/:id', (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
@@ -125,13 +216,13 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         return c.json({ session: sessionResult.session })
     })
 
-    app.get('/sessions/:id/codex-status', async (c) => {
+    const handleQueueStatus = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -142,40 +233,42 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to get Codex status'
+                error: error instanceof Error ? error.message : 'Failed to get queue status'
             })
         }
-    })
+    }
 
-    app.get('/sessions/:id/codex-queue', async (c) => {
+    const handleQueueState = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
 
         try {
-            const result = await engine.getCodexQueue(sessionResult.sessionId)
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.getClaudeQueue(sessionResult.sessionId)
+                : await engine.getCodexQueue(sessionResult.sessionId)
             return c.json(result)
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to get Codex queue'
+                error: error instanceof Error ? error.message : 'Failed to get queue'
             }, 500)
         }
-    })
+    }
 
-    app.post('/sessions/:id/codex-queue/enqueue', async (c) => {
+    const handleQueueEnqueue = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -191,26 +284,31 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         try {
-            const result = await engine.enqueueCodexMessage(sessionResult.sessionId, {
-                text: parsed.data.text,
-                attachments: parsed.data.attachments
-            })
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.enqueueClaudeMessage(sessionResult.sessionId, {
+                    text: parsed.data.text,
+                    attachments: parsed.data.attachments
+                })
+                : await engine.enqueueCodexMessage(sessionResult.sessionId, {
+                    text: parsed.data.text,
+                    attachments: parsed.data.attachments
+                })
             return c.json(result)
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to enqueue Codex message'
+                error: error instanceof Error ? error.message : 'Failed to enqueue queue message'
             }, 500)
         }
-    })
+    }
 
-    app.post('/sessions/:id/codex-queue/remove', async (c) => {
+    const handleQueueRemove = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -222,23 +320,25 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         try {
-            const result = await engine.removeCodexQueueItem(sessionResult.sessionId, parsed.data.id)
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.removeClaudeQueueItem(sessionResult.sessionId, parsed.data.id)
+                : await engine.removeCodexQueueItem(sessionResult.sessionId, parsed.data.id)
             return c.json(result)
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to remove Codex queue item'
+                error: error instanceof Error ? error.message : 'Failed to remove queue item'
             }, 500)
         }
-    })
+    }
 
-    app.post('/sessions/:id/codex-queue/move', async (c) => {
+    const handleQueueMove = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -250,38 +350,91 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         try {
-            const result = await engine.moveCodexQueueItem(
-                sessionResult.sessionId,
-                parsed.data.id,
-                parsed.data.toIndex
-            )
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.moveClaudeQueueItem(
+                    sessionResult.sessionId,
+                    parsed.data.id,
+                    parsed.data.toIndex
+                )
+                : await engine.moveCodexQueueItem(
+                    sessionResult.sessionId,
+                    parsed.data.id,
+                    parsed.data.toIndex
+                )
             return c.json(result)
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to move Codex queue item'
+                error: error instanceof Error ? error.message : 'Failed to move queue item'
             }, 500)
         }
-    })
+    }
 
-    app.post('/sessions/:id/codex-queue/clear', async (c) => {
+    const handleQueueClear = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
         }
 
-        const sessionResult = requireActiveCodexSession(c, engine)
+        const sessionResult = requireActiveQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
 
         try {
-            const result = await engine.clearCodexQueue(sessionResult.sessionId)
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.clearClaudeQueue(sessionResult.sessionId)
+                : await engine.clearCodexQueue(sessionResult.sessionId)
             return c.json(result)
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to clear Codex queue'
+                error: error instanceof Error ? error.message : 'Failed to clear queue'
+            }, 500)
+        }
+    }
+
+    const queueStatusPaths = ['/sessions/:id/codex-status', '/sessions/:id/queue-status'] as const
+    queueStatusPaths.forEach((path) => {
+        app.get(path, handleQueueStatus)
+    })
+
+    const queuePaths = ['/sessions/:id/codex-queue', '/sessions/:id/queue'] as const
+    queuePaths.forEach((path) => {
+        app.get(path, handleQueueState)
+    })
+
+    const queueActionPaths = ['/sessions/:id/codex-queue', '/sessions/:id/queue'] as const
+    queueActionPaths.forEach((path) => {
+        app.post(`${path}/enqueue`, handleQueueEnqueue)
+        app.post(`${path}/remove`, handleQueueRemove)
+        app.post(`${path}/move`, handleQueueMove)
+        app.post(`${path}/clear`, handleQueueClear)
+    })
+
+    app.get('/sessions/:id/usage', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        try {
+            const messages = collectAllSessionMessages(engine, sessionResult.sessionId)
+            const usage = buildSessionUsageOverview({
+                sessionId: sessionResult.sessionId,
+                flavor: sessionResult.session.metadata?.flavor ?? null,
+                messages
+            })
+            return c.json({ success: true, usage })
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to compute session usage'
             }, 500)
         }
     })
@@ -471,22 +624,68 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         const body = await c.req.json().catch(() => null)
-        const parsed = modelModeSchema.safeParse(body)
+        const parsed = modelUpdateSchema.safeParse(body)
         if (!parsed.success) {
             return c.json({ error: 'Invalid body' }, 400)
         }
 
         const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
-        if (!isModelModeAllowedForFlavor(parsed.data.model, flavor)) {
+        const requestedModel = parsed.data.model.trim()
+        if (!requestedModel) {
+            return c.json({ error: 'Invalid model value' }, 400)
+        }
+
+        const parsedMode = ModelModeSchema.safeParse(requestedModel)
+        const requestedMode = parsedMode.success ? parsedMode.data : undefined
+
+        if (requestedMode && !isModelModeAllowedForFlavor(requestedMode, flavor)) {
             return c.json({ error: 'Model mode is only supported for Claude sessions' }, 400)
         }
 
+        if (!requestedMode && flavor !== 'claude') {
+            return c.json({ error: 'Custom model is only supported for Claude sessions' }, 400)
+        }
+
         try {
-            await engine.applySessionConfig(sessionResult.sessionId, { modelMode: parsed.data.model })
+            await engine.applySessionConfig(sessionResult.sessionId, {
+                modelMode: requestedMode,
+                model: requestedModel
+            })
             return c.json({ ok: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply model mode'
             return c.json({ error: message }, 409)
+        }
+    })
+
+    app.patch('/sessions/:id/preview-url', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = previewUrlSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const previewUrl = normalizePreviewUrl(parsed.data.url)
+        if (!previewUrl.ok) {
+            return c.json({ error: previewUrl.error }, 400)
+        }
+
+        try {
+            await engine.setSessionPreviewUrl(sessionResult.sessionId, previewUrl.value)
+            return c.json({ ok: true, previewUrl: previewUrl.value })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update preview URL'
+            return c.json({ error: message }, 500)
         }
     })
 

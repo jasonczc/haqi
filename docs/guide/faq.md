@@ -191,11 +191,11 @@ See [Why HAQI](./why-hapi.md) for detailed comparison.
 
 ### How can I contribute?
 
-Visit our [GitHub repository](https://github.com/tiann/hapi) to:
+Visit our [GitHub repository](https://github.com/jasonczc/haqi) to:
 - Report issues
 - Submit pull requests
 - Suggest features
 
 ### Where do I report bugs?
 
-Open an issue on [GitHub Issues](https://github.com/tiann/hapi/issues).
+Open an issue on [GitHub Issues](https://github.com/jasonczc/haqi/issues).
