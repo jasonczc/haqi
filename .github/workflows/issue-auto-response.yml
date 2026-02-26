@@ -64,8 +64,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Skip when OPENAI_API_KEY is missing
+        if: steps.check_bot.outputs.has_bot != 'true' && secrets.OPENAI_API_KEY == ''
+        run: echo "::warning::OPENAI_API_KEY is not configured; skipping issue auto response."
+
       - name: Run Codex for Issue Auto Response
-        if: steps.check_bot.outputs.has_bot != 'true'
+        if: steps.check_bot.outputs.has_bot != 'true' && secrets.OPENAI_API_KEY != ''
         uses: openai/codex-action@v1
         env:
           GH_TOKEN: ${{ github.token }}

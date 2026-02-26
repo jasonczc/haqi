@@ -114,8 +114,12 @@ jobs:
         if: steps.check_skip.outputs.should_skip != 'true'
         run: git fetch --all
 
+      - name: Skip when OPENAI_API_KEY is missing
+        if: steps.check_skip.outputs.should_skip != 'true' && secrets.OPENAI_API_KEY == ''
+        run: echo "::warning::OPENAI_API_KEY is not configured; skipping mention response."
+
       - name: Run Codex for Mention Response
-        if: steps.check_skip.outputs.should_skip != 'true'
+        if: steps.check_skip.outputs.should_skip != 'true' && secrets.OPENAI_API_KEY != ''
         uses: openai/codex-action@v1
         env:
           GH_TOKEN: ${{ github.token }}
