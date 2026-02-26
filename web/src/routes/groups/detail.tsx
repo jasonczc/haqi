@@ -220,9 +220,17 @@ function AddMemberModal(props: {
         const available = sessions.filter((s) => {
             if (props.existingMemberSessionIds.has(s.id)) return false
             if (!q) return true
-            const name = (s.metadata?.name ?? '').toLowerCase()
+            const name = getSessionTitle(s, { fallbackIdLength: 12 }).toLowerCase()
+            const rawName = (s.metadata?.name ?? '').toLowerCase()
+            const summary = (s.metadata?.summary?.text ?? '').toLowerCase()
             const path = (s.metadata?.path ?? '').toLowerCase()
-            return name.includes(q) || path.includes(q) || s.id.toLowerCase().includes(q)
+            return (
+                name.includes(q)
+                || rawName.includes(q)
+                || summary.includes(q)
+                || path.includes(q)
+                || s.id.toLowerCase().includes(q)
+            )
         })
         return {
             online: available.filter((s) => s.active),

@@ -714,11 +714,13 @@ function NewSessionPage() {
 function GroupListItem(props: {
     item: GroupDetail
     selected: boolean
+    density: SessionListDensity
     onSelect: (groupId: string) => void
     onOpenActions: (groupId: string, point: { x: number; y: number }) => void
 }) {
-    const { item, selected, onSelect, onOpenActions } = props
+    const { item, selected, density, onSelect, onOpenActions } = props
     const { haptic } = usePlatform()
+    const isCompact = density === 'compact'
 
     const longPressHandlers = useLongPress({
         onLongPress: (point) => {
@@ -735,14 +737,14 @@ function GroupListItem(props: {
         <button
             type="button"
             {...longPressHandlers}
-            className={`session-list-item flex w-full flex-col gap-1.5 pl-5 pr-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none hover:bg-[var(--app-subtle-bg)] ${selected ? 'bg-[var(--app-subtle-bg)]' : ''}`}
+            className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none hover:bg-[var(--app-subtle-bg)] ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 pl-5 pr-3 py-3'} ${selected ? 'bg-[var(--app-subtle-bg)]' : ''}`}
             style={{ WebkitTouchCallout: 'none' }}
             aria-current={selected ? 'page' : undefined}
         >
-            <div className="truncate text-sm font-medium text-[var(--app-fg)]">
+            <div className={`truncate font-medium text-[var(--app-fg)] ${isCompact ? 'text-sm' : 'text-base'}`}>
                 {item.group.name}
             </div>
-            <div className="truncate text-xs text-[var(--app-hint)]">
+            <div className={`truncate text-[var(--app-hint)] ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
                 {item.members.length} {item.members.length === 1 ? 'member' : 'members'}
             </div>
         </button>
@@ -755,6 +757,7 @@ function GroupsLayout() {
     const matchRoute = useMatchRoute()
     const { t } = useTranslation()
     const { groups, isLoading } = useGroups(api)
+    const { density } = useSessionListDensity()
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [newGroupName, setNewGroupName] = useState('')
     const [newGroupDesc, setNewGroupDesc] = useState('')
@@ -928,6 +931,7 @@ function GroupsLayout() {
                                     key={item.group.id}
                                     item={item}
                                     selected={selectedGroupId === item.group.id}
+                                    density={density}
                                     onSelect={(groupId) => {
                                         setActionMenuOpen(false)
                                         navigate({ to: '/groups/$groupId', params: { groupId } })
