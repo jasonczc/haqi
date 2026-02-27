@@ -16,6 +16,16 @@ import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
 import { SessionList, type NewSessionPreset } from '@/components/SessionList'
 import { NewSession } from '@/components/NewSession'
+import {
+    loadLastSessionConfig,
+    loadPreferredAgent,
+    loadPreferredCustomModel,
+    loadPreferredModel,
+    loadPreferredSessionType,
+    loadPreferredThinkEffort,
+    loadPreferredYoloMode
+} from '@/components/NewSession/preferences'
+import { resolveSpawnModel, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
@@ -267,9 +277,29 @@ function SessionsPage() {
 
         setMobileSidebarOpen(false)
         try {
+            const lastConfig = loadLastSessionConfig()
+            const quickCreateAgent = lastConfig?.agent ?? loadPreferredAgent()
+            const quickModel = lastConfig?.model ?? loadPreferredModel(quickCreateAgent) ?? undefined
+            const quickCustomModel = (lastConfig?.customModel ?? loadPreferredCustomModel(quickCreateAgent)).trim()
+            const quickThinkEffort = lastConfig?.thinkEffort ?? loadPreferredThinkEffort(quickCreateAgent) ?? 'auto'
+            const quickYolo = lastConfig?.yoloMode ?? loadPreferredYoloMode()
+            const quickSessionType = lastConfig?.sessionType ?? loadPreferredSessionType()
+            const quickWorktreeName = lastConfig?.worktreeName ?? ''
+            const quickPreviewUrl = lastConfig?.previewUrl ?? ''
+
+            const resolvedModel = resolveSpawnModel(quickCreateAgent, quickModel, quickCustomModel)
+            const resolvedThinkEffort = resolveSpawnThinkEffort(quickCreateAgent, quickThinkEffort)
+            const sessionSettings = resolveSpawnSessionSettings(quickSessionType, quickWorktreeName, quickPreviewUrl)
             const result = await spawnSession({
                 machineId: preset.machineId,
-                directory: preset.directory
+                directory: preset.directory,
+                agent: quickCreateAgent,
+                model: resolvedModel,
+                thinkEffort: resolvedThinkEffort,
+                yolo: quickYolo,
+                sessionType: sessionSettings.sessionType,
+                worktreeName: sessionSettings.worktreeName,
+                previewUrl: sessionSettings.previewUrl
             })
 
             if (result.type !== 'success') {

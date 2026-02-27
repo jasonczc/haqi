@@ -43,6 +43,7 @@ import {
 } from './preferences'
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
+import { resolveSpawnModel, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -304,18 +305,13 @@ export function NewSession(props: {
             }
 
             const customModelValue = customModel.trim()
-            const isAutoModel = model === 'auto'
-                || model === 'auto-gemini-3'
-                || model === 'auto-gemini-2.5'
-            const isGeminiManualModel = agent === 'gemini' && model === 'manual'
-            const resolvedModel = customModelValue
-                ? customModelValue
-                : (!isAutoModel && !isGeminiManualModel && agent !== 'opencode' ? model : undefined)
-            const resolvedThinkEffort = agent === 'codex' && thinkEffort !== 'auto'
-                ? thinkEffort
-                : agent === 'claude' && thinkEffort !== 'auto' && thinkEffort !== 'xhigh'
-                    ? thinkEffort
-                : undefined
+            const resolvedModel = resolveSpawnModel(agent, model, customModelValue)
+            const resolvedThinkEffort = resolveSpawnThinkEffort(agent, thinkEffort)
+            const sessionSettings = resolveSpawnSessionSettings(
+                sessionType,
+                worktreeName,
+                normalizedPreviewUrl.value ?? ''
+            )
             const result = await spawnSession({
                 machineId,
                 directory: directory.trim(),
@@ -323,9 +319,9 @@ export function NewSession(props: {
                 model: resolvedModel,
                 thinkEffort: resolvedThinkEffort,
                 yolo: yoloMode,
-                sessionType,
-                worktreeName: sessionType === 'worktree' ? (worktreeName.trim() || undefined) : undefined,
-                previewUrl: normalizedPreviewUrl.value ?? undefined
+                sessionType: sessionSettings.sessionType,
+                worktreeName: sessionSettings.worktreeName,
+                previewUrl: sessionSettings.previewUrl
             })
 
             if (result.type === 'success') {
