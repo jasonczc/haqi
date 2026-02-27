@@ -7,13 +7,13 @@ export function ActionButtons(props: {
     canCreate: boolean
     isDisabled: boolean
     onCancel: () => void
-    onCreate: () => void
 }) {
     const { t } = useTranslation()
 
     return (
         <div className="flex gap-2 px-3 py-3">
             <Button
+                type="button"
                 variant="secondary"
                 onClick={props.onCancel}
                 disabled={props.isDisabled}
@@ -21,7 +21,7 @@ export function ActionButtons(props: {
                 {t('button.cancel')}
             </Button>
             <Button
-                onClick={props.onCreate}
+                type="submit"
                 disabled={!props.canCreate}
                 aria-busy={props.isPending}
                 className="gap-2"

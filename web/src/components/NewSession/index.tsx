@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
@@ -49,6 +49,7 @@ export function NewSession(props: {
     isLoading?: boolean
     initialDirectory?: string
     initialMachineId?: string
+    formId?: string
     onSuccess: (sessionId: string) => void
     onCancel: () => void
 }) {
@@ -326,8 +327,18 @@ export function NewSession(props: {
 
     const canCreate = Boolean(machineId && directory.trim() && !isFormDisabled)
 
+    const handleSubmit = (event: ReactFormEvent<HTMLFormElement>) => {
+        event.preventDefault()
+        if (!canCreate) return
+        void handleCreate()
+    }
+
     return (
-        <div className="flex flex-col divide-y divide-[var(--app-divider)]">
+        <form
+            id={props.formId}
+            className="flex flex-col divide-y divide-[var(--app-divider)]"
+            onSubmit={handleSubmit}
+        >
             <MachineSelector
                 machines={props.machines}
                 machineId={machineId}
@@ -421,8 +432,7 @@ export function NewSession(props: {
                 canCreate={canCreate}
                 isDisabled={isFormDisabled}
                 onCancel={props.onCancel}
-                onCreate={handleCreate}
             />
-        </div>
+        </form>
     )
 }

@@ -39,6 +39,7 @@ import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Button } from '@/components/ui/button'
 import type { GroupDetail } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import FilesPage from '@/routes/sessions/files'
@@ -689,6 +690,8 @@ function NewSessionPage() {
             })
         })
     }, [navigate, queryClient])
+    const formId = 'new-session-page-form'
+    const submitDisabled = Boolean(machinesLoading || machinesError)
 
     return (
         <div className="flex h-full min-h-0 flex-col">
@@ -703,6 +706,26 @@ function NewSessionPage() {
                     </button>
                 )}
                 <div className="flex-1 font-semibold">Create Session</div>
+                <Button
+                    type="submit"
+                    form={formId}
+                    size="sm"
+                    disabled={submitDisabled}
+                    className="hidden sm:inline-flex"
+                >
+                    Create
+                </Button>
+                <Button
+                    type="submit"
+                    form={formId}
+                    size="sm"
+                    disabled={submitDisabled}
+                    className="h-8 w-8 p-0 text-base sm:hidden"
+                    aria-label="Create"
+                    title="Create"
+                >
+                    <span aria-hidden>✅</span>
+                </Button>
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
@@ -718,6 +741,7 @@ function NewSessionPage() {
                     isLoading={machinesLoading}
                     initialDirectory={search.directory}
                     initialMachineId={search.machineId}
+                    formId={formId}
                     onCancel={handleCancel}
                     onSuccess={handleSuccess}
                 />
