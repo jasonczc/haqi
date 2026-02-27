@@ -92,6 +92,20 @@ function uniqueStrings(values: string[]): string[] {
     return Array.from(new Set(values.filter(Boolean)))
 }
 
+function extractMentionTokens(command: string): string[] {
+    return Array.from(command.matchAll(/\B@([A-Za-z0-9._:-]+)/g))
+        .map((match) => (match[1] ?? '').trim())
+        .filter((token) => token.length > 0)
+}
+
+function sanitizeMentionAlias(value: string): string {
+    return value.replace(/[^A-Za-z0-9._:-]/g, '')
+}
+
+function toMentionAliasKey(value: string): string {
+    return value.trim().toLowerCase()
+}
+
 function truncateText(value: string, maxLength: number): string {
     if (value.length <= maxLength) {
         return value
@@ -393,22 +407,28 @@ export class GroupService {
         this.emitMessageEvent(storedMessage)
         const timelineMessage = this.toTimelineMessage(storedMessage)
 
-        if (options.type !== 'command') {
-            return { message: timelineMessage, createdTasks: [] }
-        }
-
         const command = extractCommandText(options.payload)
-        if (!command) {
+        const shouldDispatchTasks = this.shouldDispatchTasksFromMessage({
+            type: options.type,
+            source,
+            actorSessionId: options.actorSessionId ?? null,
+            command
+        })
+
+        if (!shouldDispatchTasks || !command) {
             return { message: timelineMessage, createdTasks: [] }
         }
 
         const commandWithQuotedContext = this.buildCommandWithQuotedContext(command, timelineMessage.quotedMessage)
+        const explicitTargets = options.type === 'command'
+            ? (options.targetSessionIds ?? null)
+            : null
 
         const targetSessionIds = this.resolveCommandTargets(
             options.groupId,
             options.namespace,
             command,
-            options.targetSessionIds ?? null
+            explicitTargets
         )
         if (targetSessionIds.length === 0) {
             return { message: timelineMessage, createdTasks: [] }
@@ -910,6 +930,34 @@ export class GroupService {
         return createdTasks
     }
 
+    private shouldDispatchTasksFromMessage(options: {
+        type: 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
+        source: string
+        actorSessionId: string | null
+        command: string
+    }): boolean {
+        if (!options.command.trim()) {
+            return false
+        }
+        if (options.type === 'command') {
+            return true
+        }
+        if (options.type !== 'chat') {
+            return false
+        }
+
+        const originSessionId = this.resolveOriginSessionId(options.source, options.actorSessionId)
+        if (!originSessionId) {
+            return false
+        }
+
+        if (/\B@all\b/i.test(options.command)) {
+            return true
+        }
+
+        return extractMentionTokens(options.command).length > 0
+    }
+
     private resolveCommandTargets(
         groupId: string,
         namespace: string,
@@ -926,6 +974,8 @@ export class GroupService {
         }
 
         const onlineSessionMembers = sessionMembers.filter((sessionId) => this.isSessionMentionable(sessionId, namespace))
+        const onlineSessionMembersSet = new Set(onlineSessionMembers)
+        const aliasLookup = this.buildMentionAliasLookup(onlineSessionMembers, namespace)
 
         if (explicitTargets && explicitTargets.length > 0) {
             return uniqueStrings(explicitTargets).filter(
@@ -937,10 +987,21 @@ export class GroupService {
             return onlineSessionMembers
         }
 
-        const mentions = Array.from(command.matchAll(/\B@([A-Za-z0-9._:-]+)/g))
-            .map((match) => match[1])
+        const mentions = extractMentionTokens(command)
+        const resolvedTargets: string[] = []
+        for (const mention of mentions) {
+            if (onlineSessionMembersSet.has(mention)) {
+                resolvedTargets.push(mention)
+                continue
+            }
 
-        return uniqueStrings(mentions.filter((id) => onlineSessionMembers.includes(id)))
+            const mappedSessionId = aliasLookup.get(toMentionAliasKey(mention))
+            if (mappedSessionId && onlineSessionMembersSet.has(mappedSessionId)) {
+                resolvedTargets.push(mappedSessionId)
+            }
+        }
+
+        return uniqueStrings(resolvedTargets)
     }
 
     private isSessionMentionable(sessionId: string, namespace: string): boolean {
@@ -949,6 +1010,68 @@ export class GroupService {
             return false
         }
         return session.active
+    }
+
+    private resolveOriginSessionId(source: string, actorSessionId: string | null): string | null {
+        const normalizedActorSessionId = actorSessionId?.trim()
+        if (normalizedActorSessionId) {
+            return normalizedActorSessionId
+        }
+        if (!source.startsWith('session:')) {
+            return null
+        }
+        const sourceSessionId = source.slice('session:'.length).trim()
+        return sourceSessionId.length > 0 ? sourceSessionId : null
+    }
+
+    private buildMentionAliasLookup(sessionIds: string[], namespace: string): Map<string, string | null> {
+        const aliasLookup = new Map<string, string | null>()
+        for (const sessionId of sessionIds) {
+            const aliases = this.getSessionMentionAliases(sessionId, namespace)
+            for (const alias of aliases) {
+                const key = toMentionAliasKey(alias)
+                if (!key) {
+                    continue
+                }
+                const existing = aliasLookup.get(key)
+                if (!aliasLookup.has(key)) {
+                    aliasLookup.set(key, sessionId)
+                    continue
+                }
+                if (existing !== sessionId) {
+                    aliasLookup.set(key, null)
+                }
+            }
+        }
+        return aliasLookup
+    }
+
+    private getSessionMentionAliases(sessionId: string, namespace: string): string[] {
+        const aliases = new Set<string>([sessionId])
+        const session = this.store.sessions.getSessionByNamespace(sessionId, namespace)
+        const metadata = (session?.metadata && typeof session.metadata === 'object')
+            ? (session.metadata as Record<string, unknown>)
+            : null
+        const name = typeof metadata?.name === 'string'
+            ? metadata.name.trim()
+            : ''
+        if (!name) {
+            return Array.from(aliases)
+        }
+
+        const rawVariants = [
+            name,
+            name.replace(/\s+/g, '-'),
+            name.replace(/\s+/g, '_'),
+            name.replace(/\s+/g, '')
+        ]
+        for (const variant of rawVariants) {
+            const sanitized = sanitizeMentionAlias(variant.trim())
+            if (sanitized.length > 0) {
+                aliases.add(sanitized)
+            }
+        }
+        return Array.from(aliases)
     }
 
     private buildCommandWithQuotedContext(command: string, quotedMessage: TimelineQuotedMessage | undefined): string {

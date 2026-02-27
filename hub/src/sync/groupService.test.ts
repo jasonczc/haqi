@@ -179,6 +179,91 @@ describe('GroupService createGroup', () => {
         expect(repliedMessage?.quotedMessage?.text).toBe('需要保留的引用上下文')
     })
 
+    it('dispatches session-origin chat mentions using member aliases', async () => {
+        const store = new Store(':memory:')
+        const delegator = store.sessions.getOrCreateSession(
+            'session-delegator',
+            { path: '/repo/delegator', name: 'AgentA' },
+            null,
+            'default'
+        )
+        const worker = store.sessions.getOrCreateSession(
+            'session-worker-target',
+            { path: '/repo/worker', name: 'AgentB' },
+            null,
+            'default'
+        )
+        const dispatched: Array<{ command: string; targetSessionId: string }> = []
+        const service = createService(store, {
+            dispatchTask: async (payload) => {
+                dispatched.push({
+                    command: payload.command,
+                    targetSessionId: payload.targetSessionId
+                })
+            },
+            resolveSessionRoutingState: (sessionId) => (
+                sessionId === delegator.id || sessionId === worker.id
+                    ? { active: true }
+                    : null
+            )
+        })
+
+        const created = service.createGroup({
+            namespace: 'default',
+            name: 'Delegation Group',
+            sessionMemberIds: [delegator.id, worker.id]
+        })
+
+        const result = await service.addTimelineMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: `session:${delegator.id}`,
+            actorSessionId: delegator.id,
+            actorName: 'AgentA',
+            payload: { text: '@AgentB 请接手 API 对接' }
+        })
+
+        expect(result.message.type).toBe('chat')
+        expect(result.createdTasks).toHaveLength(1)
+        expect(result.createdTasks[0]?.targetSessionId).toBe(worker.id)
+        expect(dispatched).toHaveLength(1)
+        expect(dispatched[0]?.targetSessionId).toBe(worker.id)
+        expect(dispatched[0]?.command).toContain('@AgentB')
+    })
+
+    it('does not dispatch user-origin chat mentions', async () => {
+        const store = new Store(':memory:')
+        const worker = store.sessions.getOrCreateSession('session-chat-worker', { path: '/repo/chat-worker' }, null, 'default')
+        const dispatched: Array<{ command: string; targetSessionId: string }> = []
+        const service = createService(store, {
+            dispatchTask: async (payload) => {
+                dispatched.push({
+                    command: payload.command,
+                    targetSessionId: payload.targetSessionId
+                })
+            },
+            resolveSessionRoutingState: (sessionId) => (sessionId === worker.id ? { active: true } : null)
+        })
+
+        const created = service.createGroup({
+            namespace: 'default',
+            name: 'User Chat Group',
+            sessionMemberIds: [worker.id]
+        })
+
+        const result = await service.addTimelineMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: 'user:web',
+            payload: { text: `@${worker.id} 这是一条普通聊天` }
+        })
+
+        expect(result.createdTasks).toHaveLength(0)
+        expect(dispatched).toHaveLength(0)
+    })
+
     it('builds structured note refresh prompt from timeline and tasks', async () => {
         const store = new Store(':memory:')
         const noteExecutor = store.sessions.getOrCreateSession('session-note', { path: '/repo/note' }, null, 'default')
