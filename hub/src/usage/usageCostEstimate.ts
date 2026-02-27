@@ -292,12 +292,23 @@ function findModelPricing(
     return null
 }
 
+function calculateCachedInputTokens(totals: UsageTotals): number {
+    const inputTokens = Math.max(totals.inputTokens, 0)
+    const cachedInputTokens = Math.max(totals.cachedInputTokens, totals.cacheReadTokens, 0)
+    return Math.min(cachedInputTokens, inputTokens)
+}
+
 function calculateUsd(totals: UsageTotals, rates: TokenRates): number {
-    const outputLikeTokens = totals.outputTokens + totals.reasoningOutputTokens
-    return (totals.inputTokens * rates.inputCostPerToken)
-        + (outputLikeTokens * rates.outputCostPerToken)
-        + (totals.cacheCreationTokens * rates.cacheCreationCostPerToken)
-        + (totals.cacheReadTokens * rates.cacheReadCostPerToken)
+    const inputTokens = Math.max(totals.inputTokens, 0)
+    const cachedInputTokens = calculateCachedInputTokens(totals)
+    const nonCachedInputTokens = Math.max(inputTokens - cachedInputTokens, 0)
+    const outputTokens = Math.max(totals.outputTokens, 0)
+    const cacheCreationTokens = Math.max(totals.cacheCreationTokens, 0)
+
+    return (nonCachedInputTokens * rates.inputCostPerToken)
+        + (cachedInputTokens * rates.cacheReadCostPerToken)
+        + (outputTokens * rates.outputCostPerToken)
+        + (cacheCreationTokens * rates.cacheCreationCostPerToken)
 }
 
 function calculateEffectiveUsdPerMillionTokens(totalTokens: number, usd: number): number {
