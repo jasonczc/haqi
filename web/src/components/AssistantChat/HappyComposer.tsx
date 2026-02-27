@@ -849,140 +849,145 @@ export function HappyComposer(props: {
                         voiceStatus={voiceStatus}
                     />
 
-                    <div className="overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)]">
-                        {showInlineQueuePanel ? (
-                            <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
-                                        {t('queue.dialog.title')}
-                                    </span>
-                                    <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
-                                        {t('queue.inline.pending', { count: inlineQueuePendingCount })}
-                                    </span>
-                                    {inlineQueueTaskRunning ? (
-                                        <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
-                                            {t('queue.inline.running')}
+                    <ComposerPrimitive.AttachmentDropzone
+                        asChild
+                        disabled={controlsDisabled}
+                    >
+                        <div className="overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)] transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)]">
+                            {showInlineQueuePanel ? (
+                                <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                                            {t('queue.dialog.title')}
                                         </span>
-                                    ) : null}
-                                    {inlineQueueInQueue ? (
-                                        <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
-                                            {t('queue.summary.inQueue')}
+                                        <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
+                                            {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                         </span>
-                                    ) : null}
-                                    <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">
-                                        {inlineQueueHeadline}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
-                                        onClick={handleCodexQueueOpen}
-                                        disabled={controlsDisabled || !onCodexQueueOpen}
-                                    >
-                                        {t('queue.inline.open')}
-                                    </button>
-                                </div>
-
-                                {codexQueueInlinePanelMode === 'full' ? (
-                                    <div className="mt-2 space-y-1">
-                                        {codexQueueEntries.length > 0 ? (
-                                            <>
-                                                {codexQueueEntries.slice(0, 5).map((entry, index) => (
-                                                    <div
-                                                        key={entry.id}
-                                                        className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
-                                                    >
-                                                        <span className="text-[10px] text-[var(--app-hint)]">
-                                                            #{index + 1}
-                                                        </span>
-                                                        <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]">
-                                                            {entry.preview || t('queue.dialog.emptyMessage')}
-                                                        </span>
-                                                        <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
-                                                            {new Date(entry.enqueuedAt).toLocaleTimeString([], {
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                                {codexQueueEntries.length > 5 ? (
-                                                    <div className="px-1 text-[11px] text-[var(--app-hint)]">
-                                                        +{codexQueueEntries.length - 5}
-                                                    </div>
-                                                ) : null}
-                                            </>
-                                        ) : inlineQueuePendingCount > 0 ? (
-                                            <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                {t('queue.inline.pending', { count: inlineQueuePendingCount })}
-                                            </div>
-                                        ) : (
-                                            <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                {t('queue.dialog.empty')}
-                                            </div>
-                                        )}
+                                        {inlineQueueTaskRunning ? (
+                                            <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
+                                                {t('queue.inline.running')}
+                                            </span>
+                                        ) : null}
+                                        {inlineQueueInQueue ? (
+                                            <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
+                                                {t('queue.summary.inQueue')}
+                                            </span>
+                                        ) : null}
+                                        <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">
+                                            {inlineQueueHeadline}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                            onClick={handleCodexQueueOpen}
+                                            disabled={controlsDisabled || !onCodexQueueOpen}
+                                        >
+                                            {t('queue.inline.open')}
+                                        </button>
                                     </div>
-                                ) : null}
-                            </div>
-                        ) : null}
 
-                        {attachments.length > 0 ? (
-                            <div className="flex flex-wrap gap-2 px-4 pt-3">
-                                <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
-                            </div>
-                        ) : null}
+                                    {codexQueueInlinePanelMode === 'full' ? (
+                                        <div className="mt-2 space-y-1">
+                                            {codexQueueEntries.length > 0 ? (
+                                                <>
+                                                    {codexQueueEntries.slice(0, 5).map((entry, index) => (
+                                                        <div
+                                                            key={entry.id}
+                                                            className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
+                                                        >
+                                                            <span className="text-[10px] text-[var(--app-hint)]">
+                                                                #{index + 1}
+                                                            </span>
+                                                            <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]">
+                                                                {entry.preview || t('queue.dialog.emptyMessage')}
+                                                            </span>
+                                                            <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
+                                                                {new Date(entry.enqueuedAt).toLocaleTimeString([], {
+                                                                    hour: '2-digit',
+                                                                    minute: '2-digit'
+                                                                })}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    {codexQueueEntries.length > 5 ? (
+                                                        <div className="px-1 text-[11px] text-[var(--app-hint)]">
+                                                            +{codexQueueEntries.length - 5}
+                                                        </div>
+                                                    ) : null}
+                                                </>
+                                            ) : inlineQueuePendingCount > 0 ? (
+                                                <div className="px-1 text-xs text-[var(--app-hint)]">
+                                                    {t('queue.inline.pending', { count: inlineQueuePendingCount })}
+                                                </div>
+                                            ) : (
+                                                <div className="px-1 text-xs text-[var(--app-hint)]">
+                                                    {t('queue.dialog.empty')}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : null}
 
-                        <div className="flex items-center px-4 py-3">
-                            <ComposerPrimitive.Input
-                                ref={textareaRef}
-                                autoFocus={!controlsDisabled && !isTouch}
-                                placeholder={showContinueHint ? t('misc.typeMessage') : t('misc.typeAMessage')}
-                                disabled={controlsDisabled}
-                                maxRows={5}
-                                submitOnEnter={!isTouch}
-                                cancelOnEscape={false}
-                                onChange={handleChange}
-                                onSelect={handleSelect}
-                                onKeyDown={handleKeyDown}
-                                onPaste={handlePaste}
-                                className="flex-1 resize-none bg-transparent text-base leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                            {attachments.length > 0 ? (
+                                <div className="flex flex-wrap gap-2 px-4 pt-3">
+                                    <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
+                                </div>
+                            ) : null}
+
+                            <div className="flex items-center px-4 py-3">
+                                <ComposerPrimitive.Input
+                                    ref={textareaRef}
+                                    autoFocus={!controlsDisabled && !isTouch}
+                                    placeholder={showContinueHint ? t('misc.typeMessage') : t('misc.typeAMessage')}
+                                    disabled={controlsDisabled}
+                                    maxRows={5}
+                                    submitOnEnter={!isTouch}
+                                    cancelOnEscape={false}
+                                    onChange={handleChange}
+                                    onSelect={handleSelect}
+                                    onKeyDown={handleKeyDown}
+                                    onPaste={handlePaste}
+                                    className="flex-1 resize-none bg-transparent text-base leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                            </div>
+
+                            <ComposerButtons
+                                canSend={canSend}
+                                controlsDisabled={controlsDisabled}
+                                showSettingsButton={showSettingsButton}
+                                onSettingsToggle={handleSettingsToggle}
+                                showTerminalButton={showTerminalButton}
+                                terminalDisabled={controlsDisabled}
+                                onTerminal={onTerminal ?? (() => {})}
+                                showStatusButton={showStatusButton}
+                                statusDisabled={controlsDisabled || threadIsRunning}
+                                onStatus={handleCodexStatus}
+                                showQueueButton={showQueueButton}
+                                queueDisabled={controlsDisabled}
+                                queuePendingCount={Math.max(0, codexQueuePendingCount)}
+                                onQueue={handleCodexQueueOpen}
+                                showSendModeToggle={supportsQueueControls}
+                                sendMode={codexSendMode}
+                                sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
+                                onSendModeChange={handleCodexSendModeChange}
+                                showAbortButton={showAbortButton}
+                                abortDisabled={abortDisabled}
+                                isAborting={isAborting}
+                                onAbort={handleAbort}
+                                showSwitchButton={showSwitchButton}
+                                switchDisabled={switchDisabled}
+                                isSwitching={isSwitching}
+                                onSwitch={handleSwitch}
+                                voiceEnabled={voiceEnabled}
+                                voiceStatus={voiceStatus}
+                                voiceMicMuted={voiceMicMuted}
+                                onVoiceToggle={onVoiceToggle ?? (() => {})}
+                                onVoiceMicToggle={onVoiceMicToggle}
+                                onSend={() => { void sendComposerNow() }}
                             />
                         </div>
-
-                        <ComposerButtons
-                            canSend={canSend}
-                            controlsDisabled={controlsDisabled}
-                            showSettingsButton={showSettingsButton}
-                            onSettingsToggle={handleSettingsToggle}
-                            showTerminalButton={showTerminalButton}
-                            terminalDisabled={controlsDisabled}
-                            onTerminal={onTerminal ?? (() => {})}
-                            showStatusButton={showStatusButton}
-                            statusDisabled={controlsDisabled || threadIsRunning}
-                            onStatus={handleCodexStatus}
-                            showQueueButton={showQueueButton}
-                            queueDisabled={controlsDisabled}
-                            queuePendingCount={Math.max(0, codexQueuePendingCount)}
-                            onQueue={handleCodexQueueOpen}
-                            showSendModeToggle={supportsQueueControls}
-                            sendMode={codexSendMode}
-                            sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
-                            onSendModeChange={handleCodexSendModeChange}
-                            showAbortButton={showAbortButton}
-                            abortDisabled={abortDisabled}
-                            isAborting={isAborting}
-                            onAbort={handleAbort}
-                            showSwitchButton={showSwitchButton}
-                            switchDisabled={switchDisabled}
-                            isSwitching={isSwitching}
-                            onSwitch={handleSwitch}
-                            voiceEnabled={voiceEnabled}
-                            voiceStatus={voiceStatus}
-                            voiceMicMuted={voiceMicMuted}
-                            onVoiceToggle={onVoiceToggle ?? (() => {})}
-                            onVoiceMicToggle={onVoiceMicToggle}
-                            onSend={() => { void sendComposerNow() }}
-                        />
-                    </div>
+                    </ComposerPrimitive.AttachmentDropzone>
                 </ComposerPrimitive.Root>
             </div>
         </div>
