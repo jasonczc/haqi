@@ -34,6 +34,7 @@ export const MetadataSchema = z.object({
     tools: z.array(z.string()).optional(),
     slashCommands: z.array(z.string()).optional(),
     model: z.string().optional(),
+    thinkEffort: z.string().optional(),
     availableModels: z.array(z.string()).optional(),
     homeDir: z.string().optional(),
     happyHomeDir: z.string().optional(),

@@ -1566,6 +1566,18 @@ ${note.content}
         const model = typeof metadata.model === 'string' && metadata.model.trim()
             ? metadata.model.trim()
             : undefined
+        const thinkEffort = (() => {
+            const value = typeof metadata.thinkEffort === 'string'
+                ? metadata.thinkEffort.trim().toLowerCase()
+                : ''
+            if (value !== 'auto' && value !== 'low' && value !== 'medium' && value !== 'high' && value !== 'xhigh') {
+                return undefined
+            }
+            if (flavor === 'claude' && value === 'xhigh') {
+                return undefined
+            }
+            return value
+        })()
         const sessionType: 'simple' | 'worktree' = metadata.worktree ? 'worktree' : 'simple'
         const directory = metadata.worktree?.basePath?.trim() || metadata.path.trim()
         if (!directory) {
@@ -1587,7 +1599,7 @@ ${note.content}
             directory,
             flavor,
             model,
-            undefined,
+            thinkEffort,
             undefined,
             sessionType,
             undefined,

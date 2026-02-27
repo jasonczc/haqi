@@ -117,14 +117,26 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         return normalizeConfiguredModel(value);
     };
 
-    const syncModelMetadata = (model: string | undefined): void => {
-        session.updateMetadata((currentMetadata) => ({
-            ...currentMetadata,
-            model
-        }));
+    const syncRuntimeMetadata = (
+        model: string | undefined,
+        thinkEffort: ClaudeThinkEffort | undefined = currentThinkEffort
+    ): void => {
+        session.updateMetadata((currentMetadata) => {
+            const { thinkEffort: _previousThinkEffort, ...metadataWithoutThinkEffort } = currentMetadata;
+            return thinkEffort
+                ? {
+                    ...metadataWithoutThinkEffort,
+                    model,
+                    thinkEffort
+                }
+                : {
+                    ...metadataWithoutThinkEffort,
+                    model
+                };
+        });
     };
 
-    syncModelMetadata(currentModel);
+    syncRuntimeMetadata(currentModel, currentThinkEffort);
 
     // Extract SDK metadata in background and update session when ready
     extractSDKMetadataAsync(async (sdkMetadata) => {
@@ -561,7 +573,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             const resolvedModelMode = resolveModelMode(config.modelMode);
             currentModelMode = resolvedModelMode;
             currentModel = resolvedModelMode === 'default' ? undefined : resolvedModelMode;
-            syncModelMetadata(currentModel);
+            syncRuntimeMetadata(currentModel);
         }
 
         if (config.model !== undefined) {
@@ -570,7 +582,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             });
             currentModel = resolvedSelection.model;
             currentModelMode = resolvedSelection.mode;
-            syncModelMetadata(currentModel);
+            syncRuntimeMetadata(currentModel);
         }
 
         syncSessionModes();

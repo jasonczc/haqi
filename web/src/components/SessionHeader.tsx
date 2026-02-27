@@ -141,6 +141,7 @@ export function SessionHeader(props: {
     const title = useMemo(() => getSessionTitle(session), [session])
     const worktreeBranch = session.metadata?.worktree?.branch
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
+    const displayThinkEffort = session.metadata?.thinkEffort?.trim()
     const sidebarToggleLabel = props.sidebarVisible
         ? t('sessions.sidebar.hideDesktop')
         : t('sessions.sidebar.showDesktop')
@@ -267,6 +268,7 @@ export function SessionHeader(props: {
                             </span>
                             <span>
                                 {t('session.item.model')}: {displayModel}
+                                {displayThinkEffort ? ` · ${t('session.item.thinkLevel')}: ${displayThinkEffort}` : ''}
                             </span>
                             {worktreeBranch ? (
                                 <span>{t('session.item.worktree')}: {worktreeBranch}</span>

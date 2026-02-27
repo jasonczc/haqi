@@ -74,6 +74,24 @@ export async function runCodex(opts: {
     const currentEffort = opts.effort;
     let currentCollaborationMode: EnhancedMode['collaborationMode'];
 
+    const syncRuntimeMetadata = (): void => {
+        session.updateMetadata((currentMetadata) => {
+            const { thinkEffort: _previousThinkEffort, ...metadataWithoutThinkEffort } = currentMetadata;
+            return currentEffort
+                ? {
+                    ...metadataWithoutThinkEffort,
+                    model: currentModel,
+                    thinkEffort: currentEffort
+                }
+                : {
+                    ...metadataWithoutThinkEffort,
+                    model: currentModel
+                };
+        });
+    };
+
+    syncRuntimeMetadata();
+
     const lifecycle = createRunnerLifecycle({
         session,
         logTag: 'codex',

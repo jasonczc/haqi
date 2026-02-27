@@ -24,6 +24,7 @@ export type SessionMetadataSummary = {
     version?: string
     name?: string
     model?: string
+    thinkEffort?: string
     availableModels?: string[]
     os?: string
     summary?: { text: string; updatedAt: number }
