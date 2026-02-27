@@ -26,8 +26,16 @@ import { ModelSelector } from './ModelSelector'
 import { ThinkEffortSelector } from './ThinkEffortSelector'
 import {
     loadPreferredAgent,
+    loadPreferredCustomModel,
+    loadPreferredModel,
+    loadPreferredSessionType,
+    loadPreferredThinkEffort,
     loadPreferredYoloMode,
     savePreferredAgent,
+    savePreferredCustomModel,
+    savePreferredModel,
+    savePreferredSessionType,
+    savePreferredThinkEffort,
     savePreferredYoloMode,
 } from './preferences'
 import { SessionTypeSelector } from './SessionTypeSelector'
@@ -58,22 +66,26 @@ export function NewSession(props: {
     const { sessions } = useSessions(props.api)
     const isFormDisabled = Boolean(isPending || props.isLoading)
     const { getRecentPaths, addRecentPath, getLastUsedMachineId, setLastUsedMachineId } = useRecentPaths()
+    const initialAgent = loadPreferredAgent()
 
     const [machineId, setMachineId] = useState<string | null>(props.initialMachineId ?? null)
     const [directory, setDirectory] = useState(props.initialDirectory ?? '')
     const [suppressSuggestions, setSuppressSuggestions] = useState(false)
     const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
-    const [agent, setAgent] = useState<AgentType>(loadPreferredAgent)
-    const [model, setModel] = useState('auto')
-    const [customModel, setCustomModel] = useState('')
-    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(() => getDefaultThinkEffort(loadPreferredAgent()))
+    const [agent, setAgent] = useState<AgentType>(initialAgent)
+    const [model, setModel] = useState(() => loadPreferredModel(initialAgent) ?? (MODEL_OPTIONS[initialAgent][0]?.value ?? 'auto'))
+    const [customModel, setCustomModel] = useState(() => loadPreferredCustomModel(initialAgent))
+    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(() => loadPreferredThinkEffort(initialAgent) ?? getDefaultThinkEffort(initialAgent))
     const [yoloMode, setYoloMode] = useState(loadPreferredYoloMode)
-    const [sessionType, setSessionType] = useState<SessionType>('simple')
+    const [sessionType, setSessionType] = useState<SessionType>(loadPreferredSessionType)
     const [worktreeName, setWorktreeName] = useState('')
     const [previewUrlInput, setPreviewUrlInput] = useState('')
     const [error, setError] = useState<string | null>(null)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
+    const previousModelAgentRef = useRef<AgentType | null>(initialAgent)
+    const previousThinkEffortAgentRef = useRef<AgentType | null>(initialAgent)
+    const previousCustomModelAgentRef = useRef<AgentType | null>(initialAgent)
     const hasPresetDirectory = Boolean(props.initialDirectory?.trim())
 
     useEffect(() => {
@@ -91,9 +103,9 @@ export function NewSession(props: {
     }, [sessionType])
 
     useEffect(() => {
-        setModel(MODEL_OPTIONS[agent][0]?.value ?? 'auto')
-        setCustomModel('')
-        setThinkEffort(getDefaultThinkEffort(agent))
+        setModel(loadPreferredModel(agent) ?? (MODEL_OPTIONS[agent][0]?.value ?? 'auto'))
+        setCustomModel(loadPreferredCustomModel(agent))
+        setThinkEffort(loadPreferredThinkEffort(agent) ?? getDefaultThinkEffort(agent))
     }, [agent])
 
     useEffect(() => {
@@ -101,8 +113,36 @@ export function NewSession(props: {
     }, [agent])
 
     useEffect(() => {
+        if (previousModelAgentRef.current !== agent) {
+            previousModelAgentRef.current = agent
+            return
+        }
+        savePreferredModel(agent, model)
+    }, [agent, model])
+
+    useEffect(() => {
+        if (previousThinkEffortAgentRef.current !== agent) {
+            previousThinkEffortAgentRef.current = agent
+            return
+        }
+        savePreferredThinkEffort(agent, thinkEffort)
+    }, [agent, thinkEffort])
+
+    useEffect(() => {
+        if (previousCustomModelAgentRef.current !== agent) {
+            previousCustomModelAgentRef.current = agent
+            return
+        }
+        savePreferredCustomModel(agent, customModel)
+    }, [agent, customModel])
+
+    useEffect(() => {
         savePreferredYoloMode(yoloMode)
     }, [yoloMode])
+
+    useEffect(() => {
+        savePreferredSessionType(sessionType)
+    }, [sessionType])
 
     useEffect(() => {
         if (props.machines.length === 0) return
