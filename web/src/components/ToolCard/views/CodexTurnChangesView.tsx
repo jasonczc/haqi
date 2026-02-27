@@ -2,7 +2,7 @@ import type { ToolViewProps } from '@/components/ToolCard/views/_all'
 import { DiffView } from '@/components/DiffView'
 import { isObject } from '@hapi/protocol'
 import { resolveDisplayPath } from '@/utils/path'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type ChangeFile = {
     path: string
@@ -21,6 +21,10 @@ type ChangeSummary = {
     diffAdditions: number
     diffDeletions: number
 }
+
+const MIN_LIST_WIDTH = 220
+const MAX_LIST_WIDTH = 520
+const MIN_DIFF_WIDTH = 360
 
 function asNumber(value: unknown): number {
     return typeof value === 'number' && Number.isFinite(value) ? value : 0
@@ -112,6 +116,13 @@ function statusLabel(status: string): string {
     return 'Turn completed'
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false
+    const tag = target.tagName.toLowerCase()
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return true
+    return target.isContentEditable
+}
+
 export function CodexTurnChangesView(props: ToolViewProps) {
     const summary = useMemo(() => normalizeSummary(props.block.tool.input), [props.block.tool.input])
     if (!summary) return null
@@ -131,6 +142,10 @@ export function CodexTurnChangesView(props: ToolViewProps) {
 
     const [selectedPath, setSelectedPath] = useState<string | null>(() => files[0]?.path ?? null)
     const [mobileView, setMobileView] = useState<'list' | 'diff'>('list')
+    const [listWidth, setListWidth] = useState(320)
+    const [isResizing, setIsResizing] = useState(false)
+    const desktopLayoutRef = useRef<HTMLDivElement | null>(null)
+    const fileButtonRefs = useRef(new Map<string, HTMLButtonElement>())
 
     useEffect(() => {
         if (files.length === 0) {
@@ -145,6 +160,74 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [files, selectedPath])
 
     const selectedFile = files.find((file) => file.path === selectedPath) ?? files[0] ?? null
+
+    const selectFileWithOffset = useCallback((offset: number) => {
+        if (files.length === 0) return
+        const currentIndex = selectedFile ? files.findIndex((file) => file.path === selectedFile.path) : 0
+        const nextIndex = Math.max(0, Math.min(files.length - 1, currentIndex + offset))
+        const nextFile = files[nextIndex]
+        if (!nextFile || nextFile.path === selectedFile?.path) return
+        setSelectedPath(nextFile.path)
+        requestAnimationFrame(() => {
+            fileButtonRefs.current.get(nextFile.path)?.focus()
+        })
+    }, [files, selectedFile])
+
+    const handleNavigationKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+        if (event.altKey || event.ctrlKey || event.metaKey) return
+        if (isEditableTarget(event.target)) return
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault()
+            selectFileWithOffset(1)
+            return
+        }
+        if (event.key === 'ArrowUp') {
+            event.preventDefault()
+            selectFileWithOffset(-1)
+        }
+    }, [selectFileWithOffset])
+
+    const clampListWidth = useCallback((nextWidth: number) => {
+        const container = desktopLayoutRef.current
+        const containerWidth = container?.getBoundingClientRect().width ?? 0
+        const maxFromContainer = containerWidth > 0
+            ? Math.max(MIN_LIST_WIDTH, containerWidth - MIN_DIFF_WIDTH)
+            : MAX_LIST_WIDTH
+        const maxWidth = Math.min(MAX_LIST_WIDTH, maxFromContainer)
+        return Math.max(MIN_LIST_WIDTH, Math.min(nextWidth, maxWidth))
+    }, [])
+
+    const handleResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+        if (event.button !== 0) return
+        event.preventDefault()
+
+        const startX = event.clientX
+        const startWidth = listWidth
+        setIsResizing(true)
+
+        const onMove = (moveEvent: PointerEvent) => {
+            const delta = moveEvent.clientX - startX
+            setListWidth(clampListWidth(startWidth + delta))
+        }
+
+        const onUp = () => {
+            setIsResizing(false)
+            window.removeEventListener('pointermove', onMove)
+            window.removeEventListener('pointerup', onUp)
+            window.removeEventListener('pointercancel', onUp)
+        }
+
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', onUp)
+        window.addEventListener('pointercancel', onUp)
+    }, [clampListWidth, listWidth])
+
+    useEffect(() => {
+        const onResize = () => setListWidth((current) => clampListWidth(current))
+        window.addEventListener('resize', onResize)
+        return () => window.removeEventListener('resize', onResize)
+    }, [clampListWidth])
 
     const renderFileList = () => (
         <div className="overflow-hidden rounded-md border border-[var(--app-border)]">
@@ -163,6 +246,13 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                             <button
                                 key={file.path}
                                 type="button"
+                                ref={(node) => {
+                                    if (node) {
+                                        fileButtonRefs.current.set(file.path, node)
+                                    } else {
+                                        fileButtonRefs.current.delete(file.path)
+                                    }
+                                }}
                                 onClick={() => {
                                     setSelectedPath(file.path)
                                     setMobileView('diff')
@@ -197,7 +287,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                             </div>
                         </div>
                     </div>
-                    <div className="max-h-[32rem] overflow-auto p-2">
+                    <div className="max-h-[65vh] overflow-auto p-2">
                         {selectedFile.parsedDiff ? (
                             <DiffView
                                 oldString={selectedFile.parsedDiff.oldText}
@@ -233,7 +323,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     )
 
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2" onKeyDown={handleNavigationKeyDown}>
             <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs text-[var(--app-hint)]">
                 <div>{statusLabel(summary.status)}</div>
                 <div>Files: {summary.files.length}</div>
@@ -241,15 +331,39 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                 <div>
                     Diff: {summary.diffAvailable ? `+${summary.diffAdditions} / -${summary.diffDeletions}` : 'unavailable'}
                 </div>
+                {summary.files.length > 1 ? (
+                    <div>Shortcut: ↑/↓ switch file</div>
+                ) : null}
             </div>
 
             <div className="md:hidden">
                 {mobileView === 'list' ? renderFileList() : renderDiffPanel(true)}
             </div>
 
-            <div className="hidden md:grid md:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)] md:items-start md:gap-3">
-                {renderFileList()}
-                {renderDiffPanel(false)}
+            <div
+                ref={desktopLayoutRef}
+                className="hidden md:flex md:items-start"
+            >
+                <div
+                    className="shrink-0 pr-2"
+                    style={{ width: `${listWidth}px` }}
+                >
+                    {renderFileList()}
+                </div>
+
+                <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize file list and diff"
+                    onPointerDown={handleResizeStart}
+                    className="flex w-3 shrink-0 cursor-col-resize touch-none select-none items-stretch justify-center"
+                >
+                    <div className={`w-px transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-[var(--app-border)] hover:bg-[var(--app-link)]'}`} />
+                </div>
+
+                <div className="min-w-0 flex-1 pl-2">
+                    {renderDiffPanel(false)}
+                </div>
             </div>
         </div>
     )

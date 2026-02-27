@@ -347,6 +347,7 @@ function ToolCardInner(props: ToolCardProps) {
     ))
     const hasBody = showInline || taskSummary !== null || showsPermissionFooter
     const requiresInteraction = permission?.status === 'pending'
+    const isTurnChangesTool = toolName === 'CodexTurnChanges'
     const hideResultSection = toolName === 'CodexTurnChanges'
     const statusLabel = getToolStatusLabel(props.block.tool.state, permission?.status)
     const statusBadgeToneClass = statusBadgeClass(props.block.tool.state, permission?.status)
@@ -402,11 +403,18 @@ function ToolCardInner(props: ToolCardProps) {
             && Object.keys(permission.answers).length > 0
 
         return (
-            <DialogContent className="max-w-2xl">
+            <DialogContent className={cn(
+                isTurnChangesTool
+                    ? 'w-[calc(100vw-16px)] max-w-[min(1440px,98vw)]'
+                    : 'max-w-2xl'
+            )}>
                 <DialogHeader>
                     <DialogTitle>{toolTitle}</DialogTitle>
                 </DialogHeader>
-                <div className="mt-3 flex max-h-[75vh] flex-col gap-4 overflow-auto">
+                <div className={cn(
+                    'mt-3 flex flex-col gap-4 overflow-auto',
+                    isTurnChangesTool ? 'max-h-[85vh]' : 'max-h-[75vh]'
+                )}>
                     <div>
                         <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">
                             {isQuestionToolWithAnswers ? t('tool.questionsAnswers') : t('tool.input')}
