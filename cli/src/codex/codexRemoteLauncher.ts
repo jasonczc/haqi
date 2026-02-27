@@ -148,6 +148,12 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
         const setTurnInFlight = (next: boolean) => {
             turnInFlight = next;
+            if (next && !session.thinking) {
+                session.onThinkingChange(true);
+            }
+            if (!next && session.thinking) {
+                session.onThinkingChange(false);
+            }
             if (!next) {
                 resolveTurnIdleWaiters();
             }

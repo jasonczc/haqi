@@ -579,6 +579,8 @@ function AddMemberModal(props: {
     const renderSessionRow = (s: (typeof sessions)[0]) => {
         const title = getSessionTitle(s, { fallbackIdLength: 12 })
         const path = s.metadata?.path ?? ''
+        const workStatus = getMemberWorkStatus(s)
+        const dotClass = getMemberStatusDotClass(workStatus)
         return (
             <button
                 key={s.id}
@@ -587,7 +589,7 @@ function AddMemberModal(props: {
                 onClick={() => { void handleAdd(s.id) }}
                 className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-[var(--app-subtle-bg)] disabled:opacity-60"
             >
-                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${s.active ? 'bg-green-500' : 'bg-[var(--app-divider)]'}`} />
+                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
                 <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-[var(--app-fg)]">{title}</div>
                     {path
