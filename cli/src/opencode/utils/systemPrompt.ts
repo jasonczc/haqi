@@ -12,7 +12,11 @@ import { buildPromptWithHaqiAgentInstructions } from '@/agent/utils/haqiAgentIns
  * Title instruction for OpenCode to call the haqi MCP tool.
  */
 export const TITLE_INSTRUCTION = trimIdent(`
-    ALWAYS when you start a new chat - you must call the tool "haqi_change_title" to set a chat title. When you think chat title is not relevant anymore - call the tool again to change it. When chat name is too generic and you have a chance to make it more specific - call the tool again to change it. This title is needed to easily find the chat in the future. Help human.
+    ALWAYS when you start a new chat - you must call the tool "haqi_change_title" to set a chat title.
+    Keep the title specific and stable across follow-up steps.
+    Do NOT downgrade to generic action-only titles like "Commit changes".
+    If the main topic changes significantly, call the tool again to update the title.
+    This title is needed to easily find the chat in the future. Help human.
 `);
 
 /**

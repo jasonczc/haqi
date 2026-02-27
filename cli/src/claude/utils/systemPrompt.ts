@@ -6,7 +6,11 @@ import { buildPromptWithHaqiAgentInstructions } from "@/agent/utils/haqiAgentIns
  * Base system prompt shared across all configurations
  */
 const BASE_SYSTEM_PROMPT = (() => trimIdent(`
-    ALWAYS when you start a new chat - you must call a tool "mcp__haqi__change_title" to set a chat title. When you think chat title is not relevant anymore - call the tool again to change it. When chat name is too generic and you have a change to make it more specific - call the tool again to change it. This title is needed to easily find the chat in the future. Help human.
+    ALWAYS when you start a new chat - you must call a tool "mcp__haqi__change_title" to set a chat title.
+    Keep the title specific and stable across follow-up steps.
+    Do NOT downgrade to generic action-only titles like "Commit changes".
+    If the main topic changes significantly, call the tool again to update the title.
+    This title is needed to easily find the chat in the future. Help human.
 `))();
 
 /**

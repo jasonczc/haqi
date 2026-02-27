@@ -14,7 +14,10 @@ import { buildPromptWithHaqiAgentInstructions } from '@/agent/utils/haqiAgentIns
  * so the tool is called as `functions.haqi__change_title`.
  */
 export const TITLE_INSTRUCTION = trimIdent(`
-    Based on this message, call functions.haqi__change_title to change chat session title that would represent the current task. If chat idea would change dramatically - call this function again to update the title.
+    Based on this message, call functions.haqi__change_title to set a useful chat session title for the main task.
+    Keep titles specific and stable across follow-up steps.
+    Do NOT downgrade to generic action-only titles like "Commit changes".
+    Only change the title when the main topic changes significantly.
 `);
 
 /**

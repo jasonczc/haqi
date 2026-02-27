@@ -11,20 +11,41 @@ import { z } from "zod";
 import { logger } from "@/ui/logger";
 import { ApiSessionClient } from "@/api/apiSession";
 import { randomUUID } from "node:crypto";
+import { isLowSignalTitle, normalizeTitleCandidate } from "@/utils/titlePolicy";
 
 export async function startHappyServer(client: ApiSessionClient) {
     // Handler that sends title updates via the client
     const handler = async (title: string) => {
-        logger.debug('[hapiMCP] Changing title to:', title);
+        const normalizedTitle = normalizeTitleCandidate(title);
+        const currentTitle = client.getCurrentSummaryText();
+        const shouldSkipLowSignalUpdate = Boolean(
+            currentTitle
+            && !isLowSignalTitle(currentTitle)
+            && isLowSignalTitle(normalizedTitle)
+        );
+
+        logger.debug('[hapiMCP] Changing title to:', normalizedTitle);
+
+        if (!normalizedTitle) {
+            return { success: false, error: 'Title cannot be empty.' };
+        }
+        if (shouldSkipLowSignalUpdate) {
+            logger.debug('[hapiMCP] Skipping low-signal title update', {
+                currentTitle,
+                requestedTitle: normalizedTitle
+            });
+            return { success: true, skipped: true, title: currentTitle };
+        }
+
         try {
             // Send title as a summary message, similar to title generator
             client.sendClaudeSessionMessage({
                 type: 'summary',
-                summary: title,
+                summary: normalizedTitle,
                 leafUuid: randomUUID()
             });
             
-            return { success: true };
+            return { success: true, skipped: false, title: normalizedTitle };
         } catch (error) {
             return { success: false, error: String(error) };
         }
@@ -53,11 +74,14 @@ export async function startHappyServer(client: ApiSessionClient) {
         logger.debug('[hapiMCP] Response:', response);
         
         if (response.success) {
+            const message = response.skipped
+                ? `Kept existing chat title: "${response.title}".`
+                : `Successfully changed chat title to: "${response.title ?? args.title}"`;
             return {
                 content: [
                     {
                         type: 'text' as const,
-                        text: `Successfully changed chat title to: "${args.title}"`,
+                        text: message,
                     },
                 ],
                 isError: false,
