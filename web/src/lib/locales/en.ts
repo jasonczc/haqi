@@ -76,6 +76,8 @@ export default {
 
   // Session actions
   'session.action.rename': 'Rename',
+  'session.action.newSameConfig': 'New (same config)',
+  'session.action.duplicate': 'Duplicate (with history)',
   'session.action.archive': 'Archive',
   'session.action.delete': 'Delete',
   'session.action.copy': 'Copy',

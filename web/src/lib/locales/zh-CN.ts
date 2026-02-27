@@ -76,6 +76,8 @@ export default {
 
   // Session actions
   'session.action.rename': '重命名',
+  'session.action.newSameConfig': '新建（同配置）',
+  'session.action.duplicate': '复制（含历史）',
   'session.action.archive': '归档',
   'session.action.delete': '删除',
   'session.action.copy': '复制',

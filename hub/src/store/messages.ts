@@ -161,3 +161,53 @@ export function mergeSessionMessages(
         throw error
     }
 }
+
+export function copySessionMessages(
+    db: Database,
+    fromSessionId: string,
+    toSessionId: string
+): { copied: number; oldMaxSeq: number; newMaxSeq: number } {
+    if (fromSessionId === toSessionId) {
+        return { copied: 0, oldMaxSeq: 0, newMaxSeq: getMaxSeq(db, toSessionId) }
+    }
+
+    const oldMaxSeq = getMaxSeq(db, fromSessionId)
+    const newMaxSeq = getMaxSeq(db, toSessionId)
+
+    if (oldMaxSeq <= 0) {
+        return { copied: 0, oldMaxSeq, newMaxSeq }
+    }
+
+    try {
+        db.exec('BEGIN')
+
+        if (newMaxSeq > 0) {
+            db.prepare(
+                'UPDATE messages SET seq = seq + ? WHERE session_id = ?'
+            ).run(oldMaxSeq, toSessionId)
+        }
+
+        const result = db.prepare(`
+            INSERT INTO messages (id, session_id, content, created_at, seq, local_id)
+            SELECT
+                lower(hex(randomblob(16))),
+                @to_session_id,
+                content,
+                created_at,
+                seq,
+                NULL
+            FROM messages
+            WHERE session_id = @from_session_id
+            ORDER BY seq ASC
+        `).run({
+            to_session_id: toSessionId,
+            from_session_id: fromSessionId
+        })
+
+        db.exec('COMMIT')
+        return { copied: result.changes, oldMaxSeq, newMaxSeq }
+    } catch (error) {
+        db.exec('ROLLBACK')
+        throw error
+    }
+}

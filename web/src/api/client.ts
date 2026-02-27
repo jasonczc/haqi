@@ -568,6 +568,16 @@ export class ApiClient {
         return response.sessionId
     }
 
+    async spawnSessionFromExisting(sessionId: string, inheritHistory: boolean): Promise<SpawnResponse> {
+        return await this.request<SpawnResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/spawn`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ inheritHistory })
+            }
+        )
+    }
+
     async sendMessage(sessionId: string, text: string, localId?: string | null, attachments?: AttachmentMetadata[]): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/messages`, {
             method: 'POST',

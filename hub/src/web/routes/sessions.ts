@@ -27,6 +27,10 @@ const previewUrlHistoryQuerySchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).optional()
 })
 
+const spawnFromExistingSessionSchema = z.object({
+    inheritHistory: z.boolean()
+})
+
 const uploadSchema = z.object({
     filename: z.string().min(1).max(255),
     content: z.string().min(1),
@@ -463,6 +467,41 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
 
         const namespace = c.get('namespace')
         const result = await engine.resumeSession(sessionResult.sessionId, namespace)
+        if (result.type === 'error') {
+            const status = result.code === 'no_machine_online' ? 503
+                : result.code === 'access_denied' ? 403
+                    : result.code === 'session_not_found' ? 404
+                        : 500
+            return c.json({ error: result.message, code: result.code }, status)
+        }
+
+        return c.json({ type: 'success', sessionId: result.sessionId })
+    })
+
+    app.post('/sessions/:id/spawn', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = spawnFromExistingSessionSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const namespace = c.get('namespace')
+        const result = await engine.spawnSessionFromExisting(
+            sessionResult.sessionId,
+            namespace,
+            { inheritHistory: parsed.data.inheritHistory }
+        )
+
         if (result.type === 'error') {
             const status = result.code === 'no_machine_online' ? 503
                 : result.code === 'access_denied' ? 403

@@ -127,6 +127,7 @@ function MoreVerticalIcon(props: { className?: string }) {
 export function SessionHeader(props: {
     session: Session
     onBack: () => void
+    onOpenSession?: (sessionId: string) => void
     onToggleSidebar?: () => void
     sidebarVisible?: boolean
     onViewPreview?: () => void
@@ -152,7 +153,14 @@ export function SessionHeader(props: {
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
 
-    const { archiveSession, renameSession, deleteSession, isPending } = useSessionActions(
+    const {
+        archiveSession,
+        renameSession,
+        deleteSession,
+        spawnSameConfigSession,
+        duplicateSession,
+        isPending
+    } = useSessionActions(
         api,
         session.id,
         session.metadata?.flavor ?? null
@@ -181,6 +189,26 @@ export function SessionHeader(props: {
         void archiveSession().catch((error) => {
             console.error('Failed to archive session', error)
         })
+    }
+
+    const handleSpawnSameConfig = () => {
+        void spawnSameConfigSession()
+            .then((newSessionId) => {
+                props.onOpenSession?.(newSessionId)
+            })
+            .catch((error) => {
+                console.error('Failed to create same-config session', error)
+            })
+    }
+
+    const handleDuplicate = () => {
+        void duplicateSession()
+            .then((newSessionId) => {
+                props.onOpenSession?.(newSessionId)
+            })
+            .catch((error) => {
+                console.error('Failed to duplicate session', error)
+            })
     }
 
     // In Telegram, don't render header (Telegram provides its own)
@@ -302,6 +330,8 @@ export function SessionHeader(props: {
                 onClose={() => setMenuOpen(false)}
                 sessionActive={session.active}
                 onRename={() => setRenameOpen(true)}
+                onSpawnSameConfig={handleSpawnSameConfig}
+                onDuplicate={handleDuplicate}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}

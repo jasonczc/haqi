@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite'
 
 import type { StoredMessage } from './types'
-import { addMessage, getMessages, getMessagesAfter, mergeSessionMessages } from './messages'
+import { addMessage, copySessionMessages, getMessages, getMessagesAfter, mergeSessionMessages } from './messages'
 
 export class MessageStore {
     private readonly db: Database
@@ -24,5 +24,9 @@ export class MessageStore {
 
     mergeSessionMessages(fromSessionId: string, toSessionId: string): { moved: number; oldMaxSeq: number; newMaxSeq: number } {
         return mergeSessionMessages(this.db, fromSessionId, toSessionId)
+    }
+
+    copySessionMessages(fromSessionId: string, toSessionId: string): { copied: number; oldMaxSeq: number; newMaxSeq: number } {
+        return copySessionMessages(this.db, fromSessionId, toSessionId)
     }
 }

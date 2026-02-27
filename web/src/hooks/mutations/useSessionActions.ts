@@ -18,6 +18,8 @@ export function useSessionActions(
     setModel: (model: string) => Promise<void>
     renameSession: (name: string) => Promise<void>
     deleteSession: () => Promise<void>
+    spawnSameConfigSession: () => Promise<string>
+    duplicateSession: () => Promise<string>
     isPending: boolean
 } {
     const queryClient = useQueryClient()
@@ -106,6 +108,26 @@ export function useSessionActions(
         },
     })
 
+    const spawnFromExistingMutation = useMutation({
+        mutationFn: async (inheritHistory: boolean) => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            return await api.spawnSessionFromExisting(sessionId, inheritHistory)
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+        },
+    })
+
+    const spawnFromExistingSession = async (inheritHistory: boolean): Promise<string> => {
+        const result = await spawnFromExistingMutation.mutateAsync(inheritHistory)
+        if (result.type !== 'success') {
+            throw new Error(result.message || 'Failed to spawn session from existing')
+        }
+        return result.sessionId
+    }
+
     return {
         abortSession: abortMutation.mutateAsync,
         archiveSession: archiveMutation.mutateAsync,
@@ -114,12 +136,15 @@ export function useSessionActions(
         setModel: modelMutation.mutateAsync,
         renameSession: renameMutation.mutateAsync,
         deleteSession: deleteMutation.mutateAsync,
+        spawnSameConfigSession: async () => await spawnFromExistingSession(false),
+        duplicateSession: async () => await spawnFromExistingSession(true),
         isPending: abortMutation.isPending
             || archiveMutation.isPending
             || switchMutation.isPending
             || permissionMutation.isPending
             || modelMutation.isPending
             || renameMutation.isPending
-            || deleteMutation.isPending,
+            || deleteMutation.isPending
+            || spawnFromExistingMutation.isPending,
     }
 }

@@ -328,7 +328,14 @@ function SessionItem(props: {
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
 
-    const { archiveSession, renameSession, deleteSession, isPending } = useSessionActions(
+    const {
+        archiveSession,
+        renameSession,
+        deleteSession,
+        spawnSameConfigSession,
+        duplicateSession,
+        isPending
+    } = useSessionActions(
         api,
         s.id,
         s.metadata?.flavor ?? null
@@ -366,6 +373,22 @@ function SessionItem(props: {
         void archiveSession().catch((error) => {
             console.error('Failed to archive session', error)
         })
+    }
+
+    const handleSpawnSameConfig = () => {
+        void spawnSameConfigSession()
+            .then((newSessionId) => onSelect(newSessionId))
+            .catch((error) => {
+                console.error('Failed to create same-config session', error)
+            })
+    }
+
+    const handleDuplicate = () => {
+        void duplicateSession()
+            .then((newSessionId) => onSelect(newSessionId))
+            .catch((error) => {
+                console.error('Failed to duplicate session', error)
+            })
     }
 
     return (
@@ -440,6 +463,8 @@ function SessionItem(props: {
                 onClose={() => setMenuOpen(false)}
                 sessionActive={s.active}
                 onRename={() => setRenameOpen(true)}
+                onSpawnSameConfig={handleSpawnSameConfig}
+                onDuplicate={handleDuplicate}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}

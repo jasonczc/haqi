@@ -397,6 +397,56 @@ export class SessionCache {
         this.refreshSession(newSessionId)
     }
 
+    async copySessionHistory(sourceSessionId: string, targetSessionId: string, namespace: string): Promise<void> {
+        if (sourceSessionId === targetSessionId) {
+            return
+        }
+
+        const sourceStored = this.store.sessions.getSessionByNamespace(sourceSessionId, namespace)
+        const targetStored = this.store.sessions.getSessionByNamespace(targetSessionId, namespace)
+        if (!sourceStored || !targetStored) {
+            throw new Error('Session not found for history copy')
+        }
+
+        this.store.messages.copySessionMessages(sourceSessionId, targetSessionId)
+
+        const mergedMetadata = this.mergeSessionMetadata(sourceStored.metadata, targetStored.metadata)
+        if (mergedMetadata !== null && mergedMetadata !== targetStored.metadata) {
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                const latest = this.store.sessions.getSessionByNamespace(targetSessionId, namespace)
+                if (!latest) break
+                const result = this.store.sessions.updateSessionMetadata(
+                    targetSessionId,
+                    mergedMetadata,
+                    latest.metadataVersion,
+                    namespace,
+                    { touchUpdatedAt: false }
+                )
+                if (result.result === 'success') {
+                    break
+                }
+                if (result.result === 'error') {
+                    break
+                }
+            }
+        }
+
+        if (sourceStored.todos !== null && sourceStored.todosUpdatedAt !== null) {
+            this.store.sessions.setSessionTodos(
+                targetSessionId,
+                sourceStored.todos,
+                sourceStored.todosUpdatedAt,
+                namespace
+            )
+        }
+
+        if (sourceStored.previewUrl && !targetStored.previewUrl) {
+            this.store.sessions.setSessionPreviewUrl(targetSessionId, sourceStored.previewUrl, namespace)
+        }
+
+        this.refreshSession(targetSessionId)
+    }
+
     private mergeSessionMetadata(oldMetadata: unknown | null, newMetadata: unknown | null): unknown | null {
         if (!oldMetadata || typeof oldMetadata !== 'object') {
             return newMetadata

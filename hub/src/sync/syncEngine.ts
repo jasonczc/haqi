@@ -7,7 +7,7 @@
  * - No E2E encryption; data is stored as JSON in SQLite
  */
 
-import { inferClaudeModelModeFromModel } from '@hapi/protocol'
+import { inferClaudeModelModeFromModel, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
 import type { DecryptedMessage, ModelMode, PermissionMode, Session, SyncEvent } from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
 import type { PreviewUrlHistoryEntry, Store } from '../store'
@@ -49,6 +49,14 @@ export type {
 export type ResumeSessionResult =
     | { type: 'success'; sessionId: string }
     | { type: 'error'; message: string; code: 'session_not_found' | 'access_denied' | 'no_machine_online' | 'resume_unavailable' | 'resume_failed' }
+
+export type SpawnFromExistingSessionResult =
+    | { type: 'success'; sessionId: string }
+    | {
+        type: 'error'
+        message: string
+        code: 'session_not_found' | 'access_denied' | 'no_machine_online' | 'spawn_unavailable' | 'spawn_failed' | 'history_copy_failed'
+    }
 
 type GroupRouteContext = {
     groupId: string
@@ -1507,6 +1515,224 @@ ${note.content}
         }
 
         return result
+    }
+
+    async spawnSessionFromExisting(
+        sourceSessionId: string,
+        namespace: string,
+        options: { inheritHistory: boolean }
+    ): Promise<SpawnFromExistingSessionResult> {
+        const access = this.sessionCache.resolveSessionAccess(sourceSessionId, namespace)
+        if (!access.ok) {
+            return {
+                type: 'error',
+                message: access.reason === 'access-denied' ? 'Session access denied' : 'Session not found',
+                code: access.reason === 'access-denied' ? 'access_denied' : 'session_not_found'
+            }
+        }
+
+        const sourceSession = access.session
+        const metadata = sourceSession.metadata
+        if (!metadata || typeof metadata.path !== 'string' || !metadata.path.trim()) {
+            return { type: 'error', message: 'Session metadata missing path', code: 'spawn_unavailable' }
+        }
+
+        const onlineMachines = this.machineCache.getOnlineMachinesByNamespace(namespace)
+        if (onlineMachines.length === 0) {
+            return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
+        }
+
+        const machine = (() => {
+            if (metadata.machineId) {
+                const exactMatch = onlineMachines.find((item) => item.id === metadata.machineId)
+                if (exactMatch) return exactMatch
+            }
+            if (metadata.host) {
+                const hostMatch = onlineMachines.find((item) => item.metadata?.host === metadata.host)
+                if (hostMatch) return hostMatch
+            }
+            return onlineMachines[0] ?? null
+        })()
+
+        if (!machine) {
+            return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
+        }
+
+        const flavor = this.normalizeSpawnFlavor(metadata.flavor)
+        const model = typeof metadata.model === 'string' && metadata.model.trim()
+            ? metadata.model.trim()
+            : undefined
+        const sessionType: 'simple' | 'worktree' = metadata.worktree ? 'worktree' : 'simple'
+        const directory = metadata.worktree?.basePath?.trim() || metadata.path.trim()
+        if (!directory) {
+            return { type: 'error', message: 'Session metadata missing path', code: 'spawn_unavailable' }
+        }
+
+        const previewUrl = sourceSession.previewUrl ?? undefined
+        const resumeToken = options.inheritHistory
+            ? this.resolveResumeToken(flavor, metadata)
+            : undefined
+        const sourcePermissionMode = sourceSession.permissionMode
+            && isPermissionModeAllowedForFlavor(sourceSession.permissionMode, flavor)
+            ? sourceSession.permissionMode
+            : undefined
+        const duplicatedName = this.buildDuplicateSessionName(sourceSession)
+
+        const spawn = async (resumeSessionId?: string) => await this.spawnSession(
+            machine.id,
+            directory,
+            flavor,
+            model,
+            undefined,
+            undefined,
+            sessionType,
+            undefined,
+            resumeSessionId,
+            previewUrl
+        )
+
+        let spawnResult = await spawn(resumeToken)
+        if (spawnResult.type !== 'success' && resumeToken) {
+            spawnResult = await spawn(undefined)
+        }
+
+        if (spawnResult.type !== 'success') {
+            return { type: 'error', message: spawnResult.message, code: 'spawn_failed' }
+        }
+
+        const becameAvailable = await this.waitForSessionAvailable(spawnResult.sessionId)
+        if (!becameAvailable) {
+            return { type: 'error', message: 'Session failed to initialize', code: 'spawn_failed' }
+        }
+
+        if (options.inheritHistory) {
+            try {
+                await this.sessionCache.copySessionHistory(access.sessionId, spawnResult.sessionId, namespace)
+            } catch (error) {
+                return {
+                    type: 'error',
+                    message: error instanceof Error ? error.message : 'Failed to copy history',
+                    code: 'history_copy_failed'
+                }
+            }
+        }
+
+        if (duplicatedName) {
+            try {
+                await this.sessionCache.renameSession(spawnResult.sessionId, duplicatedName)
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error)
+                console.warn(`[SyncEngine] Failed to rename duplicated session ${spawnResult.sessionId}: ${message}`)
+            }
+        }
+
+        if (sourcePermissionMode !== undefined) {
+            const becameActive = await this.waitForSessionActive(spawnResult.sessionId)
+            if (!becameActive) {
+                console.warn(`[SyncEngine] Skipped copying permission mode for ${spawnResult.sessionId}: session not active`)
+            } else {
+                try {
+                    await this.applySessionConfig(spawnResult.sessionId, { permissionMode: sourcePermissionMode })
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error)
+                    console.warn(`[SyncEngine] Failed to copy permission mode to ${spawnResult.sessionId}: ${message}`)
+                }
+            }
+        }
+
+        return { type: 'success', sessionId: spawnResult.sessionId }
+    }
+
+    async waitForSessionAvailable(sessionId: string, timeoutMs: number = 15_000): Promise<boolean> {
+        const start = Date.now()
+        while (Date.now() - start < timeoutMs) {
+            const session = this.getSession(sessionId)
+            if (session) {
+                return true
+            }
+            await new Promise((resolve) => setTimeout(resolve, 250))
+        }
+        return false
+    }
+
+    private normalizeSpawnFlavor(value: string | null | undefined): 'claude' | 'codex' | 'gemini' | 'opencode' {
+        return value === 'codex' || value === 'gemini' || value === 'opencode'
+            ? value
+            : 'claude'
+    }
+
+    private resolveResumeToken(
+        flavor: 'claude' | 'codex' | 'gemini' | 'opencode',
+        metadata: Session['metadata']
+    ): string | undefined {
+        if (!metadata) {
+            return undefined
+        }
+        return flavor === 'codex'
+            ? metadata.codexSessionId
+            : flavor === 'gemini'
+                ? metadata.geminiSessionId
+                : flavor === 'opencode'
+                    ? metadata.opencodeSessionId
+                    : metadata.claudeSessionId
+    }
+
+    private buildDuplicateSessionName(session: Session): string | undefined {
+        const baseName = this.resolveSessionDisplayName(session)
+        if (!baseName) {
+            return undefined
+        }
+        return this.withIncrementedDuplicateSuffix(baseName)
+    }
+
+    private resolveSessionDisplayName(session: Session): string | undefined {
+        const metadata = session.metadata
+        if (!metadata) {
+            return undefined
+        }
+
+        const name = metadata.name?.trim()
+        if (name) {
+            return name
+        }
+
+        const summary = metadata.summary?.text?.trim()
+        if (summary) {
+            return summary
+        }
+
+        const path = metadata.path?.trim()
+        if (!path) {
+            return undefined
+        }
+        const normalized = path.replace(/[\\/]+$/, '')
+        const parts = normalized.split(/[\\/]+/).filter(Boolean)
+        return parts.length > 0 ? parts[parts.length - 1] : normalized
+    }
+
+    private withIncrementedDuplicateSuffix(name: string): string {
+        const trimmed = name.trim()
+        if (!trimmed) {
+            return 'Session (1)'
+        }
+
+        const asciiMatch = trimmed.match(/^(.*?)(?:\s*)\((\d+)\)\s*$/)
+        if (asciiMatch) {
+            const next = Number.parseInt(asciiMatch[2], 10)
+            if (Number.isFinite(next)) {
+                return `${asciiMatch[1].trimEnd()} (${next + 1})`
+            }
+        }
+
+        const fullWidthMatch = trimmed.match(/^(.*?)(?:\s*)（(\d+)）\s*$/)
+        if (fullWidthMatch) {
+            const next = Number.parseInt(fullWidthMatch[2], 10)
+            if (Number.isFinite(next)) {
+                return `${fullWidthMatch[1].trimEnd()}（${next + 1}）`
+            }
+        }
+
+        return `${trimmed} (1)`
     }
 
     async resumeSession(sessionId: string, namespace: string): Promise<ResumeSessionResult> {

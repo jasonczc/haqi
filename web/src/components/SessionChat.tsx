@@ -1030,6 +1030,12 @@ export function SessionChat(props: {
             <SessionHeader
                 session={props.session}
                 onBack={props.onBack}
+                onOpenSession={(sessionId) => {
+                    navigate({
+                        to: '/sessions/$sessionId',
+                        params: { sessionId }
+                    })
+                }}
                 onToggleSidebar={props.onToggleSidebar}
                 sidebarVisible={props.sidebarVisible}
                 onViewPreview={handleViewPreview}
