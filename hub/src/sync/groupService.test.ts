@@ -284,6 +284,88 @@ describe('GroupService createGroup', () => {
         expect(dispatched[0]?.command).toContain('@AgentB')
     })
 
+    it('injects target session identity context into dispatched task command', async () => {
+        const store = new Store(':memory:')
+        const worker = store.sessions.getOrCreateSession(
+            'session-context-worker',
+            { path: '/repo/context-worker' },
+            null,
+            'default'
+        )
+        const dispatched: Array<{ command: string; targetSessionId: string }> = []
+        const service = createService(store, {
+            dispatchTask: async (payload) => {
+                dispatched.push({
+                    command: payload.command,
+                    targetSessionId: payload.targetSessionId
+                })
+            },
+            resolveSessionRoutingState: (sessionId) => (sessionId === worker.id ? { active: true } : null)
+        })
+
+        const created = service.createGroup({
+            namespace: 'default',
+            name: 'Identity Context Group',
+            sessionMemberIds: [worker.id]
+        })
+
+        const result = await service.addTimelineMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'command',
+            source: 'user:web',
+            targetSessionIds: [worker.id],
+            payload: { text: `@${worker.id} 请处理重试逻辑` }
+        })
+
+        expect(result.createdTasks).toHaveLength(1)
+        expect(dispatched).toHaveLength(1)
+        expect(dispatched[0]?.targetSessionId).toBe(worker.id)
+        expect(dispatched[0]?.command).toContain('[HAQI_GROUP_TASK_CONTEXT]')
+        expect(dispatched[0]?.command).toContain(`Your HAQI Session ID (self): ${worker.id}`)
+        expect(dispatched[0]?.command).toContain(`@${worker.id} 请处理重试逻辑`)
+    })
+
+    it('keeps slash command text unchanged when dispatching task', async () => {
+        const store = new Store(':memory:')
+        const worker = store.sessions.getOrCreateSession(
+            'session-slash-worker',
+            { path: '/repo/slash-worker' },
+            null,
+            'default'
+        )
+        const dispatched: Array<{ command: string; targetSessionId: string }> = []
+        const service = createService(store, {
+            dispatchTask: async (payload) => {
+                dispatched.push({
+                    command: payload.command,
+                    targetSessionId: payload.targetSessionId
+                })
+            },
+            resolveSessionRoutingState: (sessionId) => (sessionId === worker.id ? { active: true } : null)
+        })
+
+        const created = service.createGroup({
+            namespace: 'default',
+            name: 'Slash Command Group',
+            sessionMemberIds: [worker.id]
+        })
+
+        const result = await service.addTimelineMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'command',
+            source: 'user:web',
+            targetSessionIds: [worker.id],
+            payload: { text: '/status' }
+        })
+
+        expect(result.createdTasks).toHaveLength(1)
+        expect(dispatched).toHaveLength(1)
+        expect(dispatched[0]?.targetSessionId).toBe(worker.id)
+        expect(dispatched[0]?.command).toBe('/status')
+    })
+
     it('does not dispatch user-origin chat mentions', async () => {
         const store = new Store(':memory:')
         const worker = store.sessions.getOrCreateSession('session-chat-worker', { path: '/repo/chat-worker' }, null, 'default')

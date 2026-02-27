@@ -933,6 +933,14 @@ export class GroupService {
             this.emitTaskUpdate(task)
 
             try {
+                const dispatchCommand = this.buildTaskDispatchCommand({
+                    groupId: task.groupId,
+                    taskId: task.id,
+                    traceId: task.traceId,
+                    source: task.source,
+                    targetSessionId: task.targetSessionId,
+                    command: task.command
+                })
                 await this.dispatchTask({
                     groupId: options.groupId,
                     namespace: options.namespace,
@@ -940,7 +948,7 @@ export class GroupService {
                     traceId: task.traceId,
                     source: task.source,
                     targetSessionId: task.targetSessionId,
-                    command: task.command
+                    command: dispatchCommand
                 })
 
                 const enqueued = this.store.groups.updateGroupTaskStatus({
@@ -1125,6 +1133,38 @@ export class GroupService {
         const actorName = quotedMessage.actorName?.trim() || 'Unknown'
         const quotedLine = truncateText(quotedText, QUOTED_CONTEXT_MAX_LENGTH)
         return `> ${actorName}: ${quotedLine}\n\n${command}`
+    }
+
+    private buildTaskDispatchCommand(options: {
+        groupId: string
+        taskId: string
+        traceId: string
+        source: string
+        targetSessionId: string
+        command: string
+    }): string {
+        const trimmedCommand = options.command.trimStart()
+        if (trimmedCommand.startsWith('/')) {
+            // Keep slash commands intact so agent-native command parsing remains unchanged.
+            return options.command
+        }
+        if (options.command.includes('[HAQI_GROUP_TASK_CONTEXT]')) {
+            return options.command
+        }
+        return [
+            '[HAQI_GROUP_TASK_CONTEXT]',
+            `- Group ID: ${options.groupId}`,
+            `- Task ID: ${options.taskId}`,
+            `- Trace ID: ${options.traceId}`,
+            `- Source: ${options.source}`,
+            `- Your HAQI Session ID (self): ${options.targetSessionId}`,
+            'Instructions:',
+            '- This task is assigned to you.',
+            `- If you need to refer to yourself in group chat, use @${options.targetSessionId}.`,
+            '[/HAQI_GROUP_TASK_CONTEXT]',
+            '',
+            options.command
+        ].join('\n')
     }
 
     private resolveMessageActorName(message: StoredGroupMessage): string | undefined {

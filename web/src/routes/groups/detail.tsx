@@ -1,5 +1,6 @@
 import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ClipboardEvent, type ComponentProps, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Attachment, PendingAttachment } from '@assistant-ui/react'
 import ReactMarkdown from 'react-markdown'
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
@@ -7,6 +8,7 @@ import { useAppContext } from '@/lib/app-context'
 import { useGroup } from '@/hooks/queries/useGroup'
 import { useGroupMessages } from '@/hooks/queries/useGroupMessages'
 import { useGroupNote } from '@/hooks/queries/useGroupNote'
+import { useSession } from '@/hooks/queries/useSession'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { useMachines } from '@/hooks/queries/useMachines'
@@ -25,6 +27,7 @@ import { getSessionTitle } from '@/lib/session-title'
 import { matchesSessionSearch } from '@/lib/session-search'
 import { useLongPress } from '@/hooks/useLongPress'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { queryKeys } from '@/lib/query-keys'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -315,6 +318,58 @@ function getSessionWorkingDirectory(session: SessionSummary | undefined): string
     }
 
     return '-'
+}
+
+type PendingPermissionRequest = {
+    id: string
+    tool: string
+    arguments: unknown
+    createdAt: number | null
+}
+
+function extractPendingPermissionRequests(requests: Record<string, unknown> | null | undefined): PendingPermissionRequest[] {
+    if (!requests) {
+        return []
+    }
+
+    return Object.entries(requests)
+        .map(([requestId, requestValue]) => {
+            const request = requestValue && typeof requestValue === 'object'
+                ? requestValue as Record<string, unknown>
+                : null
+            const tool = typeof request?.tool === 'string' ? request.tool.trim() : ''
+            const createdAt = typeof request?.createdAt === 'number' && Number.isFinite(request.createdAt)
+                ? request.createdAt
+                : null
+
+            return {
+                id: requestId,
+                tool: tool || 'unknown',
+                arguments: request?.arguments,
+                createdAt
+            } satisfies PendingPermissionRequest
+        })
+        .sort((left, right) => {
+            if (left.createdAt === null && right.createdAt === null) return left.id.localeCompare(right.id)
+            if (left.createdAt === null) return 1
+            if (right.createdAt === null) return -1
+            return left.createdAt - right.createdAt
+        })
+}
+
+function formatPermissionArguments(value: unknown): string {
+    if (typeof value === 'string') {
+        return value
+    }
+    if (value === undefined) {
+        return '(empty)'
+    }
+
+    try {
+        return JSON.stringify(value, null, 2)
+    } catch {
+        return String(value)
+    }
 }
 
 function buildSessionTooltipLines(options: {
@@ -831,6 +886,146 @@ function MemberActionMenu(props: MemberActionMenuProps) {
     )
 }
 
+function PendingRequestsQuickModal(props: {
+    sessionId: string
+    sessionTitle: string
+    isLoading: boolean
+    requests: PendingPermissionRequest[]
+    loadError: string | null
+    actionError: string | null
+    activeRequestId: string | null
+    onApprove: (requestId: string) => Promise<void>
+    onDeny: (requestId: string) => Promise<void>
+    onRefresh: () => void
+    onOpenSession: () => void
+    onClose: () => void
+}) {
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={(event) => {
+                if (event.target === event.currentTarget) {
+                    props.onClose()
+                }
+            }}
+        >
+            <div
+                className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl"
+                style={{ maxHeight: '85vh' }}
+                onClick={(event) => event.stopPropagation()}
+            >
+                <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
+                    <div className="min-w-0">
+                        <div className="truncate text-sm font-semibold text-[var(--app-fg)]">
+                            Pending Requests
+                        </div>
+                        <div className="truncate text-xs text-[var(--app-hint)]">
+                            {props.sessionTitle} · {props.sessionId}
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={props.onClose}
+                        className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                        title="Close"
+                    >
+                        <CloseIcon />
+                    </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 border-b border-[var(--app-divider)] px-4 py-2">
+                    <button
+                        type="button"
+                        onClick={props.onRefresh}
+                        className="rounded border border-[var(--app-divider)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                    >
+                        Refresh
+                    </button>
+                    <button
+                        type="button"
+                        onClick={props.onOpenSession}
+                        className="rounded border border-[var(--app-divider)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                    >
+                        Open Session
+                    </button>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+                    {props.loadError ? (
+                        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                            {props.loadError}
+                        </div>
+                    ) : null}
+                    {props.actionError ? (
+                        <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                            {props.actionError}
+                        </div>
+                    ) : null}
+
+                    {props.isLoading ? (
+                        <LoadingState label="Loading pending requests..." className="py-4 text-sm" />
+                    ) : props.requests.length === 0 ? (
+                        <div className="rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm text-[var(--app-hint)]">
+                            No pending requests.
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {props.requests.map((request) => {
+                                const isActing = props.activeRequestId === request.id
+                                return (
+                                    <div key={request.id} className="rounded-lg border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--app-divider)] px-3 py-2 text-xs">
+                                            <span className="rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 font-semibold text-[var(--app-fg)]">
+                                                {request.tool}
+                                            </span>
+                                            <span className="text-[var(--app-hint)]">
+                                                #{request.id}
+                                            </span>
+                                            {request.createdAt ? (
+                                                <span className="text-[var(--app-hint)]">
+                                                    {new Date(request.createdAt).toLocaleString()}
+                                                </span>
+                                            ) : null}
+                                        </div>
+
+                                        <div className="px-3 py-2">
+                                            <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                                                Arguments
+                                            </div>
+                                            <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--app-divider)] bg-[var(--app-bg)] p-2 text-[11px] text-[var(--app-fg)]">
+                                                {formatPermissionArguments(request.arguments)}
+                                            </pre>
+                                        </div>
+
+                                        <div className="flex items-center justify-end gap-2 border-t border-[var(--app-divider)] px-3 py-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => { void props.onDeny(request.id) }}
+                                                disabled={props.activeRequestId !== null}
+                                                className="rounded border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                Deny
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { void props.onApprove(request.id) }}
+                                                disabled={props.activeRequestId !== null}
+                                                className="rounded border border-green-500 px-2 py-1 text-xs text-green-700 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                {isActing ? 'Processing...' : 'Approve'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ─── TaskStateList ─────────────────────────────────────────────────────────────
 // Collapsible task detail shown under a command bubble
 
@@ -1176,6 +1371,7 @@ export default function GroupDetailPage() {
     const { api } = useAppContext()
     const { groupId } = useParams({ from: '/groups/$groupId' })
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
 
     const { group, isLoading: groupLoading, error: groupError } = useGroup(api, groupId)
     const {
@@ -1188,6 +1384,15 @@ export default function GroupDetailPage() {
     const { note, isLoading: noteLoading } = useGroupNote(api, groupId)
     const { postMessage, updateNote, refreshNote, broadcastNote, addMember, removeMember, updateGroup, isPending } = useGroupActions(api, groupId)
     const { sessions } = useSessions(api)
+    const [pendingQuickSessionId, setPendingQuickSessionId] = useState<string | null>(null)
+    const [pendingQuickActionError, setPendingQuickActionError] = useState<string | null>(null)
+    const [pendingQuickActiveRequestId, setPendingQuickActiveRequestId] = useState<string | null>(null)
+    const {
+        session: pendingQuickSession,
+        isLoading: pendingQuickSessionLoading,
+        error: pendingQuickSessionError,
+        refetch: refetchPendingQuickSession
+    } = useSession(api, pendingQuickSessionId)
 
     const [composer, setComposer] = useState('')
     const [composerAttachments, setComposerAttachments] = useState<GroupComposerAttachment[]>([])
@@ -1326,6 +1531,16 @@ export default function GroupDetailPage() {
             title
         }
     }, [memberRemoveSessionId, members, sessionMap])
+    const pendingQuickRequests = useMemo(
+        () => extractPendingPermissionRequests(
+            (pendingQuickSession?.agentState?.requests ?? null) as Record<string, unknown> | null
+        ),
+        [pendingQuickSession?.agentState?.requests]
+    )
+    const pendingQuickSessionSummary = useMemo(
+        () => (pendingQuickSessionId ? sessionMap.get(pendingQuickSessionId) : undefined),
+        [pendingQuickSessionId, sessionMap]
+    )
 
     // Build task-state map: traceId → Map<taskId, latestMsg>
     // task_state messages are excluded from the main render loop
@@ -1864,10 +2079,70 @@ export default function GroupDetailPage() {
         setMemberActionSessionId(null)
         setMemberRemoveSessionId(null)
     }
+    const handleOpenPendingQuickModal = useCallback((sessionId: string) => {
+        setPendingQuickSessionId(sessionId)
+        setPendingQuickActionError(null)
+        setPendingQuickActiveRequestId(null)
+    }, [])
+
+    const handleClosePendingQuickModal = useCallback(() => {
+        setPendingQuickSessionId(null)
+        setPendingQuickActionError(null)
+        setPendingQuickActiveRequestId(null)
+    }, [])
+
+    const refreshPendingQuickContext = useCallback(async (sessionId: string) => {
+        await Promise.all([
+            queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.session(sessionId) }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.group(groupId) }),
+            queryClient.invalidateQueries({ queryKey: queryKeys.groups })
+        ])
+        await refetchPendingQuickSession()
+    }, [groupId, queryClient, refetchPendingQuickSession])
+
+    const handleApprovePendingQuickRequest = useCallback(async (requestId: string) => {
+        if (!pendingQuickSessionId) {
+            return
+        }
+        setPendingQuickActionError(null)
+        setPendingQuickActiveRequestId(requestId)
+        try {
+            await api.approvePermission(pendingQuickSessionId, requestId)
+            await refreshPendingQuickContext(pendingQuickSessionId)
+        } catch (err) {
+            setPendingQuickActionError(err instanceof Error ? err.message : 'Failed to approve request')
+        } finally {
+            setPendingQuickActiveRequestId(null)
+        }
+    }, [api, pendingQuickSessionId, refreshPendingQuickContext])
+
+    const handleDenyPendingQuickRequest = useCallback(async (requestId: string) => {
+        if (!pendingQuickSessionId) {
+            return
+        }
+        setPendingQuickActionError(null)
+        setPendingQuickActiveRequestId(requestId)
+        try {
+            await api.denyPermission(pendingQuickSessionId, requestId)
+            await refreshPendingQuickContext(pendingQuickSessionId)
+        } catch (err) {
+            setPendingQuickActionError(err instanceof Error ? err.message : 'Failed to deny request')
+        } finally {
+            setPendingQuickActiveRequestId(null)
+        }
+    }, [api, pendingQuickSessionId, refreshPendingQuickContext])
 
     const canSendComposer = !isPending
         && !hasUploadingAttachments
         && (composer.trim().length > 0 || readyComposerAttachments.length > 0)
+    const pendingQuickSessionTitle = getSessionTitle(
+        pendingQuickSessionSummary ?? pendingQuickSession,
+        {
+            fallbackSessionId: pendingQuickSessionId,
+            fallbackIdLength: 12
+        }
+    )
 
     if (groupLoading) {
         return (
@@ -1966,21 +2241,34 @@ export default function GroupDetailPage() {
                         {members.map((member) => {
                             const s = member.sessionId ? sessionMap.get(member.sessionId) : undefined
                             const status = getMemberWorkStatus(s)
+                            const sessionId = member.sessionId
+                            const pendingCount = s?.pendingRequestsCount ?? 0
                             return (
-                                <MemberPill
-                                    key={member.id}
-                                    member={member}
-                                    session={s}
-                                    status={status}
-                                    onClick={() => {
-                                        if (member.sessionId) {
-                                            navigate({ to: '/sessions/$sessionId', params: { sessionId: member.sessionId } })
-                                        }
-                                    }}
-                                    onOpenActions={(point) => {
-                                        handleOpenMemberActions(member, point)
-                                    }}
-                                />
+                                <div key={member.id} className="flex items-center gap-1.5">
+                                    <MemberPill
+                                        member={member}
+                                        session={s}
+                                        status={status}
+                                        onClick={() => {
+                                            if (sessionId) {
+                                                navigate({ to: '/sessions/$sessionId', params: { sessionId } })
+                                            }
+                                        }}
+                                        onOpenActions={(point) => {
+                                            handleOpenMemberActions(member, point)
+                                        }}
+                                    />
+                                    {sessionId && pendingCount > 0 ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleOpenPendingQuickModal(sessionId)}
+                                            className="rounded-md border border-[var(--app-badge-warning-text)] bg-[var(--app-badge-warning-bg)] px-2 py-1 text-[10px] font-medium text-[var(--app-badge-warning-text)] hover:opacity-80"
+                                            title="Handle pending permission requests"
+                                        >
+                                            Pending {pendingCount}
+                                        </button>
+                                    ) : null}
+                                </div>
                             )
                         })}
                     </div>
@@ -2247,7 +2535,29 @@ export default function GroupDetailPage() {
                 destructive
             />
 
-            {/* F. AddMemberModal */}
+            {/* F. Pending quick modal */}
+            {pendingQuickSessionId ? (
+                <PendingRequestsQuickModal
+                    sessionId={pendingQuickSessionId}
+                    sessionTitle={pendingQuickSessionTitle}
+                    isLoading={pendingQuickSessionLoading}
+                    requests={pendingQuickRequests}
+                    loadError={pendingQuickSessionError}
+                    actionError={pendingQuickActionError}
+                    activeRequestId={pendingQuickActiveRequestId}
+                    onApprove={handleApprovePendingQuickRequest}
+                    onDeny={handleDenyPendingQuickRequest}
+                    onRefresh={() => {
+                        void refreshPendingQuickContext(pendingQuickSessionId)
+                    }}
+                    onOpenSession={() => {
+                        navigate({ to: '/sessions/$sessionId', params: { sessionId: pendingQuickSessionId } })
+                    }}
+                    onClose={handleClosePendingQuickModal}
+                />
+            ) : null}
+
+            {/* G. AddMemberModal */}
             {showAddMember ? (
                 <AddMemberModal
                     existingMemberSessionIds={existingMemberSessionIds}
