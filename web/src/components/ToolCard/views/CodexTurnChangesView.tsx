@@ -236,7 +236,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
             </div>
             {files.length === 0 ? (
                 <div className="px-2 py-3 text-xs text-[var(--app-hint)]">
-                    No file changes detected for this turn.
+                    No code change in this turn.
                 </div>
             ) : (
                 <div className="max-h-72 overflow-y-auto md:max-h-[28rem]">

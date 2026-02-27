@@ -386,7 +386,7 @@ export const knownTools: Record<string, {
             if (!isObject(opts.input) || !Array.isArray(opts.input.files)) return null
             const files = opts.input.files.filter((file): file is Record<string, unknown> => isObject(file))
             const count = files.length
-            if (count <= 0) return null
+            if (count <= 0) return 'No code change in this turn'
             if (count === 1) {
                 const first = files[0]
                 const path = typeof first.path === 'string' ? first.path : null
@@ -396,7 +396,7 @@ export const knownTools: Record<string, {
             }
             return `${count} files`
         },
-        minimal: false
+        minimal: true
     },
     ExitPlanMode: {
         icon: () => <ClipboardIcon className={DEFAULT_ICON_CLASS} />,
