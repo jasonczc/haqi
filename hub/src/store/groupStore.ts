@@ -16,6 +16,7 @@ import {
     getGroupsByNamespace,
     getGroupNote,
     getGroupTaskByDedupeKey,
+    hasGroupTaskForTargetSession,
     getGroupTaskByNamespace,
     removeGroupMember,
     updateGroup,
@@ -161,6 +162,20 @@ export class GroupStore {
 
     getGroupTaskByDedupeKey(groupId: string, namespace: string, dedupeKey: string): StoredGroupTask | null {
         return getGroupTaskByDedupeKey(this.db, groupId, namespace, dedupeKey)
+    }
+
+    hasGroupTaskForTargetSession(
+        groupId: string,
+        namespace: string,
+        targetSessionId: string,
+        excludeTaskId?: string
+    ): boolean {
+        return hasGroupTaskForTargetSession(this.db, {
+            groupId,
+            namespace,
+            targetSessionId,
+            ...(excludeTaskId ? { excludeTaskId } : {})
+        })
     }
 
     updateGroupTaskStatus(options: {

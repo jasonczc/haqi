@@ -397,6 +397,8 @@ export function SessionChat(props: {
     const [customMcpGuideInput, setCustomMcpGuideInput] = useState('')
     const [composerInjectedPrompt, setComposerInjectedPrompt] = useState<{ id: number; text: string } | null>(null)
     const composerPromptIdRef = useRef(0)
+    const queueFullTextByIdRef = useRef<Map<string, string>>(new Map())
+    const queueFullTextByPreviewRef = useRef<Map<string, string>>(new Map())
     const codexStatusRows = useMemo(() => parseCodexStatusRows(codexStatusMessage), [codexStatusMessage])
     const usageNumberFormatter = useMemo(() => new Intl.NumberFormat(), [])
     const formatUsageNumber = useCallback((value: number): string => usageNumberFormatter.format(value), [usageNumberFormatter])
@@ -685,6 +687,120 @@ export function SessionChat(props: {
         setForceScrollToken((token) => token + 1)
     }, [props.onSend])
 
+    const normalizeQueueText = useCallback((value: string | undefined): string | undefined => {
+        if (typeof value !== 'string') {
+            return undefined
+        }
+        const normalized = value.trim()
+        return normalized.length > 0 ? normalized : undefined
+    }, [])
+
+    const normalizeQueuePreview = useCallback((value: string | undefined): string | undefined => {
+        if (typeof value !== 'string') {
+            return undefined
+        }
+        const normalized = value.trim()
+        return normalized.length > 0 ? normalized : undefined
+    }, [])
+
+    const buildQueuePreviewFromText = useCallback((text: string | undefined): string | undefined => {
+        const normalized = normalizeQueueText(text)
+        if (!normalized) {
+            return undefined
+        }
+        const compact = normalized.replace(/\s+/g, ' ')
+        return compact.length <= 180 ? compact : `${compact.slice(0, 180)}...`
+    }, [normalizeQueueText])
+
+    const mergeQueueWithLocalFullText = useCallback(
+        (queue: QueueState | null | undefined, enqueuedText?: string): QueueState | null => {
+            if (!queue) {
+                queueFullTextByIdRef.current.clear()
+                queueFullTextByPreviewRef.current.clear()
+                return null
+            }
+
+            const previousMap = queueFullTextByIdRef.current
+            const previousPreviewMap = queueFullTextByPreviewRef.current
+            const nextMap = new Map<string, string>()
+            const nextPreviewMap = new Map<string, string>()
+            const entries = queue.entries.map((entry) => {
+                const previewKey = normalizeQueuePreview(entry.preview)
+                const fullText = normalizeQueueText(entry.fullText)
+                    ?? previousMap.get(entry.id)
+                    ?? (previewKey ? previousPreviewMap.get(previewKey) : undefined)
+                if (fullText) {
+                    nextMap.set(entry.id, fullText)
+                    if (previewKey) {
+                        nextPreviewMap.set(previewKey, fullText)
+                    }
+                    return { ...entry, fullText }
+                }
+                return entry
+            })
+
+            const normalizedEnqueued = normalizeQueueText(enqueuedText)
+            if (normalizedEnqueued) {
+                const previewFromEnqueued = buildQueuePreviewFromText(normalizedEnqueued)
+                if (previewFromEnqueued) {
+                    nextPreviewMap.set(previewFromEnqueued, normalizedEnqueued)
+                }
+                const candidates = entries
+                    .map((entry, index) => ({ entry, index }))
+                    .filter(({ entry }) => !previousMap.has(entry.id) && !normalizeQueueText(entry.fullText))
+                const fallbackCandidates = entries
+                    .map((entry, index) => ({ entry, index }))
+                    .filter(({ entry }) => !normalizeQueueText(entry.fullText))
+                const pool = candidates.length > 0 ? candidates : fallbackCandidates
+
+                let best: { entry: QueueState['entries'][number]; index: number } | null = null
+                for (const item of pool) {
+                    if (!best) {
+                        best = item
+                        continue
+                    }
+                    if (item.entry.enqueuedAt > best.entry.enqueuedAt) {
+                        best = item
+                        continue
+                    }
+                    if (item.entry.enqueuedAt === best.entry.enqueuedAt && item.index > best.index) {
+                        best = item
+                    }
+                }
+
+                if (best) {
+                    const target = entries[best.index]
+                    if (target) {
+                        entries[best.index] = {
+                            ...target,
+                            fullText: normalizedEnqueued
+                        }
+                        nextMap.set(target.id, normalizedEnqueued)
+                        const previewKey = normalizeQueuePreview(target.preview)
+                        if (previewKey) {
+                            nextPreviewMap.set(previewKey, normalizedEnqueued)
+                        }
+                    }
+                }
+            }
+
+            queueFullTextByIdRef.current = nextMap
+            queueFullTextByPreviewRef.current = nextPreviewMap
+            return {
+                ...queue,
+                entries
+            }
+        },
+        [normalizeQueueText, normalizeQueuePreview, buildQueuePreviewFromText]
+    )
+
+    const applyQueueState = useCallback(
+        (queue: QueueState | null | undefined, options?: { enqueuedText?: string }): void => {
+            setCodexQueueState(mergeQueueWithLocalFullText(queue, options?.enqueuedText))
+        },
+        [mergeQueueWithLocalFullText]
+    )
+
     const applyCodexQueueSummary = useCallback((queue: QueueStatusResponse['queue'] | QueueState | null | undefined) => {
         if (!queue) {
             setCodexQueueStatus(null)
@@ -710,13 +826,15 @@ export function SessionChat(props: {
         try {
             const result = await props.api.getQueue(props.session.id)
             if (result.success) {
-                setCodexQueueState(result.queue ?? null)
+                applyQueueState(result.queue ?? null)
                 applyCodexQueueSummary(result.queue)
                 setCodexQueueError(null)
             } else {
                 const message = result.error ?? t('queue.dialog.fetchError')
                 setCodexQueueError(message)
-                setCodexQueueState(result.queue ?? null)
+                if (result.queue) {
+                    applyQueueState(result.queue)
+                }
                 applyCodexQueueSummary(result.queue)
                 if (!options?.silent) {
                     haptic.notification('error')
@@ -733,7 +851,7 @@ export function SessionChat(props: {
                 setIsCodexQueueLoading(false)
             }
         }
-    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary, applyQueueState])
 
     const handleCodexQueueModeChange = useCallback((mode: CodexSendMode) => {
         setCodexSendMode(mode)
@@ -771,7 +889,7 @@ export function SessionChat(props: {
             const message = result.error ?? t('queue.dialog.actionError')
             setCodexQueueError(message)
             if (result.queue) {
-                setCodexQueueState(result.queue)
+                applyQueueState(result.queue)
                 applyCodexQueueSummary(result.queue)
             }
             haptic.notification('error')
@@ -779,9 +897,9 @@ export function SessionChat(props: {
         }
 
         setCodexQueueError(null)
-        setCodexQueueState(result.queue ?? null)
+        applyQueueState(result.queue ?? null, { enqueuedText: payload.text })
         applyCodexQueueSummary(result.queue ?? null)
-    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary])
+    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary, applyQueueState])
 
     const runCodexQueueAction = useCallback(async (
         action: () => Promise<{ success: boolean; error?: string; queue?: QueueState | null }>
@@ -794,14 +912,14 @@ export function SessionChat(props: {
         try {
             const result = await action()
             if (result.success) {
-                setCodexQueueState(result.queue ?? null)
+                applyQueueState(result.queue ?? null)
                 applyCodexQueueSummary(result.queue ?? null)
                 return
             }
             const message = result.error ?? t('queue.dialog.actionError')
             setCodexQueueError(message)
             if (result.queue) {
-                setCodexQueueState(result.queue)
+                applyQueueState(result.queue)
                 applyCodexQueueSummary(result.queue)
             }
             haptic.notification('error')
@@ -812,7 +930,7 @@ export function SessionChat(props: {
         } finally {
             setIsCodexQueueMutating(false)
         }
-    }, [supportsQueueControls, applyCodexQueueSummary, haptic, t])
+    }, [supportsQueueControls, applyCodexQueueSummary, haptic, t, applyQueueState])
 
     const handleCodexQueueClear = useCallback(() => {
         void runCodexQueueAction(async () => {
@@ -1167,7 +1285,7 @@ export function SessionChat(props: {
                         codexQueuePendingCount={codexQueuePendingCount}
                         codexQueueSummary={codexQueueSummary}
                         codexQueueEntries={codexQueueEntries}
-                        codexQueueInlinePanelMode={queueInlinePanelMode}
+                        codexQueueInlinePanelMode={isCodexQueueDialogOpen ? 'off' : queueInlinePanelMode}
                         onCodexQueueOpen={supportsQueueControls ? handleCodexQueueOpen : undefined}
                         onCodexQueueUpdated={supportsQueueControls ? handleCodexQueueRefreshAfterSend : undefined}
                         onCodexQueueEnqueue={supportsQueueControls ? handleCodexQueueEnqueue : undefined}
@@ -1694,59 +1812,63 @@ export function SessionChat(props: {
 
                         {codexQueueEntries.length > 0 ? (
                             <div className="max-h-[55vh] space-y-2 overflow-auto pr-1">
-                                {codexQueueEntries.map((entry, index) => (
-                                    <div
-                                        key={entry.id}
-                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
-                                    >
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div className="min-w-0 flex-1">
-                                                <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
-                                                    #{index + 1}
-                                                    {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
+                                {codexQueueEntries.map((entry, index) => {
+                                    const previewText = entry.preview || t('queue.dialog.emptyMessage')
+
+                                    return (
+                                        <div
+                                            key={entry.id}
+                                            className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                                        #{index + 1}
+                                                        {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
+                                                    </div>
+                                                    <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">
+                                                        {previewText}
+                                                    </div>
+                                                    <div className="mt-1 text-[10px] text-[var(--app-hint)]">
+                                                        {new Date(entry.enqueuedAt).toLocaleTimeString()}
+                                                    </div>
                                                 </div>
-                                                <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">
-                                                    {entry.preview || t('queue.dialog.emptyMessage')}
+                                                <div className="ml-2 flex items-center gap-1">
+                                                    <button
+                                                        type="button"
+                                                        aria-label={t('queue.entry.moveUp')}
+                                                        title={t('queue.entry.moveUp')}
+                                                        className="rounded border border-[var(--app-border)] px-1.5 py-1 text-xs text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                                        onClick={() => handleCodexQueueMove(entry.id, index - 1)}
+                                                        disabled={isCodexQueueMutating || index <= 0}
+                                                    >
+                                                        ↑
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        aria-label={t('queue.entry.moveDown')}
+                                                        title={t('queue.entry.moveDown')}
+                                                        className="rounded border border-[var(--app-border)] px-1.5 py-1 text-xs text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                                        onClick={() => handleCodexQueueMove(entry.id, index + 1)}
+                                                        disabled={isCodexQueueMutating || index >= codexQueueEntries.length - 1}
+                                                    >
+                                                        ↓
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        aria-label={t('queue.entry.remove')}
+                                                        title={t('queue.entry.remove')}
+                                                        className="rounded border border-red-500/40 px-1.5 py-1 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        onClick={() => handleCodexQueueRemove(entry.id)}
+                                                        disabled={isCodexQueueMutating}
+                                                    >
+                                                        ✕
+                                                    </button>
                                                 </div>
-                                                <div className="mt-1 text-[10px] text-[var(--app-hint)]">
-                                                    {new Date(entry.enqueuedAt).toLocaleTimeString()}
-                                                </div>
-                                            </div>
-                                            <div className="ml-2 flex items-center gap-1">
-                                                <button
-                                                    type="button"
-                                                    aria-label={t('queue.entry.moveUp')}
-                                                    title={t('queue.entry.moveUp')}
-                                                    className="rounded border border-[var(--app-border)] px-1.5 py-1 text-xs text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
-                                                    onClick={() => handleCodexQueueMove(entry.id, index - 1)}
-                                                    disabled={isCodexQueueMutating || index <= 0}
-                                                >
-                                                    ↑
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    aria-label={t('queue.entry.moveDown')}
-                                                    title={t('queue.entry.moveDown')}
-                                                    className="rounded border border-[var(--app-border)] px-1.5 py-1 text-xs text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
-                                                    onClick={() => handleCodexQueueMove(entry.id, index + 1)}
-                                                    disabled={isCodexQueueMutating || index >= codexQueueEntries.length - 1}
-                                                >
-                                                    ↓
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    aria-label={t('queue.entry.remove')}
-                                                    title={t('queue.entry.remove')}
-                                                    className="rounded border border-red-500/40 px-1.5 py-1 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                                                    onClick={() => handleCodexQueueRemove(entry.id)}
-                                                    disabled={isCodexQueueMutating}
-                                                >
-                                                    ✕
-                                                </button>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
                             </div>
                         ) : (
                             <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">

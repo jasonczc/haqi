@@ -18,6 +18,7 @@ import { GroupService, type GroupWithDetails } from './groupService'
 import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
 import {
+    type RpcCodexQueueState,
     type RpcCodexQueueResponse,
     type RpcCodexStatusResponse,
     type RpcMcpServersResponse,
@@ -418,6 +419,8 @@ export class SyncEngine {
     private readonly bufferedCodexMirrorsBySession: Map<string, BufferedCodexGroupMirror> = new Map()
     private readonly pendingNoteRefreshDraftByTaskKey: Map<string, string> = new Map()
     private readonly pendingNoteRefreshMirroredByTaskKey: Set<string> = new Set()
+    private readonly localQueueTextBySession: Map<string, Map<string, string>> = new Map()
+    private readonly localQueueTextBySessionPreview: Map<string, Map<string, string>> = new Map()
     private inactivityTimer: NodeJS.Timeout | null = null
     private groupNoteFileSyncTimer: NodeJS.Timeout | null = null
 
@@ -1872,8 +1875,139 @@ ${note.content}
         return await this.rpcGateway.getCodexStatus(sessionId)
     }
 
+    private normalizeQueueText(value: string | undefined): string | undefined {
+        if (typeof value !== 'string') {
+            return undefined
+        }
+        const normalized = value.trim()
+        return normalized.length > 0 ? normalized : undefined
+    }
+
+    private normalizeQueuePreview(value: string | undefined): string | undefined {
+        if (typeof value !== 'string') {
+            return undefined
+        }
+        const normalized = value.trim()
+        return normalized.length > 0 ? normalized : undefined
+    }
+
+    private buildQueuePreviewFromText(text: string | undefined): string | undefined {
+        const normalized = this.normalizeQueueText(text)
+        if (!normalized) {
+            return undefined
+        }
+        const compact = normalized.replace(/\s+/g, ' ')
+        return compact.length <= 180 ? compact : `${compact.slice(0, 180)}...`
+    }
+
+    private attachLocalQueueText(
+        sessionId: string,
+        queue: RpcCodexQueueState | undefined,
+        enqueuedText?: string
+    ): RpcCodexQueueState | undefined {
+        if (!queue) {
+            this.localQueueTextBySession.delete(sessionId)
+            this.localQueueTextBySessionPreview.delete(sessionId)
+            return queue
+        }
+
+        const previousMap = this.localQueueTextBySession.get(sessionId) ?? new Map<string, string>()
+        const previousPreviewMap = this.localQueueTextBySessionPreview.get(sessionId) ?? new Map<string, string>()
+        const nextMap = new Map<string, string>()
+        const nextPreviewMap = new Map<string, string>()
+        const nextEntries = queue.entries.map((entry) => {
+            const normalizedFromEntry = this.normalizeQueueText(entry.fullText)
+            const normalizedFromLocal = previousMap.get(entry.id)
+            const previewKey = this.normalizeQueuePreview(entry.preview)
+            const normalizedFromPreview = previewKey ? previousPreviewMap.get(previewKey) : undefined
+            const resolvedFullText = normalizedFromEntry ?? normalizedFromLocal ?? normalizedFromPreview
+            if (resolvedFullText) {
+                nextMap.set(entry.id, resolvedFullText)
+                if (previewKey) {
+                    nextPreviewMap.set(previewKey, resolvedFullText)
+                }
+            }
+            return resolvedFullText
+                ? { ...entry, fullText: resolvedFullText }
+                : entry
+        })
+
+        const normalizedEnqueuedText = this.normalizeQueueText(enqueuedText)
+        if (normalizedEnqueuedText) {
+            const previewKeyFromEnqueue = this.buildQueuePreviewFromText(normalizedEnqueuedText)
+            if (previewKeyFromEnqueue) {
+                nextPreviewMap.set(previewKeyFromEnqueue, normalizedEnqueuedText)
+            }
+            const unseenCandidates = nextEntries
+                .map((entry, index) => ({ entry, index }))
+                .filter(({ entry }) => !previousMap.has(entry.id))
+            const missingFullTextCandidates = nextEntries
+                .map((entry, index) => ({ entry, index }))
+                .filter(({ entry }) => !this.normalizeQueueText(entry.fullText))
+            const candidates = unseenCandidates.length > 0 ? unseenCandidates : missingFullTextCandidates
+
+            let candidate: { entry: RpcCodexQueueState['entries'][number]; index: number } | null = null
+            for (const current of candidates) {
+                if (!candidate) {
+                    candidate = current
+                    continue
+                }
+                if (current.entry.enqueuedAt > candidate.entry.enqueuedAt) {
+                    candidate = current
+                    continue
+                }
+                if (current.entry.enqueuedAt === candidate.entry.enqueuedAt && current.index > candidate.index) {
+                    candidate = current
+                }
+            }
+
+            if (candidate) {
+                const target = nextEntries[candidate.index]
+                if (target) {
+                    nextEntries[candidate.index] = {
+                        ...target,
+                        fullText: normalizedEnqueuedText
+                    }
+                    nextMap.set(target.id, normalizedEnqueuedText)
+                    const previewKey = this.normalizeQueuePreview(target.preview)
+                    if (previewKey) {
+                        nextPreviewMap.set(previewKey, normalizedEnqueuedText)
+                    }
+                }
+            }
+        }
+
+        if (nextMap.size > 0) {
+            this.localQueueTextBySession.set(sessionId, nextMap)
+        } else {
+            this.localQueueTextBySession.delete(sessionId)
+        }
+        if (nextPreviewMap.size > 0) {
+            this.localQueueTextBySessionPreview.set(sessionId, nextPreviewMap)
+        } else {
+            this.localQueueTextBySessionPreview.delete(sessionId)
+        }
+
+        return {
+            ...queue,
+            entries: nextEntries
+        }
+    }
+
+    private attachLocalQueueTextToResponse(
+        sessionId: string,
+        response: RpcCodexQueueResponse,
+        enqueuedText?: string
+    ): RpcCodexQueueResponse {
+        return {
+            ...response,
+            queue: this.attachLocalQueueText(sessionId, response.queue, enqueuedText)
+        }
+    }
+
     async getCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.getCodexQueue(sessionId)
+        const response = await this.rpcGateway.getCodexQueue(sessionId)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
     async enqueueCodexMessage(
@@ -1899,23 +2033,28 @@ ${note.content}
             }>
         }
     ): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.enqueueCodexMessage(sessionId, payload)
+        const response = await this.rpcGateway.enqueueCodexMessage(sessionId, payload)
+        return this.attachLocalQueueTextToResponse(sessionId, response, payload.text)
     }
 
     async removeCodexQueueItem(sessionId: string, id: string): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.removeCodexQueueItem(sessionId, id)
+        const response = await this.rpcGateway.removeCodexQueueItem(sessionId, id)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
     async moveCodexQueueItem(sessionId: string, id: string, toIndex: number): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.moveCodexQueueItem(sessionId, id, toIndex)
+        const response = await this.rpcGateway.moveCodexQueueItem(sessionId, id, toIndex)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
     async clearCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.clearCodexQueue(sessionId)
+        const response = await this.rpcGateway.clearCodexQueue(sessionId)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
     async getClaudeQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.getClaudeQueue(sessionId)
+        const response = await this.rpcGateway.getClaudeQueue(sessionId)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
     async enqueueClaudeMessage(
@@ -1941,19 +2080,23 @@ ${note.content}
             }>
         }
     ): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.enqueueClaudeMessage(sessionId, payload)
+        const response = await this.rpcGateway.enqueueClaudeMessage(sessionId, payload)
+        return this.attachLocalQueueTextToResponse(sessionId, response, payload.text)
     }
 
     async removeClaudeQueueItem(sessionId: string, id: string): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.removeClaudeQueueItem(sessionId, id)
+        const response = await this.rpcGateway.removeClaudeQueueItem(sessionId, id)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
     async moveClaudeQueueItem(sessionId: string, id: string, toIndex: number): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.moveClaudeQueueItem(sessionId, id, toIndex)
+        const response = await this.rpcGateway.moveClaudeQueueItem(sessionId, id, toIndex)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
     async clearClaudeQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
-        return await this.rpcGateway.clearClaudeQueue(sessionId)
+        const response = await this.rpcGateway.clearClaudeQueue(sessionId)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
     async readSessionFile(

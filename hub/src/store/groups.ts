@@ -760,6 +760,37 @@ export function getGroupTaskByDedupeKey(
     return row ? toStoredGroupTask(row) : null
 }
 
+export function hasGroupTaskForTargetSession(
+    db: Database,
+    options: {
+        groupId: string
+        namespace: string
+        targetSessionId: string
+        excludeTaskId?: string
+    }
+): boolean {
+    const row = options.excludeTaskId
+        ? db.prepare(`
+            SELECT 1
+            FROM group_tasks
+            WHERE group_id = ?
+                AND namespace = ?
+                AND target_session_id = ?
+                AND id != ?
+            LIMIT 1
+        `).get(options.groupId, options.namespace, options.targetSessionId, options.excludeTaskId)
+        : db.prepare(`
+            SELECT 1
+            FROM group_tasks
+            WHERE group_id = ?
+                AND namespace = ?
+                AND target_session_id = ?
+            LIMIT 1
+        `).get(options.groupId, options.namespace, options.targetSessionId)
+
+    return !!row
+}
+
 export function updateGroupTaskStatus(
     db: Database,
     options: {

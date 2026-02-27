@@ -34,21 +34,40 @@ describe('haqiAgentInstructions', () => {
         expect(instructions).toBe('workspace-policy')
     })
 
-    it('creates global MEMORY.md under HAPI_HOME and injects it into prompt', () => {
+    it('creates global MEMORY.md under HAPI_HOME and injects it into prompt when enabled', () => {
         const startDir = join(tempRoot, 'workspace')
         const hapiHome = join(tempRoot, 'hapi-home')
         mkdirSync(startDir, { recursive: true })
+        mkdirSync(hapiHome, { recursive: true })
         process.env.HAPI_HOME = hapiHome
+        writeFileSync(
+            join(hapiHome, 'settings.json'),
+            JSON.stringify({ memoryInjectionEnabled: true }, null, 2)
+        )
 
         const prompt = buildPromptWithHaqiAgentInstructions('BASE PROMPT', startDir)
         const memoryPath = join(hapiHome, 'MEMORY.md')
 
         expect(existsSync(memoryPath)).toBe(true)
         expect(prompt).toContain(`Load long-term user memory from ${memoryPath}.`)
-        expect(prompt).toContain('When you learn durable user information, update MEMORY.md directly')
+        expect(prompt).toContain('Treat MEMORY.md as global personal style and durable constraints shared across sessions.')
+        expect(prompt).toContain('Never write session-specific details')
         expect(prompt).toContain(`<haqi-memory path="${memoryPath}">`)
         expect(prompt).toContain('# MEMORY.md')
-        expect(prompt).toContain('## Preferences')
+        expect(prompt).toContain('## Communication Style')
+    })
+
+    it('skips global memory injection by default', () => {
+        const startDir = join(tempRoot, 'workspace')
+        const hapiHome = join(tempRoot, 'hapi-home')
+        mkdirSync(startDir, { recursive: true })
+        mkdirSync(hapiHome, { recursive: true })
+        process.env.HAPI_HOME = hapiHome
+
+        const prompt = buildPromptWithHaqiAgentInstructions('BASE PROMPT', startDir)
+
+        expect(prompt).toBe('BASE PROMPT')
+        expect(existsSync(join(hapiHome, 'MEMORY.md'))).toBe(false)
     })
 
     it('loads both workspace instructions and global memory', () => {
@@ -58,6 +77,10 @@ describe('haqiAgentInstructions', () => {
         process.env.HAPI_HOME = hapiHome
         writeFileSync(join(startDir, 'HAQI-Agent.md'), 'repo-rules')
         mkdirSync(hapiHome, { recursive: true })
+        writeFileSync(
+            join(hapiHome, 'settings.json'),
+            JSON.stringify({ memoryInjectionEnabled: true }, null, 2)
+        )
         writeFileSync(join(hapiHome, 'MEMORY.md'), 'user-prefers-short-replies')
 
         const prompt = buildPromptWithHaqiAgentInstructions('BASE PROMPT', startDir)
@@ -74,6 +97,10 @@ describe('haqiAgentInstructions', () => {
         mkdirSync(startDir, { recursive: true })
         mkdirSync(hapiHome, { recursive: true })
         process.env.HAPI_HOME = hapiHome
+        writeFileSync(
+            join(hapiHome, 'settings.json'),
+            JSON.stringify({ memoryInjectionEnabled: true }, null, 2)
+        )
         writeFileSync(join(hapiHome, 'MEMORY.md'), `prefix-${'x'.repeat(70 * 1024)}`)
 
         const prompt = buildPromptWithHaqiAgentInstructions('BASE PROMPT', startDir)

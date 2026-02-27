@@ -337,7 +337,7 @@ export class ApiClient {
         return await this.request<MemoryResponse>('/api/memory')
     }
 
-    async updateMemory(payload: { content: string; updatedBy?: string }): Promise<UpdateMemoryResponse> {
+    async updateMemory(payload: { content?: string; enabled?: boolean; updatedBy?: string }): Promise<UpdateMemoryResponse> {
         return await this.request<UpdateMemoryResponse>('/api/memory', {
             method: 'PATCH',
             body: JSON.stringify(payload)

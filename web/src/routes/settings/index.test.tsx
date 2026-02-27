@@ -75,16 +75,18 @@ const getMemoryMock = vi.fn(async () => ({
         path: '/tmp/MEMORY.md',
         content: '# MEMORY.md\n',
         updatedAt: Date.now(),
-        bytes: 12
+        bytes: 12,
+        enabled: true
     }
 }))
 
-const updateMemoryMock = vi.fn(async (payload: { content: string }) => ({
+const updateMemoryMock = vi.fn(async (payload: { content?: string; enabled?: boolean }) => ({
     memory: {
         path: '/tmp/MEMORY.md',
-        content: payload.content,
+        content: payload.content ?? '# MEMORY.md\n',
         updatedAt: Date.now(),
-        bytes: payload.content.length
+        bytes: (payload.content ?? '# MEMORY.md\n').length,
+        enabled: payload.enabled ?? true
     }
 }))
 
@@ -269,4 +271,5 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.about.appVersion')
         expect(calledKeys).toContain('settings.about.protocolVersion')
     })
+
 })

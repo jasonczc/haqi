@@ -238,6 +238,7 @@ export type GlobalMemory = {
     content: string
     updatedAt: number
     bytes: number
+    enabled: boolean
 }
 
 export type MemoryResponse = {

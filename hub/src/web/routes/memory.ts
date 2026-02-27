@@ -3,33 +3,44 @@ import { dirname, join } from 'node:path'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { configuration } from '../../configuration'
+import { readSettingsOrThrow, writeSettings } from '../../config/settings'
 import type { WebAppEnv } from '../middleware/auth'
 
 const MEMORY_FILENAME = 'MEMORY.md'
 const MAX_MEMORY_BYTES = 512 * 1024
+const DEFAULT_MEMORY_INJECTION_ENABLED = false
 
 const DEFAULT_MEMORY_TEMPLATE = `
     # MEMORY.md
 
-    Long-term memory for HAQI agents.
-    Distill this from logs periodically.
+    Global user style memory shared by all sessions.
+    Keep only durable, reusable preferences.
+    Do not store session logs, temporary tasks, or verbose execution history.
 
-    ## Preferences
-    - Keep responses concise.
+    ## Communication Style
+    - Preferred language, tone, response length, and formatting.
 
-    ## Decisions
-    - Use X because Y.
+    ## Engineering Workflow
+    - Tooling, coding, and review preferences that repeat across projects.
 
-    ## Pitfalls
-    - Z cannot be handled with approach A.
+    ## Stable Constraints
+    - Long-lived constraints, non-negotiables, and durable assumptions.
 
-    ## Key Facts
-    - Project status, critical accounts, and constraints.
+    ## Do Not Store
+    - Session-specific steps, temporary TODOs, one-off debug notes, raw logs.
 `.trim()
 
 const updateMemorySchema = z.object({
-    content: z.string(),
+    content: z.string().optional(),
+    enabled: z.boolean().optional(),
     updatedBy: z.string().trim().max(255).optional()
+}).superRefine((value, ctx) => {
+    if (value.content === undefined && value.enabled === undefined) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Either content or enabled must be provided'
+        })
+    }
 })
 
 type MemoryDocument = {
@@ -37,6 +48,10 @@ type MemoryDocument = {
     content: string
     updatedAt: number
     bytes: number
+}
+
+type MemoryPayload = MemoryDocument & {
+    enabled: boolean
 }
 
 function resolveMemoryPath(): string {
@@ -49,6 +64,32 @@ function ensureMemoryFile(filepath: string): void {
     }
     mkdirSync(dirname(filepath), { recursive: true })
     writeFileSync(filepath, `${DEFAULT_MEMORY_TEMPLATE}\n`, { encoding: 'utf-8', flag: 'wx' })
+}
+
+async function readMemoryInjectionEnabled(): Promise<boolean> {
+    const settings = await readSettingsOrThrow(configuration.settingsFile)
+    if (typeof settings.memoryInjectionEnabled === 'boolean') {
+        return settings.memoryInjectionEnabled
+    }
+    return DEFAULT_MEMORY_INJECTION_ENABLED
+}
+
+async function updateMemoryInjectionEnabled(enabled: boolean): Promise<void> {
+    const settings = await readSettingsOrThrow(configuration.settingsFile)
+    if (settings.memoryInjectionEnabled === enabled) {
+        return
+    }
+    settings.memoryInjectionEnabled = enabled
+    await writeSettings(configuration.settingsFile, settings)
+}
+
+async function readMemoryPayload(filepath: string): Promise<MemoryPayload> {
+    const memory = readMemoryDocument(filepath)
+    const enabled = await readMemoryInjectionEnabled()
+    return {
+        ...memory,
+        enabled
+    }
 }
 
 function readMemoryDocument(filepath: string): MemoryDocument {
@@ -76,9 +117,9 @@ function updateMemoryDocument(filepath: string, content: string): MemoryDocument
 export function createMemoryRoutes(): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
-    app.get('/memory', (c) => {
+    app.get('/memory', async (c) => {
         try {
-            const memory = readMemoryDocument(resolveMemoryPath())
+            const memory = await readMemoryPayload(resolveMemoryPath())
             return c.json({ memory })
         } catch (error) {
             return c.json({
@@ -95,7 +136,16 @@ export function createMemoryRoutes(): Hono<WebAppEnv> {
         }
 
         try {
-            const memory = updateMemoryDocument(resolveMemoryPath(), parsed.data.content)
+            const filepath = resolveMemoryPath()
+            if (parsed.data.content !== undefined) {
+                updateMemoryDocument(filepath, parsed.data.content)
+            } else {
+                readMemoryDocument(filepath)
+            }
+            if (parsed.data.enabled !== undefined) {
+                await updateMemoryInjectionEnabled(parsed.data.enabled)
+            }
+            const memory = await readMemoryPayload(filepath)
             return c.json({ memory })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to update memory'

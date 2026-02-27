@@ -1066,7 +1066,9 @@ export function HappyComposer(props: {
                                                 {t('queue.summary.inQueue')}
                                             </span>
                                         ) : null}
-                                        <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">
+                                        <span
+                                            className="min-w-0 flex-1 break-all text-xs text-[var(--app-hint)]"
+                                        >
                                             {inlineQueueHeadline}
                                         </span>
                                         <button
@@ -1083,25 +1085,31 @@ export function HappyComposer(props: {
                                         <div className="mt-2 space-y-1">
                                             {codexQueueEntries.length > 0 ? (
                                                 <>
-                                                    {codexQueueEntries.slice(0, 5).map((entry, index) => (
-                                                        <div
-                                                            key={entry.id}
-                                                            className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
-                                                        >
-                                                            <span className="text-[10px] text-[var(--app-hint)]">
-                                                                #{index + 1}
-                                                            </span>
-                                                            <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]">
-                                                                {entry.preview || t('queue.dialog.emptyMessage')}
-                                                            </span>
-                                                            <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
-                                                                {new Date(entry.enqueuedAt).toLocaleTimeString([], {
-                                                                    hour: '2-digit',
-                                                                    minute: '2-digit'
-                                                                })}
-                                                            </span>
-                                                        </div>
-                                                    ))}
+                                                    {codexQueueEntries.slice(0, 5).map((entry, index) => {
+                                                        const previewText = entry.preview || t('queue.dialog.emptyMessage')
+
+                                                        return (
+                                                            <div
+                                                                key={entry.id}
+                                                                className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
+                                                            >
+                                                                <span className="text-[10px] text-[var(--app-hint)]">
+                                                                    #{index + 1}
+                                                                </span>
+                                                                <span
+                                                                    className="block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
+                                                                >
+                                                                    {previewText}
+                                                                </span>
+                                                                <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
+                                                                    {new Date(entry.enqueuedAt).toLocaleTimeString([], {
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit'
+                                                                    })}
+                                                                </span>
+                                                            </div>
+                                                        )
+                                                    })}
                                                     {codexQueueEntries.length > 5 ? (
                                                         <div className="px-1 text-[11px] text-[var(--app-hint)]">
                                                             +{codexQueueEntries.length - 5}

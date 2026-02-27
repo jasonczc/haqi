@@ -460,12 +460,14 @@ export class GroupService {
         const explicitTargets = options.type === 'command'
             ? (options.targetSessionIds ?? null)
             : null
+        const originSessionId = this.resolveOriginSessionId(source, options.actorSessionId ?? null)
 
         const targetSessionIds = this.resolveCommandTargets(
             options.groupId,
             options.namespace,
             command,
-            explicitTargets
+            explicitTargets,
+            originSessionId
         )
         if (targetSessionIds.length === 0) {
             return { message: timelineMessage, createdTasks: [] }
@@ -893,6 +895,12 @@ export class GroupService {
                 continue
             }
 
+            const hasTaskHistory = this.store.groups.hasGroupTaskForTargetSession(
+                options.groupId,
+                options.namespace,
+                targetSessionId
+            )
+
             const task = this.store.groups.addGroupTask({
                 groupId: options.groupId,
                 namespace: options.namespace,
@@ -910,11 +918,10 @@ export class GroupService {
             try {
                 const dispatchCommand = this.buildTaskDispatchCommand({
                     groupId: task.groupId,
-                    taskId: task.id,
-                    traceId: task.traceId,
-                    source: task.source,
+                    namespace: task.namespace,
                     targetSessionId: task.targetSessionId,
-                    command: task.command
+                    command: task.command,
+                    includeTaskContext: !hasTaskHistory
                 })
                 await this.dispatchTask({
                     groupId: options.groupId,
@@ -985,7 +992,8 @@ export class GroupService {
         groupId: string,
         namespace: string,
         command: string,
-        explicitTargets: string[] | null
+        explicitTargets: string[] | null,
+        originSessionId: string | null
     ): string[] {
         const sessionMembers = this.store.groups
             .getGroupMembersByNamespace(groupId, namespace)
@@ -1002,12 +1010,12 @@ export class GroupService {
 
         if (explicitTargets && explicitTargets.length > 0) {
             return uniqueStrings(explicitTargets).filter(
-                (sessionId) => onlineSessionMembers.includes(sessionId)
+                (sessionId) => onlineSessionMembers.includes(sessionId) && sessionId !== originSessionId
             )
         }
 
         if (/\B@all\b/i.test(command)) {
-            return onlineSessionMembers
+            return onlineSessionMembers.filter((sessionId) => sessionId !== originSessionId)
         }
 
         const mentions = extractMentionTokens(command)
@@ -1112,11 +1120,10 @@ export class GroupService {
 
     private buildTaskDispatchCommand(options: {
         groupId: string
-        taskId: string
-        traceId: string
-        source: string
+        namespace: string
         targetSessionId: string
         command: string
+        includeTaskContext: boolean
     }): string {
         const trimmedCommand = options.command.trimStart()
         if (trimmedCommand.startsWith('/')) {
@@ -1126,19 +1133,26 @@ export class GroupService {
         if (options.command.includes('[HAQI_GROUP_TASK_CONTEXT]')) {
             return options.command
         }
+        if (!options.includeTaskContext) {
+            return options.command
+        }
+        const groupNotePath = this.getGroupNoteFilePath(options.namespace, options.groupId)
         return [
+            options.command,
             '[HAQI_GROUP_TASK_CONTEXT]',
             `- Group ID: ${options.groupId}`,
-            `- Task ID: ${options.taskId}`,
-            `- Trace ID: ${options.traceId}`,
-            `- Source: ${options.source}`,
+            `- Group Note Markdown Path: ${groupNotePath ?? '(disabled: in-memory store)'}`,
             `- Your HAQI Session ID (self): ${options.targetSessionId}`,
             'Instructions:',
-            '- This task is assigned to you.',
-            `- If you need to refer to yourself in group chat, use @${options.targetSessionId}.`,
+            '- This task is assigned to you. Keep replies concise and action-oriented. Better not to contain @all in your reply.',
+            '- @all is expensive. Use @all only when every active session must take action now.',
+            '- If only part of the group needs action, mention specific sessions instead of @all.',
+            '- For status updates, acknowledgements, summaries, or confirmations: do NOT use @all.',
+            '- If unsure whether @all is needed, do NOT use @all.',
+            '- When needed, read or write Group Note Markdown Path first, then continue based on the latest note content.',
+            `- Only if you need to ask yourself to do next work, use @${options.targetSessionId}.`,
             '[/HAQI_GROUP_TASK_CONTEXT]',
-            '',
-            options.command
+            ''
         ].join('\n')
     }
 

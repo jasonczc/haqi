@@ -225,6 +225,7 @@ export default function SettingsPage() {
     const [memorySavedContent, setMemorySavedContent] = useState('')
     const [memoryStatusMessage, setMemoryStatusMessage] = useState<string | null>(null)
     const isMemoryDirty = memoryDraft !== memorySavedContent
+    const memoryInjectionEnabled = memory?.enabled ?? false
 
     const fontScaleOptions = getFontScaleOptions()
     const currentLocale = locales.find((loc) => loc.value === locale)
@@ -308,6 +309,23 @@ export default function SettingsPage() {
         },
         onError: (error) => {
             setMemoryStatusMessage(error instanceof Error ? error.message : t('settings.memory.status.saveFailed'))
+        }
+    })
+
+    const toggleMemoryInjectionMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            return await api.updateMemory({ enabled, updatedBy: 'user:web:settings' })
+        },
+        onSuccess: async (_result, enabled) => {
+            setMemoryStatusMessage(
+                enabled
+                    ? t('settings.memory.status.injectionEnabled')
+                    : t('settings.memory.status.injectionDisabled')
+            )
+            await queryClient.invalidateQueries({ queryKey: queryKeys.memory })
+        },
+        onError: (error) => {
+            setMemoryStatusMessage(error instanceof Error ? error.message : t('settings.memory.status.toggleFailed'))
         }
     })
 
@@ -435,6 +453,11 @@ export default function SettingsPage() {
     const handleSaveMemory = async () => {
         setMemoryStatusMessage(null)
         await saveMemoryMutation.mutateAsync(memoryDraft)
+    }
+
+    const handleMemoryInjectionToggle = async (value: boolean) => {
+        setMemoryStatusMessage(null)
+        await toggleMemoryInjectionMutation.mutateAsync(value)
     }
 
     // Close dropdown when clicking outside
@@ -1129,8 +1152,16 @@ export default function SettingsPage() {
 
                     {/* Memory section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
-                            {t('settings.memory.title')}
+                        <div className="flex items-center justify-between gap-3 px-3 py-2">
+                            <div className="text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                                {t('settings.memory.title')}
+                            </div>
+                            <Switch
+                                checked={memoryInjectionEnabled}
+                                onCheckedChange={(value) => { void handleMemoryInjectionToggle(value) }}
+                                disabled={memoryLoading || toggleMemoryInjectionMutation.isPending}
+                                ariaLabel={t('settings.memory.title')}
+                            />
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
                             {t('settings.memory.description')}

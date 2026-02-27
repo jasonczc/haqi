@@ -6,24 +6,27 @@ import { logger } from '@/ui/logger'
 
 const WORKSPACE_INSTRUCTIONS_FILE = 'HAQI-Agent.md'
 const GLOBAL_MEMORY_FILE = 'MEMORY.md'
+const GLOBAL_SETTINGS_FILE = 'settings.json'
+const DEFAULT_MEMORY_INJECTION_ENABLED = false
 const MAX_FILE_BYTES = 64 * 1024
 const DEFAULT_MEMORY_TEMPLATE = trimIdent(`
     # MEMORY.md
 
-    Long-term memory for HAQI agents.
-    Distill this from logs periodically.
+    Global user style memory shared by all sessions.
+    Keep only durable, reusable preferences.
+    Do not store session logs, temporary tasks, or verbose execution history.
 
-    ## Preferences
-    - Keep responses concise.
+    ## Communication Style
+    - Preferred language, tone, response length, and formatting.
 
-    ## Decisions
-    - Use X because Y.
+    ## Engineering Workflow
+    - Tooling, coding, and review preferences that repeat across projects.
 
-    ## Pitfalls
-    - Z cannot be handled with approach A.
+    ## Stable Constraints
+    - Long-lived constraints, non-negotiables, and durable assumptions.
 
-    ## Key Facts
-    - Project status, critical accounts, and constraints.
+    ## Do Not Store
+    - Session-specific steps, temporary TODOs, one-off debug notes, raw logs.
 `)
 
 function findInstructionFile(startDir: string): string | null {
@@ -52,6 +55,31 @@ function resolveHapiHomeDir(): string {
 
 function resolveGlobalMemoryPath(): string {
     return join(resolveHapiHomeDir(), GLOBAL_MEMORY_FILE)
+}
+
+function resolveGlobalSettingsPath(): string {
+    return join(resolveHapiHomeDir(), GLOBAL_SETTINGS_FILE)
+}
+
+function isGlobalMemoryInjectionEnabled(): boolean {
+    try {
+        const filepath = resolveGlobalSettingsPath()
+        if (!existsSync(filepath)) {
+            return DEFAULT_MEMORY_INJECTION_ENABLED
+        }
+        const raw = readFileSync(filepath, 'utf-8').trim()
+        if (!raw) {
+            return DEFAULT_MEMORY_INJECTION_ENABLED
+        }
+        const parsed = JSON.parse(raw) as { memoryInjectionEnabled?: unknown }
+        if (typeof parsed.memoryInjectionEnabled === 'boolean') {
+            return parsed.memoryInjectionEnabled
+        }
+        return DEFAULT_MEMORY_INJECTION_ENABLED
+    } catch (error) {
+        logger.debug('[haqi-agent-instructions] failed to load global settings', error)
+        return DEFAULT_MEMORY_INJECTION_ENABLED
+    }
 }
 
 function ensureGlobalMemoryFile(filepath: string): void {
@@ -113,7 +141,8 @@ export function loadGlobalMemory(): { path: string; content: string } | null {
 
 export function buildPromptWithHaqiAgentInstructions(basePrompt: string, startDir: string): string {
     const instructions = loadHaqiAgentInstructions(startDir)
-    const globalMemory = loadGlobalMemory()
+    const memoryInjectionEnabled = isGlobalMemoryInjectionEnabled()
+    const globalMemory = memoryInjectionEnabled ? loadGlobalMemory() : null
     if (!instructions && !globalMemory) {
         return basePrompt
     }
@@ -131,10 +160,10 @@ export function buildPromptWithHaqiAgentInstructions(basePrompt: string, startDi
     if (globalMemory) {
         const memoryPreface = trimIdent(`
         Load long-term user memory from ${globalMemory.path}.
-        Use it as cross-project context for preferences, decisions, pitfalls, and key facts.
-        When you learn durable user information, update MEMORY.md directly using these sections:
-        Preferences, Decisions, Pitfalls, Key Facts.
-        Keep entries concise and actionable.
+        Treat MEMORY.md as global personal style and durable constraints shared across sessions.
+        Only write stable, reusable preferences that still matter in future sessions.
+        Never write session-specific details (task timelines, temporary TODOs, verbose debugging history).
+        Keep entries short, high-signal, and remove outdated details instead of appending logs.
     `)
         blocks.push(`${memoryPreface}\n\n<haqi-memory path="${globalMemory.path}">\n${globalMemory.content}\n</haqi-memory>`)
     }
