@@ -120,6 +120,58 @@ function normalizeAssistantOutput(
     }
 }
 
+function normalizeCodexUsageRecord(value: unknown): NormalizedMessage['usage'] | null {
+    if (!isObject(value)) return null
+
+    const inputTokens = asNumber(value.input_tokens ?? value.inputTokens) ?? 0
+    const outputTokens = asNumber(value.output_tokens ?? value.outputTokens) ?? 0
+    const cacheReadTokens = asNumber(
+        value.cached_input_tokens
+            ?? value.cachedInputTokens
+            ?? value.cache_read_input_tokens
+            ?? value.cacheReadInputTokens
+    ) ?? 0
+    const cacheCreationTokens = asNumber(
+        value.cache_creation_input_tokens
+            ?? value.cacheCreationInputTokens
+    ) ?? 0
+
+    if (inputTokens === 0 && outputTokens === 0 && cacheReadTokens === 0 && cacheCreationTokens === 0) {
+        return null
+    }
+
+    return {
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        cache_read_input_tokens: cacheReadTokens > 0 ? cacheReadTokens : undefined,
+        cache_creation_input_tokens: cacheCreationTokens > 0 ? cacheCreationTokens : undefined,
+        service_tier: asString(value.service_tier ?? value.serviceTier) ?? undefined
+    }
+}
+
+function normalizeCodexTokenUsage(info: unknown): NormalizedMessage['usage'] | null {
+    if (!isObject(info)) return null
+
+    const usageCandidates = [
+        info.last_token_usage,
+        info.lastTokenUsage,
+        info.total_token_usage,
+        info.totalTokenUsage,
+        info.token_usage,
+        info.tokenUsage,
+        info
+    ]
+
+    for (const candidate of usageCandidates) {
+        const usage = normalizeCodexUsageRecord(candidate)
+        if (usage) {
+            return usage
+        }
+    }
+
+    return null
+}
+
 function normalizeUserOutput(
     messageId: string,
     localId: string | null,
@@ -327,6 +379,24 @@ export function normalizeAgentRecord(
     if (content.type === 'codex') {
         const data = isObject(content.data) ? content.data : null
         if (!data || typeof data.type !== 'string') return null
+
+        if (data.type === 'token_count') {
+            const usage = normalizeCodexTokenUsage(data.info)
+            if (!usage) {
+                return null
+            }
+
+            return {
+                id: messageId,
+                localId,
+                createdAt,
+                role: 'agent',
+                isSidechain: false,
+                content: [],
+                meta,
+                usage
+            }
+        }
 
         if (data.type === 'message' && typeof data.message === 'string') {
             return {
