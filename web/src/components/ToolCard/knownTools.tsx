@@ -295,6 +295,22 @@ export const knownTools: Record<string, {
         },
         minimal: (opts) => opts.result == null
     },
+    ImageView: {
+        icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
+        title: (opts) => {
+            const path = getInputStringAny(opts.input, ['path', 'file_path', 'filePath'])
+                ?? getInputStringAny(opts.result, ['path', 'file_path', 'filePath'])
+            if (!path) return 'Image preview'
+            const display = resolveDisplayPath(path, opts.metadata)
+            return basename(display)
+        },
+        subtitle: (opts) => {
+            const path = getInputStringAny(opts.input, ['path', 'file_path', 'filePath'])
+                ?? getInputStringAny(opts.result, ['path', 'file_path', 'filePath'])
+            return path ? resolveDisplayPath(path, opts.metadata) : null
+        },
+        minimal: false
+    },
     NotebookRead: {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {

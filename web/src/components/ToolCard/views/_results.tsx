@@ -1,9 +1,23 @@
 import type { ToolViewComponent, ToolViewProps } from '@/components/ToolCard/views/_all'
 import { isObject, safeStringify } from '@hapi/protocol'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CodeBlock } from '@/components/CodeBlock'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
+import { PathActionLink } from '@/components/assistant-ui/path-action-link'
+import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { basename, resolveDisplayPath } from '@/utils/path'
+
+const MAX_IMAGE_PREVIEW_BYTES = 8 * 1024 * 1024
+const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    bmp: 'image/bmp',
+    avif: 'image/avif',
+    ico: 'image/x-icon'
+}
 
 function parseToolUseError(message: string): { isToolUseError: boolean; errorMessage: string | null } {
     const regex = /<tool_use_error>(.*?)<\/tool_use_error>/s
@@ -201,6 +215,77 @@ function extractLineList(text: string): string[] {
 function isProbablyMarkdownList(text: string): boolean {
     const trimmed = text.trimStart()
     return trimmed.startsWith('- ') || trimmed.startsWith('* ') || trimmed.startsWith('1. ')
+}
+
+function extensionFromPath(path: string): string | null {
+    const normalized = path.replace(/\\/g, '/')
+    const fileName = normalized.split('/').pop() ?? ''
+    const dotIndex = fileName.lastIndexOf('.')
+    if (dotIndex <= 0 || dotIndex === fileName.length - 1) {
+        return null
+    }
+    return fileName.slice(dotIndex + 1).toLowerCase()
+}
+
+function imageMimeFromPath(path: string): string | null {
+    const extension = extensionFromPath(path)
+    if (!extension) return null
+    return IMAGE_MIME_BY_EXTENSION[extension] ?? null
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let index = 0; index < binary.length; index += 1) {
+        bytes[index] = binary.charCodeAt(index)
+    }
+    return bytes
+}
+
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+    const buffer = new ArrayBuffer(bytes.byteLength)
+    new Uint8Array(buffer).set(bytes)
+    return buffer
+}
+
+function extractStringByKeysDeep(value: unknown, keys: string[], depth: number = 0): string | null {
+    if (depth > 2 || !isObject(value)) return null
+
+    for (const key of keys) {
+        const candidate = value[key]
+        if (typeof candidate === 'string' && candidate.trim().length > 0) {
+            return candidate.trim()
+        }
+    }
+
+    const nestedKeys = ['result', 'output', 'data', 'file']
+    for (const key of nestedKeys) {
+        const nested = extractStringByKeysDeep(value[key], keys, depth + 1)
+        if (nested) return nested
+    }
+
+    return null
+}
+
+function normalizeDirectImageUrl(value: string | null): string | null {
+    if (!value) return null
+    const trimmed = value.trim()
+    if (
+        trimmed.startsWith('data:image/')
+        || trimmed.startsWith('http://')
+        || trimmed.startsWith('https://')
+        || trimmed.startsWith('blob:')
+    ) {
+        return trimmed
+    }
+    return null
+}
+
+function revokeIfBlobUrl(url: string | null): void {
+    if (!url) return
+    if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url)
+    }
 }
 
 const AskUserQuestionResultView: ToolViewComponent = (props: ToolViewProps) => {
@@ -687,6 +772,199 @@ const TodoWriteResultView: ToolViewComponent = (props: ToolViewProps) => {
     )
 }
 
+const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
+    const ctx = useOptionalHappyChatContext()
+    const api = ctx?.api
+    const sessionId = ctx?.sessionId
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
+    const [loading, setLoading] = useState(false)
+    const previousSourceKeyRef = useRef<string>('none')
+    const loadedSourceKeyRef = useRef<string>('none')
+
+    const inputPath = useMemo(
+        () => extractStringByKeysDeep(props.block.tool.input, ['path', 'file_path', 'filePath', 'file']),
+        [props.block.tool.input]
+    )
+    const resultPath = useMemo(
+        () => extractStringByKeysDeep(props.block.tool.result, ['path', 'file_path', 'filePath', 'file']),
+        [props.block.tool.result]
+    )
+    const imagePath = resultPath ?? inputPath
+
+    const inputUrl = useMemo(
+        () => extractStringByKeysDeep(props.block.tool.input, ['url', 'src', 'image_url', 'imageUrl', 'data_url', 'dataUrl']),
+        [props.block.tool.input]
+    )
+    const resultUrl = useMemo(
+        () => extractStringByKeysDeep(props.block.tool.result, ['url', 'src', 'image_url', 'imageUrl', 'data_url', 'dataUrl']),
+        [props.block.tool.result]
+    )
+    const directUrl = useMemo(
+        () => normalizeDirectImageUrl(resultUrl ?? inputUrl ?? imagePath),
+        [resultUrl, inputUrl, imagePath]
+    )
+    const localPath = useMemo(
+        () => (imagePath && normalizeDirectImageUrl(imagePath) === null ? imagePath : null),
+        [imagePath]
+    )
+    const imageMimeType = useMemo(
+        () => (localPath ? imageMimeFromPath(localPath) : null),
+        [localPath]
+    )
+    const sourceKey = directUrl
+        ? `url:${directUrl}`
+        : localPath
+            ? `path:${localPath}`
+            : 'none'
+
+    useEffect(() => {
+        let cancelled = false
+        const sourceChanged = previousSourceKeyRef.current !== sourceKey
+        previousSourceKeyRef.current = sourceKey
+
+        if (sourceChanged) {
+            loadedSourceKeyRef.current = 'none'
+            setPreviewUrl((current) => {
+                revokeIfBlobUrl(current)
+                return null
+            })
+            setErrorMessage(null)
+            setLoading(false)
+        }
+
+        if (directUrl) {
+            loadedSourceKeyRef.current = sourceKey
+            setPreviewUrl((current) => {
+                if (current === directUrl) return current
+                revokeIfBlobUrl(current)
+                return directUrl
+            })
+            setErrorMessage(null)
+            setLoading(false)
+            return () => {
+                cancelled = true
+            }
+        }
+
+        if (sourceKey === 'none') {
+            if (props.block.tool.state !== 'pending') {
+                setErrorMessage('Image path missing.')
+            }
+            return () => {
+                cancelled = true
+            }
+        }
+
+        if (props.block.tool.state === 'pending') {
+            return () => {
+                cancelled = true
+            }
+        }
+
+        if (!api || !sessionId) {
+            setErrorMessage('Image preview requires active session context.')
+            return () => {
+                cancelled = true
+            }
+        }
+
+        if (!localPath) {
+            setErrorMessage('Image path missing.')
+            return () => {
+                cancelled = true
+            }
+        }
+
+        if (!imageMimeType) {
+            setErrorMessage('Unsupported image format.')
+            return () => {
+                cancelled = true
+            }
+        }
+
+        if (loadedSourceKeyRef.current === sourceKey) {
+            setLoading(false)
+            return () => {
+                cancelled = true
+            }
+        }
+
+        setErrorMessage(null)
+        setLoading(true)
+
+        void (async () => {
+            try {
+                const result = await api.readSessionFile(sessionId, localPath, { maxBytes: MAX_IMAGE_PREVIEW_BYTES })
+                if (cancelled) return
+                if (!result.success || !result.content) {
+                    setErrorMessage(result.error ?? 'Failed to preview image.')
+                    return
+                }
+                if (result.truncated || (typeof result.size === 'number' && result.size > MAX_IMAGE_PREVIEW_BYTES)) {
+                    setErrorMessage('Image preview is limited to 8 MB.')
+                    return
+                }
+
+                const bytes = base64ToBytes(result.content)
+                const objectUrl = URL.createObjectURL(new Blob([toArrayBuffer(bytes)], { type: imageMimeType }))
+                if (cancelled) {
+                    URL.revokeObjectURL(objectUrl)
+                    return
+                }
+                loadedSourceKeyRef.current = sourceKey
+                setPreviewUrl(objectUrl)
+            } catch (error) {
+                if (cancelled) return
+                setErrorMessage(error instanceof Error ? error.message : 'Failed to preview image.')
+            } finally {
+                if (!cancelled) {
+                    setLoading(false)
+                }
+            }
+        })()
+
+        return () => {
+            cancelled = true
+        }
+    }, [api, directUrl, imageMimeType, localPath, props.block.tool.state, sessionId, sourceKey])
+
+    useEffect(() => {
+        return () => {
+            revokeIfBlobUrl(previewUrl)
+        }
+    }, [previewUrl])
+
+    const displayPath = localPath ? resolveDisplayPath(localPath, props.metadata) : null
+    const altText = displayPath ? basename(displayPath) : 'Image preview'
+
+    return (
+        <div className="flex flex-col gap-2">
+            {localPath ? (
+                <div className="w-fit max-w-full">
+                    <PathActionLink path={localPath} />
+                </div>
+            ) : null}
+
+            {previewUrl ? (
+                <div className="overflow-hidden rounded border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-1">
+                    <img
+                        src={previewUrl}
+                        alt={altText}
+                        className="mx-auto max-h-[420px] max-w-full rounded object-contain"
+                    />
+                </div>
+            ) : loading ? (
+                <div className="text-sm text-[var(--app-hint)]">Loading image…</div>
+            ) : errorMessage ? (
+                <div className="text-sm text-red-500">{errorMessage}</div>
+            ) : (
+                <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+            )}
+        </div>
+    )
+}
+
 const GenericResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
 
@@ -744,6 +1022,7 @@ export const toolResultViewRegistry: Record<string, ToolViewComponent> = {
     NotebookRead: ReadResultView,
     NotebookEdit: MutationResultView,
     TodoWrite: TodoWriteResultView,
+    ImageView: ImageViewResultView,
     CodexReasoning: CodexReasoningResultView,
     CodexPatch: CodexPatchResultView,
     CodexDiff: CodexDiffResultView,
