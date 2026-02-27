@@ -145,4 +145,73 @@ describe('NewSession initial directory preset', () => {
         expect(calledDirectory).toBe('/tmp/project')
         expect(onSuccess).toHaveBeenCalledWith('session-1')
     })
+
+    it('stores last successful config and restores it on next create form open', async () => {
+        const getSessions = vi.fn(async () => ({ sessions: [] }))
+        const checkMachinePathsExists = vi.fn(async (_machineId: string, paths: string[]) => ({
+            exists: Object.fromEntries(paths.map((path) => [path, true]))
+        }))
+        const spawnSession = vi.fn(async (machineId: string, directory: string) => ({
+            type: 'success',
+            sessionId: 'session-2' as const,
+            machineId,
+            directory
+        }))
+
+        const api = {
+            getSessions,
+            checkMachinePathsExists,
+            spawnSession
+        } as unknown as ApiClient
+
+        const machines: Machine[] = [
+            {
+                id: 'machine-1',
+                active: true,
+                metadata: {
+                    host: 'devbox',
+                    platform: 'linux',
+                    happyCliVersion: '0.15.2'
+                }
+            }
+        ]
+
+        renderWithProviders(
+            <NewSession
+                api={api}
+                machines={machines}
+                onSuccess={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        )
+
+        fireEvent.change(screen.getByPlaceholderText('/path/to/project'), { target: { value: '/tmp/project' } })
+        fireEvent.click(screen.getByRole('radio', { name: 'codex' }))
+        fireEvent.change(screen.getByPlaceholderText('http://localhost:3000'), { target: { value: 'http://localhost:4173' } })
+        fireEvent.keyDown(screen.getByPlaceholderText('/path/to/project'), { key: 'Enter', metaKey: true })
+
+        await waitFor(() => {
+            expect(spawnSession).toHaveBeenCalledTimes(1)
+        })
+
+        const savedRaw = localStorage.getItem('hapi:newSession:lastConfig')
+        expect(savedRaw).not.toBeNull()
+        const saved = JSON.parse(savedRaw ?? '{}')
+        expect(saved.agent).toBe('codex')
+        expect(saved.previewUrl).toBe('http://localhost:4173/')
+
+        cleanup()
+
+        renderWithProviders(
+            <NewSession
+                api={api}
+                machines={machines}
+                onSuccess={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        )
+
+        expect(screen.getByRole('radio', { name: 'codex' })).toBeChecked()
+        expect(screen.getByPlaceholderText('http://localhost:3000')).toHaveValue('http://localhost:4173/')
+    })
 })

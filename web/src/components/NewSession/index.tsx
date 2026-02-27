@@ -14,6 +14,7 @@ import {
     CLAUDE_THINK_EFFORT_OPTIONS,
     CODEX_THINK_EFFORT_OPTIONS,
     MODEL_OPTIONS,
+    getThinkEffortOptions,
     type AgentType,
     type ThinkEffort,
     type SessionType
@@ -25,12 +26,14 @@ import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
 import { ThinkEffortSelector } from './ThinkEffortSelector'
 import {
+    loadLastSessionConfig,
     loadPreferredAgent,
     loadPreferredCustomModel,
     loadPreferredModel,
     loadPreferredSessionType,
     loadPreferredThinkEffort,
     loadPreferredYoloMode,
+    saveLastSessionConfig,
     savePreferredAgent,
     savePreferredCustomModel,
     savePreferredModel,
@@ -66,7 +69,18 @@ export function NewSession(props: {
     const { sessions } = useSessions(props.api)
     const isFormDisabled = Boolean(isPending || props.isLoading)
     const { getRecentPaths, addRecentPath, getLastUsedMachineId, setLastUsedMachineId } = useRecentPaths()
-    const initialAgent = loadPreferredAgent()
+    const lastSessionConfig = loadLastSessionConfig()
+    const initialAgent = lastSessionConfig?.agent ?? loadPreferredAgent()
+    const initialModel = (
+        lastSessionConfig?.model && MODEL_OPTIONS[initialAgent].some((option) => option.value === lastSessionConfig.model)
+            ? lastSessionConfig.model
+            : (loadPreferredModel(initialAgent) ?? (MODEL_OPTIONS[initialAgent][0]?.value ?? 'auto'))
+    )
+    const initialThinkEffort = (
+        lastSessionConfig?.thinkEffort && getThinkEffortOptions(initialAgent).some((option) => option.value === lastSessionConfig.thinkEffort)
+            ? lastSessionConfig.thinkEffort
+            : (loadPreferredThinkEffort(initialAgent) ?? getDefaultThinkEffort(initialAgent))
+    )
 
     const [machineId, setMachineId] = useState<string | null>(props.initialMachineId ?? null)
     const [directory, setDirectory] = useState(props.initialDirectory ?? '')
@@ -74,18 +88,15 @@ export function NewSession(props: {
     const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
     const [agent, setAgent] = useState<AgentType>(initialAgent)
-    const [model, setModel] = useState(() => loadPreferredModel(initialAgent) ?? (MODEL_OPTIONS[initialAgent][0]?.value ?? 'auto'))
-    const [customModel, setCustomModel] = useState(() => loadPreferredCustomModel(initialAgent))
-    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(() => loadPreferredThinkEffort(initialAgent) ?? getDefaultThinkEffort(initialAgent))
-    const [yoloMode, setYoloMode] = useState(loadPreferredYoloMode)
-    const [sessionType, setSessionType] = useState<SessionType>(loadPreferredSessionType)
-    const [worktreeName, setWorktreeName] = useState('')
-    const [previewUrlInput, setPreviewUrlInput] = useState('')
+    const [model, setModel] = useState(initialModel)
+    const [customModel, setCustomModel] = useState(() => lastSessionConfig?.customModel ?? loadPreferredCustomModel(initialAgent))
+    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(initialThinkEffort)
+    const [yoloMode, setYoloMode] = useState(() => lastSessionConfig?.yoloMode ?? loadPreferredYoloMode())
+    const [sessionType, setSessionType] = useState<SessionType>(() => lastSessionConfig?.sessionType ?? loadPreferredSessionType())
+    const [worktreeName, setWorktreeName] = useState(() => lastSessionConfig?.worktreeName ?? '')
+    const [previewUrlInput, setPreviewUrlInput] = useState(() => lastSessionConfig?.previewUrl ?? '')
     const [error, setError] = useState<string | null>(null)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
-    const previousModelAgentRef = useRef<AgentType | null>(initialAgent)
-    const previousThinkEffortAgentRef = useRef<AgentType | null>(initialAgent)
-    const previousCustomModelAgentRef = useRef<AgentType | null>(initialAgent)
     const hasPresetDirectory = Boolean(props.initialDirectory?.trim())
 
     useEffect(() => {
@@ -107,42 +118,6 @@ export function NewSession(props: {
         setCustomModel(loadPreferredCustomModel(agent))
         setThinkEffort(loadPreferredThinkEffort(agent) ?? getDefaultThinkEffort(agent))
     }, [agent])
-
-    useEffect(() => {
-        savePreferredAgent(agent)
-    }, [agent])
-
-    useEffect(() => {
-        if (previousModelAgentRef.current !== agent) {
-            previousModelAgentRef.current = agent
-            return
-        }
-        savePreferredModel(agent, model)
-    }, [agent, model])
-
-    useEffect(() => {
-        if (previousThinkEffortAgentRef.current !== agent) {
-            previousThinkEffortAgentRef.current = agent
-            return
-        }
-        savePreferredThinkEffort(agent, thinkEffort)
-    }, [agent, thinkEffort])
-
-    useEffect(() => {
-        if (previousCustomModelAgentRef.current !== agent) {
-            previousCustomModelAgentRef.current = agent
-            return
-        }
-        savePreferredCustomModel(agent, customModel)
-    }, [agent, customModel])
-
-    useEffect(() => {
-        savePreferredYoloMode(yoloMode)
-    }, [yoloMode])
-
-    useEffect(() => {
-        savePreferredSessionType(sessionType)
-    }, [sessionType])
 
     useEffect(() => {
         if (props.machines.length === 0) return
@@ -357,6 +332,22 @@ export function NewSession(props: {
                 haptic.notification('success')
                 setLastUsedMachineId(machineId)
                 addRecentPath(machineId, directory.trim())
+                savePreferredAgent(agent)
+                savePreferredModel(agent, model)
+                savePreferredCustomModel(agent, customModelValue)
+                savePreferredThinkEffort(agent, thinkEffort)
+                savePreferredYoloMode(yoloMode)
+                savePreferredSessionType(sessionType)
+                saveLastSessionConfig({
+                    agent,
+                    model,
+                    customModel: customModelValue,
+                    thinkEffort,
+                    yoloMode,
+                    sessionType,
+                    worktreeName: worktreeName.trim(),
+                    previewUrl: normalizedPreviewUrl.value ?? ''
+                })
                 props.onSuccess(result.sessionId)
                 return
             }

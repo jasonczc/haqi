@@ -7,9 +7,22 @@ const SESSION_TYPE_STORAGE_KEY = 'hapi:newSession:sessionType'
 const THINK_EFFORT_STORAGE_KEY = 'hapi:newSession:thinkEffortByAgent'
 const MODEL_STORAGE_KEY = 'hapi:newSession:modelByAgent'
 const CUSTOM_MODEL_STORAGE_KEY = 'hapi:newSession:customModelByAgent'
+const LAST_CONFIG_STORAGE_KEY = 'hapi:newSession:lastConfig'
 
 const VALID_AGENTS: AgentType[] = ['claude', 'codex', 'gemini', 'opencode']
+const VALID_THINK_EFFORTS: ThinkEffort[] = ['auto', 'low', 'medium', 'high', 'xhigh']
 type AgentPreferenceMap = Partial<Record<AgentType, string>>
+
+export type LastSessionConfig = {
+    agent?: AgentType
+    model?: string
+    customModel?: string
+    thinkEffort?: ThinkEffort
+    yoloMode?: boolean
+    sessionType?: SessionType
+    worktreeName?: string
+    previewUrl?: string
+}
 
 function loadAgentPreferenceMap(storageKey: string): AgentPreferenceMap {
     try {
@@ -166,4 +179,54 @@ export function loadPreferredCustomModel(agent: AgentType): string {
 
 export function savePreferredCustomModel(agent: AgentType, value: string): void {
     saveAgentPreferenceValue(CUSTOM_MODEL_STORAGE_KEY, agent, value)
+}
+
+export function loadLastSessionConfig(): LastSessionConfig | null {
+    try {
+        const stored = localStorage.getItem(LAST_CONFIG_STORAGE_KEY)
+        if (!stored) return null
+        const parsed = JSON.parse(stored)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return null
+        }
+
+        const config: LastSessionConfig = {}
+
+        if (typeof parsed.agent === 'string' && VALID_AGENTS.includes(parsed.agent as AgentType)) {
+            config.agent = parsed.agent as AgentType
+        }
+        if (typeof parsed.model === 'string') {
+            config.model = parsed.model
+        }
+        if (typeof parsed.customModel === 'string') {
+            config.customModel = parsed.customModel
+        }
+        if (typeof parsed.thinkEffort === 'string' && VALID_THINK_EFFORTS.includes(parsed.thinkEffort as ThinkEffort)) {
+            config.thinkEffort = parsed.thinkEffort as ThinkEffort
+        }
+        if (typeof parsed.yoloMode === 'boolean') {
+            config.yoloMode = parsed.yoloMode
+        }
+        if (parsed.sessionType === 'simple' || parsed.sessionType === 'worktree') {
+            config.sessionType = parsed.sessionType
+        }
+        if (typeof parsed.worktreeName === 'string') {
+            config.worktreeName = parsed.worktreeName
+        }
+        if (typeof parsed.previewUrl === 'string') {
+            config.previewUrl = parsed.previewUrl
+        }
+
+        return Object.keys(config).length > 0 ? config : null
+    } catch {
+        return null
+    }
+}
+
+export function saveLastSessionConfig(config: LastSessionConfig): void {
+    try {
+        localStorage.setItem(LAST_CONFIG_STORAGE_KEY, JSON.stringify(config))
+    } catch {
+        // Ignore storage errors
+    }
 }

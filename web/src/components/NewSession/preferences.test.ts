@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
+    loadLastSessionConfig,
     loadPreferredAgent,
     loadPreferredCustomModel,
     loadPreferredModel,
     loadPreferredSessionType,
     loadPreferredThinkEffort,
     loadPreferredYoloMode,
+    saveLastSessionConfig,
     savePreferredAgent,
     savePreferredCustomModel,
     savePreferredModel,
@@ -99,5 +101,29 @@ describe('NewSession preferences', () => {
         savePreferredCustomModel('claude', 'old-value')
         savePreferredCustomModel('claude', '   ')
         expect(loadPreferredCustomModel('claude')).toBe('')
+    })
+
+    it('loads and saves last session config', () => {
+        saveLastSessionConfig({
+            agent: 'codex',
+            model: 'gpt-5.3-codex',
+            customModel: 'custom-model',
+            thinkEffort: 'high',
+            yoloMode: true,
+            sessionType: 'worktree',
+            worktreeName: 'feat-branch',
+            previewUrl: 'http://localhost:3000'
+        })
+
+        expect(loadLastSessionConfig()).toEqual({
+            agent: 'codex',
+            model: 'gpt-5.3-codex',
+            customModel: 'custom-model',
+            thinkEffort: 'high',
+            yoloMode: true,
+            sessionType: 'worktree',
+            worktreeName: 'feat-branch',
+            previewUrl: 'http://localhost:3000'
+        })
     })
 })
