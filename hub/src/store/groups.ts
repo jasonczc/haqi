@@ -760,23 +760,6 @@ export function getGroupTaskByDedupeKey(
     return row ? toStoredGroupTask(row) : null
 }
 
-export function countOpenGroupTasksForSession(
-    db: Database,
-    groupId: string,
-    targetSessionId: string,
-    namespace: string
-): number {
-    const row = db.prepare(`
-        SELECT COUNT(*) AS count
-        FROM group_tasks
-        WHERE group_id = ?
-          AND namespace = ?
-          AND target_session_id = ?
-          AND status IN ('pending', 'enqueued', 'running')
-    `).get(groupId, namespace, targetSessionId) as { count: number } | undefined
-    return row?.count ?? 0
-}
-
 export function updateGroupTaskStatus(
     db: Database,
     options: {

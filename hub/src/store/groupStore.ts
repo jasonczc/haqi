@@ -4,7 +4,6 @@ import {
     addGroupMember,
     addGroupMessage,
     addGroupTask,
-    countOpenGroupTasksForSession,
     createGroup,
     deleteGroup,
     getAllGroups,
@@ -162,10 +161,6 @@ export class GroupStore {
 
     getGroupTaskByDedupeKey(groupId: string, namespace: string, dedupeKey: string): StoredGroupTask | null {
         return getGroupTaskByDedupeKey(this.db, groupId, namespace, dedupeKey)
-    }
-
-    countOpenGroupTasksForSession(groupId: string, targetSessionId: string, namespace: string): number {
-        return countOpenGroupTasksForSession(this.db, groupId, targetSessionId, namespace)
     }
 
     updateGroupTaskStatus(options: {

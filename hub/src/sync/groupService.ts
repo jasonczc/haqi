@@ -173,7 +173,6 @@ function normalizeGroupNoteContent(content: string): string {
 }
 
 export class GroupService {
-    private readonly maxPendingTasksPerSession: number
     private readonly dedupeBucketMs: number
     private readonly taskTtlMs: number
 
@@ -184,12 +183,10 @@ export class GroupService {
         private readonly executeNoteRefresh?: GroupNoteExecutor,
         private readonly resolveSessionRoutingState?: ResolveSessionRoutingState,
         options?: {
-            maxPendingTasksPerSession?: number
             dedupeBucketMs?: number
             taskTtlMs?: number
         }
     ) {
-        this.maxPendingTasksPerSession = options?.maxPendingTasksPerSession ?? 3
         this.dedupeBucketMs = options?.dedupeBucketMs ?? 5 * 60 * 1000
         this.taskTtlMs = options?.taskTtlMs ?? 30 * 60 * 1000
     }
@@ -885,28 +882,6 @@ export class GroupService {
         const normalizedCommand = options.command.replace(/\s+/g, ' ').trim().toLowerCase()
 
         for (const targetSessionId of options.targetSessionIds) {
-            const openTasks = this.store.groups.countOpenGroupTasksForSession(
-                options.groupId,
-                targetSessionId,
-                options.namespace
-            )
-            if (openTasks >= this.maxPendingTasksPerSession) {
-                const warning = this.store.groups.addGroupMessage({
-                    groupId: options.groupId,
-                    namespace: options.namespace,
-                    type: 'system',
-                    traceId: options.traceId,
-                    source: options.source,
-                    payload: {
-                        type: 'task_rejected',
-                        targetSessionId,
-                        reason: `max pending tasks reached (${this.maxPendingTasksPerSession})`
-                    }
-                })
-                this.emitMessageEvent(warning)
-                continue
-            }
-
             const dedupeKey = `${options.groupId}:${targetSessionId}:${normalizedCommand}:${bucket}`
             const existing = this.store.groups.getGroupTaskByDedupeKey(
                 options.groupId,

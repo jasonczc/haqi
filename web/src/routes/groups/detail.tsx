@@ -28,6 +28,9 @@ import { matchesSessionSearch } from '@/lib/session-search'
 import { useLongPress } from '@/hooks/useLongPress'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { queryKeys } from '@/lib/query-keys'
+import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
+import { Autocomplete } from '@/components/ChatInput/Autocomplete'
+import type { Suggestion } from '@/hooks/useActiveSuggestions'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -474,6 +477,120 @@ function getDisplayText(message: GroupTimelineMessage): string {
     return text
 }
 
+type CommandTextPart =
+    | { type: 'text'; value: string }
+    | { type: 'mention'; raw: string; sessionId: string }
+
+function splitCommandTextByMention(text: string): CommandTextPart[] {
+    if (!text) {
+        return []
+    }
+
+    const mentionRegex = /\B@([A-Za-z0-9._:-]+)/g
+    const parts: CommandTextPart[] = []
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+
+    while ((match = mentionRegex.exec(text)) !== null) {
+        const raw = match[0] ?? ''
+        const sessionId = (match[1] ?? '').trim()
+        const matchIndex = match.index
+
+        if (matchIndex > lastIndex) {
+            parts.push({
+                type: 'text',
+                value: text.slice(lastIndex, matchIndex)
+            })
+        }
+
+        if (!sessionId) {
+            parts.push({ type: 'text', value: raw })
+        } else {
+            parts.push({ type: 'mention', raw, sessionId })
+        }
+
+        lastIndex = matchIndex + raw.length
+    }
+
+    if (lastIndex < text.length) {
+        parts.push({
+            type: 'text',
+            value: text.slice(lastIndex)
+        })
+    }
+
+    return parts.length > 0 ? parts : [{ type: 'text', value: text }]
+}
+
+function CommandText(props: {
+    content: string
+    sessionMap: Map<string, SessionSummary>
+    isUser: boolean
+    onOpenSession: (sessionId: string) => void
+}) {
+    const parts = splitCommandTextByMention(props.content)
+
+    return (
+        <>
+            {parts.map((part, index) => {
+                const key = `${part.type}:${index}`
+                if (part.type === 'text') {
+                    return <span key={key}>{part.value}</span>
+                }
+
+                if (part.sessionId === 'all') {
+                    return (
+                        <span
+                            key={key}
+                            className={cn(
+                                'font-semibold',
+                                props.isUser ? 'text-[var(--app-button-text)] opacity-90' : 'text-[var(--app-link)]'
+                            )}
+                        >
+                            {part.raw}
+                        </span>
+                    )
+                }
+
+                const session = props.sessionMap.get(part.sessionId)
+                if (!session) {
+                    return <span key={key}>{part.raw}</span>
+                }
+
+                const sessionTitle = getSessionTitle(session, {
+                    fallbackSessionId: part.sessionId,
+                    fallbackIdLength: 12
+                })
+                const mentionLabel = `@${sessionTitle}`
+                const showSessionId = sessionTitle !== part.sessionId
+
+                return (
+                    <span key={key}>
+                        <button
+                            type="button"
+                            onClick={() => props.onOpenSession(part.sessionId)}
+                            className={cn(
+                                'rounded px-0.5 align-baseline underline decoration-dotted underline-offset-2 transition-colors',
+                                props.isUser
+                                    ? 'text-[var(--app-button-text)] hover:bg-[var(--app-subtle-bg)]'
+                                    : 'text-[var(--app-link)] hover:bg-[var(--app-subtle-bg)]'
+                            )}
+                            title={`Open session ${sessionTitle} (${part.sessionId})`}
+                        >
+                            {mentionLabel}
+                        </button>
+                        {showSessionId ? (
+                            <span className={cn(props.isUser ? 'text-[var(--app-button-text)] opacity-70' : 'text-[var(--app-hint)]')}>
+                                ({part.sessionId})
+                            </span>
+                        ) : null}
+                    </span>
+                )
+            })}
+        </>
+    )
+}
+
 function BubbleMarkdown(props: {
     content: string
     isUser: boolean
@@ -483,7 +600,7 @@ function BubbleMarkdown(props: {
             className={cn(
                 'aui-md min-w-0 max-w-full break-words text-sm',
                 props.isUser
-                    ? '[&_.aui-md-a]:text-white/90 [&_.aui-md-a]:decoration-white/70 [&_.aui-md-code]:bg-white/20 [&_.aui-md-blockquote]:border-white/50'
+                    ? '[&_.aui-md-a]:text-[var(--app-button-text)] [&_.aui-md-a]:decoration-[var(--app-button-text)] [&_.aui-md-a]:opacity-90 [&_.aui-md-code]:bg-[var(--app-subtle-bg)] [&_.aui-md-blockquote]:border-[var(--app-divider)]'
                     : ''
             )}
         >
@@ -503,23 +620,22 @@ const COMPOSER_MAX_HEIGHT_PX = 120
 function resizeComposerTextarea(el: HTMLTextAreaElement | null): void {
     if (!el) return
 
-    // Avoid unnecessary DOM reads/writes by checking if resize is needed
-    const currentHeight = parseInt(el.style.height) || COMPOSER_MIN_HEIGHT_PX
+    const selectionStart = el.selectionStart
+    const selectionEnd = el.selectionEnd
+
     el.style.height = 'auto'
     const scrollHeight = el.scrollHeight
     const nextHeight = Math.min(Math.max(scrollHeight, COMPOSER_MIN_HEIGHT_PX), COMPOSER_MAX_HEIGHT_PX)
+    el.style.height = `${nextHeight}px`
 
-    // Only update if height actually changed
-    if (currentHeight !== nextHeight) {
-        el.style.height = `${nextHeight}px`
-    }
-
-    // Only update overflow if needed
     const shouldScroll = scrollHeight > COMPOSER_MAX_HEIGHT_PX
-    const currentOverflow = el.style.overflowY
-    const newOverflow = shouldScroll ? 'auto' : 'hidden'
-    if (currentOverflow !== newOverflow) {
-        el.style.overflowY = newOverflow
+    el.style.overflowY = shouldScroll ? 'auto' : 'hidden'
+
+    // Re-apply selection to keep caret visible after internal textarea resize.
+    if (shouldScroll && selectionStart !== null && selectionEnd !== null) {
+        el.setSelectionRange(selectionStart, selectionEnd)
+    } else if (!shouldScroll && el.scrollTop !== 0) {
+        el.scrollTop = 0
     }
 }
 
@@ -1180,30 +1296,41 @@ function TimelineBubble(props: {
                     } ${isCommand
                         ? 'font-mono text-xs whitespace-pre-wrap break-words'
                         : isUser
-                            ? '[&_.aui-md]:text-sm [&_.aui-md-a]:text-white/90 [&_.aui-md-a]:decoration-white/70 [&_.aui-md-code]:bg-white/20 [&_.aui-md-blockquote]:border-white/50'
+                            ? '[&_.aui-md]:text-sm [&_.aui-md-a]:text-[var(--app-button-text)] [&_.aui-md-a]:decoration-[var(--app-button-text)] [&_.aui-md-a]:opacity-90 [&_.aui-md-code]:bg-[var(--app-subtle-bg)] [&_.aui-md-blockquote]:border-[var(--app-divider)]'
                             : '[&_.aui-md]:text-sm'
                     }`}
                 >
                     {quoteInfo && (
                         <div className={`mb-1.5 flex items-start gap-1.5 rounded px-2 py-1.5 ${
-                            isUser ? 'bg-white/10' : 'bg-[var(--app-bg)]/60'
+                            isUser ? 'bg-[var(--app-subtle-bg)]' : 'bg-[var(--app-bg)]/60'
                         }`}>
                             <QuoteIcon className="mt-0.5 h-2.5 w-2.5 shrink-0 opacity-60" />
                             <div className="min-w-0 flex-1">
                                 <span className={`text-[10px] font-medium ${
-                                    isUser ? 'text-white/80' : 'text-[var(--app-link)]'
+                                    isUser ? 'text-[var(--app-button-text)] opacity-90' : 'text-[var(--app-link)]'
                                 }`}>
                                     {quoteInfo.actorName}:
                                 </span>
                                 <span className={`ml-1 break-all text-[10px] leading-4 ${
-                                    isUser ? 'text-white/60' : 'text-[var(--app-hint)]'
+                                    isUser ? 'text-[var(--app-button-text)] opacity-70' : 'text-[var(--app-hint)]'
                                 }`}>
                                     {truncateText(quoteInfo.quotedText, 64)}
                                 </span>
                             </div>
                         </div>
                     )}
-                    {text ? (isCommand ? text : <BubbleMarkdown content={text} isUser={isUser} />) : null}
+                    {text ? (
+                        isCommand
+                            ? (
+                                <CommandText
+                                    content={text}
+                                    sessionMap={props.sessionMap}
+                                    isUser={isUser}
+                                    onOpenSession={props.onOpenSession}
+                                />
+                            )
+                            : <BubbleMarkdown content={text} isUser={isUser} />
+                    ) : null}
                     {attachments.length > 0 ? (
                         <MessageAttachments attachments={attachments} />
                     ) : null}
@@ -1231,22 +1358,32 @@ function MentionPopup(props: {
     position?: number
 }) {
     if (props.candidates.length === 0) return null
+
+    const suggestions: Suggestion[] = props.candidates.map((candidate) => ({
+        key: candidate.id,
+        text: `@${candidate.id}`,
+        label: candidate.sublabel ?? candidate.id,
+        description: `@${candidate.id}`,
+        source: 'builtin'
+    }))
+
     return (
         <div
-            className="absolute bottom-full mb-1 z-20 min-w-[240px] max-w-[320px] rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-lg overflow-hidden"
-            style={{ left: `${props.position || 0}px` }}
+            className="absolute bottom-full z-20 mb-1 min-w-[240px] max-w-[320px] overflow-hidden"
+            style={{ left: `${props.position ?? 0}px` }}
         >
-            {props.candidates.map((c, i) => (
-                <button
-                    key={c.id}
-                    type="button"
-                    onMouseDown={(e) => { e.preventDefault(); props.onSelect(c.id) }}
-                    className={`flex w-full flex-col px-3 py-2 text-left text-sm transition-colors ${i === props.activeIndex ? 'bg-[var(--app-subtle-bg)]' : 'hover:bg-[var(--app-subtle-bg)]'}`}
-                >
-                    <span className="font-medium text-[var(--app-fg)] truncate">{c.sublabel ?? c.id}</span>
-                    <span className="truncate text-xs text-[var(--app-hint)]">@{c.id}</span>
-                </button>
-            ))}
+            <FloatingOverlay maxHeight={220}>
+                <Autocomplete
+                    suggestions={suggestions}
+                    selectedIndex={props.activeIndex}
+                    onSelect={(index) => {
+                        const candidate = props.candidates[index]
+                        if (candidate) {
+                            props.onSelect(candidate.id)
+                        }
+                    }}
+                />
+            </FloatingOverlay>
         </div>
     )
 }
@@ -1740,11 +1877,7 @@ export default function GroupDetailPage() {
 
         // Update state immediately for responsive typing
         setComposer(value)
-
-        // Use requestAnimationFrame to defer DOM operations
-        requestAnimationFrame(() => {
-            resizeComposerTextarea(e.target)
-        })
+        resizeComposerTextarea(e.target)
 
         // Detect mentions (will be debounced via debouncedMentionQuery)
         detectMention(value, cursorPos)
@@ -2482,7 +2615,7 @@ export default function GroupDetailPage() {
                                 onKeyDown={handleComposerKeyDown}
                                 placeholder="Send chat, /command, @sessionId, or @all"
                                 rows={1}
-                                className="w-full resize-none bg-transparent text-sm outline-none"
+                                className="app-scrollbar w-full resize-none bg-transparent text-sm outline-none"
                                 style={{ minHeight: '38px', maxHeight: '120px' }}
                             />
                         </div>
