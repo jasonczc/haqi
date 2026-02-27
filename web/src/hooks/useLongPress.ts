@@ -60,13 +60,19 @@ export function useLongPress(options: UseLongPressOptions): UseLongPressHandlers
     }, [clearTimer, onClick])
 
     const onMouseDown = useCallback<React.MouseEventHandler>((e) => {
-        if (e.button !== 0) return
+        if (e.button !== 0 || e.ctrlKey) return
         startTimer(e.clientX, e.clientY)
     }, [startTimer])
 
-    const onMouseUp = useCallback<React.MouseEventHandler>(() => {
+    const onMouseUp = useCallback<React.MouseEventHandler>((e) => {
+        if (e.button !== 0 || e.ctrlKey) {
+            clearTimer()
+            isLongPressRef.current = false
+            touchMoved.current = false
+            return
+        }
         handleEnd(!isLongPressRef.current)
-    }, [handleEnd])
+    }, [clearTimer, handleEnd])
 
     const onMouseLeave = useCallback<React.MouseEventHandler>(() => {
         handleEnd(false)

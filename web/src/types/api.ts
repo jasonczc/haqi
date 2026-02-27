@@ -202,6 +202,10 @@ export type AddGroupMemberResponse = {
     group: GroupDetail
 }
 
+export type RemoveGroupMemberResponse = {
+    group: GroupDetail
+}
+
 export type UpdateGroupResponse = {
     group: GroupDetail
 }

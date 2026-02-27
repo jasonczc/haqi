@@ -122,6 +122,58 @@ describe('GroupService createGroup', () => {
         })).toThrow('Note session must be a group session member')
     })
 
+    it('removes a member and emits group-updated', () => {
+        const store = new Store(':memory:')
+        const first = store.sessions.getOrCreateSession('session-remove-1', { path: '/repo/remove-1' }, null, 'default')
+        const second = store.sessions.getOrCreateSession('session-remove-2', { path: '/repo/remove-2' }, null, 'default')
+        const events: SyncEvent[] = []
+        const service = createService(store, { events })
+
+        const created = service.createGroup({
+            namespace: 'default',
+            name: 'Team Remove',
+            sessionMemberIds: [first.id, second.id]
+        })
+
+        const updated = service.removeMember({
+            groupId: created.group.id,
+            namespace: 'default',
+            sessionId: second.id
+        })
+
+        expect(updated.members.some((member) => member.sessionId === second.id)).toBe(false)
+        const updatedEvent = events.find((event) => event.type === 'group-updated' && event.groupId === created.group.id)
+        expect(updatedEvent).toBeDefined()
+    })
+
+    it('reassigns note executor when the current executor is removed', () => {
+        const store = new Store(':memory:')
+        const first = store.sessions.getOrCreateSession('session-note-remove-1', { path: '/repo/note-remove-1' }, null, 'default')
+        const second = store.sessions.getOrCreateSession('session-note-remove-2', { path: '/repo/note-remove-2' }, null, 'default')
+        const service = createService(store)
+
+        const created = service.createGroup({
+            namespace: 'default',
+            name: 'Team Reassign',
+            sessionMemberIds: [first.id, second.id]
+        })
+        expect(created.group.noteSessionId).toBe(first.id)
+
+        const afterFirstRemoval = service.removeMember({
+            groupId: created.group.id,
+            namespace: 'default',
+            sessionId: first.id
+        })
+        expect(afterFirstRemoval.group.noteSessionId).toBe(second.id)
+
+        const afterSecondRemoval = service.removeMember({
+            groupId: created.group.id,
+            namespace: 'default',
+            sessionId: second.id
+        })
+        expect(afterSecondRemoval.group.noteSessionId).toBeNull()
+    })
+
     it('returns quoted metadata and dispatches command with quoted context', async () => {
         const store = new Store(':memory:')
         const worker = store.sessions.getOrCreateSession('session-quote-worker', { path: '/repo/quote' }, null, 'default')

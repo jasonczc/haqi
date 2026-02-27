@@ -585,6 +585,44 @@ export function addGroupMember(
     return toStoredGroupMember(row)
 }
 
+export function removeGroupMember(
+    db: Database,
+    options: {
+        groupId: string
+        namespace: string
+        sessionId: string
+    }
+): boolean {
+    const result = db.prepare(`
+        DELETE FROM group_members
+        WHERE group_id = @group_id
+            AND namespace = @namespace
+            AND member_type = 'session'
+            AND session_id = @session_id
+    `).run({
+        group_id: options.groupId,
+        namespace: options.namespace,
+        session_id: options.sessionId
+    })
+
+    if (result.changes <= 0) {
+        return false
+    }
+
+    const now = Date.now()
+    db.prepare(`
+        UPDATE groups
+        SET updated_at = CASE WHEN updated_at > @updated_at THEN updated_at ELSE @updated_at END
+        WHERE id = @id AND namespace = @namespace
+    `).run({
+        id: options.groupId,
+        namespace: options.namespace,
+        updated_at: now
+    })
+
+    return true
+}
+
 export function updateGroup(
     db: Database,
     options: {

@@ -626,6 +626,10 @@ export class SyncEngine {
         return this.groupService.addMember({ groupId, namespace, sessionId })
     }
 
+    removeGroupMember(groupId: string, namespace: string, sessionId: string): GroupWithDetails {
+        return this.groupService.removeMember({ groupId, namespace, sessionId })
+    }
+
     updateGroup(options: {
         groupId: string
         namespace: string

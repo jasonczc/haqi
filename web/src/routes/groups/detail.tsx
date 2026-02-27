@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type ComponentProps, type FormEvent, type KeyboardEvent } from 'react'
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ClipboardEvent, type ComponentProps, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
 import type { Attachment, PendingAttachment } from '@assistant-ui/react'
 import ReactMarkdown from 'react-markdown'
@@ -23,6 +23,8 @@ import { NewSession } from '@/components/NewSession'
 import { useTranslation } from '@/lib/use-translation'
 import { getSessionTitle } from '@/lib/session-title'
 import { matchesSessionSearch } from '@/lib/session-search'
+import { useLongPress } from '@/hooks/useLongPress'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -644,6 +646,7 @@ function MemberPill(props: {
     session?: SessionSummary
     status: MemberWorkStatus
     onClick: () => void
+    onOpenActions?: (point: { x: number; y: number }) => void
 }) {
     const { t } = useTranslation()
     const { member, session, status } = props
@@ -661,13 +664,24 @@ function MemberPill(props: {
         statusLabel
     })
     const tooltipText = tooltipLines.join('\n')
+    const longPressHandlers = useLongPress({
+        onLongPress: (point) => {
+            if (clickable) {
+                props.onOpenActions?.(point)
+            }
+        },
+        onClick: props.onClick,
+        threshold: 500,
+        disabled: !clickable
+    })
 
     return (
         <button
             type="button"
+            {...longPressHandlers}
             disabled={!clickable}
-            onClick={props.onClick}
             className={`group relative flex items-center gap-1.5 rounded-lg border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-left transition-colors ${clickable ? 'hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-link)]' : 'cursor-default'}`}
+            style={{ WebkitTouchCallout: 'none' }}
             aria-label={tooltipText}
         >
             <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] shadow-lg group-hover:block group-focus-visible:block">
@@ -689,6 +703,131 @@ function MemberPill(props: {
                 {statusLabel}
             </span>
         </button>
+    )
+}
+
+type MemberActionMenuProps = {
+    isOpen: boolean
+    onClose: () => void
+    onRemove: () => void
+    anchorPoint: { x: number; y: number }
+}
+
+type MemberActionMenuPosition = {
+    top: number
+    left: number
+    transformOrigin: string
+}
+
+function MemberActionMenu(props: MemberActionMenuProps) {
+    const { isOpen, onClose, onRemove, anchorPoint } = props
+    const menuRef = useRef<HTMLDivElement | null>(null)
+    const [menuPosition, setMenuPosition] = useState<MemberActionMenuPosition | null>(null)
+
+    const updatePosition = useCallback(() => {
+        const menuEl = menuRef.current
+        if (!menuEl) return
+
+        const menuRect = menuEl.getBoundingClientRect()
+        const viewportWidth = window.innerWidth
+        const viewportHeight = window.innerHeight
+        const padding = 8
+        const gap = 8
+
+        const spaceBelow = viewportHeight - anchorPoint.y
+        const spaceAbove = anchorPoint.y
+        const openAbove = spaceBelow < menuRect.height + gap && spaceAbove > spaceBelow
+
+        let top = openAbove ? anchorPoint.y - menuRect.height - gap : anchorPoint.y + gap
+        let left = anchorPoint.x - menuRect.width / 2
+        const transformOrigin = openAbove ? 'bottom center' : 'top center'
+
+        top = Math.min(Math.max(top, padding), viewportHeight - menuRect.height - padding)
+        left = Math.min(Math.max(left, padding), viewportWidth - menuRect.width - padding)
+
+        setMenuPosition({ top, left, transformOrigin })
+    }, [anchorPoint])
+
+    useLayoutEffect(() => {
+        if (!isOpen) return
+        updatePosition()
+    }, [isOpen, updatePosition])
+
+    useEffect(() => {
+        if (!isOpen) {
+            setMenuPosition(null)
+            return
+        }
+
+        const handlePointerDown = (event: PointerEvent) => {
+            const target = event.target as Node
+            if (menuRef.current?.contains(target)) return
+            onClose()
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose()
+            }
+        }
+
+        const handleReflow = () => {
+            updatePosition()
+        }
+
+        document.addEventListener('pointerdown', handlePointerDown)
+        document.addEventListener('keydown', handleKeyDown)
+        window.addEventListener('resize', handleReflow)
+        window.addEventListener('scroll', handleReflow, true)
+
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown)
+            document.removeEventListener('keydown', handleKeyDown)
+            window.removeEventListener('resize', handleReflow)
+            window.removeEventListener('scroll', handleReflow, true)
+        }
+    }, [isOpen, onClose, updatePosition])
+
+    useEffect(() => {
+        if (!isOpen) return
+        const frame = window.requestAnimationFrame(() => {
+            const firstItem = menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')
+            firstItem?.focus()
+        })
+        return () => window.cancelAnimationFrame(frame)
+    }, [isOpen])
+
+    if (!isOpen) {
+        return null
+    }
+
+    const menuStyle: CSSProperties | undefined = menuPosition
+        ? {
+            top: menuPosition.top,
+            left: menuPosition.left,
+            transformOrigin: menuPosition.transformOrigin
+        }
+        : undefined
+
+    return (
+        <div
+            ref={menuRef}
+            role="menu"
+            className="fixed z-50 min-w-[180px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
+            style={menuStyle}
+        >
+            <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                    onClose()
+                    onRemove()
+                }}
+                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
+            >
+                Remove member
+            </button>
+        </div>
     )
 }
 
@@ -1047,7 +1186,7 @@ export default function GroupDetailPage() {
         loadMore: loadMoreMessages
     } = useGroupMessages(api, groupId)
     const { note, isLoading: noteLoading } = useGroupNote(api, groupId)
-    const { postMessage, updateNote, refreshNote, broadcastNote, addMember, updateGroup, isPending } = useGroupActions(api, groupId)
+    const { postMessage, updateNote, refreshNote, broadcastNote, addMember, removeMember, updateGroup, isPending } = useGroupActions(api, groupId)
     const { sessions } = useSessions(api)
 
     const [composer, setComposer] = useState('')
@@ -1056,6 +1195,10 @@ export default function GroupDetailPage() {
     const [notePromptDraft, setNotePromptDraft] = useState('')
     const [noteOpen, setNoteOpen] = useState(false)
     const [showAddMember, setShowAddMember] = useState(false)
+    const [memberActionMenuOpen, setMemberActionMenuOpen] = useState(false)
+    const [memberActionAnchorPoint, setMemberActionAnchorPoint] = useState({ x: 0, y: 0 })
+    const [memberActionSessionId, setMemberActionSessionId] = useState<string | null>(null)
+    const [memberRemoveSessionId, setMemberRemoveSessionId] = useState<string | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
     const [quotedMessage, setQuotedMessage] = useState<GroupTimelineMessage | null>(null)
     const [membersExpanded, setMembersExpanded] = useState(() => {
@@ -1120,12 +1263,69 @@ export default function GroupDetailPage() {
         [members]
     )
 
+    useEffect(() => {
+        if (!memberRemoveSessionId) {
+            return
+        }
+        const exists = members.some((member) => member.sessionId === memberRemoveSessionId)
+        if (!exists) {
+            setMemberRemoveSessionId(null)
+        }
+    }, [memberRemoveSessionId, members])
+
+    useEffect(() => {
+        if (!memberActionSessionId) {
+            return
+        }
+        const exists = members.some((member) => member.sessionId === memberActionSessionId)
+        if (!exists) {
+            setMemberActionMenuOpen(false)
+            setMemberActionSessionId(null)
+        }
+    }, [memberActionSessionId, members])
+
     // Build map: sessionId → session (for status dots)
     const sessionMap = useMemo(() => {
         const m = new Map<string, (typeof sessions)[0]>()
         for (const s of sessions) m.set(s.id, s)
         return m
     }, [sessions])
+    const memberActionTarget = useMemo(() => {
+        if (!memberActionSessionId) {
+            return null
+        }
+        const member = members.find((item) => item.sessionId === memberActionSessionId)
+        if (!member) {
+            return null
+        }
+        const session = member.sessionId ? sessionMap.get(member.sessionId) : undefined
+        const title = getSessionTitle(session, {
+            fallbackSessionId: member.sessionId,
+            fallbackIdLength: 12
+        })
+        return {
+            sessionId: member.sessionId as string,
+            title
+        }
+    }, [memberActionSessionId, members, sessionMap])
+    const memberRemoveTarget = useMemo(() => {
+        if (!memberRemoveSessionId) {
+            return null
+        }
+        const member = members.find((item) => item.sessionId === memberRemoveSessionId)
+        if (!member) {
+            return null
+        }
+        const session = member.sessionId ? sessionMap.get(member.sessionId) : undefined
+        const title = getSessionTitle(session, {
+            fallbackSessionId: member.sessionId,
+            fallbackIdLength: 12
+        })
+        return {
+            sessionId: member.sessionId as string,
+            title
+        }
+    }, [memberRemoveSessionId, members, sessionMap])
 
     // Build task-state map: traceId → Map<taskId, latestMsg>
     // task_state messages are excluded from the main render loop
@@ -1558,7 +1758,7 @@ export default function GroupDetailPage() {
         void loadMoreMessages()
     }, [loadMoreMessages, messagesHasMore, messagesLoading, messagesLoadingMore])
 
-    const handleComposerKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
+    const handleComposerKeyDown = useCallback((e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
         if (mentionQuery !== null && mentionCandidates.length > 0) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault()
@@ -1635,6 +1835,34 @@ export default function GroupDetailPage() {
         } catch (err) {
             setActionError(err instanceof Error ? err.message : 'Failed to update note executor')
         }
+    }
+
+    const handleOpenMemberActions = (member: GroupMember, point: { x: number; y: number }) => {
+        if (!member.sessionId) {
+            return
+        }
+        setMemberActionSessionId(member.sessionId)
+        setMemberActionAnchorPoint(point)
+        setMemberActionMenuOpen(true)
+    }
+
+    const handleRequestRemoveMember = () => {
+        if (!memberActionTarget?.sessionId) {
+            return
+        }
+        setMemberActionMenuOpen(false)
+        setMemberRemoveSessionId(memberActionTarget.sessionId)
+    }
+
+    const handleConfirmRemoveMember = async () => {
+        const targetSessionId = memberRemoveTarget?.sessionId
+        if (!targetSessionId) {
+            throw new Error('Member unavailable')
+        }
+        await removeMember(targetSessionId)
+        setMemberActionMenuOpen(false)
+        setMemberActionSessionId(null)
+        setMemberRemoveSessionId(null)
     }
 
     const canSendComposer = !isPending
@@ -1748,6 +1976,9 @@ export default function GroupDetailPage() {
                                         if (member.sessionId) {
                                             navigate({ to: '/sessions/$sessionId', params: { sessionId: member.sessionId } })
                                         }
+                                    }}
+                                    onOpenActions={(point) => {
+                                        handleOpenMemberActions(member, point)
                                     }}
                                 />
                             )
@@ -1987,6 +2218,34 @@ export default function GroupDetailPage() {
                     </div>
                 </form>
             </div>
+
+            <MemberActionMenu
+                isOpen={memberActionMenuOpen && Boolean(memberActionTarget)}
+                onClose={() => {
+                    setMemberActionMenuOpen(false)
+                    setMemberActionSessionId(null)
+                }}
+                onRemove={handleRequestRemoveMember}
+                anchorPoint={memberActionAnchorPoint}
+            />
+
+            <ConfirmDialog
+                isOpen={Boolean(memberRemoveTarget)}
+                onClose={() => {
+                    setMemberRemoveSessionId(null)
+                    setMemberActionSessionId(null)
+                }}
+                title="Remove member"
+                description={memberRemoveTarget
+                    ? `Remove ${memberRemoveTarget.title} from this group?`
+                    : 'Remove this member from the group?'
+                }
+                confirmLabel="Remove"
+                confirmingLabel="Removing..."
+                onConfirm={handleConfirmRemoveMember}
+                isPending={isPending}
+                destructive
+            />
 
             {/* F. AddMemberModal */}
             {showAddMember ? (

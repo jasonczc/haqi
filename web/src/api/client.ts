@@ -24,6 +24,7 @@ import type {
     UpdateMemoryResponse,
     CreateGroupResponse,
     AddGroupMemberResponse,
+    RemoveGroupMemberResponse,
     UpdateGroupResponse,
     PostGroupMessageResponse,
     ModelMode,
@@ -208,6 +209,13 @@ export class ApiClient {
                 method: 'POST',
                 body: JSON.stringify(payload)
             }
+        )
+    }
+
+    async removeGroupMember(groupId: string, sessionId: string): Promise<RemoveGroupMemberResponse> {
+        return await this.request<RemoveGroupMemberResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(sessionId)}`,
+            { method: 'DELETE' }
         )
     }
 

@@ -18,6 +18,7 @@ import {
     getGroupNote,
     getGroupTaskByDedupeKey,
     getGroupTaskByNamespace,
+    removeGroupMember,
     updateGroup,
     updateGroupNote,
     updateGroupTaskStatus
@@ -80,6 +81,14 @@ export class GroupStore {
         role?: string
     }): StoredGroupMember {
         return addGroupMember(this.db, options)
+    }
+
+    removeGroupMember(options: {
+        groupId: string
+        namespace: string
+        sessionId: string
+    }): boolean {
+        return removeGroupMember(this.db, options)
     }
 
     updateGroup(options: {

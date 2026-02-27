@@ -288,6 +288,46 @@ export class GroupService {
         return groupData
     }
 
+    removeMember(options: {
+        groupId: string
+        namespace: string
+        sessionId: string
+    }): GroupWithDetails {
+        const group = this.requireGroup(options.groupId, options.namespace)
+        const removed = this.store.groups.removeGroupMember({
+            groupId: options.groupId,
+            namespace: options.namespace,
+            sessionId: options.sessionId
+        })
+        if (!removed) {
+            throw new Error('Group member not found')
+        }
+
+        if (group.noteSessionId === options.sessionId) {
+            const remainingSessionMemberIds = this.store.groups
+                .getGroupMembersByNamespace(options.groupId, options.namespace)
+                .filter((member) => member.memberType === 'session' && typeof member.sessionId === 'string' && member.sessionId.length > 0)
+                .map((member) => member.sessionId as string)
+            const nextNoteSessionId = remainingSessionMemberIds[0] ?? null
+            this.store.groups.updateGroup({
+                groupId: options.groupId,
+                namespace: options.namespace,
+                noteSessionId: nextNoteSessionId
+            })
+        }
+
+        const groupData = this.getGroupByNamespace(options.groupId, options.namespace)
+        if (!groupData) {
+            throw new Error('Group not found after removing member')
+        }
+        this.publisher.emit({
+            type: 'group-updated',
+            groupId: options.groupId,
+            data: groupData
+        })
+        return groupData
+    }
+
     updateGroup(options: {
         groupId: string
         namespace: string

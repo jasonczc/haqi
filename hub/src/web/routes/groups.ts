@@ -192,6 +192,27 @@ export function createGroupsRoutes(getSyncEngine: () => SyncEngine | null): Hono
         }
     })
 
+    app.delete('/groups/:id/members/:sessionId', (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const namespace = c.get('namespace')
+        const groupId = c.req.param('id')
+        const sessionId = c.req.param('sessionId')
+        if (!sessionId) {
+            return c.json({ error: 'sessionId is required' }, 400)
+        }
+
+        try {
+            const group = engine.removeGroupMember(groupId, namespace, sessionId)
+            return c.json({ group })
+        } catch (error) {
+            return toErrorResponse(c, error)
+        }
+    })
+
     app.get('/groups/:id/messages', (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {

@@ -30,6 +30,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
     doneTask: (taskId: string) => Promise<void>
     cancelTask: (taskId: string) => Promise<void>
     addMember: (sessionId: string) => Promise<void>
+    removeMember: (sessionId: string) => Promise<void>
     updateGroup: (payload: { name?: string; description?: string | null; noteSessionId?: string | null; notePrompt?: string | null }) => Promise<void>
     deleteGroup: () => Promise<void>
     isPending: boolean
@@ -179,6 +180,18 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
         }
     })
 
+    const removeMemberMutation = useMutation({
+        mutationFn: async (sessionId: string) => {
+            if (!api || !groupId) {
+                throw new Error('Group unavailable')
+            }
+            await api.removeGroupMember(groupId, sessionId)
+        },
+        onSuccess: async () => {
+            await invalidateGroup(groupId)
+        }
+    })
+
     const updateGroupMutation = useMutation({
         mutationFn: async (payload: { name?: string; description?: string | null; noteSessionId?: string | null; notePrompt?: string | null }) => {
             if (!api || !groupId) {
@@ -213,6 +226,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
         doneTask: doneTaskMutation.mutateAsync,
         cancelTask: cancelTaskMutation.mutateAsync,
         addMember: addMemberMutation.mutateAsync,
+        removeMember: removeMemberMutation.mutateAsync,
         updateGroup: updateGroupMutation.mutateAsync,
         deleteGroup: deleteGroupMutation.mutateAsync,
         isPending: createGroupMutation.isPending
@@ -224,6 +238,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
             || doneTaskMutation.isPending
             || cancelTaskMutation.isPending
             || addMemberMutation.isPending
+            || removeMemberMutation.isPending
             || updateGroupMutation.isPending
             || deleteGroupMutation.isPending
     }
