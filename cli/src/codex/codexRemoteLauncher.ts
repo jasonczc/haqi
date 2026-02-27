@@ -18,6 +18,7 @@ import { buildCodexStartConfig } from './utils/codexStartConfig';
 import { AppServerEventConverter } from './utils/appServerEventConverter';
 import { registerAppServerPermissionHandlers } from './utils/appServerPermissionAdapter';
 import { buildThreadStartParams, buildTurnStartParams } from './utils/appServerConfig';
+import { TurnChangeTracker } from './utils/turnChangeTracker';
 import { buildCodexSystemPrompt } from './utils/systemPrompt';
 import {
     RemoteLauncherBase,
@@ -44,6 +45,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
     private abortController: AbortController = new AbortController();
     private currentThreadId: string | null = null;
     private currentTurnId: string | null = null;
+    private turnChangeTracker: TurnChangeTracker = new TurnChangeTracker();
 
     constructor(session: CodexSession) {
         super(process.env.DEBUG ? session.logPath : undefined);
@@ -80,6 +82,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             this.permissionHandler?.reset();
             this.reasoningProcessor?.abort();
             this.diffProcessor?.reset();
+            this.turnChangeTracker.reset();
             logger.debug('[Codex] Abort completed - session remains active');
         } catch (error) {
             logger.debug('[Codex] Error during abort:', error);
@@ -339,6 +342,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 if (turnId) {
                     this.currentTurnId = turnId;
                 }
+                this.turnChangeTracker.reset();
             }
 
             if (msgType === 'task_complete' || msgType === 'turn_aborted' || msgType === 'task_failed') {
@@ -434,7 +438,32 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     logger.debug('thinking completed');
                     session.onThinkingChange(false);
                 }
+
+                const summaryStatus = msgType === 'task_complete'
+                    ? 'completed'
+                    : msgType === 'turn_aborted'
+                        ? 'aborted'
+                        : 'failed';
+                const summaryCallId = randomUUID();
+
+                session.sendCodexMessage({
+                    type: 'tool-call',
+                    name: 'CodexTurnChanges',
+                    callId: summaryCallId,
+                    input: this.turnChangeTracker.buildToolInput(summaryStatus),
+                    id: randomUUID()
+                });
+                session.sendCodexMessage({
+                    type: 'tool-call-result',
+                    callId: summaryCallId,
+                    output: {
+                        status: summaryStatus
+                    },
+                    id: randomUUID()
+                });
+
                 diffProcessor.reset();
+                this.turnChangeTracker.reset();
                 appServerEventConverter?.reset();
             }
             if (msgType === 'agent_reasoning_section_break') {
@@ -572,6 +601,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     const changeCount = Object.keys(changes).length;
                     const filesMsg = changeCount === 1 ? '1 file' : `${changeCount} files`;
                     messageBuffer.addMessage(`Modifying ${filesMsg}...`, 'tool');
+                    this.turnChangeTracker.trackPatchBegin(callId, changes);
 
                     session.sendCodexMessage({
                         type: 'tool-call',
@@ -591,6 +621,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     const stdout = asString(msg.stdout);
                     const stderr = asString(msg.stderr);
                     const success = Boolean(msg.success);
+                    this.turnChangeTracker.trackPatchEnd(callId, success);
 
                     if (success) {
                         const message = stdout || 'Files modified successfully';
@@ -615,6 +646,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             if (msgType === 'turn_diff') {
                 const diff = asString(msg.unified_diff);
                 if (diff) {
+                    this.turnChangeTracker.trackTurnDiff(diff);
                     diffProcessor.processDiff(diff);
                 }
             }

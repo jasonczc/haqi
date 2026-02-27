@@ -747,6 +747,7 @@ export const toolResultViewRegistry: Record<string, ToolViewComponent> = {
     CodexReasoning: CodexReasoningResultView,
     CodexPatch: CodexPatchResultView,
     CodexDiff: CodexDiffResultView,
+    CodexTurnChanges: MutationResultView,
     collab_tool_call: CollabAgentResultView,
     spawn_agent: CollabAgentResultView,
     send_input: CollabAgentResultView,

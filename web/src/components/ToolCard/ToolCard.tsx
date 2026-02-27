@@ -347,6 +347,7 @@ function ToolCardInner(props: ToolCardProps) {
     ))
     const hasBody = showInline || taskSummary !== null || showsPermissionFooter
     const requiresInteraction = permission?.status === 'pending'
+    const hideResultSection = toolName === 'CodexTurnChanges'
     const statusLabel = getToolStatusLabel(props.block.tool.state, permission?.status)
     const statusBadgeToneClass = statusBadgeClass(props.block.tool.state, permission?.status)
     const [isExpanded, setIsExpanded] = useState(() => (isCompact ? requiresInteraction : true))
@@ -416,7 +417,7 @@ function ToolCardInner(props: ToolCardProps) {
                             renderToolInput(props.block)
                         )}
                     </div>
-                    {!isQuestionToolWithAnswers && (
+                    {!isQuestionToolWithAnswers && !hideResultSection && (
                         <div>
                             <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.result')}</div>
                             <ResultToolView block={props.block} metadata={props.metadata} />

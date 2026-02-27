@@ -417,7 +417,7 @@ cmd_status() {
 
     if [ -f "${RUNNER_STATE_FILE}" ]; then
         echo "📌 runner.state: ${RUNNER_STATE_FILE}"
-        python - "${RUNNER_STATE_FILE}" <<'PY'
+        python3 - "${RUNNER_STATE_FILE}" <<'PY'
 import json,sys
 p=sys.argv[1]
 try:

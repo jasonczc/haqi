@@ -379,6 +379,25 @@ export const knownTools: Record<string, {
             return unified.length >= 2000 || countLines(unified) >= 50
         }
     },
+    CodexTurnChanges: {
+        icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
+        title: () => 'Turn changes',
+        subtitle: (opts) => {
+            if (!isObject(opts.input) || !Array.isArray(opts.input.files)) return null
+            const files = opts.input.files.filter((file): file is Record<string, unknown> => isObject(file))
+            const count = files.length
+            if (count <= 0) return null
+            if (count === 1) {
+                const first = files[0]
+                const path = typeof first.path === 'string' ? first.path : null
+                if (!path) return '1 file'
+                const display = resolveDisplayPath(path, opts.metadata)
+                return basename(display)
+            }
+            return `${count} files`
+        },
+        minimal: false
+    },
     ExitPlanMode: {
         icon: () => <ClipboardIcon className={DEFAULT_ICON_CLASS} />,
         title: () => 'Plan proposal',
