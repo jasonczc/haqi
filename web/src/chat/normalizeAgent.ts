@@ -149,10 +149,27 @@ function normalizeCodexUsageRecord(value: unknown): NormalizedMessage['usage'] |
     }
 }
 
+function parseCodexContextWindowTokens(info: Record<string, unknown>): number | undefined {
+    const value = asNumber(
+        info.modelContextWindow
+            ?? info.model_context_window
+            ?? info.contextWindow
+            ?? info.context_window
+    )
+    if (value === null || value <= 0) return undefined
+    return value
+}
+
 function normalizeCodexTokenUsage(info: unknown): NormalizedMessage['usage'] | null {
     if (!isObject(info)) return null
 
     const usageCandidates = [
+        info.last,
+        info.last_usage,
+        info.lastUsage,
+        info.total,
+        info.total_usage,
+        info.totalUsage,
         info.last_token_usage,
         info.lastTokenUsage,
         info.total_token_usage,
@@ -165,6 +182,10 @@ function normalizeCodexTokenUsage(info: unknown): NormalizedMessage['usage'] | n
     for (const candidate of usageCandidates) {
         const usage = normalizeCodexUsageRecord(candidate)
         if (usage) {
+            const contextWindowTokens = parseCodexContextWindowTokens(info)
+            if (contextWindowTokens !== undefined) {
+                usage.context_window_tokens = contextWindowTokens
+            }
             return usage
         }
     }

@@ -6,7 +6,12 @@ import { collectTitleChanges, collectToolIdsFromMessages, ensureToolBlock, getPe
 import { reduceTimeline } from '@/chat/reducerTimeline'
 
 // Calculate context size from usage data
-function calculateContextSize(usage: UsageData): number {
+function calculateContextSize(usage: UsageData, agentFlavor?: string | null): number {
+    if (agentFlavor === 'codex') {
+        if (usage.input_tokens > 0) {
+            return usage.input_tokens
+        }
+    }
     return (usage.cache_creation_input_tokens || 0) + (usage.cache_read_input_tokens || 0) + usage.input_tokens
 }
 
@@ -16,12 +21,14 @@ export type LatestUsage = {
     cacheCreation: number
     cacheRead: number
     contextSize: number
+    contextWindowTokens?: number
     timestamp: number
 }
 
 export function reduceChatBlocks(
     normalized: NormalizedMessage[],
-    agentState: AgentState | null | undefined
+    agentState: AgentState | null | undefined,
+    agentFlavor?: string | null
 ): { blocks: ChatBlock[]; hasReadyEvent: boolean; latestUsage: LatestUsage | null } {
     const permissionsById = getPermissions(agentState)
     const toolIdsInMessages = collectToolIdsFromMessages(normalized)
@@ -100,7 +107,8 @@ export function reduceChatBlocks(
                 outputTokens: msg.usage.output_tokens,
                 cacheCreation: msg.usage.cache_creation_input_tokens ?? 0,
                 cacheRead: msg.usage.cache_read_input_tokens ?? 0,
-                contextSize: calculateContextSize(msg.usage),
+                contextSize: calculateContextSize(msg.usage, agentFlavor),
+                contextWindowTokens: msg.usage.context_window_tokens,
                 timestamp: msg.createdAt
             }
             break

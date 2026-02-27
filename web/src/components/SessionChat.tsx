@@ -611,8 +611,8 @@ export function SessionChat(props: {
     }, [latestCodexPlanSignature, dismissedCodexPlanSignature])
 
     const reduced = useMemo(
-        () => reduceChatBlocks(normalizedMessages, props.session.agentState),
-        [normalizedMessages, props.session.agentState]
+        () => reduceChatBlocks(normalizedMessages, props.session.agentState, agentFlavor),
+        [normalizedMessages, props.session.agentState, agentFlavor]
     )
     const reconciled = useMemo(
         () => reconcileChatBlocks(reduced.blocks, blocksByIdRef.current),
@@ -1155,6 +1155,7 @@ export function SessionChat(props: {
                         thinking={props.session.thinking}
                         agentState={props.session.agentState}
                         contextSize={reduced.latestUsage?.contextSize}
+                        contextWindowTokens={reduced.latestUsage?.contextWindowTokens}
                         controlledByUser={props.session.agentState?.controlledByUser === true}
                         onPermissionModeChange={handlePermissionModeChange}
                         onModelChange={handleModelChange}

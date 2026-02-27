@@ -111,4 +111,40 @@ describe('normalizeAgentRecord codex token_count usage', () => {
             }
         })
     })
+
+    it('extracts usage from info.last payload', () => {
+        const normalized = normalizeAgentRecord(
+            'message-5',
+            null,
+            1_700_000_000_004,
+            {
+                type: 'codex',
+                data: {
+                    type: 'token_count',
+                    info: {
+                        total: {
+                            inputTokens: 900_000,
+                            outputTokens: 2_000
+                        },
+                        last: {
+                            inputTokens: 110_000,
+                            outputTokens: 1_000,
+                            cachedInputTokens: 30_000
+                        },
+                        modelContextWindow: 258_400
+                    }
+                }
+            }
+        )
+
+        expect(normalized).toMatchObject({
+            role: 'agent',
+            usage: {
+                input_tokens: 110_000,
+                output_tokens: 1_000,
+                cache_read_input_tokens: 30_000,
+                context_window_tokens: 258_400
+            }
+        })
+    })
 })
