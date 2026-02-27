@@ -64,28 +64,132 @@ type ComposerInjectedPrompt = {
 const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
 const COMPOSER_DRAFT_STORAGE_PREFIX = 'hapi:sessionComposerDraft:'
 
+type ComposerDraft = {
+    text: string
+    attachments: AttachmentMetadata[]
+}
+
 function getComposerDraftStorageKey(sessionId: string): string {
     return `${COMPOSER_DRAFT_STORAGE_PREFIX}${sessionId}`
 }
 
-function readComposerDraft(sessionId: string): string | null {
-    if (typeof window === 'undefined') return null
-    try {
-        return localStorage.getItem(getComposerDraftStorageKey(sessionId))
-    } catch {
+function normalizeAttachmentMetadata(value: unknown): AttachmentMetadata | null {
+    if (!value || typeof value !== 'object') {
         return null
+    }
+
+    const record = value as Record<string, unknown>
+    const id = typeof record.id === 'string' ? record.id.trim() : ''
+    const filename = typeof record.filename === 'string' ? record.filename.trim() : ''
+    const mimeType = typeof record.mimeType === 'string' ? record.mimeType.trim() : ''
+    const path = typeof record.path === 'string' ? record.path.trim() : ''
+    const size = typeof record.size === 'number' && Number.isFinite(record.size)
+        ? Math.max(0, record.size)
+        : Number.NaN
+
+    if (!id || !filename || !mimeType || !path || Number.isNaN(size)) {
+        return null
+    }
+
+    const previewUrl = typeof record.previewUrl === 'string' && record.previewUrl.trim().length > 0
+        ? record.previewUrl
+        : undefined
+
+    return {
+        id,
+        filename,
+        mimeType,
+        size,
+        path,
+        ...(previewUrl ? { previewUrl } : {})
     }
 }
 
-function writeComposerDraft(sessionId: string, text: string): void {
+function dedupeAttachmentMetadata(attachments: AttachmentMetadata[]): AttachmentMetadata[] {
+    const unique = new Map<string, AttachmentMetadata>()
+    for (const attachment of attachments) {
+        const key = attachment.path.trim()
+        if (!key || unique.has(key)) {
+            continue
+        }
+        unique.set(key, attachment)
+    }
+    return Array.from(unique.values())
+}
+
+function mergeAttachmentMetadata(
+    preferred: AttachmentMetadata[],
+    fallback: AttachmentMetadata[]
+): AttachmentMetadata[] {
+    return dedupeAttachmentMetadata([...preferred, ...fallback])
+}
+
+function areAttachmentListsEqual(a: AttachmentMetadata[], b: AttachmentMetadata[]): boolean {
+    if (a.length !== b.length) {
+        return false
+    }
+    for (let index = 0; index < a.length; index += 1) {
+        const left = a[index]
+        const right = b[index]
+        if (!left || !right) {
+            return false
+        }
+        if (
+            left.path !== right.path
+            || left.id !== right.id
+            || left.filename !== right.filename
+            || left.mimeType !== right.mimeType
+            || left.size !== right.size
+            || left.previewUrl !== right.previewUrl
+        ) {
+            return false
+        }
+    }
+    return true
+}
+
+function readComposerDraft(sessionId: string): ComposerDraft {
+    const emptyDraft: ComposerDraft = { text: '', attachments: [] }
+    if (typeof window === 'undefined') return emptyDraft
+    try {
+        const raw = localStorage.getItem(getComposerDraftStorageKey(sessionId))
+        if (!raw) {
+            return emptyDraft
+        }
+
+        try {
+            const parsed = JSON.parse(raw) as unknown
+            if (!parsed || typeof parsed !== 'object') {
+                return { text: raw, attachments: [] }
+            }
+
+            const record = parsed as Record<string, unknown>
+            const text = typeof record.text === 'string' ? record.text : ''
+            const attachments = Array.isArray(record.attachments)
+                ? dedupeAttachmentMetadata(
+                    record.attachments
+                        .map((item) => normalizeAttachmentMetadata(item))
+                        .filter((item): item is AttachmentMetadata => item !== null)
+                )
+                : []
+            return { text, attachments }
+        } catch {
+            return { text: raw, attachments: [] }
+        }
+    } catch {
+        return emptyDraft
+    }
+}
+
+function writeComposerDraft(sessionId: string, draft: ComposerDraft): void {
     if (typeof window === 'undefined') return
     try {
         const key = getComposerDraftStorageKey(sessionId)
-        if (text.length === 0) {
+        if (draft.text.length === 0 && draft.attachments.length === 0) {
             localStorage.removeItem(key)
             return
         }
-        localStorage.setItem(key, text)
+        localStorage.setItem(key, JSON.stringify(draft))
     } catch {
     }
 }
@@ -184,6 +288,8 @@ export function HappyComposer(props: {
     onCodexQueueOpen?: () => void
     onCodexQueueUpdated?: () => void
     onCodexQueueEnqueue?: (payload: QueueEnqueuePayload) => Promise<void>
+    onSendMessage?: (text: string, attachments?: AttachmentMetadata[]) => void
+    onRemoveDraftAttachment?: (path: string) => Promise<void> | void
     autocompletePrefixes?: string[]
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
     injectedPrompt?: ComposerInjectedPrompt | null
@@ -221,6 +327,8 @@ export function HappyComposer(props: {
         onCodexQueueOpen,
         onCodexQueueUpdated,
         onCodexQueueEnqueue,
+        onSendMessage,
+        onRemoveDraftAttachment,
         autocompletePrefixes = ['@', '/', '$'],
         autocompleteSuggestions = defaultSuggestionHandler,
         injectedPrompt = null,
@@ -277,8 +385,8 @@ export function HappyComposer(props: {
     }, [inlineQueueNextPreview, codexQueueEntries, inlineQueuePendingCount, t])
     const trimmed = composerText.trim()
     const hasText = trimmed.length > 0
-    const hasAttachments = attachments.length > 0
-    const attachmentsReady = !hasAttachments || attachments.every((attachment) => {
+    const hasRuntimeAttachments = attachments.length > 0
+    const attachmentsReady = !hasRuntimeAttachments || attachments.every((attachment) => {
         if (attachment.status.type === 'complete') {
             return true
         }
@@ -288,14 +396,29 @@ export function HappyComposer(props: {
         const path = (attachment as { path?: string }).path
         return typeof path === 'string' && path.length > 0
     })
-    const canSendBase = (hasText || hasAttachments) && attachmentsReady && !controlsDisabled
-    const canSend = canSendBase && (!threadIsRunning || queueSendEnabled)
     const queueAttachments = useMemo(
         () => attachments
             .map(parseAttachmentMetadataFromAttachment)
             .filter((metadata): metadata is AttachmentMetadata => metadata !== null),
         [attachments]
     )
+    const previousQueueAttachmentPathsRef = useRef<Set<string>>(new Set())
+    const [draftAttachments, setDraftAttachments] = useState<AttachmentMetadata[]>([])
+    const mergedDraftAttachments = useMemo(
+        () => mergeAttachmentMetadata(queueAttachments, draftAttachments),
+        [queueAttachments, draftAttachments]
+    )
+    const runtimeAttachmentPathSet = useMemo(
+        () => new Set(queueAttachments.map((attachment) => attachment.path)),
+        [queueAttachments]
+    )
+    const restoredDraftAttachments = useMemo(
+        () => draftAttachments.filter((attachment) => !runtimeAttachmentPathSet.has(attachment.path)),
+        [draftAttachments, runtimeAttachmentPathSet]
+    )
+    const hasAnyAttachments = mergedDraftAttachments.length > 0
+    const canSendBase = (hasText || hasAnyAttachments) && attachmentsReady && !controlsDisabled
+    const canSend = canSendBase && (!threadIsRunning || queueSendEnabled)
 
     const [inputState, setInputState] = useState<TextInputState>({
         text: '',
@@ -308,15 +431,25 @@ export function HappyComposer(props: {
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const prevControlledByUser = useRef(controlledByUser)
-    const pendingDraftRestoreRef = useRef<{ sessionId: string; text: string } | null>(null)
+    const pendingDraftRestoreRef = useRef<{
+        sessionId: string
+        text: string
+        attachments: AttachmentMetadata[]
+    } | null>(null)
     const lastInjectedPromptIdRef = useRef<number | null>(null)
 
     useEffect(() => {
-        const restoredDraft = readComposerDraft(sessionId) ?? ''
-        pendingDraftRestoreRef.current = { sessionId, text: restoredDraft }
+        const restoredDraft = readComposerDraft(sessionId)
+        pendingDraftRestoreRef.current = {
+            sessionId,
+            text: restoredDraft.text,
+            attachments: restoredDraft.attachments
+        }
+        setDraftAttachments(restoredDraft.attachments)
+        previousQueueAttachmentPathsRef.current = new Set()
 
-        if (composerText !== restoredDraft) {
-            api.composer().setText(restoredDraft)
+        if (composerText !== restoredDraft.text) {
+            api.composer().setText(restoredDraft.text)
         }
     }, [api, sessionId])
 
@@ -326,10 +459,41 @@ export function HappyComposer(props: {
             if (composerText !== pendingRestore.text) {
                 return
             }
+            if (!areAttachmentListsEqual(draftAttachments, pendingRestore.attachments)) {
+                return
+            }
             pendingDraftRestoreRef.current = null
         }
-        writeComposerDraft(sessionId, composerText)
-    }, [sessionId, composerText])
+        writeComposerDraft(sessionId, {
+            text: composerText,
+            attachments: draftAttachments
+        })
+    }, [sessionId, composerText, draftAttachments])
+
+    useEffect(() => {
+        setDraftAttachments((prev) => {
+            const previousQueuePaths = previousQueueAttachmentPathsRef.current
+            const currentQueuePaths = new Set(queueAttachments.map((attachment) => attachment.path))
+
+            const removedPaths = new Set<string>()
+            for (const path of previousQueuePaths) {
+                if (!currentQueuePaths.has(path)) {
+                    removedPaths.add(path)
+                }
+            }
+
+            let next = prev
+            if (removedPaths.size > 0) {
+                next = next.filter((attachment) => !removedPaths.has(attachment.path))
+            }
+            next = mergeAttachmentMetadata(queueAttachments, next)
+            if (areAttachmentListsEqual(prev, next)) {
+                return prev
+            }
+            return next
+        })
+        previousQueueAttachmentPathsRef.current = new Set(queueAttachments.map((attachment) => attachment.path))
+    }, [queueAttachments])
 
     useEffect(() => {
         setInputState((prev) => {
@@ -492,7 +656,7 @@ export function HappyComposer(props: {
 
     const shouldEnqueueWithoutImmediateChat = queueSendEnabled
         && Boolean(onCodexQueueEnqueue)
-        && (trimmed.length > 0 || queueAttachments.length > 0)
+        && (trimmed.length > 0 || mergedDraftAttachments.length > 0)
 
     const sendComposerNow = useCallback(async () => {
         if (!canSend) {
@@ -500,27 +664,40 @@ export function HappyComposer(props: {
         }
 
         if (shouldEnqueueWithoutImmediateChat && onCodexQueueEnqueue) {
-            if (hasAttachments && queueAttachments.length < attachments.length) {
+            if (hasRuntimeAttachments && queueAttachments.length < attachments.length) {
                 haptic('error')
                 return
             }
             try {
                 await onCodexQueueEnqueue({
                     text: trimmed,
-                    attachments: queueAttachments.length > 0 ? queueAttachments : undefined
+                    attachments: mergedDraftAttachments.length > 0 ? mergedDraftAttachments : undefined
                 })
                 preserveUploadPathsForQueue(
                     sessionId,
-                    queueAttachments.map((attachment) => attachment.path)
+                    mergedDraftAttachments.map((attachment) => attachment.path)
                 )
                 await api.composer().clearAttachments()
                 api.composer().setText('')
+                setDraftAttachments([])
                 onCodexQueueUpdated?.()
                 return
             } catch {
                 haptic('error')
                 return
             }
+        }
+
+        if (!queueSendEnabled && restoredDraftAttachments.length > 0 && onSendMessage) {
+            onSendMessage(trimmed, mergedDraftAttachments.length > 0 ? mergedDraftAttachments : undefined)
+            preserveUploadPathsForQueue(
+                sessionId,
+                mergedDraftAttachments.map((attachment) => attachment.path)
+            )
+            await api.composer().clearAttachments()
+            api.composer().setText('')
+            setDraftAttachments([])
+            return
         }
 
         api.composer().send()
@@ -536,11 +713,24 @@ export function HappyComposer(props: {
         onCodexQueueEnqueue,
         shouldEnqueueWithoutImmediateChat,
         queueAttachments,
-        hasAttachments,
+        hasRuntimeAttachments,
         attachments.length,
         trimmed,
-        haptic
+        haptic,
+        mergedDraftAttachments,
+        sessionId,
+        queueSendEnabled,
+        restoredDraftAttachments.length,
+        onSendMessage
     ])
+
+    const handleRemoveDraftAttachment = useCallback((attachment: AttachmentMetadata) => {
+        setDraftAttachments((prev) => prev.filter((item) => item.path !== attachment.path))
+        if (onRemoveDraftAttachment) {
+            void Promise.resolve(onRemoveDraftAttachment(attachment.path)).catch(() => {
+            })
+        }
+    }, [onRemoveDraftAttachment])
 
     const permissionModeOptions = useMemo(
         () => getPermissionModeOptionsForFlavor(agentFlavor),
@@ -929,8 +1119,29 @@ export function HappyComposer(props: {
                                 </div>
                             ) : null}
 
-                            {attachments.length > 0 ? (
+                            {attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
                                 <div className="flex flex-wrap gap-2 px-4 pt-3">
+                                    {restoredDraftAttachments.map((attachment) => (
+                                        <div
+                                            key={`draft:${attachment.path}`}
+                                            className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
+                                            title={attachment.path}
+                                        >
+                                            <span className="max-w-[180px] truncate">
+                                                {attachment.filename}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className="rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                                onClick={() => {
+                                                    handleRemoveDraftAttachment(attachment)
+                                                }}
+                                                aria-label={`Remove ${attachment.filename}`}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
                                     <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
                                 </div>
                             ) : null}

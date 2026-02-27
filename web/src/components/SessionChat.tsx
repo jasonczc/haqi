@@ -1170,6 +1170,10 @@ export function SessionChat(props: {
                         onCodexQueueOpen={supportsQueueControls ? handleCodexQueueOpen : undefined}
                         onCodexQueueUpdated={supportsQueueControls ? handleCodexQueueRefreshAfterSend : undefined}
                         onCodexQueueEnqueue={supportsQueueControls ? handleCodexQueueEnqueue : undefined}
+                        onSendMessage={handleSend}
+                        onRemoveDraftAttachment={async (path) => {
+                            await props.api.deleteUploadFile(props.session.id, path)
+                        }}
                         autocompleteSuggestions={props.autocompleteSuggestions}
                         injectedPrompt={composerInjectedPrompt}
                         voiceStatus={voice?.status}
