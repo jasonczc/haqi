@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '@/lib/i18n-context'
 import type { ApiClient } from '@/api/client'
@@ -90,5 +90,59 @@ describe('NewSession initial directory preset', () => {
         })
 
         expect(screen.getByPlaceholderText('/path/to/project')).toHaveValue('/preset/project')
+    })
+
+    it('creates session on command + enter', async () => {
+        const getSessions = vi.fn(async () => ({ sessions: [] }))
+        const checkMachinePathsExists = vi.fn(async (_machineId: string, paths: string[]) => ({
+            exists: Object.fromEntries(paths.map((path) => [path, true]))
+        }))
+        const spawnSession = vi.fn(async (machineId: string, directory: string) => ({
+            type: 'success',
+            sessionId: 'session-1' as const,
+            machineId,
+            directory
+        }))
+        const onSuccess = vi.fn()
+
+        const api = {
+            getSessions,
+            checkMachinePathsExists,
+            spawnSession
+        } as unknown as ApiClient
+
+        const machines: Machine[] = [
+            {
+                id: 'machine-1',
+                active: true,
+                metadata: {
+                    host: 'devbox',
+                    platform: 'linux',
+                    happyCliVersion: '0.15.2'
+                }
+            }
+        ]
+
+        renderWithProviders(
+            <NewSession
+                api={api}
+                machines={machines}
+                onSuccess={onSuccess}
+                onCancel={vi.fn()}
+            />
+        )
+
+        const directoryInput = screen.getByPlaceholderText('/path/to/project')
+        fireEvent.change(directoryInput, { target: { value: '/tmp/project' } })
+        fireEvent.keyDown(directoryInput, { key: 'Enter', metaKey: true })
+
+        await waitFor(() => {
+            expect(spawnSession).toHaveBeenCalledTimes(1)
+        })
+
+        const [calledMachineId, calledDirectory] = spawnSession.mock.calls[0]
+        expect(calledMachineId).toBe('machine-1')
+        expect(calledDirectory).toBe('/tmp/project')
+        expect(onSuccess).toHaveBeenCalledWith('session-1')
     })
 })

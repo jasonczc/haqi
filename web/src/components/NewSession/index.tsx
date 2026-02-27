@@ -289,6 +289,10 @@ export function NewSession(props: {
     }, [])
 
     const handleDirectoryKeyDown = useCallback((event: ReactKeyboardEvent<HTMLInputElement>) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+            return
+        }
+
         if (suggestions.length === 0) return
 
         if (event.key === 'ArrowUp') {
@@ -373,10 +377,21 @@ export function NewSession(props: {
         void handleCreate()
     }
 
+    const handleFormKeyDown = (event: ReactKeyboardEvent<HTMLFormElement>) => {
+        if (event.key !== 'Enter') return
+        if (!(event.metaKey || event.ctrlKey)) return
+        if (event.nativeEvent.isComposing) return
+
+        event.preventDefault()
+        if (!canCreate) return
+        void handleCreate()
+    }
+
     return (
         <form
             id={props.formId}
             className="flex flex-col divide-y divide-[var(--app-divider)]"
+            onKeyDown={handleFormKeyDown}
             onSubmit={handleSubmit}
         >
             <MachineSelector
