@@ -128,6 +128,9 @@ describe('scanUsageOverview', () => {
         expect(overview.claude.allTime.cacheCreationTokens).toBe(30)
         expect(overview.claude.allTime.totalTokens).toBe(205)
         expect(overview.claude.last30Days.totalTokens).toBe(190)
+        expect(overview.claude.models.length).toBe(1)
+        expect(overview.claude.models[0]?.model).toBe('unknown')
+        expect(overview.claude.models[0]?.allTime.totalTokens).toBe(205)
 
         expect(overview.codex.filesScanned).toBe(1)
         expect(overview.codex.eventCount).toBe(2)
@@ -137,6 +140,9 @@ describe('scanUsageOverview', () => {
         expect(overview.codex.allTime.outputTokens).toBe(15)
         expect(overview.codex.allTime.reasoningOutputTokens).toBe(5)
         expect(overview.codex.allTime.totalTokens).toBe(135)
+        expect(overview.codex.models.length).toBe(1)
+        expect(overview.codex.models[0]?.model).toBe('gpt-5.3-codex')
+        expect(overview.codex.models[0]?.allTime.totalTokens).toBe(135)
     })
 
     it('marks provider unavailable when usage directories do not exist', async () => {
@@ -150,5 +156,7 @@ describe('scanUsageOverview', () => {
         expect(overview.codex.available).toBe(false)
         expect(overview.claude.eventCount).toBe(0)
         expect(overview.codex.eventCount).toBe(0)
+        expect(overview.claude.models.length).toBe(0)
+        expect(overview.codex.models.length).toBe(0)
     })
 })

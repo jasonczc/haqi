@@ -7,6 +7,7 @@ import { createInterface } from 'node:readline'
 const JSONL_SUFFIX = '.jsonl'
 const USAGE_WINDOW_DAYS = 30
 const MS_PER_DAY = 24 * 60 * 60 * 1000
+const UNKNOWN_MODEL = 'unknown'
 
 export type UsageTotals = {
     inputTokens: number
@@ -24,6 +25,15 @@ export type UsageProviderOverview = {
     roots: string[]
     filesScanned: number
     parseErrors: number
+    eventCount: number
+    last30DaysEventCount: number
+    allTime: UsageTotals
+    last30Days: UsageTotals
+    models: UsageModelOverview[]
+}
+
+export type UsageModelOverview = {
+    model: string
     eventCount: number
     last30DaysEventCount: number
     allTime: UsageTotals
@@ -77,6 +87,17 @@ function createProviderOverview(
         eventCount: 0,
         last30DaysEventCount: 0,
         allTime: createEmptyTotals(),
+        last30Days: createEmptyTotals(),
+        models: []
+    }
+}
+
+function createModelOverview(model: string): UsageModelOverview {
+    return {
+        model,
+        eventCount: 0,
+        last30DaysEventCount: 0,
+        allTime: createEmptyTotals(),
         last30Days: createEmptyTotals()
     }
 }
@@ -98,6 +119,36 @@ function normalizeIsoTimestamp(value: unknown): number | null {
     }
     const ms = Date.parse(value)
     return Number.isFinite(ms) ? ms : null
+}
+
+function normalizeModelName(value: unknown): string {
+    if (typeof value !== 'string') {
+        return UNKNOWN_MODEL
+    }
+    const normalized = value.trim()
+    return normalized.length > 0 ? normalized : UNKNOWN_MODEL
+}
+
+function getOrCreateModelOverview(
+    map: Map<string, UsageModelOverview>,
+    model: string
+): UsageModelOverview {
+    const existing = map.get(model)
+    if (existing) {
+        return existing
+    }
+    const created = createModelOverview(model)
+    map.set(model, created)
+    return created
+}
+
+function sortedModelOverviews(map: Map<string, UsageModelOverview>): UsageModelOverview[] {
+    return Array.from(map.values()).sort((a, b) => {
+        if (b.allTime.totalTokens !== a.allTime.totalTokens) {
+            return b.allTime.totalTokens - a.allTime.totalTokens
+        }
+        return a.model.localeCompare(b.model)
+    })
 }
 
 function addClaudeUsage(totals: UsageTotals, usage: {
@@ -257,6 +308,8 @@ async function scanClaudeUsage(
         return provider
     }
 
+    const models = new Map<string, UsageModelOverview>()
+
     for (const root of existingRoots) {
         const files = await collectJsonlFiles(root)
         provider.filesScanned += files.length
@@ -295,6 +348,9 @@ async function scanClaudeUsage(
                         continue
                     }
 
+                    const modelName = normalizeModelName(message.model)
+                    const modelOverview = getOrCreateModelOverview(models, modelName)
+
                     const inputTokens = toFiniteNumber(usageRaw.input_tokens)
                     const outputTokens = toFiniteNumber(usageRaw.output_tokens)
                     const cacheReadTokens = toFiniteNumber(usageRaw.cache_read_input_tokens)
@@ -316,6 +372,13 @@ async function scanClaudeUsage(
                         cache_creation_input_tokens: cacheCreationTokens
                     })
                     provider.eventCount += 1
+                    addClaudeUsage(modelOverview.allTime, {
+                        input_tokens: inputTokens,
+                        output_tokens: outputTokens,
+                        cache_read_input_tokens: cacheReadTokens,
+                        cache_creation_input_tokens: cacheCreationTokens
+                    })
+                    modelOverview.eventCount += 1
 
                     if (shouldCountInLastWindow(timestampMs, nowMs)) {
                         addClaudeUsage(provider.last30Days, {
@@ -325,6 +388,13 @@ async function scanClaudeUsage(
                             cache_creation_input_tokens: cacheCreationTokens
                         })
                         provider.last30DaysEventCount += 1
+                        addClaudeUsage(modelOverview.last30Days, {
+                            input_tokens: inputTokens,
+                            output_tokens: outputTokens,
+                            cache_read_input_tokens: cacheReadTokens,
+                            cache_creation_input_tokens: cacheCreationTokens
+                        })
+                        modelOverview.last30DaysEventCount += 1
                     }
                 }
             } finally {
@@ -332,6 +402,8 @@ async function scanClaudeUsage(
             }
         }
     }
+
+    provider.models = sortedModelOverviews(models)
 
     return provider
 }
@@ -352,6 +424,8 @@ async function scanCodexUsage(
         return provider
     }
 
+    const models = new Map<string, UsageModelOverview>()
+
     for (const root of existingRoots) {
         const files = await collectJsonlFiles(root)
         provider.filesScanned += files.length
@@ -364,6 +438,7 @@ async function scanCodexUsage(
 
             let previousTotals: CodexRawUsage | null = null
             const seenDeltaFingerprints = new Set<string>()
+            let currentModel = UNKNOWN_MODEL
 
             try {
                 for await (const line of rl) {
@@ -379,7 +454,20 @@ async function scanCodexUsage(
                     }
 
                     const entry = toRecord(parsed)
-                    if (!entry || entry.type !== 'event_msg') {
+                    if (!entry) {
+                        continue
+                    }
+
+                    if (entry.type === 'turn_context') {
+                        const payload = toRecord(entry.payload)
+                        const modelFromPayload = payload?.model
+                        if (typeof modelFromPayload === 'string' && modelFromPayload.trim().length > 0) {
+                            currentModel = normalizeModelName(modelFromPayload)
+                        }
+                        continue
+                    }
+
+                    if (entry.type !== 'event_msg') {
                         continue
                     }
 
@@ -406,8 +494,16 @@ async function scanCodexUsage(
                         continue
                     }
 
+                    const modelName = normalizeModelName(
+                        info?.model
+                            ?? info?.model_name
+                            ?? payload.model
+                            ?? currentModel
+                    )
+                    const modelOverview = getOrCreateModelOverview(models, modelName)
                     const timestampMs = normalizeIsoTimestamp(entry.timestamp)
                     const fingerprint = [
+                        modelName,
                         timestampMs ?? -1,
                         raw.input_tokens,
                         raw.cached_input_tokens,
@@ -429,10 +525,14 @@ async function scanCodexUsage(
 
                     addCodexUsage(provider.allTime, raw)
                     provider.eventCount += 1
+                    addCodexUsage(modelOverview.allTime, raw)
+                    modelOverview.eventCount += 1
 
                     if (shouldCountInLastWindow(timestampMs, nowMs)) {
                         addCodexUsage(provider.last30Days, raw)
                         provider.last30DaysEventCount += 1
+                        addCodexUsage(modelOverview.last30Days, raw)
+                        modelOverview.last30DaysEventCount += 1
                     }
                 }
             } finally {
@@ -440,6 +540,8 @@ async function scanCodexUsage(
             }
         }
     }
+
+    provider.models = sortedModelOverviews(models)
 
     return provider
 }

@@ -253,6 +253,18 @@ export type UsageTotals = {
     totalTokens: number
 }
 
+export type UsageCostEstimate = {
+    currency: 'USD'
+    unit: 'usd_per_million_tokens'
+    usdPerMillionTokens: number
+    allTimeUsd: number
+    last30DaysUsd: number
+    approximate: true
+    rateSource: 'litelm' | 'env' | 'default'
+    pricingModel?: string
+    pricingFetchedAt?: number
+}
+
 export type UsageProviderOverview = {
     provider: 'claude' | 'codex'
     available: boolean
@@ -263,6 +275,7 @@ export type UsageProviderOverview = {
     last30DaysEventCount: number
     allTime: UsageTotals
     last30Days: UsageTotals
+    estimatedCost?: UsageCostEstimate
 }
 
 export type UsageOverview = {

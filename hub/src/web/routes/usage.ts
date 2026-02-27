@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { WebAppEnv } from '../middleware/auth'
 import { scanUsageOverview, type UsageOverview } from '../../usage/usageScanner'
+import { withUsageCostEstimate } from '../../usage/usageCostEstimate'
 
 const CACHE_TTL_MS = 60_000
 
@@ -46,9 +47,10 @@ export function createUsageRoutes(): Hono<WebAppEnv> {
 
         try {
             const overview = await getUsageOverview(forceRefresh)
+            const overviewWithEstimate = await withUsageCostEstimate(overview)
             return c.json({
                 success: true,
-                overview
+                overview: overviewWithEstimate
             })
         } catch (error) {
             return c.json({
@@ -60,4 +62,3 @@ export function createUsageRoutes(): Hono<WebAppEnv> {
 
     return app
 }
-
