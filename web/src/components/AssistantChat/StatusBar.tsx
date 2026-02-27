@@ -112,7 +112,6 @@ export function StatusBar(props: {
     voiceStatus?: ConversationStatus
 }) {
     const { t } = useTranslation()
-    const numberFormatter = useMemo(() => new Intl.NumberFormat(), [])
     const connectionStatus = useMemo(
         () => getConnectionStatus(props.active, props.thinking, props.agentState, props.voiceStatus, t),
         [props.active, props.thinking, props.agentState, props.voiceStatus, t]
@@ -131,18 +130,6 @@ export function StatusBar(props: {
         },
         [props.contextSize, maxContextSize, t]
     )
-
-    const contextTokenCount = useMemo(() => {
-        if (props.contextSize === undefined) return null
-
-        const usedText = numberFormatter.format(Math.max(0, Math.round(props.contextSize)))
-        if (!maxContextSize) {
-            return `${usedText} tok`
-        }
-
-        const maxText = numberFormatter.format(maxContextSize)
-        return `${usedText}/${maxText} tok`
-    }, [props.contextSize, maxContextSize, numberFormatter])
 
     const permissionMode = props.permissionMode
     const displayPermissionMode = permissionMode
@@ -166,17 +153,12 @@ export function StatusBar(props: {
                         {connectionStatus.text}
                     </span>
                 </div>
-                {contextWarning ? (
-                    <span className={`text-[10px] ${contextWarning.color}`}>
-                        {contextWarning.text}
-                    </span>
-                ) : null}
             </div>
 
             <div className="flex items-center gap-2">
-                {contextTokenCount ? (
-                    <span className="text-[10px] text-[var(--app-hint)]">
-                        {contextTokenCount}
+                {contextWarning ? (
+                    <span className={`text-[10px] ${contextWarning.color}`}>
+                        {contextWarning.text}
                     </span>
                 ) : null}
                 {displayPermissionMode ? (
