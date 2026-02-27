@@ -86,6 +86,64 @@ describe('SessionList project quick-create action', () => {
         })
     })
 
+    it('uses quick create callback on group-level + when enabled in settings', () => {
+        localStorage.setItem('hapi:projectQuickCreate', '1')
+        const onNewSession = vi.fn()
+        const onQuickCreateInProject = vi.fn()
+
+        renderWithProviders(
+            <SessionList
+                sessions={[createSession()]}
+                onSelect={vi.fn()}
+                onNewSession={onNewSession}
+                onQuickCreateInProject={onQuickCreateInProject}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                renderHeader={false}
+                api={null}
+            />
+        )
+
+        const createButton = screen.getByRole('button', { name: 'New Session in this project' })
+        fireEvent.mouseDown(createButton, { button: 0 })
+        fireEvent.mouseUp(createButton, { button: 0 })
+
+        expect(onQuickCreateInProject).toHaveBeenCalledTimes(1)
+        expect(onQuickCreateInProject).toHaveBeenCalledWith({
+            directory: '/workspace/project-a',
+            machineId: 'machine-1'
+        })
+        expect(onNewSession).not.toHaveBeenCalled()
+    })
+
+    it('opens detailed create on right click of project + when quick create is enabled', () => {
+        localStorage.setItem('hapi:projectQuickCreate', '1')
+        const onNewSession = vi.fn()
+        const onQuickCreateInProject = vi.fn()
+
+        renderWithProviders(
+            <SessionList
+                sessions={[createSession()]}
+                onSelect={vi.fn()}
+                onNewSession={onNewSession}
+                onQuickCreateInProject={onQuickCreateInProject}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                renderHeader={false}
+                api={null}
+            />
+        )
+
+        fireEvent.contextMenu(screen.getByRole('button', { name: 'New Session in this project' }))
+
+        expect(onNewSession).toHaveBeenCalledTimes(1)
+        expect(onNewSession).toHaveBeenCalledWith({
+            directory: '/workspace/project-a',
+            machineId: 'machine-1'
+        })
+        expect(onQuickCreateInProject).not.toHaveBeenCalled()
+    })
+
     it('hides verbose metadata row in compact mode', () => {
         renderWithProviders(
             <SessionList

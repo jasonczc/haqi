@@ -6,6 +6,7 @@ import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language 
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
+import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import {
     useImageUploadCompression,
     type ImageUploadCompressionLevel,
@@ -238,6 +239,7 @@ export default function SettingsPage() {
         `settings.behavior.imageCompression.targetSize.${imageUploadCompressionTargetSize}`
     )
     const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
+    const { projectQuickCreateEnabled, setProjectQuickCreateEnabled } = useProjectQuickCreate()
     const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
     const currencyFormatter = useMemo(() => new Intl.NumberFormat(locale, {
         style: 'currency',
@@ -331,6 +333,10 @@ export default function SettingsPage() {
     const handleQueuePanelModeChange = (mode: QueueInlinePanelMode) => {
         setQueueInlinePanelMode(mode)
         setIsQueuePanelOpen(false)
+    }
+
+    const handleProjectQuickCreateToggle = (value: boolean) => {
+        setProjectQuickCreateEnabled(value)
     }
 
     const handleImageUploadCompressionToggle = (value: boolean) => {
@@ -834,6 +840,21 @@ export default function SettingsPage() {
                                     })}
                                 </div>
                             )}
+                        </div>
+                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
+                            <div className="flex flex-col">
+                                <span className="text-[var(--app-fg)]">
+                                    {t('settings.behavior.projectQuickCreate')}
+                                </span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {t('settings.behavior.projectQuickCreate.description')}
+                                </span>
+                            </div>
+                            <Switch
+                                checked={projectQuickCreateEnabled}
+                                onCheckedChange={handleProjectQuickCreateToggle}
+                                ariaLabel={t('settings.behavior.projectQuickCreate')}
+                            />
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
                             <div className="flex flex-col">

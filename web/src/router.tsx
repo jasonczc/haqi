@@ -28,6 +28,7 @@ import { useSlashCommands } from '@/hooks/queries/useSlashCommands'
 import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
+import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
@@ -225,10 +226,13 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
 function SessionsPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
+    const queryClient = useQueryClient()
     const pathname = useLocation({ select: location => location.pathname })
     const matchRoute = useMatchRoute()
     const { t } = useTranslation()
+    const { addToast } = useToast()
     const { sessions, isLoading, error, refetch } = useSessions(api)
+    const { spawnSession, isPending: isQuickCreatingSession } = useSpawnSession(api)
     const { density, toggleDensity } = useSessionListDensity()
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
@@ -251,6 +255,55 @@ function SessionsPage() {
             search: toNewSessionSearch(preset)
         })
     }, [navigate])
+
+    const quickCreateInProject = useCallback(async (preset?: NewSessionPreset) => {
+        if (isQuickCreatingSession) {
+            return
+        }
+        if (!preset?.directory || !preset.machineId) {
+            openNewSession(preset)
+            return
+        }
+
+        setMobileSidebarOpen(false)
+        try {
+            const result = await spawnSession({
+                machineId: preset.machineId,
+                directory: preset.directory
+            })
+
+            if (result.type !== 'success') {
+                addToast({
+                    title: t('sessions.quickCreate.failed'),
+                    body: result.message,
+                    sessionId: '',
+                    url: ''
+                })
+                return
+            }
+
+            void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+            navigate({
+                to: '/sessions/$sessionId',
+                params: { sessionId: result.sessionId }
+            })
+        } catch (error) {
+            addToast({
+                title: t('sessions.quickCreate.failed'),
+                body: error instanceof Error ? error.message : t('send.blocked.noConnection'),
+                sessionId: '',
+                url: ''
+            })
+        }
+    }, [
+        addToast,
+        isQuickCreatingSession,
+        navigate,
+        openNewSession,
+        queryClient,
+        spawnSession,
+        t
+    ])
 
     const projectCount = new Set(visibleSessions.map(s => s.metadata?.worktree?.basePath ?? s.metadata?.path ?? 'Other')).size
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
@@ -425,6 +478,7 @@ function SessionsPage() {
                             selectedSessionId={selectedSessionId}
                             onSelect={selectSession}
                             onNewSession={openNewSession}
+                            onQuickCreateInProject={quickCreateInProject}
                             onRefresh={handleRefresh}
                             isLoading={isLoading}
                             renderHeader={false}

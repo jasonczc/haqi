@@ -1,4 +1,13 @@
-import { forwardRef, useEffect, useMemo, useState } from 'react'
+import {
+    forwardRef,
+    useEffect,
+    useMemo,
+    useState,
+    type KeyboardEvent as ReactKeyboardEvent,
+    type MouseEvent as ReactMouseEvent,
+    type PointerEvent as ReactPointerEvent,
+    type TouchEvent as ReactTouchEvent
+} from 'react'
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -14,6 +23,7 @@ import { ProjectActionMenu } from '@/components/ProjectActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
+import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import {
     applySessionGroupOrder,
     loadSessionGroupOrder,
@@ -513,9 +523,21 @@ function SessionGroupRow(props: {
     onToggleGroup: (directory: string, isCollapsed: boolean) => void
     onToggleProjectOffline: (directory: string, isOffline: boolean) => void
     onCreateInGroup: (preset?: NewSessionPreset) => void
+    onQuickCreateInGroup?: (preset?: NewSessionPreset) => void
+    quickCreateInProjectEnabled: boolean
 }) {
     const { t } = useTranslation()
-    const { group, isProjectOffline, isCollapsed, density, onToggleGroup, onToggleProjectOffline, onCreateInGroup } = props
+    const {
+        group,
+        isProjectOffline,
+        isCollapsed,
+        density,
+        onToggleGroup,
+        onToggleProjectOffline,
+        onCreateInGroup,
+        onQuickCreateInGroup,
+        quickCreateInProjectEnabled
+    } = props
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const { setNodeRef, transform, transition, isDragging, isOver, listeners } = useSortable({
@@ -527,6 +549,81 @@ function SessionGroupRow(props: {
         transition
     }
     const isDropTarget = isOver && !isDragging
+    const canQuickCreate = quickCreateInProjectEnabled && Boolean(onQuickCreateInGroup)
+    const createPreset: NewSessionPreset = {
+        directory: group.directory,
+        machineId: getGroupMachineId(group)
+    }
+    const openDetailedCreate = () => {
+        onCreateInGroup(createPreset)
+    }
+    const plusButtonLongPressHandlers = useLongPress({
+        onLongPress: () => {
+            openDetailedCreate()
+        },
+        onClick: () => {
+            if (canQuickCreate) {
+                onQuickCreateInGroup?.(createPreset)
+                return
+            }
+            openDetailedCreate()
+        },
+        threshold: 500,
+        disabled: !canQuickCreate
+    })
+    const plusButtonHandlers = canQuickCreate
+        ? {
+            onMouseDown: (event: ReactMouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                plusButtonLongPressHandlers.onMouseDown(event)
+            },
+            onMouseUp: (event: ReactMouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                plusButtonLongPressHandlers.onMouseUp(event)
+            },
+            onMouseLeave: (event: ReactMouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                plusButtonLongPressHandlers.onMouseLeave(event)
+            },
+            onTouchStart: (event: ReactTouchEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                plusButtonLongPressHandlers.onTouchStart(event)
+            },
+            onTouchEnd: (event: ReactTouchEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                plusButtonLongPressHandlers.onTouchEnd(event)
+            },
+            onTouchMove: (event: ReactTouchEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                plusButtonLongPressHandlers.onTouchMove(event)
+            },
+            onContextMenu: (event: ReactMouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                plusButtonLongPressHandlers.onContextMenu(event)
+            },
+            onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                plusButtonLongPressHandlers.onKeyDown(event)
+            },
+            onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+            }
+        }
+        : {
+            onMouseDown: (event: ReactMouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+            },
+            onTouchStart: (event: ReactTouchEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+            },
+            onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+            },
+            onClick: (event: ReactMouseEvent<HTMLButtonElement>) => {
+                event.stopPropagation()
+                openDetailedCreate()
+            }
+        }
 
     return (
         <div
@@ -567,16 +664,7 @@ function SessionGroupRow(props: {
             {group.directory !== 'Other' ? (
                 <button
                     type="button"
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onTouchStart={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    onClick={(event) => {
-                        event.stopPropagation()
-                        onCreateInGroup({
-                            directory: group.directory,
-                            machineId: getGroupMachineId(group)
-                        })
-                    }}
+                    {...plusButtonHandlers}
                     className="shrink-0 rounded p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-secondary-bg)]"
                     title={t('sessions.newInProject')}
                     aria-label={t('sessions.newInProject')}
@@ -634,6 +722,7 @@ export function SessionList(props: {
     sessions: SessionSummary[]
     onSelect: (sessionId: string) => void
     onNewSession: (preset?: NewSessionPreset) => void
+    onQuickCreateInProject?: (preset?: NewSessionPreset) => void
     onRefresh: () => void
     isLoading: boolean
     renderHeader?: boolean
@@ -643,6 +732,7 @@ export function SessionList(props: {
 }) {
     const { t } = useTranslation()
     const { renderHeader = true, api, selectedSessionId, density = 'comfortable' } = props
+    const { projectQuickCreateEnabled } = useProjectQuickCreate()
     const baseGroups = useMemo(
         () => groupSessionsByDirectory(props.sessions),
         [props.sessions]
@@ -835,8 +925,10 @@ export function SessionList(props: {
                                             isProjectOffline={row.isProjectOffline}
                                             isCollapsed={row.isCollapsed}
                                             density={density}
+                                            quickCreateInProjectEnabled={projectQuickCreateEnabled}
                                             onToggleGroup={toggleGroup}
                                             onToggleProjectOffline={toggleProjectOffline}
+                                            onQuickCreateInGroup={props.onQuickCreateInProject}
                                             onCreateInGroup={(preset) => {
                                                 if (row.isProjectOffline) {
                                                     setProjectOfflineDirectories((prev) => {
