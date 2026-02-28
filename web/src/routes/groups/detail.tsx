@@ -42,6 +42,7 @@ import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { useChatViewMode } from '@/hooks/useChatViewMode'
+import { useBriefModeCardSettings } from '@/hooks/useBriefModeCardSettings'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -1527,14 +1528,23 @@ type GroupTurnDetailState = {
 type GroupTurnDetailStateMap = Record<string, GroupTurnDetailState>
 
 const GROUP_TURN_DETAIL_PAGE_LIMIT = 120
+const BRIEF_PREVIEW_LINE_HEIGHT_REM = 1.4
+const MOBILE_BRIEF_BREAKPOINT_QUERY = '(max-width: 767px)'
+const MOBILE_BRIEF_TURN_QUERY_KEY = 'briefTurnId'
 
 function normalizeBriefPreview(value: string | null | undefined, fallback: string): string {
     const text = value?.trim() ?? ''
     return text.length > 0 ? text : fallback
 }
 
-function shouldFadeBriefPreview(text: string): boolean {
-    return text.length > 220 || text.includes('\n')
+function shouldFadeBriefPreview(text: string, maxLines: number): boolean {
+    const normalizedMaxLines = Math.max(1, maxLines)
+    const explicitLineCount = text.split(/\r?\n/g).length
+    if (explicitLineCount > normalizedMaxLines) {
+        return true
+    }
+    const estimatedCharsPerLine = 42
+    return text.length > normalizedMaxLines * estimatedCharsPerLine
 }
 
 function buildDefaultGroupTurnDetailState(): GroupTurnDetailState {
@@ -1546,6 +1556,33 @@ function buildDefaultGroupTurnDetailState(): GroupTurnDetailState {
         nextBeforeSeq: null,
         hasMore: false
     }
+}
+
+function readMobileBriefTurnId(search: string): string | null {
+    const rawValue = new URLSearchParams(search).get(MOBILE_BRIEF_TURN_QUERY_KEY)
+    const value = rawValue?.trim() ?? ''
+    return value.length > 0 ? value : null
+}
+
+function writeMobileBriefTurnId(turnId: string | null, mode: 'push' | 'replace'): void {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    const url = new URL(window.location.href)
+    if (turnId) {
+        url.searchParams.set(MOBILE_BRIEF_TURN_QUERY_KEY, turnId)
+    } else {
+        url.searchParams.delete(MOBILE_BRIEF_TURN_QUERY_KEY)
+    }
+
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`
+    if (mode === 'replace') {
+        window.history.replaceState(window.history.state, '', nextUrl)
+        return
+    }
+
+    window.history.pushState(window.history.state, '', nextUrl)
 }
 
 function GroupBriefTurnDetailList(props: {
@@ -1653,10 +1690,17 @@ function GroupBriefTurnList(props: {
     sessionMap: Map<string, SessionSummary>
     onOpenSession: (sessionId: string) => void
 }) {
+    const {
+        briefCardAdaptiveHeight,
+        briefCardMaxLines
+    } = useBriefModeCardSettings()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
     const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
     const [turnDetailStateById, setTurnDetailStateById] = useState<GroupTurnDetailStateMap>({})
+    const [isMobileViewport, setIsMobileViewport] = useState(() => (
+        typeof window !== 'undefined' && window.matchMedia(MOBILE_BRIEF_BREAKPOINT_QUERY).matches
+    ))
 
     const activeTurn = useMemo(
         () => props.turns.find((turn) => turn.id === activeTurnId) ?? null,
@@ -1725,11 +1769,26 @@ function GroupBriefTurnList(props: {
 
     const openTurnDetails = useCallback((turnId: string) => {
         setActiveTurnId(turnId)
-        const existing = turnDetailStateById[turnId]
-        if (!existing || (existing.messages.length === 0 && !existing.isLoading && !existing.isLoadingMore)) {
-            void fetchTurnMessages(turnId, null, false)
+
+        if (isMobileViewport && typeof window !== 'undefined') {
+            const currentTurnId = readMobileBriefTurnId(window.location.search)
+            if (currentTurnId !== turnId) {
+                writeMobileBriefTurnId(turnId, 'push')
+            }
         }
-    }, [fetchTurnMessages, turnDetailStateById])
+    }, [isMobileViewport])
+
+    const closeTurnDetails = useCallback(() => {
+        if (isMobileViewport && typeof window !== 'undefined') {
+            const currentTurnId = readMobileBriefTurnId(window.location.search)
+            if (currentTurnId) {
+                window.history.back()
+                return
+            }
+        }
+
+        setActiveTurnId(null)
+    }, [isMobileViewport])
 
     const loadMoreActiveTurnDetails = useCallback(async () => {
         if (!activeTurn || !activeDetail) {
@@ -1740,6 +1799,76 @@ function GroupBriefTurnList(props: {
         }
         await fetchTurnMessages(activeTurn.id, activeDetail.nextBeforeSeq, true)
     }, [activeDetail, activeTurn, fetchTurnMessages])
+
+    const collapsedPreviewStyle = useMemo<CSSProperties>(() => {
+        const previewHeight = `${Math.max(1, briefCardMaxLines) * BRIEF_PREVIEW_LINE_HEIGHT_REM}rem`
+        if (briefCardAdaptiveHeight) {
+            return {
+                maxHeight: previewHeight
+            }
+        }
+        return {
+            height: previewHeight
+        }
+    }, [briefCardAdaptiveHeight, briefCardMaxLines])
+
+    useEffect(() => {
+        if (!activeTurnId) {
+            return
+        }
+
+        const existing = turnDetailStateById[activeTurnId]
+        if (!existing || (existing.messages.length === 0 && !existing.isLoading && !existing.isLoadingMore)) {
+            void fetchTurnMessages(activeTurnId, null, false)
+        }
+    }, [activeTurnId, fetchTurnMessages, turnDetailStateById])
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+
+        const mediaQuery = window.matchMedia(MOBILE_BRIEF_BREAKPOINT_QUERY)
+        const handleChange = () => {
+            setIsMobileViewport(mediaQuery.matches)
+        }
+
+        handleChange()
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handleChange)
+            return () => {
+                mediaQuery.removeEventListener('change', handleChange)
+            }
+        }
+
+        mediaQuery.addListener(handleChange)
+        return () => {
+            mediaQuery.removeListener(handleChange)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+
+        if (!isMobileViewport) {
+            if (readMobileBriefTurnId(window.location.search)) {
+                writeMobileBriefTurnId(null, 'replace')
+            }
+            return
+        }
+
+        const syncFromHistory = () => {
+            setActiveTurnId(readMobileBriefTurnId(window.location.search))
+        }
+
+        syncFromHistory()
+        window.addEventListener('popstate', syncFromHistory)
+        return () => {
+            window.removeEventListener('popstate', syncFromHistory)
+        }
+    }, [isMobileViewport])
 
     useEffect(() => {
         if (props.turns.length === 0) {
@@ -1811,13 +1940,13 @@ function GroupBriefTurnList(props: {
                                 turn.status === 'open' ? 'Generating…' : '(empty)'
                             )
                             const initiatorIsUser = (turn.initiatorSource ?? '').startsWith('user:')
-                            const fade = shouldFadeBriefPreview(responderPreview)
+                            const fade = shouldFadeBriefPreview(responderPreview, briefCardMaxLines)
 
                             return (
                                 <div className="px-3 pb-3">
                                     <div className="space-y-2">
                                         <div className={`flex ${initiatorIsUser ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[88%] rounded-2xl border px-3 py-2 text-sm ${
+                                            <div className={`max-w-[92%] rounded-2xl border px-3 py-2 text-sm ${
                                                 initiatorIsUser
                                                     ? 'rounded-br-sm bg-[var(--app-button)] text-[var(--app-button-text)]'
                                                     : 'rounded-bl-sm bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-border)]'
@@ -1827,7 +1956,7 @@ function GroupBriefTurnList(props: {
                                         </div>
 
                                         <div className="flex justify-start">
-                                            <div className={`relative w-full max-w-[88%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
+                                            <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
                                                 turn.status === 'open'
                                                     ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
                                                     : 'border-[var(--app-border)]'
@@ -1838,7 +1967,10 @@ function GroupBriefTurnList(props: {
                                                     onClick={() => openTurnDetails(turn.id)}
                                                     aria-label="Open turn details"
                                                 >
-                                                    <div className="max-h-28 overflow-hidden whitespace-pre-wrap break-words text-sm text-[var(--app-fg)]">
+                                                    <div
+                                                        className="overflow-hidden whitespace-pre-wrap break-words text-sm leading-[1.4rem] text-[var(--app-fg)]"
+                                                        style={collapsedPreviewStyle}
+                                                    >
                                                         {responderPreview}
                                                     </div>
                                                     {fade ? (
@@ -1866,63 +1998,129 @@ function GroupBriefTurnList(props: {
                 )}
             </div>
 
-            <Dialog open={Boolean(activeTurnId)} onOpenChange={(open) => {
-                if (!open) {
-                    setActiveTurnId(null)
-                }
-            }}>
-                <DialogContent className="flex h-[90vh] max-h-[90vh] max-w-4xl flex-col overflow-hidden p-0">
-                    <div className="border-b border-[var(--app-border)] px-4 py-3">
-                        <DialogHeader>
-                            <DialogTitle>
-                                {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
-                            </DialogTitle>
-                        </DialogHeader>
-                        {activeTurn ? (
-                            <div className="mt-1 text-xs text-[var(--app-hint)]">
-                                {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <div className="min-h-0 flex-1 overflow-hidden">
-                        {activeTurn && activeDetail?.error ? (
-                            <div className="h-full overflow-y-auto p-4 text-sm text-rose-500">
-                                {activeDetail.error}
-                                <div className="mt-2">
-                                    <button
-                                        type="button"
-                                        className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
-                                        onClick={() => {
-                                            void fetchTurnMessages(activeTurn.id, null, false)
-                                        }}
-                                    >
-                                        Retry
-                                    </button>
+            {isMobileViewport ? (
+                activeTurnId ? (
+                    <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
+                        <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={closeTurnDetails}
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                    aria-label="Back"
+                                >
+                                    <ChevronLeftIcon />
+                                </button>
+                                <div className="min-w-0">
+                                    <div className="truncate text-sm font-semibold text-[var(--app-fg)]">
+                                        {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
+                                    </div>
+                                    {activeTurn ? (
+                                        <div className="text-xs text-[var(--app-hint)]">
+                                            {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
+                                        </div>
+                                    ) : null}
                                 </div>
                             </div>
-                        ) : null}
+                        </div>
 
-                        {activeTurn && activeDetail && !activeDetail.error ? (
-                            <div className="flex h-full min-h-0 flex-col">
-                                <GroupBriefTurnDetailList
-                                    key={activeTurn.id}
-                                    messages={activeDetail.messages}
-                                    hasMore={activeDetail.hasMore}
-                                    isLoadingMore={activeDetail.isLoadingMore}
-                                    onLoadMore={loadMoreActiveTurnDetails}
-                                    sessionMap={props.sessionMap}
-                                    onOpenSession={props.onOpenSession}
-                                />
-                            </div>
-                        ) : activeTurn && activeDetail?.error ? null : (
-                            <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
-                                {activeTurn && activeDetail?.isLoading ? 'Loading turn details…' : 'No detail messages'}
-                            </div>
-                        )}
+                        <div className="min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]">
+                            {activeTurn && activeDetail?.error ? (
+                                <div className="h-full overflow-y-auto p-4 text-sm text-rose-500">
+                                    {activeDetail.error}
+                                    <div className="mt-2">
+                                        <button
+                                            type="button"
+                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                            onClick={() => {
+                                                void fetchTurnMessages(activeTurn.id, null, false)
+                                            }}
+                                        >
+                                            Retry
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {activeTurn && activeDetail && !activeDetail.error ? (
+                                <div className="flex h-full min-h-0 flex-col">
+                                    <GroupBriefTurnDetailList
+                                        key={activeTurn.id}
+                                        messages={activeDetail.messages}
+                                        hasMore={activeDetail.hasMore}
+                                        isLoadingMore={activeDetail.isLoadingMore}
+                                        onLoadMore={loadMoreActiveTurnDetails}
+                                        sessionMap={props.sessionMap}
+                                        onOpenSession={props.onOpenSession}
+                                    />
+                                </div>
+                            ) : activeTurn && activeDetail?.error ? null : (
+                                <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+                                    {activeTurn && activeDetail?.isLoading ? 'Loading turn details…' : 'No detail messages'}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </DialogContent>
-            </Dialog>
+                ) : null
+            ) : (
+                <Dialog open={Boolean(activeTurnId)} onOpenChange={(open) => {
+                    if (!open) {
+                        setActiveTurnId(null)
+                    }
+                }}>
+                    <DialogContent className="flex h-[90vh] max-h-[90vh] max-w-4xl flex-col overflow-hidden p-0">
+                        <div className="border-b border-[var(--app-border)] px-4 py-3">
+                            <DialogHeader>
+                                <DialogTitle>
+                                    {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
+                                </DialogTitle>
+                            </DialogHeader>
+                            {activeTurn ? (
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                    {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
+                                </div>
+                            ) : null}
+                        </div>
+
+                        <div className="min-h-0 flex-1 overflow-hidden">
+                            {activeTurn && activeDetail?.error ? (
+                                <div className="h-full overflow-y-auto p-4 text-sm text-rose-500">
+                                    {activeDetail.error}
+                                    <div className="mt-2">
+                                        <button
+                                            type="button"
+                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                            onClick={() => {
+                                                void fetchTurnMessages(activeTurn.id, null, false)
+                                            }}
+                                        >
+                                            Retry
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            {activeTurn && activeDetail && !activeDetail.error ? (
+                                <div className="flex h-full min-h-0 flex-col">
+                                    <GroupBriefTurnDetailList
+                                        key={activeTurn.id}
+                                        messages={activeDetail.messages}
+                                        hasMore={activeDetail.hasMore}
+                                        isLoadingMore={activeDetail.isLoadingMore}
+                                        onLoadMore={loadMoreActiveTurnDetails}
+                                        sessionMap={props.sessionMap}
+                                        onOpenSession={props.onOpenSession}
+                                    />
+                                </div>
+                            ) : activeTurn && activeDetail?.error ? null : (
+                                <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+                                    {activeTurn && activeDetail?.isLoading ? 'Loading turn details…' : 'No detail messages'}
+                                </div>
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
         </>
     )
 }
