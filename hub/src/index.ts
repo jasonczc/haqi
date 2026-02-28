@@ -27,6 +27,8 @@ import { waitForTunnelTlsReady } from './tunnel/tlsGate'
 import QRCode from 'qrcode'
 import type { Server as BunServer } from 'bun'
 import type { WebSocketData } from '@socket.io/bun-engine'
+import { join } from 'node:path'
+import { loadReportPublicBaseUrlSettings } from './config/reportPublicBaseUrl'
 
 /** Format config source for logging */
 function formatSource(source: ConfigSource | 'generated'): string {
@@ -158,6 +160,11 @@ async function main() {
     }
 
     const store = new Store(config.dbPath)
+    const reportPublicBaseUrlSettings = await loadReportPublicBaseUrlSettings({
+        dataDir: config.dataDir,
+        fallbackPublicUrl: config.publicUrl
+    })
+    console.log(`[Hub] Report public base URL: ${reportPublicBaseUrlSettings.value} (${reportPublicBaseUrlSettings.source})`)
     const jwtSecret = await getOrCreateJwtSecret()
     const vapidKeys = await getOrCreateVapidKeys(config.dataDir)
     const vapidSubject = process.env.VAPID_SUBJECT ?? 'mailto:admin@hapi.run'
@@ -212,6 +219,10 @@ async function main() {
         jwtSecret,
         store,
         vapidPublicKey: vapidKeys.publicKey,
+        reportsStorageDir: join(config.dataDir, 'reports'),
+        reportPublicBaseUrl: reportPublicBaseUrlSettings,
+        dataDir: config.dataDir,
+        fallbackPublicUrl: config.publicUrl,
         socketEngine: socketServer.engine,
         corsOrigins,
         relayMode: relayFlag.enabled,

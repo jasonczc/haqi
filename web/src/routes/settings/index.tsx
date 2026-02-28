@@ -225,6 +225,13 @@ export default function SettingsPage() {
     const [memorySavedContent, setMemorySavedContent] = useState('')
     const [memoryStatusMessage, setMemoryStatusMessage] = useState<string | null>(null)
     const isMemoryDirty = memoryDraft !== memorySavedContent
+    const [reportDomainDraft, setReportDomainDraft] = useState('')
+    const [reportDomainSaved, setReportDomainSaved] = useState('')
+    const [reportDomainSource, setReportDomainSource] = useState<'env' | 'file' | 'default'>('default')
+    const [reportDomainEnvOverride, setReportDomainEnvOverride] = useState(false)
+    const [reportDomainLoading, setReportDomainLoading] = useState(false)
+    const [reportDomainStatusMessage, setReportDomainStatusMessage] = useState<string | null>(null)
+    const isReportDomainDirty = reportDomainDraft.trim() !== reportDomainSaved.trim()
     const memoryInjectionEnabled = memory?.enabled ?? false
 
     const fontScaleOptions = getFontScaleOptions()
@@ -279,9 +286,31 @@ export default function SettingsPage() {
         }
     }, [api, t])
 
+    const loadReportDomainSettings = useCallback(async () => {
+        setReportDomainLoading(true)
+        setReportDomainStatusMessage(null)
+        try {
+            const result = await api.getReportDomainSettings()
+            setReportDomainDraft(result.settings.value)
+            setReportDomainSaved(result.settings.value)
+            setReportDomainSource(result.settings.source)
+            setReportDomainEnvOverride(result.settings.envOverride)
+        } catch (error) {
+            setReportDomainStatusMessage(
+                error instanceof Error ? error.message : t('settings.reportDomain.status.loadFailed')
+            )
+        } finally {
+            setReportDomainLoading(false)
+        }
+    }, [api, t])
+
     useEffect(() => {
         void loadUsageOverview(false)
     }, [loadUsageOverview])
+
+    useEffect(() => {
+        void loadReportDomainSettings()
+    }, [loadReportDomainSettings])
 
     useEffect(() => {
         if (!memory) {
@@ -309,6 +338,26 @@ export default function SettingsPage() {
         },
         onError: (error) => {
             setMemoryStatusMessage(error instanceof Error ? error.message : t('settings.memory.status.saveFailed'))
+        }
+    })
+
+    const saveReportDomainMutation = useMutation({
+        mutationFn: async (domain: string) => {
+            return await api.updateReportDomainSettings({
+                domain: domain.trim().length > 0 ? domain.trim() : null
+            })
+        },
+        onSuccess: (result) => {
+            setReportDomainDraft(result.settings.value)
+            setReportDomainSaved(result.settings.value)
+            setReportDomainSource(result.settings.source)
+            setReportDomainEnvOverride(result.settings.envOverride)
+            setReportDomainStatusMessage(t('settings.reportDomain.status.saved'))
+        },
+        onError: (error) => {
+            setReportDomainStatusMessage(
+                error instanceof Error ? error.message : t('settings.reportDomain.status.saveFailed')
+            )
         }
     })
 
@@ -458,6 +507,16 @@ export default function SettingsPage() {
     const handleMemoryInjectionToggle = async (value: boolean) => {
         setMemoryStatusMessage(null)
         await toggleMemoryInjectionMutation.mutateAsync(value)
+    }
+
+    const handleReloadReportDomain = async () => {
+        await loadReportDomainSettings()
+        setReportDomainStatusMessage(t('settings.reportDomain.status.reloaded'))
+    }
+
+    const handleSaveReportDomain = async () => {
+        setReportDomainStatusMessage(null)
+        await saveReportDomainMutation.mutateAsync(reportDomainDraft)
     }
 
     // Close dropdown when clicking outside
@@ -1148,6 +1207,62 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                         ) : null}
+                    </div>
+
+                    {/* Report domain section */}
+                    <div className="border-b border-[var(--app-divider)]">
+                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            {t('settings.reportDomain.title')}
+                        </div>
+                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
+                            {t('settings.reportDomain.description')}
+                        </div>
+                        <div className="px-3 pb-3">
+                            <input
+                                value={reportDomainDraft}
+                                onChange={(event) => setReportDomainDraft(event.target.value)}
+                                placeholder={t('settings.reportDomain.placeholder')}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
+                                spellCheck={false}
+                                disabled={reportDomainLoading || reportDomainEnvOverride}
+                            />
+                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-xs text-[var(--app-hint)]">
+                                    {reportDomainEnvOverride
+                                        ? t('settings.reportDomain.status.envLocked')
+                                        : isReportDomainDirty
+                                            ? t('settings.reportDomain.status.unsaved')
+                                            : reportDomainStatusMessage ?? t('settings.reportDomain.status.synced')}
+                                    {' · '}
+                                    {t(`settings.reportDomain.source.${reportDomainSource}`)}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleReloadReportDomain() }}
+                                        disabled={reportDomainLoading || saveReportDomainMutation.isPending}
+                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {t('settings.reportDomain.actions.reload')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleSaveReportDomain() }}
+                                        disabled={
+                                            reportDomainLoading
+                                            || reportDomainEnvOverride
+                                            || !isReportDomainDirty
+                                            || saveReportDomainMutation.isPending
+                                        }
+                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {saveReportDomainMutation.isPending
+                                            ? t('settings.reportDomain.actions.saving')
+                                            : t('settings.reportDomain.actions.save')}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Memory section */}

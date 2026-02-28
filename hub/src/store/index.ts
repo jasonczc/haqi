@@ -10,6 +10,7 @@ import { PushStore } from './pushStore'
 import { SessionStore } from './sessionStore'
 import { UserStore } from './userStore'
 import { GroupStore } from './groupStore'
+import { ReportStore } from './reportStore'
 import { createConversationTurnsSchema } from './turns'
 import { createGroupConversationTurnsSchema } from './groupTurns'
 
@@ -25,6 +26,9 @@ export type {
     StoredConversationTurn,
     StoredMessage,
     StoredPushSubscription,
+    StoredReport,
+    StoredReportAsset,
+    StoredReportShare,
     StoredSession,
     StoredUser,
     VersionedUpdateResult
@@ -37,6 +41,7 @@ export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
+export { ReportStore } from './reportStore'
 
 const SCHEMA_VERSION: number = 8
 const REQUIRED_TABLES = [
@@ -53,7 +58,10 @@ const REQUIRED_TABLES = [
     'group_messages',
     'group_conversation_turns',
     'group_tasks',
-    'group_notes'
+    'group_notes',
+    'reports',
+    'report_assets',
+    'report_shares'
 ] as const
 
 export class Store {
@@ -68,6 +76,7 @@ export class Store {
     readonly push: PushStore
     readonly projectPreferences: ProjectPreferenceStore
     readonly groups: GroupStore
+    readonly reports: ReportStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -112,6 +121,7 @@ export class Store {
         this.push = new PushStore(this.db)
         this.projectPreferences = new ProjectPreferenceStore(this.db)
         this.groups = new GroupStore(this.db)
+        this.reports = new ReportStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -424,6 +434,57 @@ export class Store {
                 FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
                 );
             CREATE INDEX IF NOT EXISTS idx_group_notes_namespace ON group_notes(namespace);
+
+            CREATE TABLE IF NOT EXISTS reports (
+                id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                session_id TEXT,
+                task_id TEXT,
+                title TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'unknown',
+                markdown TEXT NOT NULL DEFAULT '',
+                metadata TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_reports_namespace_updated
+                ON reports(namespace, updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_reports_session_namespace
+                ON reports(session_id, namespace);
+
+            CREATE TABLE IF NOT EXISTS report_assets (
+                id TEXT PRIMARY KEY,
+                report_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                file_name TEXT NOT NULL,
+                storage_key TEXT NOT NULL,
+                mime_type TEXT NOT NULL,
+                size INTEGER NOT NULL,
+                caption TEXT,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_report_assets_report
+                ON report_assets(report_id, created_at ASC);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_report_assets_storage_key
+                ON report_assets(report_id, storage_key);
+
+            CREATE TABLE IF NOT EXISTS report_shares (
+                id TEXT PRIMARY KEY,
+                report_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                token TEXT NOT NULL UNIQUE,
+                created_by TEXT,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER,
+                revoked_at INTEGER,
+                FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_report_shares_report
+                ON report_shares(report_id, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_report_shares_token
+                ON report_shares(token);
         `)
     }
 

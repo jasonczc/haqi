@@ -34,6 +34,7 @@ See `src/configuration.ts` for all options.
 - `HAPI_LISTEN_HOST` - HTTP bind address (default: 127.0.0.1).
 - `HAPI_LISTEN_PORT` - HTTP port (default: 3006).
 - `CORS_ORIGINS` - Comma-separated origins, or `*`.
+- `HAPI_REPORT_PUBLIC_BASE_URL` - Override domain used when generating report share links (defaults to `HAPI_PUBLIC_URL` / hub public URL).
 - `HAPI_HOME` - Data directory (default: ~/.hapi).
 - `DB_PATH` - SQLite database path (default: HAPI_HOME/hapi.db).
 - `TELEGRAM_NOTIFICATION` - Enable/disable Telegram notifications (default: true).
@@ -131,6 +132,22 @@ See `src/web/routes/` for all endpoints.
 - `GET /api/push/vapid-public-key` - Get VAPID public key.
 - `POST /api/push/subscribe` - Subscribe to push notifications.
 - `DELETE /api/push/subscribe` - Unsubscribe.
+
+### Reports (`src/web/routes/reports.ts` + `src/web/routes/publicReports.ts`)
+
+- `GET /api/reports` - List reports in current namespace.
+- `POST /api/reports` - Create report (`markdown`, `status`, optional `createShare`).
+- `GET /api/reports/domain` - Get report public domain setting (value/source).
+- `PATCH /api/reports/domain` - Update report public domain (supports clear via `null`).
+- `GET /api/reports/:id` - Get report details (assets + shares).
+- `PATCH /api/reports/:id` - Update report markdown/status/title/metadata.
+- `POST /api/reports/:id/assets` - Add asset (base64 content or `sourcePath` forwarding).
+- `GET /api/reports/:id/assets/:assetId` - Read protected asset.
+- `GET /api/reports/:id/shares` - List shares.
+- `POST /api/reports/:id/shares` - Create public share link.
+- `DELETE /api/reports/:id/shares/:shareId` - Revoke share.
+- `GET /share/r/:token` - Public report page (no auth).
+- `GET /share/r/:token/assets/:assetId` - Public shared asset (no auth).
 
 ### CLI (`src/web/routes/cli.ts`)
 

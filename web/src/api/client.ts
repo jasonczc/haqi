@@ -25,6 +25,7 @@ import type {
     GroupsResponse,
     GroupResponse,
     MemoryResponse,
+    ReportDomainResponse,
     ProjectOfflineSettingsResponse,
     UpdateMemoryResponse,
     CreateGroupResponse,
@@ -379,6 +380,17 @@ export class ApiClient {
 
     async updateMemory(payload: { content?: string; enabled?: boolean; updatedBy?: string }): Promise<UpdateMemoryResponse> {
         return await this.request<UpdateMemoryResponse>('/api/memory', {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async getReportDomainSettings(): Promise<ReportDomainResponse> {
+        return await this.request<ReportDomainResponse>('/api/reports/domain')
+    }
+
+    async updateReportDomainSettings(payload: { domain: string | null }): Promise<ReportDomainResponse> {
+        return await this.request<ReportDomainResponse>('/api/reports/domain', {
             method: 'PATCH',
             body: JSON.stringify(payload)
         })

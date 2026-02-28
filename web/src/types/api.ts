@@ -334,6 +334,16 @@ export type UpdateMemoryResponse = {
     memory: GlobalMemory
 }
 
+export type ReportDomainSettings = {
+    value: string
+    source: 'env' | 'file' | 'default'
+    envOverride: boolean
+}
+
+export type ReportDomainResponse = {
+    settings: ReportDomainSettings
+}
+
 export type ProjectOfflineSettingsResponse = {
     directories: string[]
 }

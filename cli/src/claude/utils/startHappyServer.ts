@@ -7,13 +7,121 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createServer } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { AddressInfo } from "node:net";
-import { z } from "zod";
 import { logger } from "@/ui/logger";
 import { ApiSessionClient } from "@/api/apiSession";
 import { randomUUID } from "node:crypto";
 import { isLowSignalTitle, normalizeTitleCandidate } from "@/utils/titlePolicy";
+import { configuration } from "@/configuration";
+import { getAuthToken } from "@/api/auth";
+import {
+    changeTitleInputSchema,
+    reportAddAssetInputSchema,
+    reportCreateInputSchema,
+    reportCreateShareInputSchema,
+    reportGetInputSchema,
+    reportListInputSchema,
+    reportUpdateInputSchema
+} from "@/mcp/hapiMcpTools";
+
+type JsonObject = Record<string, unknown>;
+
+function summarizeJson(payload: unknown): string {
+    return JSON.stringify(payload, null, 2);
+}
 
 export async function startHappyServer(client: ApiSessionClient) {
+    let cachedWebToken: { token: string; expiresAt: number } | null = null;
+
+    const resolveHubUrl = (path: string): string => {
+        const normalizedBase = configuration.apiUrl.endsWith("/")
+            ? configuration.apiUrl
+            : `${configuration.apiUrl}/`;
+        return new URL(path, normalizedBase).toString();
+    };
+
+    const getWebToken = async (): Promise<string> => {
+        if (cachedWebToken && cachedWebToken.expiresAt > Date.now()) {
+            return cachedWebToken.token;
+        }
+
+        const response = await fetch(resolveHubUrl("/api/auth"), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ accessToken: getAuthToken() })
+        });
+
+        const payload = await response.json().catch(() => null) as JsonObject | null;
+        if (!response.ok) {
+            const message = typeof payload?.error === "string"
+                ? payload.error
+                : `Auth failed (${response.status})`;
+            throw new Error(message);
+        }
+
+        const token = typeof payload?.token === "string" ? payload.token : "";
+        if (!token) {
+            throw new Error("Auth succeeded but token is missing");
+        }
+
+        cachedWebToken = {
+            token,
+            expiresAt: Date.now() + 13 * 60 * 1000
+        };
+        return token;
+    };
+
+    const requestHubJson = async (path: string, init?: RequestInit): Promise<JsonObject> => {
+        const doRequest = async (token: string): Promise<Response> => {
+            const headers = new Headers(init?.headers);
+            headers.set("Authorization", `Bearer ${token}`);
+            if (init?.body !== undefined && !headers.has("Content-Type")) {
+                headers.set("Content-Type", "application/json");
+            }
+            return await fetch(resolveHubUrl(path), {
+                ...init,
+                headers
+            });
+        };
+
+        let response = await doRequest(await getWebToken());
+        if (response.status === 401) {
+            cachedWebToken = null;
+            response = await doRequest(await getWebToken());
+        }
+
+        const payload = await response.json().catch(() => null) as JsonObject | null;
+        if (!response.ok) {
+            const message = typeof payload?.error === "string"
+                ? payload.error
+                : `Request failed (${response.status})`;
+            throw new Error(message);
+        }
+
+        return payload ?? {};
+    };
+
+    const buildToolResult = (payload: JsonObject, summary: string) => ({
+        content: [
+            {
+                type: "text" as const,
+                text: `${summary}\n\n${summarizeJson(payload)}`
+            }
+        ],
+        isError: false
+    });
+
+    const buildToolError = (label: string, error: unknown) => ({
+        content: [
+            {
+                type: "text" as const,
+                text: `${label}: ${error instanceof Error ? error.message : String(error)}`
+            }
+        ],
+        isError: true
+    });
+
     // Handler that sends title updates via the client
     const handler = async (title: string) => {
         const normalizedTitle = normalizeTitleCandidate(title);
@@ -60,11 +168,6 @@ export async function startHappyServer(client: ApiSessionClient) {
         version: "1.0.0",
     });
 
-    // Avoid TS instantiation depth issues by widening the schema type.
-    const changeTitleInputSchema: z.ZodTypeAny = z.object({
-        title: z.string().describe('The new title for the chat session'),
-    });
-
     mcp.registerTool<any, any>('change_title', {
         description: 'Change the title of the current chat session',
         title: 'Change Chat Title',
@@ -99,6 +202,163 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    mcp.registerTool<any, any>('report_create', {
+        description: 'Create a markdown report and optionally create a public share link',
+        title: 'Create Report',
+        inputSchema: reportCreateInputSchema
+    }, async (args: {
+        session_id?: string
+        task_id?: string
+        title?: string
+        status?: string
+        markdown?: string
+        metadata?: unknown
+        create_share?: boolean
+        share_expires_in_hours?: number
+    }) => {
+        try {
+            const payload = await requestHubJson('/api/reports', {
+                method: 'POST',
+                body: JSON.stringify({
+                    sessionId: args.session_id ?? client.sessionId,
+                    taskId: args.task_id,
+                    title: args.title,
+                    status: args.status,
+                    markdown: args.markdown,
+                    metadata: args.metadata,
+                    createShare: args.create_share,
+                    shareExpiresInHours: args.share_expires_in_hours
+                })
+            });
+            const report = payload.report as JsonObject | undefined;
+            const shareUrl = typeof report?.publicShareUrl === 'string' ? report.publicShareUrl : null;
+            const summary = shareUrl
+                ? `Report created. Public share: ${shareUrl}`
+                : 'Report created.';
+            return buildToolResult(payload, summary);
+        } catch (error) {
+            return buildToolError('Failed to create report', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('report_update', {
+        description: 'Update report title/status/markdown/metadata',
+        title: 'Update Report',
+        inputSchema: reportUpdateInputSchema
+    }, async (args: {
+        report_id: string
+        task_id?: string
+        title?: string
+        status?: string
+        markdown?: string
+        metadata?: unknown
+    }) => {
+        try {
+            const payload = await requestHubJson(`/api/reports/${encodeURIComponent(args.report_id)}`, {
+                method: 'PATCH',
+                body: JSON.stringify({
+                    taskId: args.task_id,
+                    title: args.title,
+                    status: args.status,
+                    markdown: args.markdown,
+                    metadata: args.metadata
+                })
+            });
+            return buildToolResult(payload, `Report updated: ${args.report_id}`);
+        } catch (error) {
+            return buildToolError(`Failed to update report ${args.report_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('report_get', {
+        description: 'Get full report details by report_id',
+        title: 'Get Report',
+        inputSchema: reportGetInputSchema
+    }, async (args: { report_id: string }) => {
+        try {
+            const payload = await requestHubJson(`/api/reports/${encodeURIComponent(args.report_id)}`);
+            return buildToolResult(payload, `Report loaded: ${args.report_id}`);
+        } catch (error) {
+            return buildToolError(`Failed to load report ${args.report_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('report_list', {
+        description: 'List reports in current namespace',
+        title: 'List Reports',
+        inputSchema: reportListInputSchema
+    }, async (args: { limit?: number; session_id?: string }) => {
+        try {
+            const query = new URLSearchParams();
+            if (typeof args.limit === 'number') {
+                query.set('limit', `${args.limit}`);
+            }
+            if (typeof args.session_id === 'string' && args.session_id.trim().length > 0) {
+                query.set('sessionId', args.session_id.trim());
+            }
+            const suffix = query.size > 0 ? `?${query.toString()}` : '';
+            const payload = await requestHubJson(`/api/reports${suffix}`);
+            return buildToolResult(payload, 'Reports loaded.');
+        } catch (error) {
+            return buildToolError('Failed to list reports', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('report_add_asset', {
+        description: 'Attach image/file asset to a report using base64/data-url/source-path',
+        title: 'Add Report Asset',
+        inputSchema: reportAddAssetInputSchema
+    }, async (args: {
+        report_id: string
+        filename?: string
+        mime_type?: string
+        content_base64?: string
+        content_data_url?: string
+        source_path?: string
+        caption?: string
+    }) => {
+        try {
+            const content = args.content_data_url ?? args.content_base64;
+            const payload = await requestHubJson(`/api/reports/${encodeURIComponent(args.report_id)}/assets`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    filename: args.filename,
+                    mimeType: args.mime_type,
+                    content,
+                    sourcePath: args.source_path,
+                    caption: args.caption
+                })
+            });
+            return buildToolResult(payload, `Asset added to report: ${args.report_id}`);
+        } catch (error) {
+            return buildToolError(`Failed to add asset for report ${args.report_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('report_create_share', {
+        description: 'Create a public share link for a report',
+        title: 'Create Report Share',
+        inputSchema: reportCreateShareInputSchema
+    }, async (args: { report_id: string; expires_in_hours?: number; created_by?: string }) => {
+        try {
+            const payload = await requestHubJson(`/api/reports/${encodeURIComponent(args.report_id)}/shares`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    expiresInHours: args.expires_in_hours,
+                    createdBy: args.created_by
+                })
+            });
+            const share = payload.share as JsonObject | undefined;
+            const shareUrl = typeof share?.shareUrl === 'string' ? share.shareUrl : null;
+            const summary = shareUrl
+                ? `Report share created: ${shareUrl}`
+                : `Report share created for ${args.report_id}`;
+            return buildToolResult(payload, summary);
+        } catch (error) {
+            return buildToolError(`Failed to create share for report ${args.report_id}`, error);
+        }
+    });
+
     const transport = new StreamableHTTPServerTransport({
         // NOTE: Returning session id here will result in claude
         // sdk spawn to fail with `Invalid Request: Server already initialized`
@@ -130,7 +390,15 @@ export async function startHappyServer(client: ApiSessionClient) {
 
     return {
         url: baseUrl.toString(),
-        toolNames: ['change_title'],
+        toolNames: [
+            'change_title',
+            'report_create',
+            'report_update',
+            'report_get',
+            'report_list',
+            'report_add_asset',
+            'report_create_share'
+        ],
         stop: () => {
             logger.debug('[hapiMCP] Stopping server');
             mcp.close();

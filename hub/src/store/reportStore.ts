@@ -1,0 +1,153 @@
+import type { Database } from 'bun:sqlite'
+import { randomBytes } from 'node:crypto'
+
+import type {
+    StoredReport,
+    StoredReportAsset,
+    StoredReportShare
+} from './types'
+import {
+    createReport,
+    createReportAsset,
+    createReportShare,
+    getReport,
+    getReportAsset,
+    getReportAssetByNamespace,
+    getReportByNamespace,
+    getReportShareByToken,
+    listReportAssets,
+    listReportAssetsByNamespace,
+    listReportSharesByNamespace,
+    listReportsByNamespace,
+    revokeReportShareByNamespace,
+    updateReport
+} from './reports'
+
+const DEFAULT_SHARE_TOKEN_BYTES = 24
+
+export class ReportStore {
+    private readonly db: Database
+
+    constructor(db: Database) {
+        this.db = db
+    }
+
+    createReport(options: {
+        namespace: string
+        sessionId?: string | null
+        taskId?: string | null
+        title?: string | null
+        status?: string | null
+        markdown?: string | null
+        metadata?: unknown
+    }): StoredReport {
+        return createReport(this.db, options)
+    }
+
+    getReport(id: string): StoredReport | null {
+        return getReport(this.db, id)
+    }
+
+    getReportByNamespace(id: string, namespace: string): StoredReport | null {
+        return getReportByNamespace(this.db, id, namespace)
+    }
+
+    listReportsByNamespace(
+        namespace: string,
+        options?: {
+            limit?: number
+            sessionId?: string | null
+        }
+    ): StoredReport[] {
+        return listReportsByNamespace(this.db, namespace, options)
+    }
+
+    updateReport(options: {
+        id: string
+        namespace: string
+        title?: string | null
+        status?: string | null
+        markdown?: string | null
+        metadata?: unknown
+        taskId?: string | null
+    }): StoredReport | null {
+        return updateReport(this.db, options)
+    }
+
+    createAsset(options: {
+        reportId: string
+        namespace: string
+        fileName: string
+        storageKey: string
+        mimeType: string
+        size: number
+        caption?: string | null
+    }): StoredReportAsset {
+        return createReportAsset(this.db, options)
+    }
+
+    listAssetsByNamespace(reportId: string, namespace: string): StoredReportAsset[] {
+        return listReportAssetsByNamespace(this.db, reportId, namespace)
+    }
+
+    listAssets(reportId: string): StoredReportAsset[] {
+        return listReportAssets(this.db, reportId)
+    }
+
+    getAssetByNamespace(reportId: string, assetId: string, namespace: string): StoredReportAsset | null {
+        return getReportAssetByNamespace(this.db, reportId, assetId, namespace)
+    }
+
+    getAsset(reportId: string, assetId: string): StoredReportAsset | null {
+        return getReportAsset(this.db, reportId, assetId)
+    }
+
+    createShare(options: {
+        reportId: string
+        namespace: string
+        createdBy?: string | null
+        expiresAt?: number | null
+        token?: string
+    }): StoredReportShare {
+        const maxAttempts = 6
+        let attempt = 0
+
+        while (attempt < maxAttempts) {
+            attempt += 1
+            const token = options.token ?? randomBytes(DEFAULT_SHARE_TOKEN_BYTES).toString('base64url')
+            try {
+                return createReportShare(this.db, {
+                    reportId: options.reportId,
+                    namespace: options.namespace,
+                    token,
+                    createdBy: options.createdBy,
+                    expiresAt: options.expiresAt
+                })
+            } catch (error) {
+                const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
+                const tokenConflict = message.includes('unique') && message.includes('token')
+                if (!tokenConflict || options.token) {
+                    throw error
+                }
+            }
+        }
+
+        throw new Error('Failed to create unique share token')
+    }
+
+    listSharesByNamespace(
+        reportId: string,
+        namespace: string,
+        options?: { includeRevoked?: boolean }
+    ): StoredReportShare[] {
+        return listReportSharesByNamespace(this.db, reportId, namespace, options)
+    }
+
+    revokeShareByNamespace(reportId: string, shareId: string, namespace: string): StoredReportShare | null {
+        return revokeReportShareByNamespace(this.db, reportId, shareId, namespace)
+    }
+
+    getShareByToken(token: string): StoredReportShare | null {
+        return getReportShareByToken(this.db, token)
+    }
+}

@@ -23,6 +23,9 @@ import { createVoiceRoutes } from './routes/voice'
 import { createUsageRoutes } from './routes/usage'
 import { createGroupsRoutes } from './routes/groups'
 import { createMemoryRoutes } from './routes/memory'
+import { createReportsRoutes } from './routes/reports'
+import { createPublicReportsRoutes } from './routes/publicReports'
+import type { ReportPublicBaseUrlSettings } from '../config/reportPublicBaseUrl'
 import { createSettingsRoutes } from './routes/settings'
 import type { SSEManager } from '../sse/sseManager'
 import type { VisibilityTracker } from '../visibility/visibilityTracker'
@@ -66,6 +69,10 @@ function createWebApp(options: {
     jwtSecret: Uint8Array
     store: Store
     vapidPublicKey: string
+    reportsStorageDir: string
+    reportPublicBaseUrl: ReportPublicBaseUrlSettings
+    dataDir: string
+    fallbackPublicUrl: string
     corsOrigins?: string[]
     embeddedAssetMap: Map<string, EmbeddedWebAsset> | null
     relayMode?: boolean
@@ -107,6 +114,25 @@ function createWebApp(options: {
     app.route('/api', createGroupsRoutes(options.getSyncEngine))
     app.route('/api', createMemoryRoutes())
     app.route('/api', createSettingsRoutes(options.store))
+    const reportPublicBaseUrlState: { value: ReportPublicBaseUrlSettings } = {
+        value: options.reportPublicBaseUrl
+    }
+
+    app.route('/api', createReportsRoutes({
+        store: options.store,
+        reportsStorageDir: options.reportsStorageDir,
+        getReportPublicBaseUrl: () => reportPublicBaseUrlState.value,
+        setReportPublicBaseUrl: (settings) => {
+            reportPublicBaseUrlState.value = settings
+        },
+        dataDir: options.dataDir,
+        fallbackPublicUrl: options.fallbackPublicUrl
+    }))
+
+    app.route('/', createPublicReportsRoutes({
+        store: options.store,
+        reportsStorageDir: options.reportsStorageDir
+    }))
 
     // Skip static serving in relay mode, show helpful message on root
     if (options.relayMode) {
@@ -218,6 +244,10 @@ export async function startWebServer(options: {
     jwtSecret: Uint8Array
     store: Store
     vapidPublicKey: string
+    reportsStorageDir: string
+    reportPublicBaseUrl: ReportPublicBaseUrlSettings
+    dataDir: string
+    fallbackPublicUrl: string
     socketEngine: SocketEngine
     corsOrigins?: string[]
     relayMode?: boolean
@@ -232,6 +262,10 @@ export async function startWebServer(options: {
         jwtSecret: options.jwtSecret,
         store: options.store,
         vapidPublicKey: options.vapidPublicKey,
+        reportsStorageDir: options.reportsStorageDir,
+        reportPublicBaseUrl: options.reportPublicBaseUrl,
+        dataDir: options.dataDir,
+        fallbackPublicUrl: options.fallbackPublicUrl,
         corsOrigins: options.corsOrigins,
         embeddedAssetMap,
         relayMode: options.relayMode,

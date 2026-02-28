@@ -158,6 +158,42 @@ export type StoredGroupNote = {
     updatedAt: number
 }
 
+export type StoredReport = {
+    id: string
+    namespace: string
+    sessionId: string | null
+    taskId: string | null
+    title: string
+    status: string
+    markdown: string
+    metadata: unknown | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredReportAsset = {
+    id: string
+    reportId: string
+    namespace: string
+    fileName: string
+    storageKey: string
+    mimeType: string
+    size: number
+    caption: string | null
+    createdAt: number
+}
+
+export type StoredReportShare = {
+    id: string
+    reportId: string
+    namespace: string
+    token: string
+    createdBy: string | null
+    createdAt: number
+    expiresAt: number | null
+    revokedAt: number | null
+}
+
 export type StoredUser = {
     id: number
     platform: string

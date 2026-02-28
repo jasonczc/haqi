@@ -90,6 +90,22 @@ const updateMemoryMock = vi.fn(async (payload: { content?: string; enabled?: boo
     }
 }))
 
+const getReportDomainSettingsMock = vi.fn(async () => ({
+    settings: {
+        value: 'http://localhost:3006',
+        source: 'default',
+        envOverride: false
+    }
+}))
+
+const updateReportDomainSettingsMock = vi.fn(async (payload: { domain: string | null }) => ({
+    settings: {
+        value: payload.domain ?? 'http://localhost:3006',
+        source: payload.domain ? 'file' : 'default',
+        envOverride: false
+    }
+}))
+
 // Mock the router hooks
 vi.mock('@tanstack/react-router', () => ({
     useNavigate: () => vi.fn(),
@@ -125,7 +141,9 @@ vi.mock('@/lib/app-context', () => ({
         api: {
             getUsageOverview: getUsageOverviewMock,
             getMemory: getMemoryMock,
-            updateMemory: updateMemoryMock
+            updateMemory: updateMemoryMock,
+            getReportDomainSettings: getReportDomainSettingsMock,
+            updateReportDomainSettings: updateReportDomainSettingsMock
         }
     })
 }))
@@ -266,6 +284,7 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.behavior.imageCompression.level')
         expect(calledKeys).toContain('settings.behavior.imageCompression.targetSize')
         expect(calledKeys).toContain('settings.memory.title')
+        expect(calledKeys).toContain('settings.reportDomain.title')
         expect(calledKeys).toContain('settings.memory.actions.save')
         expect(calledKeys).toContain('settings.about.website')
         expect(calledKeys).toContain('settings.about.appVersion')
