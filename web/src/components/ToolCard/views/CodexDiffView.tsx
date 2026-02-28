@@ -2,6 +2,13 @@ import type { ToolViewProps } from '@/components/ToolCard/views/_all'
 import { isObject } from '@hapi/protocol'
 import { DiffView } from '@/components/DiffView'
 
+function parseDiffPathMarker(line: string): string | undefined {
+    const markerValue = line.replace(/^(?:\+\+\+|---)\s+/, '')
+    const normalized = markerValue.replace(/^[ab]\//, '')
+    if (!normalized || normalized === '/dev/null') return undefined
+    return normalized
+}
+
 function parseUnifiedDiff(unifiedDiff: string): { oldText: string; newText: string; fileName?: string } {
     const lines = unifiedDiff.split('\n')
     const oldLines: string[] = []
@@ -10,15 +17,19 @@ function parseUnifiedDiff(unifiedDiff: string): { oldText: string; newText: stri
     let inHunk = false
 
     for (const line of lines) {
-        if (line.startsWith('+++ b/') || line.startsWith('+++ ')) {
-            fileName = line.replace(/^\+\+\+ (b\/)?/, '')
+        if (line.startsWith('+++ ')) {
+            fileName = parseDiffPathMarker(line) ?? fileName
+            continue
+        }
+
+        if (line.startsWith('--- ')) {
+            fileName = fileName ?? parseDiffPathMarker(line)
             continue
         }
 
         if (
             line.startsWith('diff --git')
             || line.startsWith('index ')
-            || line.startsWith('---')
             || line.startsWith('new file mode')
             || line.startsWith('deleted file mode')
         ) {
@@ -54,7 +65,7 @@ function parseUnifiedDiff(unifiedDiff: string): { oldText: string; newText: stri
     }
 }
 
-function renderDiff(block: ToolViewProps['block'], showFileHeader: boolean) {
+function renderDiff(block: ToolViewProps['block'], inline: boolean) {
     const input = block.tool.input
     if (!isObject(input) || typeof input.unified_diff !== 'string') return null
 
@@ -63,8 +74,8 @@ function renderDiff(block: ToolViewProps['block'], showFileHeader: boolean) {
         <DiffView
             oldString={parsed.oldText}
             newString={parsed.newText}
-            filePath={showFileHeader ? parsed.fileName : undefined}
-            variant={showFileHeader ? 'inline' : undefined}
+            filePath={parsed.fileName}
+            variant={inline ? 'inline' : undefined}
         />
     )
 }

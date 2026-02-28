@@ -4,16 +4,72 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { usePointerFocusRing } from '@/hooks/usePointerFocusRing'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/use-translation'
+import { langAlias, useShikiHighlighter } from '@/lib/shiki'
+
+const SUPPORTED_SHIKI_LANGUAGES = new Set([
+    'shellscript',
+    'powershell',
+    'json',
+    'yaml',
+    'toml',
+    'xml',
+    'ini',
+    'markdown',
+    'html',
+    'css',
+    'scss',
+    'javascript',
+    'typescript',
+    'jsx',
+    'tsx',
+    'sql',
+    'graphql',
+    'c',
+    'rust',
+    'go',
+    'java',
+    'kotlin',
+    'python',
+    'php',
+    'swift',
+    'csharp',
+    'dockerfile',
+    'make',
+    'diff',
+])
+
+function inferLanguageFromFilePath(filePath: string | undefined): string | undefined {
+    if (!filePath) return undefined
+
+    const normalized = filePath.replace(/\\/g, '/')
+    const fileName = normalized.split('/').pop() ?? ''
+    const dotIndex = fileName.lastIndexOf('.')
+    if (dotIndex <= 0 || dotIndex === fileName.length - 1) {
+        return undefined
+    }
+
+    const extension = fileName.slice(dotIndex + 1).toLowerCase()
+    if (!extension) return undefined
+
+    const normalizedLanguage = langAlias[extension] ?? extension
+    if (!SUPPORTED_SHIKI_LANGUAGES.has(normalizedLanguage)) {
+        return undefined
+    }
+
+    return normalizedLanguage
+}
 
 export function DiffView(props: {
     oldString: string
     newString: string
     filePath?: string
     variant?: 'preview' | 'inline'
+    language?: string
 }) {
     const { t } = useTranslation()
     const variant = props.variant ?? 'preview'
     const { suppressFocusRing, onTriggerPointerDown, onTriggerKeyDown, onTriggerBlur } = usePointerFocusRing()
+    const language = props.language ?? inferLanguageFromFilePath(props.filePath) ?? 'diff'
 
     const stats = useMemo(() => {
         const oldChars = props.oldString.length
@@ -31,6 +87,7 @@ export function DiffView(props: {
             oldString={props.oldString}
             newString={props.newString}
             filePath={props.filePath}
+            language={language}
         />
     )
 
@@ -89,6 +146,7 @@ function DiffInlineView(props: {
     oldString: string
     newString: string
     filePath?: string
+    language: string
 }) {
     const diff = useMemo(() => diffLines(props.oldString, props.newString), [props.oldString, props.newString])
 
@@ -117,7 +175,8 @@ function DiffInlineView(props: {
                         <div key={i} className={className}>
                             {lines.map((line, j) => (
                                 <div key={j} className="whitespace-pre-wrap px-2">
-                                    {prefix} {line}
+                                    <span className="inline-block w-4 text-[var(--app-hint)]">{prefix}</span>
+                                    <DiffLineHighlight text={line || ' '} language={props.language} />
                                 </div>
                             ))}
                         </div>
@@ -126,4 +185,9 @@ function DiffInlineView(props: {
             </div>
         </div>
     )
+}
+
+function DiffLineHighlight(props: { text: string; language: string }) {
+    const highlighted = useShikiHighlighter(props.text, props.language)
+    return <span className="inline-block min-w-0 align-top">{highlighted ?? props.text}</span>
 }
