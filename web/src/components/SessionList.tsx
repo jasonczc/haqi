@@ -23,13 +23,12 @@ import { ProjectActionMenu } from '@/components/ProjectActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
+import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import {
     applySessionGroupOrder,
     loadSessionGroupOrder,
-    loadSessionProjectOffline,
     moveSessionGroup,
-    persistSessionProjectOffline,
     persistSessionGroupOrder,
     reconcileSessionGroupOrder
 } from '@/components/sessionGroupOrder'
@@ -742,9 +741,10 @@ export function SessionList(props: {
         [baseGroups]
     )
     const [groupOrder, setGroupOrder] = useState<string[]>(() => loadSessionGroupOrder())
-    const [projectOfflineDirectories, setProjectOfflineDirectories] = useState<Set<string>>(
-        () => new Set(loadSessionProjectOffline())
-    )
+    const {
+        projectOfflineDirectories,
+        setProjectOfflineDirectories
+    } = useProjectOfflineDirectories(api)
     const [collapseOverrides, setCollapseOverrides] = useState<Map<string, boolean>>(
         () => new Map()
     )
@@ -787,10 +787,6 @@ export function SessionList(props: {
     useEffect(() => {
         persistSessionGroupOrder(groupOrder)
     }, [groupOrder])
-
-    useEffect(() => {
-        persistSessionProjectOffline(Array.from(projectOfflineDirectories))
-    }, [projectOfflineDirectories])
 
     const isProjectForcedOffline = (directory: string): boolean => projectOfflineDirectories.has(directory)
     const isProjectForcedOfflineGroup = (group: SessionGroup): boolean => isProjectForcedOffline(group.directory)
