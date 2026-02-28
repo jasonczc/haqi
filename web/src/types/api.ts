@@ -435,6 +435,7 @@ export type QueueEntry = {
     id: string
     index: number
     preview: string
+    fullText?: string
     modeHash: string
     isolate: boolean
     deferredUserMessage?: boolean
