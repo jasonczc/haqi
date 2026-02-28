@@ -21,7 +21,6 @@ import {
     loadPreferredAgent,
     loadPreferredCustomModel,
     loadPreferredModel,
-    loadPreferredSessionType,
     loadPreferredThinkEffort,
     loadPreferredYoloMode
 } from '@/components/NewSession/preferences'
@@ -285,13 +284,13 @@ function SessionsPage() {
             const quickCustomModel = (lastConfig?.customModel ?? loadPreferredCustomModel(quickCreateAgent)).trim()
             const quickThinkEffort = lastConfig?.thinkEffort ?? loadPreferredThinkEffort(quickCreateAgent) ?? 'auto'
             const quickYolo = lastConfig?.yoloMode ?? loadPreferredYoloMode()
-            const quickSessionType = lastConfig?.sessionType ?? loadPreferredSessionType()
-            const quickWorktreeName = lastConfig?.worktreeName ?? ''
             const quickPreviewUrl = lastConfig?.previewUrl ?? ''
 
             const resolvedModel = resolveSpawnModel(quickCreateAgent, quickModel, quickCustomModel)
             const resolvedThinkEffort = resolveSpawnThinkEffort(quickCreateAgent, quickThinkEffort)
-            const sessionSettings = resolveSpawnSessionSettings(quickSessionType, quickWorktreeName, quickPreviewUrl)
+            // Project-level quick create should stay in the clicked project directory.
+            // Force simple mode so worktree preferences don't move cwd unexpectedly.
+            const sessionSettings = resolveSpawnSessionSettings('simple', '', quickPreviewUrl)
             const result = await spawnSession({
                 machineId: preset.machineId,
                 directory: preset.directory,
