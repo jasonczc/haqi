@@ -21,6 +21,12 @@ import { buildThreadStartParams, buildTurnStartParams } from './utils/appServerC
 import { TurnChangeTracker } from './utils/turnChangeTracker';
 import { buildCodexSystemPrompt } from './utils/systemPrompt';
 import {
+    LIVE_ACTIVITY_EVENT_TYPES,
+    LIVE_ACTIVITY_GRACE_MS,
+    TERMINAL_TURN_EVENT_TYPES,
+    isStaleTerminalTurnEvent
+} from './utils/turnState';
+import {
     RemoteLauncherBase,
     type RemoteLauncherDisplayContext,
     type RemoteLauncherExitReason
@@ -137,7 +143,39 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         const appServerEventConverter = useAppServer ? new AppServerEventConverter() : null;
         const baseInstructions = buildCodexSystemPrompt(session.path);
         let turnInFlight = false;
+        let liveActivityActive = false;
+        let liveActivityTimer: NodeJS.Timeout | null = null;
         const turnIdleWaiters: Array<() => void> = [];
+
+        const syncThinkingFromRuntimeState = () => {
+            const shouldBeThinking = turnInFlight || liveActivityActive;
+            if (session.thinking !== shouldBeThinking) {
+                session.onThinkingChange(shouldBeThinking);
+            }
+        };
+
+        const clearLiveActivity = () => {
+            liveActivityActive = false;
+            if (liveActivityTimer) {
+                clearTimeout(liveActivityTimer);
+                liveActivityTimer = null;
+            }
+            syncThinkingFromRuntimeState();
+        };
+
+        const markLiveActivity = () => {
+            liveActivityActive = true;
+            syncThinkingFromRuntimeState();
+            if (liveActivityTimer) {
+                clearTimeout(liveActivityTimer);
+            }
+            liveActivityTimer = setTimeout(() => {
+                liveActivityTimer = null;
+                liveActivityActive = false;
+                syncThinkingFromRuntimeState();
+            }, LIVE_ACTIVITY_GRACE_MS);
+            liveActivityTimer.unref?.();
+        };
 
         const resolveTurnIdleWaiters = () => {
             while (turnIdleWaiters.length > 0) {
@@ -148,12 +186,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
         const setTurnInFlight = (next: boolean) => {
             turnInFlight = next;
-            if (next && !session.thinking) {
-                session.onThinkingChange(true);
-            }
-            if (!next && session.thinking) {
-                session.onThinkingChange(false);
-            }
+            syncThinkingFromRuntimeState();
             if (!next) {
                 resolveTurnIdleWaiters();
             }
@@ -333,6 +366,23 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         const handleCodexEvent = (msg: Record<string, unknown>) => {
             const msgType = asString(msg.type);
             if (!msgType) return;
+            const eventTurnId = asString(msg.turn_id ?? msg.turnId);
+            const isTerminalTurnEvent = TERMINAL_TURN_EVENT_TYPES.has(msgType);
+            const staleTerminalEvent = isStaleTerminalTurnEvent({
+                useAppServer,
+                eventType: msgType,
+                eventTurnId,
+                currentTurnId: this.currentTurnId
+            });
+
+            if (staleTerminalEvent) {
+                logger.debug(`[Codex] Ignoring stale terminal turn event ${msgType} (eventTurnId=${eventTurnId}, currentTurnId=${this.currentTurnId})`);
+                return;
+            }
+
+            if (LIVE_ACTIVITY_EVENT_TYPES.has(msgType)) {
+                markLiveActivity();
+            }
 
             if (msgType === 'thread_started') {
                 const threadId = asString(msg.thread_id ?? msg.threadId);
@@ -344,14 +394,13 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
 
             if (msgType === 'task_started') {
-                const turnId = asString(msg.turn_id ?? msg.turnId);
-                if (turnId) {
-                    this.currentTurnId = turnId;
+                if (eventTurnId) {
+                    this.currentTurnId = eventTurnId;
                 }
                 this.turnChangeTracker.reset();
             }
 
-            if (msgType === 'task_complete' || msgType === 'turn_aborted' || msgType === 'task_failed') {
+            if (isTerminalTurnEvent) {
                 this.currentTurnId = null;
             }
 
@@ -428,22 +477,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
 
             if (msgType === 'task_started') {
-                if (useAppServer) {
-                    setTurnInFlight(true);
-                }
-                if (!session.thinking) {
-                    logger.debug('thinking started');
-                    session.onThinkingChange(true);
-                }
+                setTurnInFlight(true);
             }
-            if (msgType === 'task_complete' || msgType === 'turn_aborted' || msgType === 'task_failed') {
-                if (useAppServer) {
-                    setTurnInFlight(false);
-                }
-                if (session.thinking) {
-                    logger.debug('thinking completed');
-                    session.onThinkingChange(false);
-                }
+            if (isTerminalTurnEvent) {
+                setTurnInFlight(false);
 
                 const summaryStatus = msgType === 'task_complete'
                     ? 'completed'
@@ -784,7 +821,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 permissionHandler.reset();
                 reasoningProcessor.abort();
                 diffProcessor.reset();
-                session.onThinkingChange(false);
+                clearLiveActivity();
+                setTurnInFlight(false);
                 continue;
             }
 
@@ -908,9 +946,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             } catch (error) {
                 logger.warn('Error in codex session:', error);
                 const isAbortError = error instanceof Error && error.name === 'AbortError';
-                if (useAppServer) {
-                    setTurnInFlight(false);
-                }
+                clearLiveActivity();
+                setTurnInFlight(false);
 
                 if (isAbortError) {
                     messageBuffer.addMessage('Aborted by user', 'status');
@@ -935,7 +972,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 diffProcessor.reset();
                 appServerEventConverter?.reset();
                 if (!useAppServer || !turnInFlight) {
-                    session.onThinkingChange(false);
+                    clearLiveActivity();
+                    setTurnInFlight(false);
                 }
                 if (!useAppServer || !turnInFlight) {
                     emitReadyIfIdle({
@@ -948,6 +986,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 logActiveHandles('after-turn');
             }
         }
+
+        clearLiveActivity();
+        setTurnInFlight(false);
     }
 
     protected async cleanup(): Promise<void> {
