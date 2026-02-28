@@ -25,6 +25,45 @@ type ChangeSummary = {
 const MIN_LIST_WIDTH = 220
 const MAX_LIST_WIDTH = 520
 const MIN_DIFF_WIDTH = 360
+const MOBILE_BREAKPOINT_QUERY = '(max-width: 767px)'
+const TURN_CHANGES_DETAIL_QUERY_KEY = 'turnChangesToolId'
+const TURN_CHANGES_FILE_QUERY_KEY = 'turnChangesFile'
+
+function readTurnChangesFilePath(search: string, toolId: string): string | null {
+    const params = new URLSearchParams(search)
+    const detailToolId = params.get(TURN_CHANGES_DETAIL_QUERY_KEY)?.trim() ?? ''
+    const filePath = params.get(TURN_CHANGES_FILE_QUERY_KEY)?.trim() ?? ''
+    if (!detailToolId || detailToolId !== toolId || !filePath) {
+        return null
+    }
+    return filePath
+}
+
+function writeTurnChangesFilePath(
+    toolId: string,
+    filePath: string | null,
+    mode: 'push' | 'replace'
+): void {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    const url = new URL(window.location.href)
+    url.searchParams.set(TURN_CHANGES_DETAIL_QUERY_KEY, toolId)
+    if (filePath) {
+        url.searchParams.set(TURN_CHANGES_FILE_QUERY_KEY, filePath)
+    } else {
+        url.searchParams.delete(TURN_CHANGES_FILE_QUERY_KEY)
+    }
+
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`
+    if (mode === 'replace') {
+        window.history.replaceState(window.history.state, '', nextUrl)
+        return
+    }
+
+    window.history.pushState(window.history.state, '', nextUrl)
+}
 
 function asNumber(value: unknown): number {
     return typeof value === 'number' && Number.isFinite(value) ? value : 0
@@ -142,6 +181,9 @@ export function CodexTurnChangesView(props: ToolViewProps) {
 
     const [selectedPath, setSelectedPath] = useState<string | null>(() => files[0]?.path ?? null)
     const [mobileView, setMobileView] = useState<'list' | 'diff'>('list')
+    const [isMobileViewport, setIsMobileViewport] = useState(() => (
+        typeof window !== 'undefined' && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches
+    ))
     const [listWidth, setListWidth] = useState(320)
     const [isResizing, setIsResizing] = useState(false)
     const desktopLayoutRef = useRef<HTMLDivElement | null>(null)
@@ -160,6 +202,65 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [files, selectedPath])
 
     const selectedFile = files.find((file) => file.path === selectedPath) ?? files[0] ?? null
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+
+        const mediaQuery = window.matchMedia(MOBILE_BREAKPOINT_QUERY)
+        const handleChange = () => {
+            setIsMobileViewport(mediaQuery.matches)
+        }
+
+        handleChange()
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handleChange)
+            return () => {
+                mediaQuery.removeEventListener('change', handleChange)
+            }
+        }
+
+        mediaQuery.addListener(handleChange)
+        return () => {
+            mediaQuery.removeListener(handleChange)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+
+        if (!isMobileViewport) {
+            const activeFilePath = readTurnChangesFilePath(window.location.search, props.block.id)
+            if (activeFilePath) {
+                writeTurnChangesFilePath(props.block.id, null, 'replace')
+            }
+            return
+        }
+
+        const syncFromHistory = () => {
+            const activeFilePath = readTurnChangesFilePath(window.location.search, props.block.id)
+            if (!activeFilePath) {
+                setMobileView('list')
+                return
+            }
+            if (!files.some((file) => file.path === activeFilePath)) {
+                setMobileView('list')
+                return
+            }
+
+            setSelectedPath(activeFilePath)
+            setMobileView('diff')
+        }
+
+        syncFromHistory()
+        window.addEventListener('popstate', syncFromHistory)
+        return () => {
+            window.removeEventListener('popstate', syncFromHistory)
+        }
+    }, [files, isMobileViewport, props.block.id])
 
     const selectFileWithOffset = useCallback((offset: number) => {
         if (files.length === 0) return
@@ -187,6 +288,45 @@ export function CodexTurnChangesView(props: ToolViewProps) {
             selectFileWithOffset(-1)
         }
     }, [selectFileWithOffset])
+
+    const openFileDetails = useCallback((path: string) => {
+        setSelectedPath(path)
+
+        if (!isMobileViewport) {
+            setMobileView('diff')
+            return
+        }
+
+        if (typeof window === 'undefined') {
+            setMobileView('diff')
+            return
+        }
+
+        const current = readTurnChangesFilePath(window.location.search, props.block.id)
+        if (current !== path) {
+            writeTurnChangesFilePath(props.block.id, path, 'push')
+        }
+        setMobileView('diff')
+    }, [isMobileViewport, props.block.id])
+
+    const handleBackToFileList = useCallback(() => {
+        if (!isMobileViewport) {
+            setMobileView('list')
+            return
+        }
+
+        if (typeof window === 'undefined') {
+            setMobileView('list')
+            return
+        }
+
+        const current = readTurnChangesFilePath(window.location.search, props.block.id)
+        if (current) {
+            window.history.back()
+            return
+        }
+        setMobileView('list')
+    }, [isMobileViewport, props.block.id])
 
     const clampListWidth = useCallback((nextWidth: number) => {
         const container = desktopLayoutRef.current
@@ -253,10 +393,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                                         fileButtonRefs.current.delete(file.path)
                                     }
                                 }}
-                                onClick={() => {
-                                    setSelectedPath(file.path)
-                                    setMobileView('diff')
-                                }}
+                                onClick={() => openFileDetails(file.path)}
                                 className={`w-full border-b border-[var(--app-divider)] px-2 py-2 text-left transition-colors last:border-b-0 ${selected ? 'bg-[var(--app-subtle-bg)]' : 'hover:bg-[var(--app-subtle-bg)]'}`}
                             >
                                 <div className="font-mono text-xs text-[var(--app-fg)] break-all">
@@ -312,7 +449,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                 <div className="border-t border-[var(--app-border)] px-2 py-2 md:hidden">
                     <button
                         type="button"
-                        onClick={() => setMobileView('list')}
+                        onClick={handleBackToFileList}
                         className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
                     >
                         Back to files

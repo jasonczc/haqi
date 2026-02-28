@@ -1,7 +1,7 @@
 import type { ToolCallBlock } from '@/chat/types'
 import type { ApiClient } from '@/api/client'
 import type { SessionMetadataSummary } from '@/types/api'
-import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { isObject, safeStringify } from '@hapi/protocol'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CodeBlock } from '@/components/CodeBlock'
@@ -23,6 +23,35 @@ import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 
 const ELAPSED_INTERVAL_MS = 1000
+const MOBILE_DETAIL_BREAKPOINT_QUERY = '(max-width: 767px)'
+const TURN_CHANGES_DETAIL_QUERY_KEY = 'turnChangesToolId'
+
+function readTurnChangesDetailToolId(search: string): string | null {
+    const rawValue = new URLSearchParams(search).get(TURN_CHANGES_DETAIL_QUERY_KEY)
+    const value = rawValue?.trim() ?? ''
+    return value.length > 0 ? value : null
+}
+
+function writeTurnChangesDetailToolId(toolId: string | null, mode: 'push' | 'replace'): void {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    const url = new URL(window.location.href)
+    if (toolId) {
+        url.searchParams.set(TURN_CHANGES_DETAIL_QUERY_KEY, toolId)
+    } else {
+        url.searchParams.delete(TURN_CHANGES_DETAIL_QUERY_KEY)
+    }
+
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`
+    if (mode === 'replace') {
+        window.history.replaceState(window.history.state, '', nextUrl)
+        return
+    }
+
+    window.history.pushState(window.history.state, '', nextUrl)
+}
 
 function ElapsedView(props: { from: number; active: boolean }) {
     const [now, setNow] = useState(() => Date.now())
@@ -299,6 +328,25 @@ function DetailsIcon(props: { className?: string }) {
     )
 }
 
+function BackIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <polyline points="15 18 9 12 15 6" />
+        </svg>
+    )
+}
+
 type ToolCardProps = {
     api: ApiClient
     sessionId: string
@@ -355,6 +403,10 @@ function ToolCardInner(props: ToolCardProps) {
     const [hasUserToggledExpand, setHasUserToggledExpand] = useState(false)
     const showCardBody = hasBody && (!isCompact || isExpanded)
     const { suppressFocusRing, onTriggerPointerDown, onTriggerKeyDown, onTriggerBlur } = usePointerFocusRing()
+    const [isMobileViewport, setIsMobileViewport] = useState(() => (
+        typeof window !== 'undefined' && window.matchMedia(MOBILE_DETAIL_BREAKPOINT_QUERY).matches
+    ))
+    const [isTurnChangesDetailOpen, setIsTurnChangesDetailOpen] = useState(false)
 
     useEffect(() => {
         setHasUserToggledExpand(false)
@@ -365,6 +417,76 @@ function ToolCardInner(props: ToolCardProps) {
         if (!isCompact || hasUserToggledExpand) return
         setIsExpanded(requiresInteraction)
     }, [isCompact, hasUserToggledExpand, requiresInteraction])
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+
+        const mediaQuery = window.matchMedia(MOBILE_DETAIL_BREAKPOINT_QUERY)
+        const handleChange = () => {
+            setIsMobileViewport(mediaQuery.matches)
+        }
+
+        handleChange()
+        if (typeof mediaQuery.addEventListener === 'function') {
+            mediaQuery.addEventListener('change', handleChange)
+            return () => {
+                mediaQuery.removeEventListener('change', handleChange)
+            }
+        }
+
+        mediaQuery.addListener(handleChange)
+        return () => {
+            mediaQuery.removeListener(handleChange)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!isTurnChangesTool || typeof window === 'undefined') {
+            return
+        }
+
+        if (!isMobileViewport) {
+            if (readTurnChangesDetailToolId(window.location.search) === props.block.id) {
+                writeTurnChangesDetailToolId(null, 'replace')
+            }
+            return
+        }
+
+        const syncFromHistory = () => {
+            setIsTurnChangesDetailOpen(readTurnChangesDetailToolId(window.location.search) === props.block.id)
+        }
+
+        syncFromHistory()
+        window.addEventListener('popstate', syncFromHistory)
+        return () => {
+            window.removeEventListener('popstate', syncFromHistory)
+        }
+    }, [isMobileViewport, isTurnChangesTool, props.block.id])
+
+    const openTurnChangesDetail = useCallback(() => {
+        setIsTurnChangesDetailOpen(true)
+
+        if (isMobileViewport && typeof window !== 'undefined') {
+            const currentToolId = readTurnChangesDetailToolId(window.location.search)
+            if (currentToolId !== props.block.id) {
+                writeTurnChangesDetailToolId(props.block.id, 'push')
+            }
+        }
+    }, [isMobileViewport, props.block.id])
+
+    const closeTurnChangesDetail = useCallback(() => {
+        if (isMobileViewport && typeof window !== 'undefined') {
+            const currentToolId = readTurnChangesDetailToolId(window.location.search)
+            if (currentToolId === props.block.id) {
+                window.history.back()
+                return
+            }
+        }
+
+        setIsTurnChangesDetailOpen(false)
+    }, [isMobileViewport, props.block.id])
 
     if (toolName === 'CodexReasoning') {
         const reasoningDetail = getInputStringAny(props.block.tool.result, ['content'])
@@ -397,42 +519,93 @@ function ToolCardInner(props: ToolCardProps) {
         )
     }
 
-    const renderDialogContent = () => {
+    const renderDetailBody = (options?: { mobile?: boolean }) => {
+        const mobile = options?.mobile === true
         const isQuestionToolWithAnswers = isQuestionTool
             && permission?.answers
             && Object.keys(permission.answers).length > 0
 
         return (
-            <DialogContent className={cn(
-                isTurnChangesTool
-                    ? 'w-[calc(100vw-16px)] max-w-[min(1440px,98vw)]'
-                    : 'max-w-2xl'
+            <div className={cn(
+                'flex flex-col gap-4 overflow-auto',
+                mobile
+                    ? 'mt-0 min-h-0 flex-1 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]'
+                    : isTurnChangesTool
+                        ? 'mt-3 max-h-[85vh]'
+                        : 'mt-3 max-h-[75vh]'
             )}>
-                <DialogHeader>
-                    <DialogTitle>{toolTitle}</DialogTitle>
-                </DialogHeader>
-                <div className={cn(
-                    'mt-3 flex flex-col gap-4 overflow-auto',
-                    isTurnChangesTool ? 'max-h-[85vh]' : 'max-h-[75vh]'
-                )}>
-                    <div>
-                        <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">
-                            {isQuestionToolWithAnswers ? t('tool.questionsAnswers') : t('tool.input')}
-                        </div>
-                        {FullToolView ? (
-                            <FullToolView block={props.block} metadata={props.metadata} />
-                        ) : (
-                            renderToolInput(props.block)
-                        )}
+                <div>
+                    <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">
+                        {isQuestionToolWithAnswers ? t('tool.questionsAnswers') : t('tool.input')}
                     </div>
-                    {!isQuestionToolWithAnswers && !hideResultSection && (
-                        <div>
-                            <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.result')}</div>
-                            <ResultToolView block={props.block} metadata={props.metadata} />
-                        </div>
+                    {FullToolView ? (
+                        <FullToolView block={props.block} metadata={props.metadata} />
+                    ) : (
+                        renderToolInput(props.block)
                     )}
                 </div>
-            </DialogContent>
+                {!isQuestionToolWithAnswers && !hideResultSection && (
+                    <div>
+                        <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.result')}</div>
+                        <ResultToolView block={props.block} metadata={props.metadata} />
+                    </div>
+                )}
+            </div>
+        )
+    }
+
+    const renderDialogContent = () => (
+        <DialogContent className={cn(
+            isTurnChangesTool
+                ? 'w-[calc(100vw-16px)] max-w-[min(1440px,98vw)]'
+                : 'max-w-2xl'
+        )}>
+            <DialogHeader>
+                <DialogTitle>{toolTitle}</DialogTitle>
+            </DialogHeader>
+            {renderDetailBody()}
+        </DialogContent>
+    )
+
+    const renderTurnChangesDetailLayer = () => {
+        if (isMobileViewport) {
+            if (!isTurnChangesDetailOpen) {
+                return null
+            }
+
+            return (
+                <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
+                    <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={closeTurnChangesDetail}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                aria-label="Back"
+                            >
+                                <BackIcon />
+                            </button>
+                            <div className="min-w-0 truncate text-sm font-semibold text-[var(--app-fg)]">
+                                {toolTitle}
+                            </div>
+                        </div>
+                    </div>
+                    {renderDetailBody({ mobile: true })}
+                </div>
+            )
+        }
+
+        return (
+            <Dialog
+                open={isTurnChangesDetailOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setIsTurnChangesDetailOpen(false)
+                    }
+                }}
+            >
+                {renderDialogContent()}
+            </Dialog>
         )
     }
 
@@ -443,47 +616,46 @@ function ToolCardInner(props: ToolCardProps) {
             <CardHeader className={cn('space-y-0', isCompact ? 'p-2.5' : 'p-3')}>
                 {isCompact ? (
                     isTurnChangesTool ? (
-                        <Dialog>
-                            <DialogTrigger asChild>
-                                <button
-                                    type="button"
-                                    className={cn(
-                                        'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
-                                        suppressFocusRing && 'focus-visible:ring-0'
-                                    )}
-                                    onPointerDown={onTriggerPointerDown}
-                                    onKeyDown={onTriggerKeyDown}
-                                    onBlur={onTriggerBlur}
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
-                                            {presentation.icon}
-                                        </div>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="truncate text-xs font-medium leading-tight">
-                                                {toolTitle}
-                                                {compactSummary ? (
-                                                    <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
-                                                        - {compactSummary}
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                        </div>
-                                        <span className={cn(
-                                            'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
-                                            statusBadgeToneClass
-                                        )}>
-                                            <StatusIcon state={props.block.tool.state} />
-                                            {statusLabel}
-                                        </span>
-                                        <span className="shrink-0 text-[var(--app-hint)]">
-                                            <DetailsIcon className="h-3.5 w-3.5" />
-                                        </span>
+                        <>
+                            <button
+                                type="button"
+                                className={cn(
+                                    'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    suppressFocusRing && 'focus-visible:ring-0'
+                                )}
+                                onClick={openTurnChangesDetail}
+                                onPointerDown={onTriggerPointerDown}
+                                onKeyDown={onTriggerKeyDown}
+                                onBlur={onTriggerBlur}
+                            >
+                                <div className="flex items-center gap-2">
+                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                        {presentation.icon}
                                     </div>
-                                </button>
-                            </DialogTrigger>
-                            {renderDialogContent()}
-                        </Dialog>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="truncate text-xs font-medium leading-tight">
+                                            {toolTitle}
+                                            {compactSummary ? (
+                                                <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                    - {compactSummary}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    <span className={cn(
+                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                        statusBadgeToneClass
+                                    )}>
+                                        <StatusIcon state={props.block.tool.state} />
+                                        {statusLabel}
+                                    </span>
+                                    <span className="shrink-0 text-[var(--app-hint)]">
+                                        <DetailsIcon className="h-3.5 w-3.5" />
+                                    </span>
+                                </div>
+                            </button>
+                            {renderTurnChangesDetailLayer()}
+                        </>
                     ) : (
                         <div className="flex items-start gap-2">
                             <button
@@ -547,6 +719,50 @@ function ToolCardInner(props: ToolCardProps) {
                             </Dialog>
                         </div>
                     )
+                ) : isTurnChangesTool ? (
+                    <>
+                        <button
+                            type="button"
+                            className={cn(
+                                'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                suppressFocusRing && 'focus-visible:ring-0'
+                            )}
+                            onClick={openTurnChangesDetail}
+                            onPointerDown={onTriggerPointerDown}
+                            onKeyDown={onTriggerKeyDown}
+                            onBlur={onTriggerBlur}
+                        >
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0 flex items-center gap-2">
+                                        <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
+                                            {presentation.icon}
+                                        </div>
+                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                            {toolTitle}
+                                        </CardTitle>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} />
+                                        <span className={statusColorClass(props.block.tool.state)}>
+                                            <StatusIcon state={props.block.tool.state} />
+                                        </span>
+                                        <span className="text-[var(--app-hint)]">
+                                            <DetailsIcon className="h-4 w-4" />
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {subtitle ? (
+                                    <CardDescription className="font-mono text-xs break-all opacity-80">
+                                        {truncate(subtitle, 160)}
+                                    </CardDescription>
+                                ) : null}
+                            </div>
+                        </button>
+                        {renderTurnChangesDetailLayer()}
+                    </>
                 ) : (
                     <Dialog>
                         <DialogTrigger asChild>
