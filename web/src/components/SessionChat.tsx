@@ -918,7 +918,14 @@ export function SessionChat(props: {
         setCodexQueueError(null)
         applyQueueState(result.queue ?? null, { enqueuedText: payload.text })
         applyCodexQueueSummary(result.queue ?? null)
-    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary, applyQueueState])
+
+        if (result.sessionId && result.sessionId !== props.session.id) {
+            navigate({
+                to: '/sessions/$sessionId',
+                params: { sessionId: result.sessionId }
+            })
+        }
+    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary, navigate, applyQueueState])
 
     const runCodexQueueAction = useCallback(async (
         action: () => Promise<{ success: boolean; error?: string; queue?: QueueState | null }>

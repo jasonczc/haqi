@@ -449,6 +449,7 @@ export type QueueState = QueueSummary & {
 export type QueueResponse = {
     success: boolean
     error?: string
+    sessionId?: string
     queue?: QueueState
     removedId?: string
     movedId?: string

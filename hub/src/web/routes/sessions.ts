@@ -135,7 +135,7 @@ function collectAllSessionMessages(engine: SyncEngine, sessionId: string): Retur
 export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
-    const requireActiveQueueSession = (
+    const requireQueueSession = (
         c: Context<WebAppEnv>,
         engine: SyncEngine
     ) => {
@@ -144,16 +144,28 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return sessionResult
         }
 
-        if (!sessionResult.session.active) {
-            return c.json({ success: false, error: 'Session is inactive' })
-        }
-
         const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
         if (flavor !== 'codex' && flavor !== 'claude' && flavor !== 'gemini') {
             return c.json({ success: false, error: 'Queue API is only supported for Codex, Claude, and Gemini sessions' })
         }
 
         return { ...sessionResult, flavor }
+    }
+
+    const requireActiveQueueSession = (
+        c: Context<WebAppEnv>,
+        engine: SyncEngine
+    ) => {
+        const sessionResult = requireQueueSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        if (!sessionResult.session.active) {
+            return c.json({ success: false, error: 'Session is inactive' })
+        }
+
+        return sessionResult
     }
 
     const requireActiveCodexSession = (
@@ -281,7 +293,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireActiveQueueSession(c, engine)
+        const sessionResult = requireQueueSession(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -296,19 +308,35 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ success: false, error: 'Message requires text or attachments' }, 400)
         }
 
+        let targetSessionId = sessionResult.sessionId
+        if (!sessionResult.session.active) {
+            const namespace = c.get('namespace')
+            const resumeResult = await engine.resumeSession(targetSessionId, namespace)
+            if (resumeResult.type === 'error') {
+                return c.json({
+                    success: false,
+                    error: resumeResult.message
+                })
+            }
+            targetSessionId = resumeResult.sessionId
+        }
+
         try {
             const result = sessionResult.flavor === 'claude'
-                ? await engine.enqueueClaudeMessage(sessionResult.sessionId, {
+                ? await engine.enqueueClaudeMessage(targetSessionId, {
                     text: parsed.data.text,
                     meta: parsed.data.meta,
                     attachments: parsed.data.attachments
                 })
-                : await engine.enqueueCodexMessage(sessionResult.sessionId, {
+                : await engine.enqueueCodexMessage(targetSessionId, {
                     text: parsed.data.text,
                     meta: parsed.data.meta,
                     attachments: parsed.data.attachments
                 })
-            return c.json(result)
+            return c.json({
+                ...result,
+                sessionId: targetSessionId
+            })
         } catch (error) {
             return c.json({
                 success: false,

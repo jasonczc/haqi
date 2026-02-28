@@ -1567,7 +1567,7 @@ ${note.content}
     async spawnSession(
         machineId: string,
         directory: string,
-        agent: 'claude' | 'codex' | 'gemini' | 'opencode' = 'claude',
+        agent?: 'claude' | 'codex' | 'gemini' | 'opencode',
         model?: string,
         thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
         yolo?: boolean,
@@ -1576,10 +1576,11 @@ ${note.content}
         resumeSessionId?: string,
         previewUrl?: string | null
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
+        const resolvedAgent = agent ?? this.inferSpawnFlavor(machineId, directory)
         const result = await this.rpcGateway.spawnSession(
             machineId,
             directory,
-            agent,
+            resolvedAgent,
             model,
             thinkEffort,
             yolo,
@@ -1748,6 +1749,54 @@ ${note.content}
             await new Promise((resolve) => setTimeout(resolve, 250))
         }
         return false
+    }
+
+    private inferSpawnFlavor(machineId: string, directory: string): 'claude' | 'codex' | 'gemini' | 'opencode' {
+        const normalizedDirectory = directory.trim()
+        const sessions = this.sessionCache.getSessions()
+
+        const sameDirectoryFlavor = sessions
+            .filter((session) => {
+                if (session.metadata?.machineId !== machineId) {
+                    return false
+                }
+                const sessionDirectory = this.resolveSpawnDirectory(session)
+                return sessionDirectory.length > 0 && sessionDirectory === normalizedDirectory
+            })
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .map((session) => this.readSessionFlavor(session))
+            .find((value): value is 'claude' | 'codex' | 'gemini' | 'opencode' => value !== undefined)
+        if (sameDirectoryFlavor) {
+            return sameDirectoryFlavor
+        }
+
+        const sameMachineFlavor = sessions
+            .filter((session) => session.metadata?.machineId === machineId)
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+            .map((session) => this.readSessionFlavor(session))
+            .find((value): value is 'claude' | 'codex' | 'gemini' | 'opencode' => value !== undefined)
+        if (sameMachineFlavor) {
+            return sameMachineFlavor
+        }
+
+        return 'claude'
+    }
+
+    private resolveSpawnDirectory(session: Session): string {
+        const worktreeBasePath = session.metadata?.worktree?.basePath?.trim()
+        if (worktreeBasePath) {
+            return worktreeBasePath
+        }
+        const path = session.metadata?.path?.trim()
+        return path ?? ''
+    }
+
+    private readSessionFlavor(session: Session): 'claude' | 'codex' | 'gemini' | 'opencode' | undefined {
+        const flavor = session.metadata?.flavor
+        if (flavor === 'claude' || flavor === 'codex' || flavor === 'gemini' || flavor === 'opencode') {
+            return flavor
+        }
+        return undefined
     }
 
     private normalizeSpawnFlavor(value: string | null | undefined): 'claude' | 'codex' | 'gemini' | 'opencode' {
