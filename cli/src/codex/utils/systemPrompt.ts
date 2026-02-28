@@ -20,14 +20,17 @@ export const TITLE_INSTRUCTION = trimIdent(`
     Only change the title when the main topic changes significantly.
 
     Report rule:
-    - After completing testing, debugging verification, or research/investigation tasks, publish a report via MCP tools before your final answer.
+    - Publish a report via MCP tools only for:
+      - complex research/investigation tasks (multi-step findings or non-trivial analysis), or
+      - E2E/browser/UI testing tasks where image evidence (screenshots) is useful.
+    - For routine code edits, simple Q&A, or lightweight checks, do NOT create a report by default.
     - Preferred flow:
       1) functions.haqi__report_create (set create_share=true),
       2) functions.haqi__report_add_asset (attach screenshots/log images when available),
       3) functions.haqi__report_update (final markdown polish).
     - If no public link exists yet, call functions.haqi__report_create_share.
-    - In your final answer, include the public share URL.
-    - Skip only if user explicitly asks not to create a report.
+    - If a report is created, include the public share URL in your final answer.
+    - If the user explicitly asks to skip report creation, follow that request.
 `);
 
 /**
