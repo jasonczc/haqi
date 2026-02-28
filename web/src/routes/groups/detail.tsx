@@ -5,14 +5,23 @@ import type { Attachment, PendingAttachment } from '@assistant-ui/react'
 import ReactMarkdown from 'react-markdown'
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 import { useAppContext } from '@/lib/app-context'
+import type { ApiClient } from '@/api/client'
 import { useGroup } from '@/hooks/queries/useGroup'
 import { useGroupMessages } from '@/hooks/queries/useGroupMessages'
+import { useGroupConversationTurns } from '@/hooks/queries/useGroupConversationTurns'
 import { useGroupNote } from '@/hooks/queries/useGroupNote'
 import { useSession } from '@/hooks/queries/useSession'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { useMachines } from '@/hooks/queries/useMachines'
-import type { AttachmentMetadata, GroupMember, GroupTimelineMessage, GroupTaskStatus, SessionSummary } from '@/types/api'
+import type {
+    AttachmentMetadata,
+    GroupConversationTurn,
+    GroupMember,
+    GroupTimelineMessage,
+    GroupTaskStatus,
+    SessionSummary
+} from '@/types/api'
 import { LoadingState } from '@/components/LoadingState'
 import { MARKDOWN_PLUGINS, defaultComponents } from '@/components/assistant-ui/markdown-text'
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
@@ -27,10 +36,12 @@ import { getSessionTitle } from '@/lib/session-title'
 import { matchesSessionSearch } from '@/lib/session-search'
 import { useLongPress } from '@/hooks/useLongPress'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { queryKeys } from '@/lib/query-keys'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
+import { useChatViewMode } from '@/hooks/useChatViewMode'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -1504,6 +1515,418 @@ function TimelineHistoryControl(props: {
     )
 }
 
+type GroupTurnDetailState = {
+    isLoading: boolean
+    isLoadingMore: boolean
+    error: string | null
+    messages: GroupTimelineMessage[]
+    nextBeforeSeq: number | null
+    hasMore: boolean
+}
+
+type GroupTurnDetailStateMap = Record<string, GroupTurnDetailState>
+
+const GROUP_TURN_DETAIL_PAGE_LIMIT = 120
+
+function normalizeBriefPreview(value: string | null | undefined, fallback: string): string {
+    const text = value?.trim() ?? ''
+    return text.length > 0 ? text : fallback
+}
+
+function shouldFadeBriefPreview(text: string): boolean {
+    return text.length > 220 || text.includes('\n')
+}
+
+function buildDefaultGroupTurnDetailState(): GroupTurnDetailState {
+    return {
+        isLoading: false,
+        isLoadingMore: false,
+        error: null,
+        messages: [],
+        nextBeforeSeq: null,
+        hasMore: false
+    }
+}
+
+function GroupBriefTurnDetailList(props: {
+    messages: GroupTimelineMessage[]
+    hasMore: boolean
+    isLoadingMore: boolean
+    onLoadMore: () => Promise<void>
+    sessionMap: Map<string, SessionSummary>
+    onOpenSession: (sessionId: string) => void
+}) {
+    const listRef = useRef<VirtuosoHandle | null>(null)
+    const initialBottomDoneRef = useRef(false)
+
+    const taskStateMap = useMemo(() => {
+        const map = new Map<string, Map<string, GroupTimelineMessage>>()
+        for (const msg of props.messages) {
+            if (msg.type !== 'task_state' || !msg.traceId) continue
+            if (!map.has(msg.traceId)) map.set(msg.traceId, new Map())
+            const byTask = map.get(msg.traceId)!
+            const taskKey = msg.taskId ?? msg.id
+            const prev = byTask.get(taskKey)
+            if (!prev || msg.seq > prev.seq) {
+                byTask.set(taskKey, msg)
+            }
+        }
+        return map
+    }, [props.messages])
+
+    const visibleMessages = useMemo(
+        () => props.messages.filter((message) => message.type !== 'task_state'),
+        [props.messages]
+    )
+
+    useEffect(() => {
+        if (visibleMessages.length === 0) {
+            initialBottomDoneRef.current = false
+            return
+        }
+        if (initialBottomDoneRef.current) {
+            return
+        }
+        initialBottomDoneRef.current = true
+        const rafId = window.requestAnimationFrame(() => {
+            listRef.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'auto' })
+        })
+        return () => {
+            window.cancelAnimationFrame(rafId)
+        }
+    }, [visibleMessages.length])
+
+    return (
+        <Virtuoso
+            ref={listRef}
+            data={visibleMessages}
+            style={{ height: '100%' }}
+            increaseViewportBy={{ top: 400, bottom: 400 }}
+            startReached={() => {
+                if (!props.hasMore || props.isLoadingMore) {
+                    return
+                }
+                void props.onLoadMore()
+            }}
+            followOutput={(isAtBottom) => (isAtBottom ? 'auto' : false)}
+            components={{
+                Scroller: TimelineScroller,
+                Header: () => (
+                    <TimelineHistoryControl
+                        isLoading={props.isLoadingMore}
+                        hasMore={props.hasMore}
+                        onLoadMore={() => {
+                            if (props.isLoadingMore || !props.hasMore) {
+                                return
+                            }
+                            void props.onLoadMore()
+                        }}
+                    />
+                ),
+                Footer: () => <div className="h-2" />
+            }}
+            itemContent={(_index, message) => (
+                <TimelineBubble
+                    key={message.id}
+                    message={message}
+                    sessionMap={props.sessionMap}
+                    onOpenSession={props.onOpenSession}
+                    taskStates={message.type === 'command' && message.traceId
+                        ? taskStateMap.get(message.traceId)
+                        : undefined
+                    }
+                />
+            )}
+        />
+    )
+}
+
+function GroupBriefTurnList(props: {
+    api: ApiClient
+    groupId: string
+    turns: GroupConversationTurn[]
+    warning: string | null
+    isLoading: boolean
+    isLoadingMore: boolean
+    hasMore: boolean
+    onLoadMoreTurns: () => Promise<void>
+    sessionMap: Map<string, SessionSummary>
+    onOpenSession: (sessionId: string) => void
+}) {
+    const listRef = useRef<VirtuosoHandle | null>(null)
+    const autoScrollToBottomDoneRef = useRef(false)
+    const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
+    const [turnDetailStateById, setTurnDetailStateById] = useState<GroupTurnDetailStateMap>({})
+
+    const activeTurn = useMemo(
+        () => props.turns.find((turn) => turn.id === activeTurnId) ?? null,
+        [activeTurnId, props.turns]
+    )
+
+    const activeDetail = useMemo(
+        () => (activeTurnId ? (turnDetailStateById[activeTurnId] ?? buildDefaultGroupTurnDetailState()) : null),
+        [activeTurnId, turnDetailStateById]
+    )
+
+    const fetchTurnMessages = useCallback(async (turnId: string, beforeSeq: number | null, prepend: boolean) => {
+        setTurnDetailStateById((prev) => ({
+            ...prev,
+            [turnId]: {
+                ...(prev[turnId] ?? buildDefaultGroupTurnDetailState()),
+                isLoading: !prepend,
+                isLoadingMore: prepend,
+                error: null
+            }
+        }))
+
+        try {
+            const response = await props.api.getGroupConversationTurnMessages(props.groupId, turnId, {
+                limit: GROUP_TURN_DETAIL_PAGE_LIMIT,
+                beforeSeq
+            })
+
+            setTurnDetailStateById((prev) => {
+                const previous = prev[turnId] ?? buildDefaultGroupTurnDetailState()
+                const merged = prepend
+                    ? [...response.messages, ...previous.messages]
+                    : response.messages
+
+                const byId = new Map<string, GroupTimelineMessage>()
+                for (const message of merged) {
+                    byId.set(message.id, message)
+                }
+                const deduped = Array.from(byId.values()).sort((left, right) => left.seq - right.seq)
+
+                return {
+                    ...prev,
+                    [turnId]: {
+                        isLoading: false,
+                        isLoadingMore: false,
+                        error: null,
+                        messages: deduped,
+                        nextBeforeSeq: response.page.nextBeforeSeq,
+                        hasMore: response.page.hasMore
+                    }
+                }
+            })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to load turn details'
+            setTurnDetailStateById((prev) => ({
+                ...prev,
+                [turnId]: {
+                    ...(prev[turnId] ?? buildDefaultGroupTurnDetailState()),
+                    isLoading: false,
+                    isLoadingMore: false,
+                    error: message
+                }
+            }))
+        }
+    }, [props.api, props.groupId])
+
+    const openTurnDetails = useCallback((turnId: string) => {
+        setActiveTurnId(turnId)
+        const existing = turnDetailStateById[turnId]
+        if (!existing || (existing.messages.length === 0 && !existing.isLoading && !existing.isLoadingMore)) {
+            void fetchTurnMessages(turnId, null, false)
+        }
+    }, [fetchTurnMessages, turnDetailStateById])
+
+    const loadMoreActiveTurnDetails = useCallback(async () => {
+        if (!activeTurn || !activeDetail) {
+            return
+        }
+        if (!activeDetail.hasMore || activeDetail.nextBeforeSeq === null || activeDetail.isLoadingMore) {
+            return
+        }
+        await fetchTurnMessages(activeTurn.id, activeDetail.nextBeforeSeq, true)
+    }, [activeDetail, activeTurn, fetchTurnMessages])
+
+    useEffect(() => {
+        if (props.turns.length === 0) {
+            autoScrollToBottomDoneRef.current = false
+            return
+        }
+        if (autoScrollToBottomDoneRef.current) {
+            return
+        }
+        autoScrollToBottomDoneRef.current = true
+        const rafId = window.requestAnimationFrame(() => {
+            listRef.current?.scrollToIndex({ index: props.turns.length - 1, align: 'end', behavior: 'auto' })
+        })
+        return () => {
+            window.cancelAnimationFrame(rafId)
+        }
+    }, [props.turns.length])
+
+    return (
+        <>
+            <div className="relative min-h-0 flex-1">
+                {props.warning ? (
+                    <div className="mx-3 mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                        {props.warning}
+                    </div>
+                ) : null}
+
+                {props.isLoading && props.turns.length === 0 ? (
+                    <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
+                        Loading turns...
+                    </div>
+                ) : props.turns.length === 0 ? (
+                    <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
+                        No turns yet.
+                    </div>
+                ) : (
+                    <Virtuoso
+                        ref={listRef}
+                        data={props.turns}
+                        style={{ height: '100%' }}
+                        increaseViewportBy={{ top: 320, bottom: 320 }}
+                        startReached={() => {
+                            if (!props.hasMore || props.isLoadingMore) {
+                                return
+                            }
+                            void props.onLoadMoreTurns()
+                        }}
+                        components={{
+                            Header: () => (
+                                <div className="px-3 pt-2">
+                                    <TimelineHistoryControl
+                                        isLoading={props.isLoadingMore}
+                                        hasMore={props.hasMore}
+                                        onLoadMore={() => {
+                                            if (props.isLoadingMore || !props.hasMore) {
+                                                return
+                                            }
+                                            void props.onLoadMoreTurns()
+                                        }}
+                                    />
+                                </div>
+                            ),
+                            Footer: () => <div className="h-2" />
+                        }}
+                        itemContent={(_index, turn) => {
+                            const initiatorPreview = normalizeBriefPreview(turn.initiatorPreview, '(empty)')
+                            const responderPreview = normalizeBriefPreview(
+                                turn.responderPreview,
+                                turn.status === 'open' ? 'Generating…' : '(empty)'
+                            )
+                            const initiatorIsUser = (turn.initiatorSource ?? '').startsWith('user:')
+                            const fade = shouldFadeBriefPreview(responderPreview)
+
+                            return (
+                                <div className="px-3 pb-3">
+                                    <div className="space-y-2">
+                                        <div className={`flex ${initiatorIsUser ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[88%] rounded-2xl border px-3 py-2 text-sm ${
+                                                initiatorIsUser
+                                                    ? 'rounded-br-sm bg-[var(--app-button)] text-[var(--app-button-text)]'
+                                                    : 'rounded-bl-sm bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-border)]'
+                                            }`}>
+                                                {initiatorPreview}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-start">
+                                            <div className={`relative w-full max-w-[88%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
+                                                turn.status === 'open'
+                                                    ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
+                                                    : 'border-[var(--app-border)]'
+                                            }`}>
+                                                <button
+                                                    type="button"
+                                                    className="block w-full text-left"
+                                                    onClick={() => openTurnDetails(turn.id)}
+                                                    aria-label="Open turn details"
+                                                >
+                                                    <div className="max-h-28 overflow-hidden whitespace-pre-wrap break-words text-sm text-[var(--app-fg)]">
+                                                        {responderPreview}
+                                                    </div>
+                                                    {fade ? (
+                                                        <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
+                                                    ) : null}
+                                                    <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                                                        <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
+                                                        <span>·</span>
+                                                        <span className="underline decoration-dotted">Click to open details</span>
+                                                        {turn.status === 'open' ? (
+                                                            <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                                                                <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+                                                                Generating
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )
+                        }}
+                    />
+                )}
+            </div>
+
+            <Dialog open={Boolean(activeTurnId)} onOpenChange={(open) => {
+                if (!open) {
+                    setActiveTurnId(null)
+                }
+            }}>
+                <DialogContent className="flex h-[90vh] max-h-[90vh] max-w-4xl flex-col overflow-hidden p-0">
+                    <div className="border-b border-[var(--app-border)] px-4 py-3">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
+                            </DialogTitle>
+                        </DialogHeader>
+                        {activeTurn ? (
+                            <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                        {activeTurn && activeDetail?.error ? (
+                            <div className="h-full overflow-y-auto p-4 text-sm text-rose-500">
+                                {activeDetail.error}
+                                <div className="mt-2">
+                                    <button
+                                        type="button"
+                                        className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                        onClick={() => {
+                                            void fetchTurnMessages(activeTurn.id, null, false)
+                                        }}
+                                    >
+                                        Retry
+                                    </button>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {activeTurn && activeDetail && !activeDetail.error ? (
+                            <div className="flex h-full min-h-0 flex-col">
+                                <GroupBriefTurnDetailList
+                                    key={activeTurn.id}
+                                    messages={activeDetail.messages}
+                                    hasMore={activeDetail.hasMore}
+                                    isLoadingMore={activeDetail.isLoadingMore}
+                                    onLoadMore={loadMoreActiveTurnDetails}
+                                    sessionMap={props.sessionMap}
+                                    onOpenSession={props.onOpenSession}
+                                />
+                            </div>
+                        ) : activeTurn && activeDetail?.error ? null : (
+                            <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+                                {activeTurn && activeDetail?.isLoading ? 'Loading turn details…' : 'No detail messages'}
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </>
+    )
+}
+
 // ─── GroupDetailPage ──────────────────────────────────────────────────────────
 
 export default function GroupDetailPage() {
@@ -1511,6 +1934,7 @@ export default function GroupDetailPage() {
     const { groupId } = useParams({ from: '/groups/$groupId' })
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const { viewMode, setViewMode } = useChatViewMode()
 
     const { group, isLoading: groupLoading, error: groupError } = useGroup(api, groupId)
     const {
@@ -1519,7 +1943,15 @@ export default function GroupDetailPage() {
         isLoadingMore: messagesLoadingMore,
         hasMore: messagesHasMore,
         loadMore: loadMoreMessages
-    } = useGroupMessages(api, groupId)
+    } = useGroupMessages(api, groupId, { enabled: viewMode === 'normal' })
+    const {
+        turns: groupTurns,
+        warning: groupTurnsWarning,
+        isLoading: turnsLoading,
+        isLoadingMore: turnsLoadingMore,
+        hasMore: turnsHasMore,
+        loadMore: loadMoreTurns
+    } = useGroupConversationTurns(api, groupId, { enabled: viewMode === 'brief' })
     const { note, isLoading: noteLoading } = useGroupNote(api, groupId)
     const { postMessage, updateNote, refreshNote, broadcastNote, addMember, removeMember, updateGroup, isPending } = useGroupActions(api, groupId)
     const { sessions } = useSessions(api)
@@ -2505,54 +2937,100 @@ export default function GroupDetailPage() {
             </div>
 
             {/* D. Timeline */}
-            <div className="flex-1 min-h-0">
-                {messagesLoading && visibleMessages.length === 0 ? (
-                    <div className="flex items-center justify-center py-8">
-                        <LoadingState label="Loading messages..." className="text-sm" />
+            <div className="flex-1 min-h-0 flex flex-col">
+                <div className="px-3 pb-2 pt-1">
+                    <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-1">
+                        <button
+                            type="button"
+                            className={`rounded px-2.5 py-1 text-xs transition-colors ${viewMode === 'normal'
+                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                            onClick={() => setViewMode('normal')}
+                        >
+                            Normal
+                        </button>
+                        <button
+                            type="button"
+                            className={`rounded px-2.5 py-1 text-xs transition-colors ${viewMode === 'brief'
+                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                            onClick={() => setViewMode('brief')}
+                        >
+                            Brief
+                        </button>
                     </div>
-                ) : visibleMessages.length === 0 ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
-                        No messages yet. Start the conversation below.
-                    </div>
-                ) : (
-                    <Virtuoso
-                        ref={timelineRef}
-                        data={visibleMessages}
-                        style={{ height: '100%' }}
-                        firstItemIndex={timelineFirstItemIndex}
-                        increaseViewportBy={{ top: 400, bottom: 400 }}
-                        startReached={() => {
-                            handleLoadOlderMessages()
-                        }}
-                        followOutput={(isAtBottom) => (isAtBottom ? 'auto' : false)}
-                        components={{
-                            Scroller: TimelineScroller,
-                            Header: () => (
-                                <TimelineHistoryControl
-                                    isLoading={messagesLoadingMore}
-                                    hasMore={messagesHasMore}
-                                    onLoadMore={handleLoadOlderMessages}
-                                />
-                            ),
-                            Footer: () => <div className="h-2" />
-                        }}
-                        itemContent={(_index, message) => (
-                            <TimelineBubble
-                                key={message.id}
-                                message={message}
+                </div>
+
+                <div className="min-h-0 flex-1">
+                    {viewMode === 'brief' ? (
+                        api ? (
+                            <GroupBriefTurnList
+                                api={api}
+                                groupId={groupId}
+                                turns={groupTurns}
+                                warning={groupTurnsWarning}
+                                isLoading={turnsLoading}
+                                isLoadingMore={turnsLoadingMore}
+                                hasMore={turnsHasMore}
+                                onLoadMoreTurns={loadMoreTurns}
                                 sessionMap={sessionMap}
                                 onOpenSession={(sessionId) => {
                                     navigate({ to: '/sessions/$sessionId', params: { sessionId } })
                                 }}
-                                onQuote={handleQuoteMessage}
-                                taskStates={message.type === 'command' && message.traceId
-                                    ? taskStateMap.get(message.traceId)
-                                    : undefined
-                                }
                             />
-                        )}
-                    />
-                )}
+                        ) : (
+                            <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
+                                Group unavailable.
+                            </div>
+                        )
+                    ) : messagesLoading && visibleMessages.length === 0 ? (
+                        <div className="flex items-center justify-center py-8">
+                            <LoadingState label="Loading messages..." className="text-sm" />
+                        </div>
+                    ) : visibleMessages.length === 0 ? (
+                        <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
+                            No messages yet. Start the conversation below.
+                        </div>
+                    ) : (
+                        <Virtuoso
+                            ref={timelineRef}
+                            data={visibleMessages}
+                            style={{ height: '100%' }}
+                            firstItemIndex={timelineFirstItemIndex}
+                            increaseViewportBy={{ top: 400, bottom: 400 }}
+                            startReached={() => {
+                                handleLoadOlderMessages()
+                            }}
+                            followOutput={(isAtBottom) => (isAtBottom ? 'auto' : false)}
+                            components={{
+                                Scroller: TimelineScroller,
+                                Header: () => (
+                                    <TimelineHistoryControl
+                                        isLoading={messagesLoadingMore}
+                                        hasMore={messagesHasMore}
+                                        onLoadMore={handleLoadOlderMessages}
+                                    />
+                                ),
+                                Footer: () => <div className="h-2" />
+                            }}
+                            itemContent={(_index, message) => (
+                                <TimelineBubble
+                                    key={message.id}
+                                    message={message}
+                                    sessionMap={sessionMap}
+                                    onOpenSession={(sessionId) => {
+                                        navigate({ to: '/sessions/$sessionId', params: { sessionId } })
+                                    }}
+                                    onQuote={handleQuoteMessage}
+                                    taskStates={message.type === 'command' && message.traceId
+                                        ? taskStateMap.get(message.traceId)
+                                        : undefined
+                                    }
+                                />
+                            )}
+                        />
+                    )}
+                </div>
             </div>
 
             {/* E. Composer */}

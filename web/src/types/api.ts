@@ -79,6 +79,47 @@ export type MessagesResponse = {
     }
 }
 
+export type ConversationTurnStatus = 'open' | 'closed'
+
+export type ConversationTurn = {
+    id: string
+    sessionId: string
+    turnIndex: number
+    status: ConversationTurnStatus
+    userMessageId: string | null
+    userSeq: number | null
+    agentStartSeq: number | null
+    agentEndSeq: number | null
+    messageCount: number
+    userPreview: string | null
+    assistantPreview: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type ConversationTurnsResponse = {
+    turns: ConversationTurn[]
+    page: {
+        limit: number
+        beforeTurnIndex: number | null
+        nextBeforeTurnIndex: number | null
+        hasMore: boolean
+    }
+}
+
+export type ConversationTurnMessagesResponse = {
+    turn: ConversationTurn
+    messages: DecryptedMessage[]
+    page: {
+        limit: number
+        beforeSeq: number | null
+        nextBeforeSeq: number | null
+        hasMore: boolean
+        startSeq: number | null
+        endSeq: number | null
+    }
+}
+
 export type MachinesResponse = { machines: Machine[] }
 export type MachinePathsExistsResponse = { exists: Record<string, boolean> }
 
@@ -105,6 +146,50 @@ export type GroupTimelineMessage = {
         text: string
         actorName?: string
         createdAt: number
+    }
+}
+
+export type GroupConversationTurnStatus = 'open' | 'closed'
+
+export type GroupConversationTurn = {
+    id: string
+    groupId: string
+    namespace: string
+    turnIndex: number
+    status: GroupConversationTurnStatus
+    initiatorMessageId: string | null
+    initiatorSeq: number | null
+    initiatorSource: string | null
+    initiatorActorSessionId: string | null
+    responderStartSeq: number | null
+    responderEndSeq: number | null
+    messageCount: number
+    initiatorPreview: string | null
+    responderPreview: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type GroupConversationTurnsResponse = {
+    turns: GroupConversationTurn[]
+    page: {
+        limit: number
+        beforeTurnIndex: number | null
+        nextBeforeTurnIndex: number | null
+        hasMore: boolean
+    }
+}
+
+export type GroupConversationTurnMessagesResponse = {
+    turn: GroupConversationTurn
+    messages: GroupTimelineMessage[]
+    page: {
+        limit: number
+        beforeSeq: number | null
+        nextBeforeSeq: number | null
+        hasMore: boolean
+        startSeq: number | null
+        endSeq: number | null
     }
 }
 
@@ -247,6 +332,10 @@ export type MemoryResponse = {
 
 export type UpdateMemoryResponse = {
     memory: GlobalMemory
+}
+
+export type ProjectOfflineSettingsResponse = {
+    directories: string[]
 }
 
 export type UsageTotals = {

@@ -4,6 +4,7 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type {
     AttachmentMetadata,
+    ConversationTurn,
     McpServerSummary,
     QueueState,
     QueueStatusResponse,
@@ -19,6 +20,7 @@ import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
 import { HappyComposer, type CodexSendMode } from '@/components/AssistantChat/HappyComposer'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
+import { BriefTurnList } from '@/components/AssistantChat/BriefTurnList'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
@@ -31,6 +33,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { useVoiceOptional } from '@/lib/voice-context'
 import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
 import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
+import type { ChatViewMode } from '@/hooks/useChatViewMode'
 
 type CodexStatusRow = {
     label: string
@@ -348,12 +351,20 @@ export function SessionChat(props: {
     hasMoreMessages: boolean
     isLoadingMessages: boolean
     isLoadingMoreMessages: boolean
+    turns: ConversationTurn[]
+    turnsWarning: string | null
+    hasMoreTurns: boolean
+    isLoadingTurns: boolean
+    isLoadingMoreTurns: boolean
     isSending: boolean
     pendingCount: number
     messagesVersion: number
+    viewMode: ChatViewMode
+    onViewModeChange: (mode: ChatViewMode) => void
     onBack: () => void
     onRefresh: () => void
     onLoadMore: () => Promise<unknown>
+    onLoadMoreTurns: () => Promise<void>
     onSend: (text: string, attachments?: AttachmentMetadata[]) => void
     onFlushPending: () => void
     onAtBottomChange: (atBottom: boolean) => void
@@ -565,6 +576,13 @@ export function SessionChat(props: {
     }, [props.session.id])
 
     const normalizedMessages: NormalizedMessage[] = useMemo(() => {
+        if (props.viewMode === 'brief') {
+            normalizedCacheRef.current.clear()
+            blocksByIdRef.current.clear()
+            prevSessionIdRef.current = props.session.id
+            return []
+        }
+
         // Clear caches immediately when session changes (before useEffect runs)
         if (prevSessionIdRef.current !== null && prevSessionIdRef.current !== props.session.id) {
             normalizedCacheRef.current.clear()
@@ -592,7 +610,7 @@ export function SessionChat(props: {
             }
         }
         return normalized
-    }, [props.messages])
+    }, [props.messages, props.session.id, props.viewMode])
 
     const latestCodexPlan = useMemo(
         () => extractLatestCodexPlan(normalizedMessages),
@@ -600,6 +618,7 @@ export function SessionChat(props: {
     )
     const latestCodexPlanSignature = latestCodexPlan?.signature ?? null
     const showCodexPlanNotebook = supportsQueueControls
+        && props.viewMode === 'normal'
         && latestCodexPlan !== null
         && latestCodexPlanSignature !== dismissedCodexPlanSignature
 
@@ -1237,29 +1256,67 @@ export function SessionChat(props: {
                         </div>
                     ) : null}
 
-                    <HappyThread
-                        key={props.session.id}
-                        api={props.api}
-                        sessionId={props.session.id}
-                        metadata={props.session.metadata}
-                        permissionMode={props.session.permissionMode}
-                        disabled={sessionInactive}
-                        onRefresh={props.onRefresh}
-                        onRetryMessage={props.onRetryMessage}
-                        onFlushPending={props.onFlushPending}
-                        onAtBottomChange={props.onAtBottomChange}
-                        isLoadingMessages={props.isLoadingMessages}
-                        messagesWarning={props.messagesWarning}
-                        hasMoreMessages={props.hasMoreMessages}
-                        isLoadingMoreMessages={props.isLoadingMoreMessages}
-                        onLoadMore={props.onLoadMore}
-                        pendingCount={props.pendingCount}
-                        rawMessagesCount={props.messages.length}
-                        normalizedMessagesCount={normalizedMessages.length}
-                        messagesVersion={props.messagesVersion}
-                        forceScrollToken={forceScrollToken}
-                        density={props.density ?? 'comfortable'}
-                    />
+                    <div className="px-3 pt-2">
+                        <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-1">
+                            <button
+                                type="button"
+                                className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'normal'
+                                    ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                    : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                onClick={() => props.onViewModeChange('normal')}
+                            >
+                                Normal
+                            </button>
+                            <button
+                                type="button"
+                                className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'brief'
+                                    ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                    : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                onClick={() => props.onViewModeChange('brief')}
+                            >
+                                Brief
+                            </button>
+                        </div>
+                    </div>
+
+                    {props.viewMode === 'brief' ? (
+                        <BriefTurnList
+                            api={props.api}
+                            session={props.session}
+                            turns={props.turns}
+                            warning={props.turnsWarning}
+                            isLoading={props.isLoadingTurns}
+                            isLoadingMore={props.isLoadingMoreTurns}
+                            hasMore={props.hasMoreTurns}
+                            thinking={props.session.thinking}
+                            density={props.density ?? 'comfortable'}
+                            onLoadMoreTurns={props.onLoadMoreTurns}
+                        />
+                    ) : (
+                        <HappyThread
+                            key={props.session.id}
+                            api={props.api}
+                            sessionId={props.session.id}
+                            metadata={props.session.metadata}
+                            permissionMode={props.session.permissionMode}
+                            disabled={sessionInactive}
+                            onRefresh={props.onRefresh}
+                            onRetryMessage={props.onRetryMessage}
+                            onFlushPending={props.onFlushPending}
+                            onAtBottomChange={props.onAtBottomChange}
+                            isLoadingMessages={props.isLoadingMessages}
+                            messagesWarning={props.messagesWarning}
+                            hasMoreMessages={props.hasMoreMessages}
+                            isLoadingMoreMessages={props.isLoadingMoreMessages}
+                            onLoadMore={props.onLoadMore}
+                            pendingCount={props.pendingCount}
+                            rawMessagesCount={props.messages.length}
+                            normalizedMessagesCount={normalizedMessages.length}
+                            messagesVersion={props.messagesVersion}
+                            forceScrollToken={forceScrollToken}
+                            density={props.density ?? 'comfortable'}
+                        />
+                    )}
 
                     <HappyComposer
                         sessionId={props.session.id}

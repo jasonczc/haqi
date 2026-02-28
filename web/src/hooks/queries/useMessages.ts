@@ -27,7 +27,11 @@ const EMPTY_STATE: MessageWindowState = {
     messagesVersion: 0,
 }
 
-export function useMessages(api: ApiClient | null, sessionId: string | null): {
+export function useMessages(
+    api: ApiClient | null,
+    sessionId: string | null,
+    options?: { enabled?: boolean }
+): {
     messages: DecryptedMessage[]
     warning: string | null
     isLoading: boolean
@@ -40,28 +44,29 @@ export function useMessages(api: ApiClient | null, sessionId: string | null): {
     flushPending: () => Promise<void>
     setAtBottom: (atBottom: boolean) => void
 } {
+    const enabled = options?.enabled ?? true
     const state = useSyncExternalStore(
         useCallback((listener) => {
-            if (!sessionId) {
+            if (!sessionId || !enabled) {
                 return () => {}
             }
             return subscribeMessageWindow(sessionId, listener)
-        }, [sessionId]),
+        }, [enabled, sessionId]),
         useCallback(() => {
-            if (!sessionId) {
+            if (!sessionId || !enabled) {
                 return EMPTY_STATE
             }
             return getMessageWindowState(sessionId)
-        }, [sessionId]),
+        }, [enabled, sessionId]),
         () => EMPTY_STATE
     )
 
     useEffect(() => {
-        if (!api || !sessionId) {
+        if (!api || !sessionId || !enabled) {
             return
         }
         void fetchLatestMessages(api, sessionId)
-    }, [api, sessionId])
+    }, [api, enabled, sessionId])
 
     useEffect(() => {
         if (!sessionId) {
@@ -73,28 +78,28 @@ export function useMessages(api: ApiClient | null, sessionId: string | null): {
     }, [sessionId])
 
     const loadMore = useCallback(async () => {
-        if (!api || !sessionId) return
+        if (!api || !sessionId || !enabled) return
         if (!state.hasMore || state.isLoadingMore) return
         await fetchOlderMessages(api, sessionId)
-    }, [api, sessionId, state.hasMore, state.isLoadingMore])
+    }, [api, enabled, sessionId, state.hasMore, state.isLoadingMore])
 
     const refetch = useCallback(async () => {
-        if (!api || !sessionId) return
+        if (!api || !sessionId || !enabled) return
         await fetchLatestMessages(api, sessionId)
-    }, [api, sessionId])
+    }, [api, enabled, sessionId])
 
     const flushPending = useCallback(async () => {
-        if (!sessionId) return
+        if (!sessionId || !enabled) return
         const needsRefresh = flushPendingMessages(sessionId)
         if (needsRefresh && api) {
             await fetchLatestMessages(api, sessionId)
         }
-    }, [api, sessionId])
+    }, [api, enabled, sessionId])
 
     const setAtBottom = useCallback((atBottom: boolean) => {
-        if (!sessionId) return
+        if (!sessionId || !enabled) return
         setMessageWindowAtBottom(sessionId, atBottom)
-    }, [sessionId])
+    }, [enabled, sessionId])
 
     return {
         messages: state.messages,

@@ -133,6 +133,7 @@ export function useSSE(options: {
 
             if (event.type === 'message-received') {
                 ingestIncomingMessages(event.sessionId, [event.message])
+                void queryClient.invalidateQueries({ queryKey: queryKeys.turns(event.sessionId) })
             }
 
             if (event.type === 'session-added' || event.type === 'session-updated' || event.type === 'session-removed') {
@@ -140,6 +141,7 @@ export function useSSE(options: {
                 if ('sessionId' in event) {
                     if (event.type === 'session-removed') {
                         void queryClient.removeQueries({ queryKey: queryKeys.session(event.sessionId) })
+                        void queryClient.removeQueries({ queryKey: queryKeys.turns(event.sessionId) })
                         clearMessageWindow(event.sessionId)
                     } else {
                         void queryClient.invalidateQueries({ queryKey: queryKeys.session(event.sessionId) })
@@ -154,10 +156,15 @@ export function useSSE(options: {
             if (event.type === 'group-added' || event.type === 'group-updated' || event.type === 'group-removed') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.groups })
                 void queryClient.invalidateQueries({ queryKey: queryKeys.group(event.groupId) })
+                if (event.type === 'group-removed') {
+                    void queryClient.removeQueries({ queryKey: queryKeys.groupMessages(event.groupId) })
+                    void queryClient.removeQueries({ queryKey: queryKeys.groupTurns(event.groupId) })
+                }
             }
 
             if (event.type === 'group-message-received') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.groupMessages(event.groupId) })
+                void queryClient.invalidateQueries({ queryKey: queryKeys.groupTurns(event.groupId) })
             }
 
             if (event.type === 'group-task-updated') {

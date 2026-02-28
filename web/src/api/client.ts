@@ -11,8 +11,12 @@ import type {
     GitCommandResponse,
     MachinePathsExistsResponse,
     MachinesResponse,
+    ConversationTurnMessagesResponse,
+    ConversationTurnsResponse,
     MessagesResponse,
     GroupMessagesResponse,
+    GroupConversationTurnMessagesResponse,
+    GroupConversationTurnsResponse,
     GroupTasksResponse,
     GroupNoteResponse,
     UpdateGroupNoteResponse,
@@ -21,6 +25,7 @@ import type {
     GroupsResponse,
     GroupResponse,
     MemoryResponse,
+    ProjectOfflineSettingsResponse,
     UpdateMemoryResponse,
     CreateGroupResponse,
     AddGroupMemberResponse,
@@ -254,6 +259,41 @@ export class ApiClient {
         )
     }
 
+    async getGroupConversationTurns(
+        groupId: string,
+        options?: { beforeTurnIndex?: number | null; limit?: number }
+    ): Promise<GroupConversationTurnsResponse> {
+        const params = new URLSearchParams()
+        if (options?.beforeTurnIndex !== undefined && options.beforeTurnIndex !== null) {
+            params.set('beforeTurnIndex', `${options.beforeTurnIndex}`)
+        }
+        if (options?.limit !== undefined && options.limit !== null) {
+            params.set('limit', `${options.limit}`)
+        }
+        const qs = params.toString()
+        return await this.request<GroupConversationTurnsResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/turns${qs ? `?${qs}` : ''}`
+        )
+    }
+
+    async getGroupConversationTurnMessages(
+        groupId: string,
+        turnId: string,
+        options?: { beforeSeq?: number | null; limit?: number }
+    ): Promise<GroupConversationTurnMessagesResponse> {
+        const params = new URLSearchParams()
+        if (options?.beforeSeq !== undefined && options.beforeSeq !== null) {
+            params.set('beforeSeq', `${options.beforeSeq}`)
+        }
+        if (options?.limit !== undefined && options.limit !== null) {
+            params.set('limit', `${options.limit}`)
+        }
+        const qs = params.toString()
+        return await this.request<GroupConversationTurnMessagesResponse>(
+            `/api/groups/${encodeURIComponent(groupId)}/turns/${encodeURIComponent(turnId)}/messages${qs ? `?${qs}` : ''}`
+        )
+    }
+
     async postGroupMessage(groupId: string, payload: {
         type: 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
         payload?: unknown
@@ -344,6 +384,17 @@ export class ApiClient {
         })
     }
 
+    async getProjectOfflineSettings(): Promise<ProjectOfflineSettingsResponse> {
+        return await this.request<ProjectOfflineSettingsResponse>('/api/settings/project-offline')
+    }
+
+    async updateProjectOfflineSettings(payload: { directories: string[] }): Promise<ProjectOfflineSettingsResponse> {
+        return await this.request<ProjectOfflineSettingsResponse>('/api/settings/project-offline', {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        })
+    }
+
     async getPushVapidPublicKey(): Promise<PushVapidPublicKeyResponse> {
         return await this.request<PushVapidPublicKeyResponse>('/api/push/vapid-public-key')
     }
@@ -397,6 +448,41 @@ export class ApiClient {
         const qs = params.toString()
         const url = `/api/sessions/${encodeURIComponent(sessionId)}/messages${qs ? `?${qs}` : ''}`
         return await this.request<MessagesResponse>(url)
+    }
+
+    async getConversationTurns(
+        sessionId: string,
+        options?: { beforeTurnIndex?: number | null; limit?: number }
+    ): Promise<ConversationTurnsResponse> {
+        const params = new URLSearchParams()
+        if (options?.beforeTurnIndex !== undefined && options.beforeTurnIndex !== null) {
+            params.set('beforeTurnIndex', `${options.beforeTurnIndex}`)
+        }
+        if (options?.limit !== undefined && options.limit !== null) {
+            params.set('limit', `${options.limit}`)
+        }
+
+        const qs = params.toString()
+        const url = `/api/sessions/${encodeURIComponent(sessionId)}/turns${qs ? `?${qs}` : ''}`
+        return await this.request<ConversationTurnsResponse>(url)
+    }
+
+    async getConversationTurnMessages(
+        sessionId: string,
+        turnId: string,
+        options?: { beforeSeq?: number | null; limit?: number }
+    ): Promise<ConversationTurnMessagesResponse> {
+        const params = new URLSearchParams()
+        if (options?.beforeSeq !== undefined && options.beforeSeq !== null) {
+            params.set('beforeSeq', `${options.beforeSeq}`)
+        }
+        if (options?.limit !== undefined && options.limit !== null) {
+            params.set('limit', `${options.limit}`)
+        }
+
+        const qs = params.toString()
+        const url = `/api/sessions/${encodeURIComponent(sessionId)}/turns/${encodeURIComponent(turnId)}/messages${qs ? `?${qs}` : ''}`
+        return await this.request<ConversationTurnMessagesResponse>(url)
     }
 
     async getGitStatus(sessionId: string): Promise<GitCommandResponse> {

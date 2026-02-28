@@ -31,6 +31,7 @@ import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useMessages } from '@/hooks/queries/useMessages'
+import { useConversationTurns } from '@/hooks/queries/useConversationTurns'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useSession } from '@/hooks/queries/useSession'
 import { useSessions } from '@/hooks/queries/useSessions'
@@ -48,6 +49,7 @@ import { useSessionSidebarWidth } from '@/hooks/useSessionSidebarWidth'
 import { useSessionSidebarVisibility } from '@/hooks/useSessionSidebarVisibility'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
+import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Button } from '@/components/ui/button'
@@ -610,6 +612,7 @@ function SessionPage() {
         session,
         refetch: refetchSession,
     } = useSession(api, sessionId)
+    const { viewMode, setViewMode } = useChatViewMode()
     const {
         messages,
         warning: messagesWarning,
@@ -622,7 +625,16 @@ function SessionPage() {
         messagesVersion,
         flushPending,
         setAtBottom,
-    } = useMessages(api, sessionId)
+    } = useMessages(api, sessionId, { enabled: viewMode === 'normal' })
+    const {
+        turns,
+        warning: turnsWarning,
+        isLoading: turnsLoading,
+        isLoadingMore: turnsLoadingMore,
+        hasMore: turnsHasMore,
+        loadMore: loadMoreTurns,
+        refetch: refetchTurns
+    } = useConversationTurns(api, sessionId, { enabled: viewMode === 'brief' })
     const {
         sendMessage,
         retryMessage,
@@ -704,7 +716,8 @@ function SessionPage() {
     const refreshSelectedSession = useCallback(() => {
         void refetchSession()
         void refetchMessages()
-    }, [refetchMessages, refetchSession])
+        void refetchTurns()
+    }, [refetchMessages, refetchSession, refetchTurns])
 
     if (!session) {
         return (
@@ -723,12 +736,20 @@ function SessionPage() {
             hasMoreMessages={messagesHasMore}
             isLoadingMessages={messagesLoading}
             isLoadingMoreMessages={messagesLoadingMore}
+            turns={turns}
+            turnsWarning={turnsWarning}
+            hasMoreTurns={turnsHasMore}
+            isLoadingTurns={turnsLoading}
+            isLoadingMoreTurns={turnsLoadingMore}
             isSending={isSending}
             pendingCount={pendingCount}
             messagesVersion={messagesVersion}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
             onBack={goBack}
             onRefresh={refreshSelectedSession}
             onLoadMore={loadMoreMessages}
+            onLoadMoreTurns={loadMoreTurns}
             onSend={sendMessage}
             onFlushPending={flushPending}
             onAtBottomChange={setAtBottom}

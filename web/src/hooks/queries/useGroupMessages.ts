@@ -22,7 +22,11 @@ function sortAndDedupeMessages(messages: GroupTimelineMessage[]): GroupTimelineM
     })
 }
 
-export function useGroupMessages(api: ApiClient | null, groupId: string | null): {
+export function useGroupMessages(
+    api: ApiClient | null,
+    groupId: string | null,
+    options?: { enabled?: boolean }
+): {
     messages: GroupTimelineMessage[]
     isLoading: boolean
     isLoadingMore: boolean
@@ -31,6 +35,7 @@ export function useGroupMessages(api: ApiClient | null, groupId: string | null):
     loadMore: () => Promise<void>
     refetch: () => Promise<unknown>
 } {
+    const enabled = (options?.enabled ?? true) && Boolean(api && groupId)
     const query = useInfiniteQuery({
         queryKey: groupId ? queryKeys.groupMessages(groupId) : ['group-messages', 'unknown'],
         queryFn: async ({ pageParam }: { pageParam: number | null }) => {
@@ -49,7 +54,7 @@ export function useGroupMessages(api: ApiClient | null, groupId: string | null):
             }
             return lastPage.page.nextBeforeSeq ?? undefined
         },
-        enabled: Boolean(api && groupId)
+        enabled
     })
 
     const messages = useMemo(() => {
@@ -73,9 +78,9 @@ export function useGroupMessages(api: ApiClient | null, groupId: string | null):
 
     return {
         messages,
-        isLoading: query.isLoading,
+        isLoading: enabled ? query.isLoading : false,
         isLoadingMore: query.isFetchingNextPage,
-        hasMore: Boolean(query.hasNextPage),
+        hasMore: enabled ? Boolean(query.hasNextPage) : false,
         error: query.error instanceof Error ? query.error.message : query.error ? 'Failed to load group messages' : null,
         loadMore,
         refetch: query.refetch
