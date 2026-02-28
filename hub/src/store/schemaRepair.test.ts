@@ -16,6 +16,12 @@ const GROUP_TABLES = [
     'group_notes'
 ] as const
 
+const REPORT_TABLES = [
+    'reports',
+    'report_assets',
+    'report_shares'
+] as const
+
 function closeStore(store: Store): void {
     const db = (store as unknown as { db: Database }).db
     db.close()
@@ -61,6 +67,38 @@ describe('Store schema repair', () => {
         expect(note).not.toBeNull()
 
         closeStore(repaired)
+        rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('runs v8 to v9 migration and creates report tables', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'haqi-store-repair-'))
+        const dbPath = join(dir, 'hapi.db')
+
+        const seeded = new Store(dbPath)
+        const seededDb = (seeded as unknown as { db: Database }).db
+        seededDb.exec(`
+            DROP TABLE IF EXISTS report_shares;
+            DROP TABLE IF EXISTS report_assets;
+            DROP TABLE IF EXISTS reports;
+            PRAGMA user_version = 8;
+        `)
+        closeStore(seeded)
+
+        const migrated = new Store(dbPath)
+        const migratedDb = (migrated as unknown as { db: Database }).db
+        const versionRow = migratedDb.prepare('PRAGMA user_version').get() as { user_version: number } | undefined
+        expect(versionRow?.user_version).toBe(9)
+
+        const placeholders = REPORT_TABLES.map(() => '?').join(', ')
+        const rows = migratedDb.prepare(
+            `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN (${placeholders})`
+        ).all(...REPORT_TABLES) as Array<{ name: string }>
+        const tableSet = new Set(rows.map((row) => row.name))
+        for (const table of REPORT_TABLES) {
+            expect(tableSet.has(table)).toBe(true)
+        }
+
+        closeStore(migrated)
         rmSync(dir, { recursive: true, force: true })
     })
 })

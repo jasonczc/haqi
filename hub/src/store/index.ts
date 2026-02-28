@@ -43,7 +43,7 @@ export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 
-const SCHEMA_VERSION: number = 8
+const SCHEMA_VERSION: number = 9
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -188,6 +188,13 @@ export class Store {
         if (currentVersion === 7 && SCHEMA_VERSION >= 8) {
             this.migrateFromV7ToV8()
             this.setUserVersion(8)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 8 && SCHEMA_VERSION >= 9) {
+            this.migrateFromV8ToV9()
+            this.setUserVersion(9)
             this.initSchema()
             return
         }
@@ -791,6 +798,69 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite group conversation turn backfill failed during v7->v8 migration: ${message}`)
+        }
+    }
+
+    private migrateFromV8ToV9(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS reports (
+                    id TEXT PRIMARY KEY,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    session_id TEXT,
+                    task_id TEXT,
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'unknown',
+                    markdown TEXT NOT NULL DEFAULT '',
+                    metadata TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_reports_namespace_updated
+                    ON reports(namespace, updated_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_reports_session_namespace
+                    ON reports(session_id, namespace);
+
+                CREATE TABLE IF NOT EXISTS report_assets (
+                    id TEXT PRIMARY KEY,
+                    report_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    file_name TEXT NOT NULL,
+                    storage_key TEXT NOT NULL,
+                    mime_type TEXT NOT NULL,
+                    size INTEGER NOT NULL,
+                    caption TEXT,
+                    created_at INTEGER NOT NULL,
+                    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_report_assets_report
+                    ON report_assets(report_id, created_at ASC);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_report_assets_storage_key
+                    ON report_assets(report_id, storage_key);
+
+                CREATE TABLE IF NOT EXISTS report_shares (
+                    id TEXT PRIMARY KEY,
+                    report_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    token TEXT NOT NULL UNIQUE,
+                    created_by TEXT,
+                    created_at INTEGER NOT NULL,
+                    expires_at INTEGER,
+                    revoked_at INTEGER,
+                    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_report_shares_report
+                    ON report_shares(report_id, created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_report_shares_token
+                    ON report_shares(token);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v8->v9 failed: ${message}`)
         }
     }
 
