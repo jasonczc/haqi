@@ -1,6 +1,6 @@
 {
   "name": "@jasonczc/haqi",
-  "version": "0.15.3",
+  "version": "0.15.5",
   "description": "App for agentic coding - access coding agent anywhere",
   "author": "Kirill Dubovitskiy & weishu",
   "license": "AGPL-3.0-only",
@@ -32,11 +32,11 @@
     }
   },
   "optionalDependencies": {
-    "@jasonczc/haqi-darwin-arm64": "0.15.3",
-    "@jasonczc/haqi-darwin-x64": "0.15.3",
-    "@jasonczc/haqi-linux-arm64": "0.15.3",
-    "@jasonczc/haqi-linux-x64": "0.15.3",
-    "@jasonczc/haqi-win32-x64": "0.15.3"
+    "@jasonczc/haqi-darwin-arm64": "0.15.5",
+    "@jasonczc/haqi-darwin-x64": "0.15.5",
+    "@jasonczc/haqi-linux-arm64": "0.15.5",
+    "@jasonczc/haqi-linux-x64": "0.15.5",
+    "@jasonczc/haqi-win32-x64": "0.15.5"
   },
   "scripts": {
     "postinstall": "node -e \"try{const fs=require('fs');const p=require('path');for(const name of ['haqi.cjs','hapi.cjs']){try{fs.chmodSync(p.join(__dirname,'bin',name),0o755)}catch(_){}}}catch(e){}\"",
