@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 
 import type { StoredMessage } from './types'
 import { safeJsonParse } from './json'
+import { appendMessageToConversationTurns, rebuildSessionConversationTurns } from './turns'
 
 type DbMessageRow = {
     id: string
@@ -41,34 +42,46 @@ export function addMessage(
         }
     }
 
-    const msgSeqRow = db.prepare(
-        'SELECT COALESCE(MAX(seq), 0) + 1 AS nextSeq FROM messages WHERE session_id = ?'
-    ).get(sessionId) as { nextSeq: number }
-    const msgSeq = msgSeqRow.nextSeq
+    try {
+        db.exec('BEGIN')
 
-    const id = randomUUID()
-    const json = JSON.stringify(content)
+        const msgSeqRow = db.prepare(
+            'SELECT COALESCE(MAX(seq), 0) + 1 AS nextSeq FROM messages WHERE session_id = ?'
+        ).get(sessionId) as { nextSeq: number }
+        const msgSeq = msgSeqRow.nextSeq
 
-    db.prepare(`
-        INSERT INTO messages (
-            id, session_id, content, created_at, seq, local_id
-        ) VALUES (
-            @id, @session_id, @content, @created_at, @seq, @local_id
-        )
-    `).run({
-        id,
-        session_id: sessionId,
-        content: json,
-        created_at: now,
-        seq: msgSeq,
-        local_id: localId ?? null
-    })
+        const id = randomUUID()
+        const json = JSON.stringify(content)
 
-    const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as DbMessageRow | undefined
-    if (!row) {
-        throw new Error('Failed to create message')
+        db.prepare(`
+            INSERT INTO messages (
+                id, session_id, content, created_at, seq, local_id
+            ) VALUES (
+                @id, @session_id, @content, @created_at, @seq, @local_id
+            )
+        `).run({
+            id,
+            session_id: sessionId,
+            content: json,
+            created_at: now,
+            seq: msgSeq,
+            local_id: localId ?? null
+        })
+
+        const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as DbMessageRow | undefined
+        if (!row) {
+            throw new Error('Failed to create message')
+        }
+
+        const stored = toStoredMessage(row)
+        appendMessageToConversationTurns(db, stored)
+
+        db.exec('COMMIT')
+        return stored
+    } catch (error) {
+        db.exec('ROLLBACK')
+        throw error
     }
-    return toStoredMessage(row)
 }
 
 export function getMessages(
@@ -154,6 +167,9 @@ export function mergeSessionMessages(
             'UPDATE messages SET session_id = ? WHERE session_id = ?'
         ).run(toSessionId, fromSessionId)
 
+        rebuildSessionConversationTurns(db, fromSessionId)
+        rebuildSessionConversationTurns(db, toSessionId)
+
         db.exec('COMMIT')
         return { moved: result.changes, oldMaxSeq, newMaxSeq }
     } catch (error) {
@@ -203,6 +219,8 @@ export function copySessionMessages(
             to_session_id: toSessionId,
             from_session_id: fromSessionId
         })
+
+        rebuildSessionConversationTurns(db, toSessionId)
 
         db.exec('COMMIT')
         return { copied: result.changes, oldMaxSeq, newMaxSeq }

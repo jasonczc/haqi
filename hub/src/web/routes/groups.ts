@@ -9,6 +9,16 @@ const querySchema = z.object({
     beforeSeq: z.coerce.number().int().min(1).optional()
 })
 
+const turnsQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    beforeTurnIndex: z.coerce.number().int().min(1).optional()
+})
+
+const turnMessagesQuerySchema = z.object({
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+    beforeSeq: z.coerce.number().int().min(1).optional()
+})
+
 const createGroupSchema = z.object({
     name: z.string().trim().min(1).max(255),
     description: z.string().trim().max(5000).optional(),
@@ -229,6 +239,54 @@ export function createGroupsRoutes(getSyncEngine: () => SyncEngine | null): Hono
                 c.get('namespace'),
                 { limit, beforeSeq }
             )
+            return c.json(result)
+        } catch (error) {
+            return toErrorResponse(c, error)
+        }
+    })
+
+    app.get('/groups/:id/turns', (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const parsed = turnsQuerySchema.safeParse(c.req.query())
+        const limit = parsed.success ? (parsed.data.limit ?? 50) : 50
+        const beforeTurnIndex = parsed.success ? (parsed.data.beforeTurnIndex ?? null) : null
+
+        try {
+            const result = engine.getGroupConversationTurnsPage(
+                c.req.param('id'),
+                c.get('namespace'),
+                { limit, beforeTurnIndex }
+            )
+            return c.json(result)
+        } catch (error) {
+            return toErrorResponse(c, error)
+        }
+    })
+
+    app.get('/groups/:id/turns/:turnId/messages', (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const parsed = turnMessagesQuerySchema.safeParse(c.req.query())
+        const limit = parsed.success ? (parsed.data.limit ?? 100) : 100
+        const beforeSeq = parsed.success ? (parsed.data.beforeSeq ?? null) : null
+
+        try {
+            const result = engine.getGroupConversationTurnMessagesPage(
+                c.req.param('id'),
+                c.get('namespace'),
+                c.req.param('turnId'),
+                { limit, beforeSeq }
+            )
+            if (!result) {
+                return c.json({ error: 'Turn not found' }, 404)
+            }
             return c.json(result)
         } catch (error) {
             return toErrorResponse(c, error)

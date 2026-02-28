@@ -13,6 +13,7 @@ import { createBindRoutes } from './routes/bind'
 import { createEventsRoutes } from './routes/events'
 import { createSessionsRoutes } from './routes/sessions'
 import { createMessagesRoutes } from './routes/messages'
+import { createTurnsRoutes } from './routes/turns'
 import { createPermissionsRoutes } from './routes/permissions'
 import { createMachinesRoutes } from './routes/machines'
 import { createGitRoutes } from './routes/git'
@@ -22,6 +23,7 @@ import { createVoiceRoutes } from './routes/voice'
 import { createUsageRoutes } from './routes/usage'
 import { createGroupsRoutes } from './routes/groups'
 import { createMemoryRoutes } from './routes/memory'
+import { createSettingsRoutes } from './routes/settings'
 import type { SSEManager } from '../sse/sseManager'
 import type { VisibilityTracker } from '../visibility/visibilityTracker'
 import type { Server as BunServer } from 'bun'
@@ -80,7 +82,7 @@ function createWebApp(options: {
     const corsOriginOption = corsOrigins.includes('*') ? '*' : corsOrigins
     const corsMiddleware = cors({
         origin: corsOriginOption,
-        allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+        allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
         allowHeaders: ['authorization', 'content-type']
     })
     app.use('/api/*', corsMiddleware)
@@ -95,6 +97,7 @@ function createWebApp(options: {
     app.route('/api', createEventsRoutes(options.getSseManager, options.getSyncEngine, options.getVisibilityTracker))
     app.route('/api', createSessionsRoutes(options.getSyncEngine))
     app.route('/api', createMessagesRoutes(options.getSyncEngine))
+    app.route('/api', createTurnsRoutes(options.getSyncEngine))
     app.route('/api', createPermissionsRoutes(options.getSyncEngine))
     app.route('/api', createMachinesRoutes(options.getSyncEngine))
     app.route('/api', createGitRoutes(options.getSyncEngine))
@@ -103,6 +106,7 @@ function createWebApp(options: {
     app.route('/api', createUsageRoutes())
     app.route('/api', createGroupsRoutes(options.getSyncEngine))
     app.route('/api', createMemoryRoutes())
+    app.route('/api', createSettingsRoutes(options.store))
 
     // Skip static serving in relay mode, show helpful message on root
     if (options.relayMode) {

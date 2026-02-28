@@ -63,6 +63,132 @@ export class MessageService {
         }))
     }
 
+    getConversationTurnsPage(sessionId: string, options: { limit: number; beforeTurnIndex: number | null }): {
+        turns: Array<{
+            id: string
+            sessionId: string
+            turnIndex: number
+            status: 'open' | 'closed'
+            userMessageId: string | null
+            userSeq: number | null
+            agentStartSeq: number | null
+            agentEndSeq: number | null
+            messageCount: number
+            userPreview: string | null
+            assistantPreview: string | null
+            createdAt: number
+            updatedAt: number
+        }>
+        page: {
+            limit: number
+            beforeTurnIndex: number | null
+            nextBeforeTurnIndex: number | null
+            hasMore: boolean
+        }
+    } {
+        const stored = this.store.turns.getTurns(sessionId, options.limit, options.beforeTurnIndex ?? undefined)
+        const turns = stored.map((turn) => ({
+            id: turn.id,
+            sessionId: turn.sessionId,
+            turnIndex: turn.turnIndex,
+            status: turn.status,
+            userMessageId: turn.userMessageId,
+            userSeq: turn.userSeq,
+            agentStartSeq: turn.agentStartSeq,
+            agentEndSeq: turn.agentEndSeq,
+            messageCount: turn.messageCount,
+            userPreview: turn.userPreview,
+            assistantPreview: turn.assistantPreview,
+            createdAt: turn.createdAt,
+            updatedAt: turn.updatedAt
+        }))
+
+        let oldestTurnIndex: number | null = null
+        for (const turn of turns) {
+            if (oldestTurnIndex === null || turn.turnIndex < oldestTurnIndex) {
+                oldestTurnIndex = turn.turnIndex
+            }
+        }
+
+        const nextBeforeTurnIndex = oldestTurnIndex
+        const hasMore = nextBeforeTurnIndex !== null
+            && this.store.turns.getTurns(sessionId, 1, nextBeforeTurnIndex).length > 0
+
+        return {
+            turns,
+            page: {
+                limit: options.limit,
+                beforeTurnIndex: options.beforeTurnIndex,
+                nextBeforeTurnIndex,
+                hasMore
+            }
+        }
+    }
+
+    getConversationTurnMessagesPage(
+        sessionId: string,
+        turnId: string,
+        options: { limit: number; beforeSeq: number | null }
+    ): {
+        turn: {
+            id: string
+            sessionId: string
+            turnIndex: number
+            status: 'open' | 'closed'
+            userMessageId: string | null
+            userSeq: number | null
+            agentStartSeq: number | null
+            agentEndSeq: number | null
+            messageCount: number
+            userPreview: string | null
+            assistantPreview: string | null
+            createdAt: number
+            updatedAt: number
+        }
+        messages: DecryptedMessage[]
+        page: {
+            limit: number
+            beforeSeq: number | null
+            nextBeforeSeq: number | null
+            hasMore: boolean
+            startSeq: number | null
+            endSeq: number | null
+        }
+    } | null {
+        const stored = this.store.turns.getTurnMessagesPage(sessionId, turnId, options)
+        if (!stored) {
+            return null
+        }
+
+        const messages: DecryptedMessage[] = stored.messages.map((message) => ({
+            id: message.id,
+            seq: message.seq,
+            localId: message.localId,
+            content: message.content,
+            createdAt: message.createdAt
+        }))
+
+        return {
+            turn: {
+                id: stored.turn.id,
+                sessionId: stored.turn.sessionId,
+                turnIndex: stored.turn.turnIndex,
+                status: stored.turn.status,
+                userMessageId: stored.turn.userMessageId,
+                userSeq: stored.turn.userSeq,
+                agentStartSeq: stored.turn.agentStartSeq,
+                agentEndSeq: stored.turn.agentEndSeq,
+                messageCount: stored.turn.messageCount,
+                userPreview: stored.turn.userPreview,
+                assistantPreview: stored.turn.assistantPreview,
+                createdAt: stored.turn.createdAt,
+                updatedAt: stored.turn.updatedAt
+            },
+            messages,
+            page: stored.page
+        }
+    }
+
     async sendMessage(
         sessionId: string,
         payload: {

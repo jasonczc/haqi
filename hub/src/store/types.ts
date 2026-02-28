@@ -46,6 +46,22 @@ export type StoredMessage = {
     localId: string | null
 }
 
+export type StoredConversationTurn = {
+    id: string
+    sessionId: string
+    turnIndex: number
+    status: 'open' | 'closed'
+    userMessageId: string | null
+    userSeq: number | null
+    agentStartSeq: number | null
+    agentEndSeq: number | null
+    messageCount: number
+    userPreview: string | null
+    assistantPreview: string | null
+    createdAt: number
+    updatedAt: number
+}
+
 export type StoredGroup = {
     id: string
     namespace: string
@@ -84,6 +100,25 @@ export type StoredGroupMessage = {
     quotedMessageId: string | null
     payload: unknown
     createdAt: number
+}
+
+export type StoredGroupConversationTurn = {
+    id: string
+    groupId: string
+    namespace: string
+    turnIndex: number
+    status: 'open' | 'closed'
+    initiatorMessageId: string | null
+    initiatorSeq: number | null
+    initiatorSource: string | null
+    initiatorActorSessionId: string | null
+    responderStartSeq: number | null
+    responderEndSeq: number | null
+    messageCount: number
+    initiatorPreview: string | null
+    responderPreview: string | null
+    createdAt: number
+    updatedAt: number
 }
 
 export type StoredGroupTaskStatus =

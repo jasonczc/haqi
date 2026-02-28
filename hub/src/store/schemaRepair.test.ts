@@ -7,9 +7,11 @@ import { join } from 'node:path'
 import { Store } from './index'
 
 const GROUP_TABLES = [
+    'project_offline_preferences',
     'groups',
     'group_members',
     'group_messages',
+    'group_conversation_turns',
     'group_tasks',
     'group_notes'
 ] as const
@@ -27,12 +29,14 @@ describe('Store schema repair', () => {
         const seeded = new Store(dbPath)
         const seededDb = (seeded as unknown as { db: Database }).db
         seededDb.exec(`
+            DROP TABLE IF EXISTS project_offline_preferences;
             DROP TABLE IF EXISTS group_notes;
             DROP TABLE IF EXISTS group_tasks;
+            DROP TABLE IF EXISTS group_conversation_turns;
             DROP TABLE IF EXISTS group_messages;
             DROP TABLE IF EXISTS group_members;
             DROP TABLE IF EXISTS groups;
-            PRAGMA user_version = 5;
+            PRAGMA user_version = 6;
         `)
         closeStore(seeded)
 

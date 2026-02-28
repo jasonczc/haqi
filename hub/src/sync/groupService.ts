@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import type { Store, StoredGroup, StoredGroupMessage, StoredGroupNote, StoredGroupTask } from '../store'
+import type {
+    Store,
+    StoredGroup,
+    StoredGroupConversationTurn,
+    StoredGroupMessage,
+    StoredGroupNote,
+    StoredGroupTask
+} from '../store'
 import { EventPublisher } from './eventPublisher'
 
 export type GroupWithDetails = {
@@ -67,6 +74,25 @@ type TimelineMessage = {
     quotedMessage?: TimelineQuotedMessage
     payload: unknown
     createdAt: number
+}
+
+type GroupConversationTurn = {
+    id: string
+    groupId: string
+    namespace: string
+    turnIndex: number
+    status: 'open' | 'closed'
+    initiatorMessageId: string | null
+    initiatorSeq: number | null
+    initiatorSource: string | null
+    initiatorActorSessionId: string | null
+    responderStartSeq: number | null
+    responderEndSeq: number | null
+    messageCount: number
+    initiatorPreview: string | null
+    responderPreview: string | null
+    createdAt: number
+    updatedAt: number
 }
 
 const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'expired', 'canceled', 'manual_done'])
@@ -407,6 +433,79 @@ export class GroupService {
                 nextBeforeSeq,
                 hasMore
             }
+        }
+    }
+
+    getConversationTurnsPage(
+        groupId: string,
+        namespace: string,
+        options: { limit: number; beforeTurnIndex: number | null }
+    ): {
+        turns: GroupConversationTurn[]
+        page: {
+            limit: number
+            beforeTurnIndex: number | null
+            nextBeforeTurnIndex: number | null
+            hasMore: boolean
+        }
+    } {
+        this.requireGroup(groupId, namespace)
+        const storedTurns = this.store.groups.getConversationTurns(
+            groupId,
+            namespace,
+            options.limit,
+            options.beforeTurnIndex ?? undefined
+        )
+
+        let oldestTurnIndex: number | null = null
+        for (const turn of storedTurns) {
+            if (oldestTurnIndex === null || turn.turnIndex < oldestTurnIndex) {
+                oldestTurnIndex = turn.turnIndex
+            }
+        }
+
+        const nextBeforeTurnIndex = oldestTurnIndex
+        const hasMore = nextBeforeTurnIndex !== null
+            && this.store.groups.getConversationTurns(groupId, namespace, 1, nextBeforeTurnIndex).length > 0
+
+        return {
+            turns: storedTurns.map((turn) => this.toConversationTurn(turn)),
+            page: {
+                limit: options.limit,
+                beforeTurnIndex: options.beforeTurnIndex,
+                nextBeforeTurnIndex,
+                hasMore
+            }
+        }
+    }
+
+    getConversationTurnMessagesPage(
+        groupId: string,
+        namespace: string,
+        turnId: string,
+        options: { limit: number; beforeSeq: number | null }
+    ): {
+        turn: GroupConversationTurn
+        messages: TimelineMessage[]
+        page: {
+            limit: number
+            beforeSeq: number | null
+            nextBeforeSeq: number | null
+            hasMore: boolean
+            startSeq: number | null
+            endSeq: number | null
+        }
+    } | null {
+        this.requireGroup(groupId, namespace)
+        const result = this.store.groups.getConversationTurnMessagesPage(groupId, namespace, turnId, options)
+        if (!result) {
+            return null
+        }
+
+        return {
+            turn: this.toConversationTurn(result.turn),
+            messages: result.messages.map((message) => this.toTimelineMessage(message)),
+            page: result.page
         }
     }
 
@@ -1245,6 +1344,27 @@ export class GroupService {
             ...(quotedMessage ? { quotedMessage } : {}),
             payload: message.payload,
             createdAt: message.createdAt
+        }
+    }
+
+    private toConversationTurn(turn: StoredGroupConversationTurn): GroupConversationTurn {
+        return {
+            id: turn.id,
+            groupId: turn.groupId,
+            namespace: turn.namespace,
+            turnIndex: turn.turnIndex,
+            status: turn.status,
+            initiatorMessageId: turn.initiatorMessageId,
+            initiatorSeq: turn.initiatorSeq,
+            initiatorSource: turn.initiatorSource,
+            initiatorActorSessionId: turn.initiatorActorSessionId,
+            responderStartSeq: turn.responderStartSeq,
+            responderEndSeq: turn.responderEndSeq,
+            messageCount: turn.messageCount,
+            initiatorPreview: turn.initiatorPreview,
+            responderPreview: turn.responderPreview,
+            createdAt: turn.createdAt,
+            updatedAt: turn.updatedAt
         }
     }
 

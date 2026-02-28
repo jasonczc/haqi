@@ -23,7 +23,22 @@ import {
     updateGroupNote,
     updateGroupTaskStatus
 } from './groups'
-import type { StoredGroup, StoredGroupMember, StoredGroupMessage, StoredGroupNote, StoredGroupTask } from './types'
+import {
+    appendGroupMessageToConversationTurns,
+    getGroupConversationTurnById,
+    getGroupConversationTurnMessagesPage,
+    getGroupConversationTurns,
+    rebuildAllGroupConversationTurns,
+    rebuildGroupConversationTurns
+} from './groupTurns'
+import type {
+    StoredGroup,
+    StoredGroupConversationTurn,
+    StoredGroupMember,
+    StoredGroupMessage,
+    StoredGroupNote,
+    StoredGroupTask
+} from './types'
 
 export class GroupStore {
     private readonly db: Database
@@ -114,7 +129,16 @@ export class GroupStore {
         quotedMessageId?: string | null
         payload: unknown
     }): StoredGroupMessage {
-        return addGroupMessage(this.db, options)
+        try {
+            this.db.exec('BEGIN')
+            const message = addGroupMessage(this.db, options)
+            appendGroupMessageToConversationTurns(this.db, message)
+            this.db.exec('COMMIT')
+            return message
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            throw error
+        }
     }
 
     getGroupMessageByNamespace(groupId: string, namespace: string, messageId: string): StoredGroupMessage | null {
@@ -186,5 +210,46 @@ export class GroupStore {
         error?: string | null
     }): StoredGroupTask | null {
         return updateGroupTaskStatus(this.db, options)
+    }
+
+    getConversationTurns(
+        groupId: string,
+        namespace: string,
+        limit: number = 200,
+        beforeTurnIndex?: number
+    ): StoredGroupConversationTurn[] {
+        return getGroupConversationTurns(this.db, groupId, namespace, limit, beforeTurnIndex)
+    }
+
+    getConversationTurnById(groupId: string, namespace: string, turnId: string): StoredGroupConversationTurn | null {
+        return getGroupConversationTurnById(this.db, groupId, namespace, turnId)
+    }
+
+    getConversationTurnMessagesPage(
+        groupId: string,
+        namespace: string,
+        turnId: string,
+        options: { limit: number; beforeSeq: number | null }
+    ): {
+        turn: StoredGroupConversationTurn
+        messages: StoredGroupMessage[]
+        page: {
+            limit: number
+            beforeSeq: number | null
+            nextBeforeSeq: number | null
+            hasMore: boolean
+            startSeq: number | null
+            endSeq: number | null
+        }
+    } | null {
+        return getGroupConversationTurnMessagesPage(this.db, groupId, namespace, turnId, options)
+    }
+
+    rebuildGroupConversationTurns(groupId: string, namespace: string): number {
+        return rebuildGroupConversationTurns(this.db, groupId, namespace)
+    }
+
+    rebuildAllGroupConversationTurns(): number {
+        return rebuildAllGroupConversationTurns(this.db)
     }
 }

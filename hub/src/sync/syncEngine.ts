@@ -571,6 +571,23 @@ export class SyncEngine {
         return this.groupService.getMessagesPage(groupId, namespace, options)
     }
 
+    getGroupConversationTurnsPage(
+        groupId: string,
+        namespace: string,
+        options: { limit: number; beforeTurnIndex: number | null }
+    ) {
+        return this.groupService.getConversationTurnsPage(groupId, namespace, options)
+    }
+
+    getGroupConversationTurnMessagesPage(
+        groupId: string,
+        namespace: string,
+        turnId: string,
+        options: { limit: number; beforeSeq: number | null }
+    ) {
+        return this.groupService.getConversationTurnMessagesPage(groupId, namespace, turnId, options)
+    }
+
     async addGroupMessage(options: {
         groupId: string
         namespace: string
@@ -661,6 +678,65 @@ export class SyncEngine {
 
     getMessagesAfter(sessionId: string, options: { afterSeq: number; limit: number }): DecryptedMessage[] {
         return this.messageService.getMessagesAfter(sessionId, options)
+    }
+
+    getConversationTurnsPage(sessionId: string, options: { limit: number; beforeTurnIndex: number | null }): {
+        turns: Array<{
+            id: string
+            sessionId: string
+            turnIndex: number
+            status: 'open' | 'closed'
+            userMessageId: string | null
+            userSeq: number | null
+            agentStartSeq: number | null
+            agentEndSeq: number | null
+            messageCount: number
+            userPreview: string | null
+            assistantPreview: string | null
+            createdAt: number
+            updatedAt: number
+        }>
+        page: {
+            limit: number
+            beforeTurnIndex: number | null
+            nextBeforeTurnIndex: number | null
+            hasMore: boolean
+        }
+    } {
+        return this.messageService.getConversationTurnsPage(sessionId, options)
+    }
+
+    getConversationTurnMessagesPage(
+        sessionId: string,
+        turnId: string,
+        options: { limit: number; beforeSeq: number | null }
+    ): {
+        turn: {
+            id: string
+            sessionId: string
+            turnIndex: number
+            status: 'open' | 'closed'
+            userMessageId: string | null
+            userSeq: number | null
+            agentStartSeq: number | null
+            agentEndSeq: number | null
+            messageCount: number
+            userPreview: string | null
+            assistantPreview: string | null
+            createdAt: number
+            updatedAt: number
+        }
+        messages: DecryptedMessage[]
+        page: {
+            limit: number
+            beforeSeq: number | null
+            nextBeforeSeq: number | null
+            hasMore: boolean
+            startSeq: number | null
+            endSeq: number | null
+        }
+    } | null {
+        return this.messageService.getConversationTurnMessagesPage(sessionId, turnId, options)
     }
 
     handleRealtimeEvent(event: SyncEvent): void {

@@ -4,19 +4,25 @@ import { dirname } from 'node:path'
 
 import { MachineStore } from './machineStore'
 import { MessageStore } from './messageStore'
+import { TurnStore } from './turnStore'
+import { ProjectPreferenceStore } from './projectPreferenceStore'
 import { PushStore } from './pushStore'
 import { SessionStore } from './sessionStore'
 import { UserStore } from './userStore'
 import { GroupStore } from './groupStore'
+import { createConversationTurnsSchema } from './turns'
+import { createGroupConversationTurnsSchema } from './groupTurns'
 
 export type {
     PreviewUrlHistoryEntry,
     StoredGroup,
+    StoredGroupConversationTurn,
     StoredGroupMember,
     StoredGroupMessage,
     StoredGroupNote,
     StoredGroupTask,
     StoredMachine,
+    StoredConversationTurn,
     StoredMessage,
     StoredPushSubscription,
     StoredSession,
@@ -25,22 +31,27 @@ export type {
 } from './types'
 export { MachineStore } from './machineStore'
 export { MessageStore } from './messageStore'
+export { TurnStore } from './turnStore'
+export { ProjectPreferenceStore } from './projectPreferenceStore'
 export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 
-const SCHEMA_VERSION: number = 5
+const SCHEMA_VERSION: number = 8
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
     'messages',
+    'conversation_turns',
     'users',
     'push_subscriptions',
     'preview_url_history',
+    'project_offline_preferences',
     'groups',
     'group_members',
     'group_messages',
+    'group_conversation_turns',
     'group_tasks',
     'group_notes'
 ] as const
@@ -52,8 +63,10 @@ export class Store {
     readonly sessions: SessionStore
     readonly machines: MachineStore
     readonly messages: MessageStore
+    readonly turns: TurnStore
     readonly users: UserStore
     readonly push: PushStore
+    readonly projectPreferences: ProjectPreferenceStore
     readonly groups: GroupStore
 
     constructor(dbPath: string) {
@@ -94,8 +107,10 @@ export class Store {
         this.sessions = new SessionStore(this.db)
         this.machines = new MachineStore(this.db)
         this.messages = new MessageStore(this.db)
+        this.turns = new TurnStore(this.db)
         this.users = new UserStore(this.db)
         this.push = new PushStore(this.db)
+        this.projectPreferences = new ProjectPreferenceStore(this.db)
         this.groups = new GroupStore(this.db)
     }
 
@@ -142,6 +157,27 @@ export class Store {
         if (currentVersion === 4 && SCHEMA_VERSION >= 5) {
             this.migrateFromV4ToV5()
             this.setUserVersion(5)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 5 && SCHEMA_VERSION >= 6) {
+            this.migrateFromV5ToV6()
+            this.setUserVersion(6)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 6 && SCHEMA_VERSION >= 7) {
+            this.migrateFromV6ToV7()
+            this.setUserVersion(7)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 7 && SCHEMA_VERSION >= 8) {
+            this.migrateFromV7ToV8()
+            this.setUserVersion(8)
             this.initSchema()
             return
         }
@@ -204,6 +240,30 @@ export class Store {
             CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, seq);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_local_id ON messages(session_id, local_id) WHERE local_id IS NOT NULL;
 
+            CREATE TABLE IF NOT EXISTS conversation_turns (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                turn_index INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                user_message_id TEXT,
+                user_seq INTEGER,
+                agent_start_seq INTEGER,
+                agent_end_seq INTEGER,
+                message_count INTEGER NOT NULL DEFAULT 0,
+                user_preview TEXT,
+                assistant_preview TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_message_id) REFERENCES messages(id) ON DELETE SET NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_turns_session_turn_index
+                ON conversation_turns(session_id, turn_index);
+            CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_updated
+                ON conversation_turns(session_id, updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_conversation_turns_session_status
+                ON conversation_turns(session_id, status, turn_index DESC);
+
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 platform TEXT NOT NULL,
@@ -236,6 +296,18 @@ export class Store {
             );
             CREATE INDEX IF NOT EXISTS idx_preview_url_history_namespace_last_used
                 ON preview_url_history(namespace, last_used_at DESC);
+
+            CREATE TABLE IF NOT EXISTS project_offline_preferences (
+                namespace TEXT NOT NULL DEFAULT 'default',
+                user_id INTEGER NOT NULL,
+                directory TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY (namespace, user_id, directory),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_project_offline_preferences_namespace_user
+                ON project_offline_preferences(namespace, user_id, updated_at DESC);
 
             CREATE TABLE IF NOT EXISTS groups (
                 id TEXT PRIMARY KEY,
@@ -287,6 +359,33 @@ export class Store {
                 ON group_messages(group_id, seq);
             CREATE INDEX IF NOT EXISTS idx_group_messages_namespace_created
                 ON group_messages(namespace, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS group_conversation_turns (
+                id TEXT PRIMARY KEY,
+                group_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                turn_index INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                initiator_message_id TEXT,
+                initiator_seq INTEGER,
+                initiator_source TEXT,
+                initiator_actor_session_id TEXT,
+                responder_start_seq INTEGER,
+                responder_end_seq INTEGER,
+                message_count INTEGER NOT NULL DEFAULT 0,
+                initiator_preview TEXT,
+                responder_preview TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+                FOREIGN KEY (initiator_message_id) REFERENCES group_messages(id) ON DELETE SET NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_group_conversation_turns_group_turn_index
+                ON group_conversation_turns(group_id, namespace, turn_index);
+            CREATE INDEX IF NOT EXISTS idx_group_conversation_turns_group_updated
+                ON group_conversation_turns(group_id, namespace, updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_group_conversation_turns_group_status
+                ON group_conversation_turns(group_id, namespace, status, turn_index DESC);
 
             CREATE TABLE IF NOT EXISTS group_tasks (
                 id TEXT PRIMARY KEY,
@@ -558,6 +657,82 @@ export class Store {
         }
     }
 
+    private migrateFromV5ToV6(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS project_offline_preferences (
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    user_id INTEGER NOT NULL,
+                    directory TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY (namespace, user_id, directory),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+            `)
+            this.db.exec(`
+                CREATE INDEX IF NOT EXISTS idx_project_offline_preferences_namespace_user
+                    ON project_offline_preferences(namespace, user_id, updated_at DESC)
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v5->v6 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV6ToV7(): void {
+        try {
+            this.db.exec('BEGIN')
+            createConversationTurnsSchema(this.db)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v6->v7 failed: ${message}`)
+        }
+
+        try {
+            this.db.exec('BEGIN')
+            const turnStore = new TurnStore(this.db)
+            turnStore.rebuildAllTurns()
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite conversation turn backfill failed during v6->v7 migration: ${message}`)
+        }
+    }
+
+    private migrateFromV7ToV8(): void {
+        try {
+            this.db.exec('BEGIN')
+            createGroupConversationTurnsSchema(this.db)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v7->v8 failed: ${message}`)
+        }
+
+        if (!this.hasTable('groups') || !this.hasTable('group_messages')) {
+            return
+        }
+
+        try {
+            this.db.exec('BEGIN')
+            const groupStore = new GroupStore(this.db)
+            groupStore.rebuildAllGroupConversationTurns()
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite group conversation turn backfill failed during v7->v8 migration: ${message}`)
+        }
+    }
+
     private getMachineColumnNames(): Set<string> {
         const rows = this.db.prepare('PRAGMA table_info(machines)').all() as Array<{ name: string }>
         return new Set(rows.map((row) => row.name))
@@ -586,6 +761,13 @@ export class Store {
         const row = this.db.prepare(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' LIMIT 1"
         ).get() as { name?: string } | undefined
+        return Boolean(row?.name)
+    }
+
+    private hasTable(name: string): boolean {
+        const row = this.db.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1"
+        ).get(name) as { name?: string } | undefined
         return Boolean(row?.name)
     }
 
