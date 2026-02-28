@@ -25,6 +25,7 @@ import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 const ELAPSED_INTERVAL_MS = 1000
 const MOBILE_DETAIL_BREAKPOINT_QUERY = '(max-width: 767px)'
 const TURN_CHANGES_DETAIL_QUERY_KEY = 'turnChangesToolId'
+const DIFF_DETAIL_QUERY_KEY = 'diffToolId'
 
 function readTurnChangesDetailToolId(search: string): string | null {
     const rawValue = new URLSearchParams(search).get(TURN_CHANGES_DETAIL_QUERY_KEY)
@@ -42,6 +43,33 @@ function writeTurnChangesDetailToolId(toolId: string | null, mode: 'push' | 'rep
         url.searchParams.set(TURN_CHANGES_DETAIL_QUERY_KEY, toolId)
     } else {
         url.searchParams.delete(TURN_CHANGES_DETAIL_QUERY_KEY)
+    }
+
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`
+    if (mode === 'replace') {
+        window.history.replaceState(window.history.state, '', nextUrl)
+        return
+    }
+
+    window.history.pushState(window.history.state, '', nextUrl)
+}
+
+function readDiffDetailToolId(search: string): string | null {
+    const rawValue = new URLSearchParams(search).get(DIFF_DETAIL_QUERY_KEY)
+    const value = rawValue?.trim() ?? ''
+    return value.length > 0 ? value : null
+}
+
+function writeDiffDetailToolId(toolId: string | null, mode: 'push' | 'replace'): void {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    const url = new URL(window.location.href)
+    if (toolId) {
+        url.searchParams.set(DIFF_DETAIL_QUERY_KEY, toolId)
+    } else {
+        url.searchParams.delete(DIFF_DETAIL_QUERY_KEY)
     }
 
     const nextUrl = `${url.pathname}${url.search}${url.hash}`
@@ -378,6 +406,7 @@ function ToolCardInner(props: ToolCardProps) {
     const toolName = props.block.tool.name
     const isCompact = props.density === 'compact'
     const isTurnChangesTool = toolName === 'CodexTurnChanges'
+    const isDiffTool = toolName === 'CodexDiff'
     const toolTitle = presentation.title
     const subtitle = presentation.subtitle ?? props.block.tool.description
     const taskSummary = renderTaskSummary(props.block, props.metadata)
@@ -407,6 +436,7 @@ function ToolCardInner(props: ToolCardProps) {
         typeof window !== 'undefined' && window.matchMedia(MOBILE_DETAIL_BREAKPOINT_QUERY).matches
     ))
     const [isTurnChangesDetailOpen, setIsTurnChangesDetailOpen] = useState(false)
+    const [isDiffDetailOpen, setIsDiffDetailOpen] = useState(false)
 
     useEffect(() => {
         setHasUserToggledExpand(false)
@@ -465,6 +495,29 @@ function ToolCardInner(props: ToolCardProps) {
         }
     }, [isMobileViewport, isTurnChangesTool, props.block.id])
 
+    useEffect(() => {
+        if (!isDiffTool || typeof window === 'undefined') {
+            return
+        }
+
+        if (!isMobileViewport) {
+            if (readDiffDetailToolId(window.location.search) === props.block.id) {
+                writeDiffDetailToolId(null, 'replace')
+            }
+            return
+        }
+
+        const syncFromHistory = () => {
+            setIsDiffDetailOpen(readDiffDetailToolId(window.location.search) === props.block.id)
+        }
+
+        syncFromHistory()
+        window.addEventListener('popstate', syncFromHistory)
+        return () => {
+            window.removeEventListener('popstate', syncFromHistory)
+        }
+    }, [isDiffTool, isMobileViewport, props.block.id])
+
     const openTurnChangesDetail = useCallback(() => {
         setIsTurnChangesDetailOpen(true)
 
@@ -486,6 +539,29 @@ function ToolCardInner(props: ToolCardProps) {
         }
 
         setIsTurnChangesDetailOpen(false)
+    }, [isMobileViewport, props.block.id])
+
+    const openDiffDetail = useCallback(() => {
+        setIsDiffDetailOpen(true)
+
+        if (isMobileViewport && typeof window !== 'undefined') {
+            const currentToolId = readDiffDetailToolId(window.location.search)
+            if (currentToolId !== props.block.id) {
+                writeDiffDetailToolId(props.block.id, 'push')
+            }
+        }
+    }, [isMobileViewport, props.block.id])
+
+    const closeDiffDetail = useCallback(() => {
+        if (isMobileViewport && typeof window !== 'undefined') {
+            const currentToolId = readDiffDetailToolId(window.location.search)
+            if (currentToolId === props.block.id) {
+                window.history.back()
+                return
+            }
+        }
+
+        setIsDiffDetailOpen(false)
     }, [isMobileViewport, props.block.id])
 
     if (toolName === 'CodexReasoning') {
@@ -609,6 +685,48 @@ function ToolCardInner(props: ToolCardProps) {
         )
     }
 
+    const renderDiffDetailLayer = () => {
+        if (isMobileViewport) {
+            if (!isDiffDetailOpen) {
+                return null
+            }
+
+            return (
+                <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
+                    <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={closeDiffDetail}
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                aria-label="Back"
+                            >
+                                <BackIcon />
+                            </button>
+                            <div className="min-w-0 truncate text-sm font-semibold text-[var(--app-fg)]">
+                                {toolTitle}
+                            </div>
+                        </div>
+                    </div>
+                    {renderDetailBody({ mobile: true })}
+                </div>
+            )
+        }
+
+        return (
+            <Dialog
+                open={isDiffDetailOpen}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setIsDiffDetailOpen(false)
+                    }
+                }}
+            >
+                {renderDialogContent()}
+            </Dialog>
+        )
+    }
+
     const compactSummary = subtitle ? truncate(subtitle, 96) : null
 
     return (
@@ -704,19 +822,34 @@ function ToolCardInner(props: ToolCardProps) {
                                     ) : null}
                                 </div>
                             </button>
-                            <Dialog>
-                                <DialogTrigger asChild>
+                            {isDiffTool ? (
+                                <>
                                     <button
                                         type="button"
                                         className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
                                         title={t('session.more')}
                                         aria-label={t('session.more')}
+                                        onClick={openDiffDetail}
                                     >
                                         <DetailsIcon className="h-4 w-4" />
                                     </button>
-                                </DialogTrigger>
-                                {renderDialogContent()}
-                            </Dialog>
+                                    {renderDiffDetailLayer()}
+                                </>
+                            ) : (
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <button
+                                            type="button"
+                                            className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
+                                            title={t('session.more')}
+                                            aria-label={t('session.more')}
+                                        >
+                                            <DetailsIcon className="h-4 w-4" />
+                                        </button>
+                                    </DialogTrigger>
+                                    {renderDialogContent()}
+                                </Dialog>
+                            )}
                         </div>
                     )
                 ) : isTurnChangesTool ? (
@@ -762,6 +895,50 @@ function ToolCardInner(props: ToolCardProps) {
                             </div>
                         </button>
                         {renderTurnChangesDetailLayer()}
+                    </>
+                ) : isDiffTool ? (
+                    <>
+                        <button
+                            type="button"
+                            className={cn(
+                                'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                suppressFocusRing && 'focus-visible:ring-0'
+                            )}
+                            onClick={openDiffDetail}
+                            onPointerDown={onTriggerPointerDown}
+                            onKeyDown={onTriggerKeyDown}
+                            onBlur={onTriggerBlur}
+                        >
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="min-w-0 flex items-center gap-2">
+                                        <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
+                                            {presentation.icon}
+                                        </div>
+                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                            {toolTitle}
+                                        </CardTitle>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} />
+                                        <span className={statusColorClass(props.block.tool.state)}>
+                                            <StatusIcon state={props.block.tool.state} />
+                                        </span>
+                                        <span className="text-[var(--app-hint)]">
+                                            <DetailsIcon className="h-4 w-4" />
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {subtitle ? (
+                                    <CardDescription className="font-mono text-xs break-all opacity-80">
+                                        {truncate(subtitle, 160)}
+                                    </CardDescription>
+                                ) : null}
+                            </div>
+                        </button>
+                        {renderDiffDetailLayer()}
                     </>
                 ) : (
                     <Dialog>
