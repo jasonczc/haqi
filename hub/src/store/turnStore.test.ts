@@ -66,7 +66,7 @@ describe('TurnStore projection', () => {
         expect(first.agentEndSeq).toBe(5)
         expect(first.messageCount).toBe(5)
         expect(first.userPreview).toContain('user prompt #1')
-        expect(first.assistantPreview).not.toContain('assistant chunk #1')
+        expect(first.assistantPreview).toContain('assistant chunk #1')
         expect(first.assistantPreview).toContain('assistant chunk #2')
         expect(first.assistantPreview).toContain('assistant chunk #3')
         expect(first.assistantPreview).toContain('assistant chunk #4')
@@ -176,5 +176,18 @@ describe('TurnStore projection', () => {
         const turns = store.turns.getTurns(session.id, 20)
         expect(turns).toHaveLength(1)
         expect(turns[0]?.assistantPreview).toBe('final polished output')
+    })
+
+    it('keeps line breaks in brief previews', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-preserve-newline', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('line-1\nline-2'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('answer-1\nanswer-2'))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.userPreview).toBe('line-1\nline-2')
+        expect(turns[0]?.assistantPreview).toContain('answer-1\nanswer-2')
     })
 })

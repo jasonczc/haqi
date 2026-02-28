@@ -115,4 +115,33 @@ describe('Group turn projection', () => {
         expect(page?.page.endSeq).toBe(3)
         expect(page?.page.hasMore).toBe(false)
     })
+
+    it('keeps line breaks in group brief previews', () => {
+        const store = new Store(':memory:')
+        const group = store.groups.createGroup({
+            namespace: 'default',
+            name: 'Group newline previews'
+        })
+
+        store.groups.addGroupMessage({
+            groupId: group.id,
+            namespace: 'default',
+            type: 'command',
+            source: 'user:web',
+            payload: { text: '@all run\n- step 1' }
+        })
+        store.groups.addGroupMessage({
+            groupId: group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: 'session:agent-1',
+            actorSessionId: 'agent-1',
+            payload: { text: 'result line 1\nresult line 2' }
+        })
+
+        const turns = store.groups.getConversationTurns(group.id, 'default', 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.initiatorPreview).toBe('@all run\n- step 1')
+        expect(turns[0]?.responderPreview).toContain('result line 1\nresult line 2')
+    })
 })

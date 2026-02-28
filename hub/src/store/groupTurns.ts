@@ -59,8 +59,8 @@ type MutableGroupTurn = {
     updatedAt: number
 }
 
-const PREVIEW_TEXT_MAX_LENGTH = 240
-const PREVIEW_WINDOW_SIZE = 3
+const PREVIEW_TEXT_MAX_LENGTH = 6000
+const PREVIEW_WINDOW_SIZE = 50
 
 function toStoredGroupConversationTurn(row: DbGroupConversationTurnRow): StoredGroupConversationTurn {
     return {
@@ -113,7 +113,8 @@ function toStoredGroupMessage(row: DbGroupMessageRow): StoredGroupMessage {
 }
 
 function normalizePreviewText(text: string): string | null {
-    const normalized = text.replace(/\s+/g, ' ').trim()
+    const normalizedNewlines = text.replace(/\r\n?/g, '\n')
+    const normalized = normalizedNewlines.trim()
     if (!normalized) {
         return null
     }

@@ -46,8 +46,8 @@ type MutableTurn = {
     updatedAt: number
 }
 
-const PREVIEW_TEXT_MAX_LENGTH = 240
-const ASSISTANT_PREVIEW_SNIPPET_WINDOW = 3
+const PREVIEW_TEXT_MAX_LENGTH = 6000
+const ASSISTANT_PREVIEW_SNIPPET_WINDOW = 50
 const TEXT_EXTRACTION_DEPTH_LIMIT = 5
 const PRIORITY_TEXT_KEYS = ['text', 'summary', 'message', 'content', 'prompt', 'title', 'error']
 const NON_CONTENT_FIELD_KEYS = new Set(['type', 'role', 'id', 'uuid', 'name'])
@@ -82,7 +82,8 @@ function toStoredMessage(row: DbMessageRow): StoredMessage {
 }
 
 function normalizePreviewText(text: string): string | null {
-    const trimmed = text.replace(/\s+/g, ' ').trim()
+    const normalizedNewlines = text.replace(/\r\n?/g, '\n')
+    const trimmed = normalizedNewlines.trim()
     if (!trimmed) {
         return null
     }
