@@ -33,6 +33,16 @@ function makeAgentTextMessage(text: string): unknown {
     }
 }
 
+function makeCodexMessage(data: Record<string, unknown>): unknown {
+    return {
+        role: 'agent',
+        content: {
+            type: 'codex',
+            data
+        }
+    }
+}
+
 describe('TurnStore projection', () => {
     it('groups multiple agent chunks into one turn and opens a new turn on next user message', () => {
         const store = new Store(':memory:')
@@ -109,5 +119,62 @@ describe('TurnStore projection', () => {
         expect(page?.page.startSeq).toBe(1)
         expect(page?.page.endSeq).toBe(3)
         expect(page?.page.hasMore).toBe(false)
+    })
+
+    it('keeps brief preview on the latest codex final message instead of intermediate events', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-codex-preview', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('summarize changes'))
+        store.messages.addMessage(session.id, makeCodexMessage({
+            type: 'tool-call',
+            name: 'exec_command',
+            callId: 'call_1',
+            input: {
+                command: 'git status'
+            }
+        }))
+        store.messages.addMessage(session.id, makeCodexMessage({
+            type: 'tool-call-result',
+            callId: 'call_1',
+            output: {
+                stdout: 'M src/file.ts'
+            }
+        }))
+        store.messages.addMessage(session.id, makeCodexMessage({
+            type: 'message',
+            message: 'First draft response'
+        }))
+        store.messages.addMessage(session.id, makeCodexMessage({
+            type: 'message',
+            message: 'Final answer from Codex'
+        }))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Final answer from Codex')
+        expect(turns[0]?.assistantPreview).not.toContain('git status')
+        expect(turns[0]?.assistantPreview).not.toContain('First draft response')
+    })
+
+    it('rebuild preserves latest codex final preview behavior', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-codex-rebuild', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('check formatting'))
+        store.messages.addMessage(session.id, makeCodexMessage({
+            type: 'message',
+            message: 'intermediate summary'
+        }))
+        store.messages.addMessage(session.id, makeCodexMessage({
+            type: 'message',
+            message: 'final polished output'
+        }))
+
+        store.turns.rebuildSessionTurns(session.id)
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('final polished output')
     })
 })

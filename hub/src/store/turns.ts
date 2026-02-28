@@ -182,6 +182,31 @@ function extractSnippetFromMessageContent(content: unknown): string | null {
     return extractTextSnippet(content)
 }
 
+function extractCodexFinalAssistantSnippet(content: unknown): string | null | undefined {
+    const envelope = unwrapRoleWrappedRecordEnvelope(content)
+    const value = envelope ? envelope.content : content
+    if (!value || typeof value !== 'object') {
+        return undefined
+    }
+    const record = value as Record<string, unknown>
+    if (record.type !== 'codex') {
+        return undefined
+    }
+
+    const dataValue = record.data
+    if (!dataValue || typeof dataValue !== 'object') {
+        return null
+    }
+    const data = dataValue as Record<string, unknown>
+    if (data.type !== 'message') {
+        return null
+    }
+
+    return typeof data.message === 'string'
+        ? normalizePreviewText(data.message)
+        : null
+}
+
 function classifyMessageRole(content: unknown): 'user' | 'agent' {
     const envelope = unwrapRoleWrappedRecordEnvelope(content)
     if (envelope?.role === 'user') {
@@ -300,6 +325,9 @@ export function createConversationTurnsSchema(db: Database): void {
 export function appendMessageToConversationTurns(db: Database, message: StoredMessage): StoredConversationTurn {
     const role = classifyMessageRole(message.content)
     const snippet = extractSnippetFromMessageContent(message.content)
+    const codexFinalAssistantSnippet = role === 'agent'
+        ? extractCodexFinalAssistantSnippet(message.content)
+        : undefined
     const openTurn = getOpenTurnRow(db, message.sessionId)
 
     if (role === 'user') {
@@ -363,7 +391,9 @@ export function appendMessageToConversationTurns(db: Database, message: StoredMe
 
     if (openTurn) {
         const agentStartSeq = openTurn.agent_start_seq ?? message.seq
-        const assistantPreview = buildRollingAssistantPreview(openTurn.assistant_preview, snippet)
+        const assistantPreview = codexFinalAssistantSnippet === undefined
+            ? buildRollingAssistantPreview(openTurn.assistant_preview, snippet)
+            : codexFinalAssistantSnippet ?? openTurn.assistant_preview
 
         db.prepare(`
             UPDATE conversation_turns
@@ -430,7 +460,7 @@ export function appendMessageToConversationTurns(db: Database, message: StoredMe
         agent_start_seq: message.seq,
         agent_end_seq: message.seq,
         message_count: 1,
-        assistant_preview: snippet,
+        assistant_preview: codexFinalAssistantSnippet === undefined ? snippet : codexFinalAssistantSnippet,
         created_at: message.createdAt,
         updated_at: message.createdAt
     })
@@ -578,6 +608,9 @@ export function rebuildSessionConversationTurns(db: Database, sessionId: string)
         const message = toStoredMessage(row)
         const role = classifyMessageRole(message.content)
         const snippet = extractSnippetFromMessageContent(message.content)
+        const codexFinalAssistantSnippet = role === 'agent'
+            ? extractCodexFinalAssistantSnippet(message.content)
+            : undefined
 
         if (role === 'user') {
             if (openTurn) {
@@ -619,7 +652,7 @@ export function rebuildSessionConversationTurns(db: Database, sessionId: string)
                 agentEndSeq: message.seq,
                 messageCount: 1,
                 userPreview: null,
-                assistantPreview: snippet,
+                assistantPreview: codexFinalAssistantSnippet === undefined ? snippet : codexFinalAssistantSnippet,
                 createdAt: message.createdAt,
                 updatedAt: message.createdAt
             }
@@ -635,7 +668,9 @@ export function rebuildSessionConversationTurns(db: Database, sessionId: string)
             openTurn.agentStartSeq = message.seq
         }
         openTurn.agentEndSeq = message.seq
-        openTurn.assistantPreview = buildRollingAssistantPreview(openTurn.assistantPreview, snippet)
+        openTurn.assistantPreview = codexFinalAssistantSnippet === undefined
+            ? buildRollingAssistantPreview(openTurn.assistantPreview, snippet)
+            : codexFinalAssistantSnippet ?? openTurn.assistantPreview
         openTurn.updatedAt = message.createdAt
     }
 
