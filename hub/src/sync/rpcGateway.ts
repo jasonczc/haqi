@@ -64,6 +64,7 @@ export type RpcCodexQueueEntry = {
     id: string
     index: number
     preview: string
+    fullText?: string
     modeHash: string
     isolate: boolean
     deferredUserMessage?: boolean
