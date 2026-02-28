@@ -16,6 +16,8 @@ import { buildPromptWithHaqiAgentInstructions } from '@/agent/utils/haqiAgentIns
 export const TITLE_INSTRUCTION = trimIdent(`
     Based on this message, call functions.haqi__change_title to set a useful chat session title for the main task.
     Keep titles specific and stable across follow-up steps.
+    Title must summarize the most important outcome of the session, not a secondary step.
+    If you implemented a feature and also ran tests, title the feature work, not test execution.
     Do NOT downgrade to generic action-only titles like "Commit changes".
     Only change the title when the main topic changes significantly.
 

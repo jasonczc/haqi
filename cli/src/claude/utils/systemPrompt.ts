@@ -8,6 +8,8 @@ import { buildPromptWithHaqiAgentInstructions } from "@/agent/utils/haqiAgentIns
 const BASE_SYSTEM_PROMPT = (() => trimIdent(`
     ALWAYS when you start a new chat - you must call a tool "mcp__haqi__change_title" to set a chat title.
     Keep the title specific and stable across follow-up steps.
+    Title must summarize the most important outcome of the session, not a secondary step.
+    If you implemented a feature and also ran tests, title the feature work, not test execution.
     Do NOT downgrade to generic action-only titles like "Commit changes".
     If the main topic changes significantly, call the tool again to update the title.
     This title is needed to easily find the chat in the future. Help human.
