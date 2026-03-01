@@ -12,7 +12,7 @@
     },
     "cli": {
       "name": "@jasonczc/haqi",
-      "version": "0.15.3",
+      "version": "0.15.5",
       "bin": {
         "haqi": "bin/haqi.cjs",
         "hapi": "bin/hapi.cjs",
@@ -44,11 +44,11 @@
         "vitest": "^4.0.16",
       },
       "optionalDependencies": {
-        "@jasonczc/haqi-darwin-arm64": "0.15.3",
-        "@jasonczc/haqi-darwin-x64": "0.15.3",
-        "@jasonczc/haqi-linux-arm64": "0.15.3",
-        "@jasonczc/haqi-linux-x64": "0.15.3",
-        "@jasonczc/haqi-win32-x64": "0.15.3",
+        "@jasonczc/haqi-darwin-arm64": "0.15.5",
+        "@jasonczc/haqi-darwin-x64": "0.15.5",
+        "@jasonczc/haqi-linux-arm64": "0.15.5",
+        "@jasonczc/haqi-linux-x64": "0.15.5",
+        "@jasonczc/haqi-win32-x64": "0.15.5",
       },
     },
     "docs": {
@@ -617,15 +617,15 @@
 
     "@jasonczc/haqi": ["@jasonczc/haqi@workspace:cli"],
 
-    "@jasonczc/haqi-darwin-arm64": ["@jasonczc/haqi-darwin-arm64@0.15.3", "", { "os": "darwin", "cpu": "arm64", "bin": { "hapi": "bin/hapi" } }, "sha512-qtLdJFDeJyWbKWYZ3K7C7vTaC3cIEMfBKoezg853GnhMrzKG1I3h7LS6mG5fE+jODg+4mhIQnzywIHCoOTR7Iw=="],
+    "@jasonczc/haqi-darwin-arm64": ["@jasonczc/haqi-darwin-arm64@0.15.5", "", { "os": "darwin", "cpu": "arm64", "bin": { "hapi": "bin/hapi" } }, "sha512-CbLN7uRjV0dlBIjqYUWrZUQEx15Wr+i1B8GIgC2Du62c2gjM+9vg2nF3rIE0806JuR9luuE39lOGkocZbM0kKw=="],
 
-    "@jasonczc/haqi-darwin-x64": ["@jasonczc/haqi-darwin-x64@0.15.3", "", { "os": "darwin", "cpu": "x64", "bin": { "hapi": "bin/hapi" } }, "sha512-mIoCw2uHo5SBFKDkrjew7yNvzwVJHCSbykorkgtUsYAtsWRgmulNFmGrA9afANPJNW4oSdtJr7jQTOEuc5u5pA=="],
+    "@jasonczc/haqi-darwin-x64": ["@jasonczc/haqi-darwin-x64@0.15.5", "", { "os": "darwin", "cpu": "x64", "bin": { "hapi": "bin/hapi" } }, "sha512-gp4xYl9lE0aSikU/2bHnPQJRAjBiZqiGlcWy3CiGiTKFIqdWSdIrv/i1+Fplt4+vlQDfuZdI7N2h27We5VjW0Q=="],
 
-    "@jasonczc/haqi-linux-arm64": ["@jasonczc/haqi-linux-arm64@0.15.3", "", { "os": "linux", "cpu": "arm64", "bin": { "hapi": "bin/hapi" } }, "sha512-NK7lv1xRfNyRJQ/84X6r/CR3bIQoMVPEX0llv1KpcmVixAqNjWkCiUQ0OstaSCYVBpxm1/+1L4fmafAzT8mGEA=="],
+    "@jasonczc/haqi-linux-arm64": ["@jasonczc/haqi-linux-arm64@0.15.5", "", { "os": "linux", "cpu": "arm64", "bin": { "hapi": "bin/hapi" } }, "sha512-vN9h8F5+6MhGfdwTOYL6n1Hq/N007Cick7ypy3DIot3U16pdwh0lP1dcxioHbbVffKzCKRrlKz7Lshp1GmyBRw=="],
 
-    "@jasonczc/haqi-linux-x64": ["@jasonczc/haqi-linux-x64@0.15.3", "", { "os": "linux", "cpu": "x64", "bin": { "hapi": "bin/hapi" } }, "sha512-twz7jx7DLpE4Bk9W+qjQdPjjz3XkTWwUEHZ/KZuOQe1//fHmQgzFQ042ecF2UY97FNXspeWSCpB5kYgIbEwl4Q=="],
+    "@jasonczc/haqi-linux-x64": ["@jasonczc/haqi-linux-x64@0.15.5", "", { "os": "linux", "cpu": "x64", "bin": { "hapi": "bin/hapi" } }, "sha512-pNxRB2jPwr5+LrzbFrd5mvW8QJjCaZ0+ulq6XvqYUidRG2ZdxQISKbQ+GluqxfUMWqXBRvgrjBxoe1szjzMShg=="],
 
-    "@jasonczc/haqi-win32-x64": ["@jasonczc/haqi-win32-x64@0.15.3", "", { "os": "win32", "cpu": "x64", "bin": { "hapi": "bin/hapi.exe" } }, "sha512-1Cjr21M51hI6OVmsRyq4ybsSn9jxvv20qVhZRXP5xJPldmO58mHfmLwf+XbsTl0VqlrMm8oCLz0/UDffVkh63w=="],
+    "@jasonczc/haqi-win32-x64": ["@jasonczc/haqi-win32-x64@0.15.5", "", { "os": "win32", "cpu": "x64", "bin": { "hapi": "bin/hapi.exe" } }, "sha512-oJt+KNZ3mHZdSjXS5UgZHUcdkVeu7KghykPNQXqtNyQ+kcedw+j+tdoZ7W5edYmXqkn5JtmH4W8H4kAedpf6sA=="],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 
