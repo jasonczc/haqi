@@ -249,6 +249,29 @@ function SessionsPage() {
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const [sessionSearchQuery, setSessionSearchQuery] = useState('')
+    const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
+    const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
+    const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
+
+    const selectedSessionPreset = useMemo<NewSessionPreset | undefined>(() => {
+        if (!selectedSessionId) {
+            return undefined
+        }
+        const selected = sessions.find((session) => session.id === selectedSessionId)
+        if (!selected) {
+            return undefined
+        }
+
+        const directory = selected.metadata?.path?.trim()
+        const machineId = selected.metadata?.machineId?.trim()
+        if (!directory && !machineId) {
+            return undefined
+        }
+        return {
+            directory: directory || undefined,
+            machineId: machineId || undefined
+        }
+    }, [selectedSessionId, sessions])
 
     const visibleSessions = useMemo(
         () => filterSessionsBySearch(sessions, sessionSearchQuery),
@@ -260,12 +283,13 @@ function SessionsPage() {
     }, [refetch])
 
     const openNewSession = useCallback((preset?: NewSessionPreset) => {
+        const resolvedPreset = preset ?? selectedSessionPreset
         setMobileSidebarOpen(false)
         navigate({
             to: '/sessions/new',
-            search: toNewSessionSearch(preset)
+            search: toNewSessionSearch(resolvedPreset)
         })
-    }, [navigate])
+    }, [navigate, selectedSessionPreset])
 
     const quickCreateInProject = useCallback(async (preset?: NewSessionPreset) => {
         if (isQuickCreatingSession) {
@@ -337,9 +361,6 @@ function SessionsPage() {
     ])
 
     const projectCount = new Set(visibleSessions.map(s => s.metadata?.worktree?.basePath ?? s.metadata?.path ?? 'Other')).size
-    const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
-    const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
-    const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
     const isSessionChatRoute = Boolean(chatRouteMatch && chatRouteMatch.sessionId !== 'new')
     const isSessionsIndex = pathname === '/sessions' || pathname === '/sessions/'
     const showDesktopSidebar = isSessionsIndex || !desktopSidebarHidden
