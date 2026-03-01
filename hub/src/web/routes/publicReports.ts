@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { join } from 'node:path'
+import { marked, type Tokens } from 'marked'
 
 import type { Store, StoredReportAsset, StoredReportShare } from '../../store'
 
@@ -51,150 +52,29 @@ function sanitizeLink(rawUrl: string, resolveAssetUrl: (assetId: string) => stri
     }
 }
 
-function renderInlineMarkdown(text: string, resolveAssetUrl: (assetId: string) => string): string {
-    const pattern = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|`([^`]+)`/g
-    let result = ''
-    let index = 0
-
-    for (const match of text.matchAll(pattern)) {
-        const full = match[0]
-        const start = match.index ?? 0
-        const end = start + full.length
-
-        result += escapeHtml(text.slice(index, start))
-
-        if (typeof match[1] === 'string' && typeof match[2] === 'string') {
-            const alt = escapeHtml(match[1])
-            const src = escapeHtml(sanitizeLink(match[2], resolveAssetUrl))
-            result += `<img src="${src}" alt="${alt}" loading="lazy" />`
-        } else if (typeof match[3] === 'string' && typeof match[4] === 'string') {
-            const label = escapeHtml(match[3])
-            const href = escapeHtml(sanitizeLink(match[4], resolveAssetUrl))
-            result += `<a href="${href}" target="_blank" rel="noreferrer">${label}</a>`
-        } else if (typeof match[5] === 'string') {
-            result += `<code>${escapeHtml(match[5])}</code>`
-        }
-
-        index = end
-    }
-
-    result += escapeHtml(text.slice(index))
-    return result
-}
-
 function renderMarkdown(markdown: string, resolveAssetUrl: (assetId: string) => string): string {
-    const lines = markdown.replace(/\r\n/g, '\n').split('\n')
-    const html: string[] = []
+    const renderer = new marked.Renderer()
+    const defaultLink = renderer.link.bind(renderer)
+    const defaultImage = renderer.image.bind(renderer)
 
-    let paragraphLines: string[] = []
-    let listType: 'ul' | 'ol' | null = null
-    let listItems: string[] = []
-    let inCodeBlock = false
-    let codeLines: string[] = []
-    let codeLanguage = ''
-
-    const flushParagraph = () => {
-        if (paragraphLines.length === 0) return
-        const content = paragraphLines
-            .map((line) => renderInlineMarkdown(line, resolveAssetUrl))
-            .join('<br />')
-        html.push(`<p>${content}</p>`)
-        paragraphLines = []
+    renderer.link = (token: Tokens.Link) => {
+        const href = sanitizeLink(token.href, resolveAssetUrl)
+        return defaultLink({ ...token, href })
     }
 
-    const flushList = () => {
-        if (!listType || listItems.length === 0) {
-            listType = null
-            listItems = []
-            return
-        }
-
-        const items = listItems
-            .map((item) => `<li>${renderInlineMarkdown(item, resolveAssetUrl)}</li>`)
-            .join('\n')
-        html.push(`<${listType}>${items}</${listType}>`)
-        listType = null
-        listItems = []
+    renderer.image = (token: Tokens.Image) => {
+        const href = sanitizeLink(token.href, resolveAssetUrl)
+        return defaultImage({ ...token, href })
     }
 
-    const flushCode = () => {
-        if (codeLines.length === 0) return
-        const classAttr = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : ''
-        html.push(`<pre><code${classAttr}>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
-        codeLines = []
-        codeLanguage = ''
-    }
+    renderer.html = (token: Tokens.HTML | Tokens.Tag) => escapeHtml(token.text)
 
-    for (const line of lines) {
-        const trimmed = line.trim()
-
-        if (trimmed.startsWith('```')) {
-            if (inCodeBlock) {
-                inCodeBlock = false
-                flushCode()
-            } else {
-                flushParagraph()
-                flushList()
-                inCodeBlock = true
-                codeLanguage = trimmed.slice(3).trim()
-            }
-            continue
-        }
-
-        if (inCodeBlock) {
-            codeLines.push(line)
-            continue
-        }
-
-        if (!trimmed) {
-            flushParagraph()
-            flushList()
-            continue
-        }
-
-        const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/)
-        if (headingMatch) {
-            flushParagraph()
-            flushList()
-            const level = Math.min(6, headingMatch[1].length)
-            const content = renderInlineMarkdown(headingMatch[2], resolveAssetUrl)
-            html.push(`<h${level}>${content}</h${level}>`)
-            continue
-        }
-
-        const unorderedMatch = trimmed.match(/^[-*+]\s+(.+)$/)
-        if (unorderedMatch) {
-            flushParagraph()
-            if (listType !== 'ul') {
-                flushList()
-                listType = 'ul'
-            }
-            listItems.push(unorderedMatch[1])
-            continue
-        }
-
-        const orderedMatch = trimmed.match(/^\d+\.\s+(.+)$/)
-        if (orderedMatch) {
-            flushParagraph()
-            if (listType !== 'ol') {
-                flushList()
-                listType = 'ol'
-            }
-            listItems.push(orderedMatch[1])
-            continue
-        }
-
-        flushList()
-        paragraphLines.push(line)
-    }
-
-    flushParagraph()
-    flushList()
-    if (inCodeBlock) {
-        flushCode()
-    }
-
-    return html.join('\n')
+    return marked.parse(markdown, {
+        async: false,
+        gfm: true,
+        breaks: true,
+        renderer
+    })
 }
 
 function reportAssetPath(root: string, reportId: string, storageKey: string): string {
@@ -264,8 +144,14 @@ function buildSharePageHtml(options: {
     .status-unknown { background: #6663; color: #666; }
     .card { border: 1px solid #8884; border-radius: 12px; padding: 16px; margin-top: 12px; }
     article { line-height: 1.6; }
+    blockquote { margin: 0; padding: 0 0 0 12px; border-left: 4px solid #8884; color: #999; }
+    hr { border: 0; border-top: 1px solid #8884; margin: 16px 0; }
     pre { overflow-x: auto; border-radius: 8px; padding: 12px; background: #8882; }
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+    :not(pre) > code { border-radius: 6px; padding: 2px 6px; background: #8882; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    th, td { border: 1px solid #8884; padding: 6px 8px; text-align: left; }
+    input[type='checkbox'] { pointer-events: none; }
     img { max-width: 100%; border-radius: 8px; }
     .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
     .asset-card { margin: 0; border: 1px solid #8883; border-radius: 10px; overflow: hidden; }
