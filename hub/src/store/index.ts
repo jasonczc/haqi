@@ -43,7 +43,7 @@ export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 
-const SCHEMA_VERSION: number = 9
+const SCHEMA_VERSION: number = 10
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -195,6 +195,13 @@ export class Store {
         if (currentVersion === 8 && SCHEMA_VERSION >= 9) {
             this.migrateFromV8ToV9()
             this.setUserVersion(9)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 9 && SCHEMA_VERSION >= 10) {
+            this.migrateFromV9ToV10()
+            this.setUserVersion(10)
             this.initSchema()
             return
         }
@@ -861,6 +868,28 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v8->v9 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV9ToV10(): void {
+        try {
+            this.db.exec('BEGIN')
+
+            if (this.hasTable('sessions') && this.hasTable('messages') && this.hasTable('conversation_turns')) {
+                const turnStore = new TurnStore(this.db)
+                turnStore.rebuildAllTurns()
+            }
+
+            if (this.hasTable('groups') && this.hasTable('group_messages') && this.hasTable('group_conversation_turns')) {
+                const groupStore = new GroupStore(this.db)
+                groupStore.rebuildAllGroupConversationTurns()
+            }
+
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite conversation preview refresh failed during v9->v10 migration: ${message}`)
         }
     }
 
