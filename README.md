@@ -154,6 +154,10 @@ Optional status check:
 ./scripts/hapi-local.sh status
 ```
 
+## Discussion
+
+- Telegram: [@veryhapi](https://t.me/veryhapi)
+
 ## Credits
 
 HAQI means "哈皮" a Chinese transliteration of [Happy](https://github.com/slopus/happy). Great credit to the original project.
