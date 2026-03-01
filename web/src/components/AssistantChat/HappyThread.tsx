@@ -130,6 +130,8 @@ export function HappyThread(props: {
     const historyLoadingStartedAtRef = useRef(0)
     const historyLoadingHideTimerRef = useRef<number | null>(null)
     const restorePositionRafRef = useRef<number | null>(null)
+    const initialAutoScrollRafRef = useRef<number | null>(null)
+    const initialAutoScrollPendingRef = useRef(true)
     const pendingScrollRef = useRef<{
         scrollTop: number
         scrollHeight: number
@@ -184,6 +186,10 @@ export function HappyThread(props: {
             if (restorePositionRafRef.current !== null) {
                 window.cancelAnimationFrame(restorePositionRafRef.current)
                 restorePositionRafRef.current = null
+            }
+            if (initialAutoScrollRafRef.current !== null) {
+                window.cancelAnimationFrame(initialAutoScrollRafRef.current)
+                initialAutoScrollRafRef.current = null
             }
         }
     }, [])
@@ -280,8 +286,13 @@ export function HappyThread(props: {
             window.cancelAnimationFrame(restorePositionRafRef.current)
             restorePositionRafRef.current = null
         }
+        if (initialAutoScrollRafRef.current !== null) {
+            window.cancelAnimationFrame(initialAutoScrollRafRef.current)
+            initialAutoScrollRafRef.current = null
+        }
         pendingScrollRef.current = null
         loadLockRef.current = false
+        initialAutoScrollPendingRef.current = true
         onAtBottomChangeRef.current(true)
         forceScrollTokenRef.current = props.forceScrollToken
     }, [props.sessionId])
@@ -376,6 +387,38 @@ export function HappyThread(props: {
             })
         })
     }, [props.messagesVersion, restorePendingScrollPosition])
+
+    useLayoutEffect(() => {
+        if (!initialAutoScrollPendingRef.current) {
+            return
+        }
+        if (props.isLoadingMessages && props.rawMessagesCount === 0 && props.pendingCount === 0) {
+            return
+        }
+        if (restorePositionRafRef.current !== null) {
+            return
+        }
+        if (initialAutoScrollRafRef.current !== null) {
+            window.cancelAnimationFrame(initialAutoScrollRafRef.current)
+            initialAutoScrollRafRef.current = null
+        }
+        initialAutoScrollRafRef.current = window.requestAnimationFrame(() => {
+            initialAutoScrollRafRef.current = null
+            const viewport = viewportRef.current
+            if (!viewport || !initialAutoScrollPendingRef.current) {
+                return
+            }
+            viewport.scrollTop = viewport.scrollHeight
+            previousScrollTopRef.current = viewport.scrollTop
+            initialAutoScrollPendingRef.current = false
+            setAutoScrollEnabled(true)
+            if (!atBottomRef.current) {
+                atBottomRef.current = true
+                onAtBottomChangeRef.current(true)
+            }
+            onFlushPendingRef.current()
+        })
+    }, [props.sessionId, props.isLoadingMessages, props.pendingCount, props.rawMessagesCount, props.messagesVersion])
 
     useEffect(() => {
         isLoadingMoreRef.current = props.isLoadingMoreMessages
