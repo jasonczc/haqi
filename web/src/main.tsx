@@ -11,6 +11,45 @@ import { queryClient } from './lib/query-client'
 import { createAppRouter } from './router'
 import { I18nProvider } from './lib/i18n-context'
 
+function isSafariEngine(): boolean {
+    const ua = window.navigator.userAgent
+    const platform = window.navigator.platform
+    const maxTouchPoints = window.navigator.maxTouchPoints ?? 0
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && maxTouchPoints > 1)
+
+    if (isIOS) {
+        // iOS browsers are all WebKit-based and have shown update-reload loops.
+        return true
+    }
+
+    const isSafariDesktop = /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua)
+    return isSafariDesktop
+}
+
+async function disableServiceWorkerForSafari(): Promise<void> {
+    if (!('serviceWorker' in navigator)) {
+        return
+    }
+
+    try {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.allSettled(registrations.map((registration) => registration.unregister()))
+    } catch {
+        // ignore unsupported API/errors
+    }
+
+    if (!('caches' in window)) {
+        return
+    }
+
+    try {
+        const names = await caches.keys()
+        await Promise.allSettled(names.map((name) => caches.delete(name)))
+    } catch {
+        // ignore cache deletion failures
+    }
+}
+
 function getStartParam(): string | null {
     const query = new URLSearchParams(window.location.search)
     const fromQuery = query.get('startapp') || query.get('tgWebAppStartParam')
@@ -41,35 +80,41 @@ async function bootstrap() {
         await loadTelegramSdk()
     }
 
-    const updateSW = registerSW({
-        onNeedRefresh() {
-            // Auto-apply updates to avoid users being stuck on stale hashed bundles.
-            try {
-                const key = 'hapi:pwa-updating'
-                if (sessionStorage.getItem(key) === '1') {
+    if (isSafariEngine()) {
+        // Hard disable SW on Safari/WebKit to avoid auto-refresh loops.
+        await disableServiceWorkerForSafari()
+    } else {
+        const updateSW = registerSW({
+            onNeedRefresh() {
+                // Auto-apply updates to avoid users being stuck on stale hashed bundles.
+                try {
+                    const key = 'hapi:pwa-updating'
+                    if (sessionStorage.getItem(key) === '1') {
+                        return
+                    }
+                    sessionStorage.setItem(key, '1')
+                } catch {
+                    // If storage is blocked, skip auto-reload to avoid potential refresh loops.
                     return
                 }
-                sessionStorage.setItem(key, '1')
-            } catch {
-                // ignore storage errors
+                updateSW(true)
+            },
+            onOfflineReady() {
+                console.log('App ready for offline use')
+            },
+            onRegistered(registration) {
+                if (registration) {
+                    void registration.update()
+                    setInterval(() => {
+                        registration.update()
+                    }, 5 * 60 * 1000)
+                }
+            },
+            onRegisterError(error) {
+                console.error('SW registration error:', error)
             }
-            updateSW(true)
-        },
-        onOfflineReady() {
-            console.log('App ready for offline use')
-        },
-        onRegistered(registration) {
-            if (registration) {
-                void registration.update()
-                setInterval(() => {
-                    registration.update()
-                }, 5 * 60 * 1000)
-            }
-        },
-        onRegisterError(error) {
-            console.error('SW registration error:', error)
-        }
-    })
+        })
+    }
 
     const history = isTelegram
         ? createMemoryHistory({ initialEntries: [getInitialPath()] })
