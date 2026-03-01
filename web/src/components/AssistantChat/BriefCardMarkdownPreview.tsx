@@ -28,8 +28,8 @@ export function BriefCardMarkdownPreview(props: BriefCardMarkdownPreviewProps) {
         <div className={cn('overflow-hidden', props.className)} style={props.style}>
             <div
                 className={cn(
-                    'aui-md min-w-0 max-w-full break-words whitespace-pre-wrap text-sm leading-[1.4rem] [overflow-wrap:anywhere]',
-                    '[&_.aui-md-p]:m-0 [&_.aui-md-p]:whitespace-pre-wrap',
+                    'aui-md min-w-0 max-w-full break-words text-sm leading-[1.4rem] [overflow-wrap:anywhere]',
+                    '[&_.aui-md-p]:m-0',
                     '[&_.aui-md-p+_.aui-md-p]:mt-1',
                     '[&_.aui-md-h1]:mt-0 [&_.aui-md-h1]:text-sm',
                     '[&_.aui-md-h2]:mt-0 [&_.aui-md-h2]:text-sm',
