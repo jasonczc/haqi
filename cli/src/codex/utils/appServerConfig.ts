@@ -81,6 +81,7 @@ export function buildThreadStartParams(args: {
     cliOverrides?: CodexCliOverrides;
     baseInstructions?: string;
     developerInstructions?: string;
+    cwd?: string;
 }): ThreadStartParams {
     const approvalPolicy = resolveApprovalPolicy(args.mode);
     const sandbox = resolveSandbox(args.mode);
@@ -100,6 +101,11 @@ export function buildThreadStartParams(args: {
         ...(Object.keys(config).length > 0 ? { config } : {})
     };
 
+    const cwd = typeof args.cwd === 'string' ? args.cwd.trim() : '';
+    if (cwd) {
+        params.cwd = cwd;
+    }
+
     if (args.mode.model) {
         params.model = args.mode.model;
     }
@@ -110,6 +116,7 @@ export function buildThreadStartParams(args: {
 export function buildTurnStartParams(args: {
     threadId: string;
     message: string;
+    cwd?: string;
     mode?: EnhancedMode;
     cliOverrides?: CodexCliOverrides;
     overrides?: {
@@ -123,6 +130,11 @@ export function buildTurnStartParams(args: {
         threadId: args.threadId,
         input: [{ type: 'text', text: args.message }]
     };
+
+    const cwd = typeof args.cwd === 'string' ? args.cwd.trim() : '';
+    if (cwd) {
+        params.cwd = cwd;
+    }
 
     const allowCliOverrides = args.mode?.permissionMode === 'default';
     const cliOverrides = allowCliOverrides ? args.cliOverrides : undefined;

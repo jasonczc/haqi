@@ -11,11 +11,13 @@ describe('buildCodexStartConfig', () => {
             mode: { permissionMode: 'default' },
             first: true,
             mcpServers,
-            cliOverrides: { sandbox: 'danger-full-access', approvalPolicy: 'never' }
+            cliOverrides: { sandbox: 'danger-full-access', approvalPolicy: 'never' },
+            cwd: '/tmp/project'
         });
 
         expect(config.sandbox).toBe('danger-full-access');
         expect(config['approval-policy']).toBe('never');
+        expect(config.cwd).toBe('/tmp/project');
         expect(config.config).toEqual({
             mcp_servers: mcpServers,
             developer_instructions: codexSystemPrompt

@@ -841,7 +841,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             mode: message.mode,
                             mcpServers,
                             cliOverrides: session.codexCliOverrides,
-                            baseInstructions
+                            baseInstructions,
+                            cwd: session.path
                         });
 
                         const resumeCandidate = session.sessionId;
@@ -887,7 +888,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             threadId,
                             message: message.message,
                             mode: message.mode,
-                            cliOverrides: session.codexCliOverrides
+                            cliOverrides: session.codexCliOverrides,
+                            cwd: session.path
                         });
                         setTurnInFlight(true);
                         const turnResponse = await appServerClient.startTurn(turnParams, {
@@ -906,7 +908,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             first,
                             mcpServers,
                             cliOverrides: session.codexCliOverrides,
-                            baseInstructions
+                            baseInstructions,
+                            cwd: session.path
                         });
 
                         await mcpClient.startSession(startConfig, { signal: this.abortController.signal });
@@ -927,7 +930,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         threadId: this.currentThreadId,
                         message: message.message,
                         mode: message.mode,
-                        cliOverrides: session.codexCliOverrides
+                        cliOverrides: session.codexCliOverrides,
+                        cwd: session.path
                     });
                     setTurnInFlight(true);
                     const turnResponse = await appServerClient.startTurn(turnParams, {

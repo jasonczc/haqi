@@ -37,6 +37,7 @@ export function buildCodexStartConfig(args: {
     cliOverrides?: CodexCliOverrides;
     baseInstructions?: string;
     developerInstructions?: string;
+    cwd?: string;
 }): CodexSessionConfig {
     const approvalPolicy = resolveApprovalPolicy(args.mode);
     const sandbox = resolveSandbox(args.mode);
@@ -59,6 +60,11 @@ export function buildCodexStartConfig(args: {
         'approval-policy': resolvedApprovalPolicy,
         config
     };
+
+    const cwd = typeof args.cwd === 'string' ? args.cwd.trim() : '';
+    if (cwd) {
+        startConfig.cwd = cwd;
+    }
 
     if (args.mode.model) {
         startConfig.model = args.mode.model;

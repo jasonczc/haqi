@@ -9,12 +9,14 @@ describe('appServerConfig', () => {
         const params = buildThreadStartParams({
             mode: { permissionMode: 'default' },
             mcpServers,
-            cliOverrides: { sandbox: 'danger-full-access', approvalPolicy: 'never' }
+            cliOverrides: { sandbox: 'danger-full-access', approvalPolicy: 'never' },
+            cwd: '/tmp/workspace'
         });
 
         expect(params.sandbox).toBe('danger-full-access');
         expect(params.approvalPolicy).toBe('never');
         expect(params.baseInstructions).toBe(codexSystemPrompt);
+        expect(params.cwd).toBe('/tmp/workspace');
         expect(params.config).toEqual({
             'mcp_servers.hapi': {
                 command: 'node',
@@ -49,11 +51,13 @@ describe('appServerConfig', () => {
         const params = buildTurnStartParams({
             threadId: 'thread-1',
             message: 'hello',
+            cwd: '/tmp/repo',
             mode: { permissionMode: 'read-only', model: 'o3', effort: 'high' }
         });
 
         expect(params.threadId).toBe('thread-1');
         expect(params.input).toEqual([{ type: 'text', text: 'hello' }]);
+        expect(params.cwd).toBe('/tmp/repo');
         expect(params.approvalPolicy).toBe('never');
         expect(params.sandboxPolicy).toEqual({ type: 'readOnly' });
         expect(params.model).toBe('o3');
