@@ -7,6 +7,7 @@ import type { ChatBlock, NormalizedMessage } from '@/chat/types'
 import { normalizeDecryptedMessage } from '@/chat/normalize'
 import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
+import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
 import { Spinner } from '@/components/Spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -603,7 +604,7 @@ export function BriefTurnList(props: {
                 {userPreview.length > 0 ? (
                     <div className="flex justify-end">
                         <div className="max-w-[92%] rounded-2xl rounded-br-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/60 px-3 py-2 text-sm text-[var(--app-fg)]">
-                            {userPreview}
+                            <BriefCardMarkdownPreview content={userPreview} />
                         </div>
                     </div>
                 ) : null}
@@ -634,12 +635,11 @@ export function BriefTurnList(props: {
                                 </div>
                             ) : (
                                 <>
-                                    <div
-                                        className="overflow-hidden whitespace-pre-wrap break-words text-sm leading-[1.4rem] text-[var(--app-fg)]"
+                                    <BriefCardMarkdownPreview
+                                        content={assistantPreview}
                                         style={collapsedPreviewStyle}
-                                    >
-                                        {assistantPreview}
-                                    </div>
+                                        className="text-[var(--app-fg)]"
+                                    />
                                     {previewFade ? (
                                         <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
                                     ) : null}

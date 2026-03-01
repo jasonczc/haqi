@@ -24,6 +24,7 @@ import type {
 } from '@/types/api'
 import { LoadingState } from '@/components/LoadingState'
 import { MARKDOWN_PLUGINS, defaultComponents } from '@/components/assistant-ui/markdown-text'
+import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
 import { FileIcon } from '@/components/FileIcon'
 import { Spinner } from '@/components/Spinner'
@@ -1951,7 +1952,7 @@ function GroupBriefTurnList(props: {
                                                     ? 'rounded-br-sm bg-[var(--app-button)] text-[var(--app-button-text)]'
                                                     : 'rounded-bl-sm bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-border)]'
                                             }`}>
-                                                {initiatorPreview}
+                                                <BriefCardMarkdownPreview content={initiatorPreview} />
                                             </div>
                                         </div>
 
@@ -1967,12 +1968,11 @@ function GroupBriefTurnList(props: {
                                                     onClick={() => openTurnDetails(turn.id)}
                                                     aria-label="Open turn details"
                                                 >
-                                                    <div
-                                                        className="overflow-hidden whitespace-pre-wrap break-words text-sm leading-[1.4rem] text-[var(--app-fg)]"
+                                                    <BriefCardMarkdownPreview
+                                                        content={responderPreview}
                                                         style={collapsedPreviewStyle}
-                                                    >
-                                                        {responderPreview}
-                                                    </div>
+                                                        className="text-[var(--app-fg)]"
+                                                    />
                                                     {fade ? (
                                                         <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
                                                     ) : null}
