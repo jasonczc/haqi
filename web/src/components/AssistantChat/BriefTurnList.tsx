@@ -353,6 +353,7 @@ export function BriefTurnList(props: {
     } = useBriefModeCardSettings()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
+    const isAtBottomRef = useRef(true)
     const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
     const [turnDetailStateById, setTurnDetailStateById] = useState<TurnDetailStateMap>({})
     const [isMobileViewport, setIsMobileViewport] = useState(() => (
@@ -590,6 +591,20 @@ export function BriefTurnList(props: {
         autoScrollToBottomDoneRef.current = false
     }, [props.session.id])
 
+    const latestTurnUpdateToken = useMemo(() => {
+        if (props.turns.length === 0) {
+            return 'empty'
+        }
+        const latestTurn = props.turns[props.turns.length - 1]
+        return [
+            props.turns.length,
+            latestTurn.id,
+            latestTurn.messageCount,
+            latestTurn.status,
+            latestTurn.updatedAt
+        ].join(':')
+    }, [props.turns])
+
     const renderTurnRow = useCallback((turn: ConversationTurn) => {
         const userPreview = turn.userPreview?.trim() ?? ''
         const assistantPreviewRaw = turn.assistantPreview?.trim() ?? ''
@@ -669,7 +684,7 @@ export function BriefTurnList(props: {
         if (props.isLoading) {
             return
         }
-        if (autoScrollToBottomDoneRef.current) {
+        if (autoScrollToBottomDoneRef.current && !isAtBottomRef.current) {
             return
         }
 
@@ -690,7 +705,7 @@ export function BriefTurnList(props: {
             window.cancelAnimationFrame(rafId)
             window.clearTimeout(timeoutId)
         }
-    }, [props.isLoading, props.turns.length])
+    }, [latestTurnUpdateToken, props.isLoading, props.turns.length])
 
     return (
         <>
@@ -717,6 +732,9 @@ export function BriefTurnList(props: {
                                 style={{ height: '100%' }}
                                 data={props.turns}
                                 overscan={320}
+                                atBottomStateChange={(isAtBottom) => {
+                                    isAtBottomRef.current = isAtBottom
+                                }}
                                 startReached={() => {
                                     if (!props.hasMore || props.isLoadingMore) {
                                         return
