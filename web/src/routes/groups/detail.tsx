@@ -1872,21 +1872,32 @@ function GroupBriefTurnList(props: {
     }, [isMobileViewport])
 
     useEffect(() => {
+        autoScrollToBottomDoneRef.current = false
+    }, [props.groupId])
+
+    useEffect(() => {
         if (props.turns.length === 0) {
             autoScrollToBottomDoneRef.current = false
+            return
+        }
+        if (props.isLoading) {
             return
         }
         if (autoScrollToBottomDoneRef.current) {
             return
         }
         autoScrollToBottomDoneRef.current = true
-        const rafId = window.requestAnimationFrame(() => {
-            listRef.current?.scrollToIndex({ index: props.turns.length - 1, align: 'end', behavior: 'auto' })
-        })
+        const scrollToBottom = () => {
+            listRef.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'auto' })
+        }
+        scrollToBottom()
+        const rafId = window.requestAnimationFrame(scrollToBottom)
+        const timeoutId = window.setTimeout(scrollToBottom, 120)
         return () => {
             window.cancelAnimationFrame(rafId)
+            window.clearTimeout(timeoutId)
         }
-    }, [props.turns.length])
+    }, [props.isLoading, props.turns.length])
 
     return (
         <>

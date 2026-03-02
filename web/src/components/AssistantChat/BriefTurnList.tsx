@@ -586,6 +586,10 @@ export function BriefTurnList(props: {
         }
     }, [isMobileViewport])
 
+    useEffect(() => {
+        autoScrollToBottomDoneRef.current = false
+    }, [props.session.id])
+
     const renderTurnRow = useCallback((turn: ConversationTurn) => {
         const userPreview = turn.userPreview?.trim() ?? ''
         const assistantPreviewRaw = turn.assistantPreview?.trim() ?? ''
@@ -662,23 +666,31 @@ export function BriefTurnList(props: {
             autoScrollToBottomDoneRef.current = false
             return
         }
+        if (props.isLoading) {
+            return
+        }
         if (autoScrollToBottomDoneRef.current) {
             return
         }
 
         autoScrollToBottomDoneRef.current = true
-        const rafId = window.requestAnimationFrame(() => {
+        const scrollToBottom = () => {
             listRef.current?.scrollToIndex({
-                index: props.turns.length - 1,
+                index: 'LAST',
                 align: 'end',
                 behavior: 'auto'
             })
-        })
+        }
+
+        scrollToBottom()
+        const rafId = window.requestAnimationFrame(scrollToBottom)
+        const timeoutId = window.setTimeout(scrollToBottom, 120)
 
         return () => {
             window.cancelAnimationFrame(rafId)
+            window.clearTimeout(timeoutId)
         }
-    }, [props.turns.length])
+    }, [props.isLoading, props.turns.length])
 
     return (
         <>
