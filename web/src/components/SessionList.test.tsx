@@ -274,4 +274,47 @@ describe('SessionList project quick-create action', () => {
             machineId: 'machine-1'
         })
     })
+
+    it('keeps project offline preference across initial empty loading state', () => {
+        localStorage.setItem('hapi:sessionsProjectOffline', JSON.stringify(['/repo/persisted']))
+
+        const first = renderWithProviders(
+            <SessionList
+                sessions={[]}
+                onSelect={vi.fn()}
+                onNewSession={vi.fn()}
+                onRefresh={vi.fn()}
+                isLoading={true}
+                renderHeader={false}
+                api={null}
+            />
+        )
+
+        first.unmount()
+
+        renderWithProviders(
+            <SessionList
+                sessions={[
+                    createSession({
+                        id: 'persisted-project',
+                        active: true,
+                        metadata: {
+                            path: '/repo/persisted',
+                            name: 'Persisted Project',
+                            machineId: 'machine-1',
+                            flavor: 'codex'
+                        }
+                    })
+                ]}
+                onSelect={vi.fn()}
+                onNewSession={vi.fn()}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                renderHeader={false}
+                api={null}
+            />
+        )
+
+        expect(screen.getByRole('button', { name: /offline projects/i })).toBeInTheDocument()
+    })
 })

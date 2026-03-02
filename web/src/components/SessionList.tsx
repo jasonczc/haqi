@@ -838,13 +838,6 @@ export function SessionList(props: {
         const knownGroups = new Set(groups.map(group => group.directory))
         setCollapseOverrides((prev) => pruneCollapseOverrides(prev, knownGroups))
         setOfflineCollapseOverrides((prev) => pruneCollapseOverrides(prev, knownGroups))
-        setProjectOfflineDirectories((prev) => {
-            const next = new Set(Array.from(prev).filter((directory) => knownGroups.has(directory)))
-            if (next.size === prev.size) {
-                return prev
-            }
-            return next
-        })
     }, [groups])
 
     const handleGroupDragEnd = ({ active, over }: DragEndEvent) => {
