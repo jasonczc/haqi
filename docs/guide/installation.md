@@ -73,8 +73,10 @@ HAQI has three components:
 ## Install the CLI
 
 ```bash
-npm install -g @jasonczc/haqi
+npm install -g @jasonczc/haqi --registry=https://registry.npmjs.org
 ```
+
+> Recommendation: use the official npm registry for global install. Some mirrors may not sync platform packages in time.
 
 Or with Homebrew:
 
