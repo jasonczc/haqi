@@ -3,7 +3,7 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 
 import type { ApiClient } from '@/api/client'
-import type { ChatBlock, NormalizedMessage } from '@/chat/types'
+import type { ChatBlock, NormalizedAgentContent, NormalizedMessage } from '@/chat/types'
 import { normalizeDecryptedMessage } from '@/chat/normalize'
 import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
@@ -35,6 +35,160 @@ const TURN_DETAILS_REFRESH_INTERVAL_MS = 1200
 const BRIEF_PREVIEW_LINE_HEIGHT_REM = 1.4
 const MOBILE_BRIEF_BREAKPOINT_QUERY = '(max-width: 767px)'
 const MOBILE_BRIEF_TURN_QUERY_KEY = 'briefTurnId'
+const LIVE_ACTIVITY_FETCH_LIMIT = 40
+const LIVE_ACTIVITY_MAX_LENGTH = 140
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return null
+    }
+    return value as Record<string, unknown>
+}
+
+function pickString(...values: unknown[]): string | null {
+    for (const value of values) {
+        if (typeof value !== 'string') {
+            continue
+        }
+        const trimmed = value.trim()
+        if (trimmed.length > 0) {
+            return trimmed
+        }
+    }
+    return null
+}
+
+function toSingleLine(text: string, maxLength: number = LIVE_ACTIVITY_MAX_LENGTH): string {
+    const normalized = text.replace(/\s+/g, ' ').trim()
+    if (normalized.length <= maxLength) {
+        return normalized
+    }
+    return `${normalized.slice(0, Math.max(1, maxLength - 1)).trimEnd()}…`
+}
+
+function formatLiveToolCall(name: string, input: unknown): string {
+    const normalizedName = name.trim()
+    const lowerName = normalizedName.toLowerCase()
+    const inputRecord = asRecord(input)
+
+    if (lowerName === 'codexbash') {
+        const command = pickString(inputRecord?.command, inputRecord?.cmd)
+        return command ? `Running: ${toSingleLine(command)}` : 'Running shell command…'
+    }
+
+    if (lowerName === 'codexpatch') {
+        const changes = asRecord(inputRecord?.changes)
+        const fileCount = changes ? Object.keys(changes).length : 0
+        if (fileCount > 0) {
+            return `Editing ${fileCount} file${fileCount === 1 ? '' : 's'}`
+        }
+        return 'Applying code edits…'
+    }
+
+    if (lowerName.includes('websearch')) {
+        const query = pickString(inputRecord?.query, inputRecord?.url, inputRecord?.pattern)
+        return query ? `Web search: ${toSingleLine(query, 96)}` : 'Running web search…'
+    }
+
+    const query = pickString(inputRecord?.query, inputRecord?.url, inputRecord?.path, inputRecord?.tool)
+    return query
+        ? `Using ${normalizedName}: ${toSingleLine(query, 96)}`
+        : `Using ${normalizedName}`
+}
+
+function formatLiveToolResult(content: unknown, isError: boolean): string {
+    const contentRecord = asRecord(content)
+    const command = pickString(contentRecord?.command, contentRecord?.cmd)
+    if (command) {
+        const exitCode = typeof contentRecord?.exit_code === 'number' ? contentRecord.exit_code : 0
+        if (isError || exitCode !== 0) {
+            return `Command failed: ${toSingleLine(command)}`
+        }
+        return `Ran: ${toSingleLine(command)}`
+    }
+
+    const error = pickString(contentRecord?.error, contentRecord?.stderr)
+    if (error) {
+        return `Error: ${toSingleLine(error, 96)}`
+    }
+
+    const status = pickString(contentRecord?.status)
+    if (status) {
+        return `Tool ${status}`
+    }
+
+    if (typeof contentRecord?.success === 'boolean') {
+        return contentRecord.success ? 'Tool completed' : 'Tool failed'
+    }
+
+    return isError ? 'Tool failed' : 'Tool completed'
+}
+
+function extractLiveActivityFromAgentContent(content: NormalizedAgentContent): string | null {
+    if (content.type === 'tool-call') {
+        return formatLiveToolCall(content.name, content.input)
+    }
+    if (content.type === 'tool-result') {
+        return formatLiveToolResult(content.content, content.is_error)
+    }
+    if (content.type === 'reasoning') {
+        return 'Thinking…'
+    }
+    if (content.type === 'text') {
+        return 'Drafting response…'
+    }
+    return null
+}
+
+function extractInProgressPlanStep(planValue: unknown): string | null {
+    if (!Array.isArray(planValue)) {
+        return null
+    }
+
+    for (const item of planValue) {
+        const itemRecord = asRecord(item)
+        if (!itemRecord) {
+            continue
+        }
+        if (itemRecord.status !== 'in_progress') {
+            continue
+        }
+        const step = pickString(itemRecord.step)
+        if (step) {
+            return step
+        }
+    }
+
+    return null
+}
+
+function extractLatestLiveActivity(messages: DecryptedMessage[]): string {
+    for (let messageIndex = messages.length - 1; messageIndex >= 0; messageIndex -= 1) {
+        const normalized = normalizeDecryptedMessage(messages[messageIndex])
+        if (!normalized) {
+            continue
+        }
+
+        if (normalized.role === 'agent') {
+            for (let contentIndex = normalized.content.length - 1; contentIndex >= 0; contentIndex -= 1) {
+                const summary = extractLiveActivityFromAgentContent(normalized.content[contentIndex])
+                if (summary) {
+                    return summary
+                }
+            }
+            continue
+        }
+
+        if (normalized.role === 'event' && normalized.content.type === 'plan-update') {
+            const inProgressStep = extractInProgressPlanStep((normalized.content as { plan?: unknown }).plan)
+            if (inProgressStep) {
+                return `Planning: ${toSingleLine(inProgressStep, 96)}`
+            }
+        }
+    }
+
+    return 'Waiting for Codex activity…'
+}
 
 function normalizePreview(value: string | null | undefined): string {
     const text = value?.trim() ?? ''
@@ -201,6 +355,7 @@ function AnimatedCounter(props: {
 
 function LivePreviewCarousel(props: {
     preview: string
+    liveActivity: string
 }) {
     const lines = useMemo(() => extractLivePreviewLines(props.preview), [props.preview])
     const [activeLineIndex, setActiveLineIndex] = useState(0)
@@ -240,9 +395,12 @@ function LivePreviewCarousel(props: {
     const activeLine = lines[activeLineIndex] ?? 'Waiting for updates…'
 
     return (
-        <div className="min-h-[2.5rem] py-0.5">
+        <div className="min-h-[3.6rem] py-0.5">
             <div className={`whitespace-pre-wrap break-words text-sm leading-6 text-[var(--app-hint)] transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'}`}>
                 {activeLine}
+            </div>
+            <div className="truncate text-xs leading-5 text-[var(--app-hint)]">
+                {props.liveActivity}
             </div>
         </div>
     )
@@ -358,6 +516,7 @@ export function BriefTurnList(props: {
     const isAtBottomRef = useRef(true)
     const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
     const [turnDetailStateById, setTurnDetailStateById] = useState<TurnDetailStateMap>({})
+    const [liveActivityByTurnId, setLiveActivityByTurnId] = useState<Record<string, string>>({})
     const [isMobileViewport, setIsMobileViewport] = useState(() => (
         typeof window !== 'undefined' && window.matchMedia(MOBILE_BRIEF_BREAKPOINT_QUERY).matches
     ))
@@ -489,6 +648,23 @@ export function BriefTurnList(props: {
         await fetchTurnMessages(activeTurn.id, activeDetail.nextBeforeSeq, true)
     }, [activeDetail, activeTurn, fetchTurnMessages])
 
+    const fetchLiveActivity = useCallback(async (turnId: string) => {
+        const response = await props.api.getConversationTurnMessages(props.session.id, turnId, {
+            limit: LIVE_ACTIVITY_FETCH_LIMIT,
+            beforeSeq: null
+        })
+        const latestActivity = extractLatestLiveActivity(response.messages)
+        setLiveActivityByTurnId((previous) => {
+            if (previous[turnId] === latestActivity) {
+                return previous
+            }
+            return {
+                ...previous,
+                [turnId]: latestActivity
+            }
+        })
+    }, [props.api, props.session.id])
+
     useEffect(() => {
         if (!activeTurnId || !activeTurn) {
             return
@@ -591,7 +767,40 @@ export function BriefTurnList(props: {
 
     useEffect(() => {
         autoScrollToBottomDoneRef.current = false
+        setLiveActivityByTurnId({})
     }, [props.session.id])
+
+    useEffect(() => {
+        if (!props.thinking || !activeTurnIdForStreaming) {
+            return
+        }
+
+        let stopped = false
+        let inFlight = false
+
+        const refreshActivity = async () => {
+            if (stopped || inFlight) {
+                return
+            }
+            inFlight = true
+            try {
+                await fetchLiveActivity(activeTurnIdForStreaming)
+            } catch {
+            } finally {
+                inFlight = false
+            }
+        }
+
+        void refreshActivity()
+        const intervalId = window.setInterval(() => {
+            void refreshActivity()
+        }, TURN_DETAILS_REFRESH_INTERVAL_MS)
+
+        return () => {
+            stopped = true
+            window.clearInterval(intervalId)
+        }
+    }, [activeTurnIdForStreaming, fetchLiveActivity, props.thinking])
 
     const latestTurnUpdateToken = useMemo(() => {
         if (props.turns.length === 0) {
@@ -614,6 +823,7 @@ export function BriefTurnList(props: {
         const assistantPreviewRaw = turn.assistantPreview?.trim() ?? ''
         const assistantPreview = normalizePreview(turn.assistantPreview)
         const isLiveTurn = props.thinking && activeTurnIdForStreaming === turn.id
+        const liveActivity = liveActivityByTurnId[turn.id] ?? 'Waiting for Codex activity…'
         const shouldShowFullLastBlock = briefCardShowLastBlockFullContent
             && latestTurnId === turn.id
             && !isLiveTurn
@@ -654,7 +864,10 @@ export function BriefTurnList(props: {
                                         </span>
                                         <span className="ml-auto text-[11px] text-[var(--app-hint)]">{messageMeta}</span>
                                     </div>
-                                    <LivePreviewCarousel preview={assistantPreviewRaw} />
+                                    <LivePreviewCarousel
+                                        preview={assistantPreviewRaw}
+                                        liveActivity={liveActivity}
+                                    />
                                     <div className="text-[11px] text-[var(--app-hint)]">
                                         <span className="underline decoration-dotted">Click to open details</span>
                                     </div>
@@ -709,6 +922,7 @@ export function BriefTurnList(props: {
         briefCardShowLastBlockFullContent,
         collapsedPreviewStyle,
         latestTurnId,
+        liveActivityByTurnId,
         openTurnDetails,
         props.thinking
     ])
