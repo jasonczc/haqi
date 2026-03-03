@@ -30,6 +30,13 @@ export const TITLE_INSTRUCTION = trimIdent(`
       1) functions.haqi__report_create (set create_share=true),
       2) functions.haqi__report_add_asset (attach screenshots/log images when available),
       3) functions.haqi__report_update (final markdown polish).
+    - Screenshot/file hygiene for report assets:
+      - Never save screenshots under the project/workspace directory.
+      - Always use an organized external directory such as:
+        - $HAPI_HOME/tmp/report-assets/<session-or-task-id>/, or
+        - ~/.hapi/tmp/report-assets/<session-or-task-id>/ (fallback).
+      - When screenshot tools support "filename"/"save_as", pass the full path explicitly.
+      - After successful upload via report_add_asset, clean up temporary local files when possible.
     - If no public link exists yet, call functions.haqi__report_create_share.
     - If a report is created, include the public share URL in your final answer.
     - If the user explicitly asks to skip report creation, follow that request.
