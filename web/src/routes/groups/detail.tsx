@@ -25,6 +25,7 @@ import type {
 import { LoadingState } from '@/components/LoadingState'
 import { MARKDOWN_PLUGINS, defaultComponents } from '@/components/assistant-ui/markdown-text'
 import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
+import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
 import { FileIcon } from '@/components/FileIcon'
 import { Spinner } from '@/components/Spinner'
@@ -1693,7 +1694,8 @@ function GroupBriefTurnList(props: {
 }) {
     const {
         briefCardAdaptiveHeight,
-        briefCardMaxLines
+        briefCardMaxLines,
+        briefCardShowLastBlockFullContent
     } = useBriefModeCardSettings()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
@@ -1890,6 +1892,8 @@ function GroupBriefTurnList(props: {
         ].join(':')
     }, [props.turns])
 
+    const latestTurnId = props.turns[props.turns.length - 1]?.id ?? null
+
     useEffect(() => {
         if (props.turns.length === 0) {
             autoScrollToBottomDoneRef.current = false
@@ -1970,7 +1974,11 @@ function GroupBriefTurnList(props: {
                                 turn.status === 'open' ? 'Generating…' : '(empty)'
                             )
                             const initiatorIsUser = (turn.initiatorSource ?? '').startsWith('user:')
-                            const fade = shouldFadeBriefPreview(responderPreview, briefCardMaxLines)
+                            const shouldShowFullLastBlock = briefCardShowLastBlockFullContent
+                                && latestTurnId === turn.id
+                            const fade = shouldShowFullLastBlock
+                                ? false
+                                : shouldFadeBriefPreview(responderPreview, briefCardMaxLines)
 
                             return (
                                 <div className="px-3 pb-3">
@@ -1986,38 +1994,55 @@ function GroupBriefTurnList(props: {
                                         </div>
 
                                         <div className="flex justify-start">
-                                            <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
-                                                turn.status === 'open'
-                                                    ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
-                                                    : 'border-[var(--app-border)]'
-                                            }`}>
-                                                <button
-                                                    type="button"
-                                                    className="block w-full text-left"
-                                                    onClick={() => openTurnDetails(turn.id)}
-                                                    aria-label="Open turn details"
-                                                >
-                                                    <BriefCardMarkdownPreview
-                                                        content={responderPreview}
-                                                        style={collapsedPreviewStyle}
-                                                        className="text-[var(--app-fg)]"
-                                                    />
-                                                    {fade ? (
-                                                        <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
-                                                    ) : null}
+                                            {shouldShowFullLastBlock ? (
+                                                <div className="w-full max-w-[92%] px-1 py-1">
+                                                    <BriefFullMarkdownContent content={responderPreview} />
                                                     <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
                                                         <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
                                                         <span>·</span>
-                                                        <span className="underline decoration-dotted">Click to open details</span>
-                                                        {turn.status === 'open' ? (
-                                                            <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
-                                                                <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
-                                                                Generating
-                                                            </span>
-                                                        ) : null}
+                                                        <button
+                                                            type="button"
+                                                            className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                                            onClick={() => openTurnDetails(turn.id)}
+                                                        >
+                                                            Open details
+                                                        </button>
                                                     </div>
-                                                </button>
-                                            </div>
+                                                </div>
+                                            ) : (
+                                                <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
+                                                    turn.status === 'open'
+                                                        ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
+                                                        : 'border-[var(--app-border)]'
+                                                }`}>
+                                                    <button
+                                                        type="button"
+                                                        className="block w-full text-left"
+                                                        onClick={() => openTurnDetails(turn.id)}
+                                                        aria-label="Open turn details"
+                                                    >
+                                                        <BriefCardMarkdownPreview
+                                                            content={responderPreview}
+                                                            style={collapsedPreviewStyle}
+                                                            className="text-[var(--app-fg)]"
+                                                        />
+                                                        {fade ? (
+                                                            <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
+                                                        ) : null}
+                                                        <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                                                            <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
+                                                            <span>·</span>
+                                                            <span className="underline decoration-dotted">Click to open details</span>
+                                                            {turn.status === 'open' ? (
+                                                                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                                                                    <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+                                                                    Generating
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

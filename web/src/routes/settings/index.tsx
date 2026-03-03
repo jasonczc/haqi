@@ -209,8 +209,10 @@ export default function SettingsPage() {
     const {
         briefCardAdaptiveHeight,
         briefCardMaxLines,
+        briefCardShowLastBlockFullContent,
         setBriefCardAdaptiveHeight,
-        setBriefCardMaxLines
+        setBriefCardMaxLines,
+        setBriefCardShowLastBlockFullContent
     } = useBriefModeCardSettings()
     const {
         imageUploadCompressionEnabled,
@@ -424,6 +426,10 @@ export default function SettingsPage() {
     const handleBriefCardMaxLinesChange = (event: ChangeEvent<HTMLInputElement>) => {
         const parsed = Number.parseInt(event.target.value, 10)
         setBriefCardMaxLines(parsed)
+    }
+
+    const handleBriefCardShowLastBlockFullContentToggle = (value: boolean) => {
+        setBriefCardShowLastBlockFullContent(value)
     }
 
     const handleImageUploadCompressionToggle = (value: boolean) => {
@@ -999,6 +1005,21 @@ export default function SettingsPage() {
                                 onChange={handleBriefCardMaxLinesChange}
                                 aria-label={t('settings.behavior.briefCardMaxLines')}
                                 className="mt-3 w-full accent-[var(--app-link)]"
+                            />
+                        </div>
+                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
+                            <div className="flex flex-col">
+                                <span className="text-[var(--app-fg)]">
+                                    {t('settings.behavior.briefCardShowLastBlockFullContent')}
+                                </span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {t('settings.behavior.briefCardShowLastBlockFullContent.description')}
+                                </span>
+                            </div>
+                            <Switch
+                                checked={briefCardShowLastBlockFullContent}
+                                onCheckedChange={handleBriefCardShowLastBlockFullContentToggle}
+                                ariaLabel={t('settings.behavior.briefCardShowLastBlockFullContent')}
                             />
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">

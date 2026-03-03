@@ -8,6 +8,7 @@ import { normalizeDecryptedMessage } from '@/chat/normalize'
 import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
 import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
+import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
 import { Spinner } from '@/components/Spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -349,7 +350,8 @@ export function BriefTurnList(props: {
 }) {
     const {
         briefCardAdaptiveHeight,
-        briefCardMaxLines
+        briefCardMaxLines,
+        briefCardShowLastBlockFullContent
     } = useBriefModeCardSettings()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
@@ -605,12 +607,19 @@ export function BriefTurnList(props: {
         ].join(':')
     }, [props.turns])
 
+    const latestTurnId = props.turns[props.turns.length - 1]?.id ?? null
+
     const renderTurnRow = useCallback((turn: ConversationTurn) => {
         const userPreview = turn.userPreview?.trim() ?? ''
         const assistantPreviewRaw = turn.assistantPreview?.trim() ?? ''
         const assistantPreview = normalizePreview(turn.assistantPreview)
-        const previewFade = shouldShowPreviewFade(assistantPreview, briefCardMaxLines)
         const isLiveTurn = props.thinking && activeTurnIdForStreaming === turn.id
+        const shouldShowFullLastBlock = briefCardShowLastBlockFullContent
+            && latestTurnId === turn.id
+            && !isLiveTurn
+        const previewFade = shouldShowFullLastBlock
+            ? false
+            : shouldShowPreviewFade(assistantPreview, briefCardMaxLines)
         const messageMeta = (
             <span className="inline-flex items-center gap-1">
                 <AnimatedCounter value={turn.messageCount} />
@@ -629,16 +638,14 @@ export function BriefTurnList(props: {
                 ) : null}
 
                 <div className="flex justify-start">
-                    <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-md border bg-[var(--app-bg)] px-3 py-2 ${isLiveTurn
-                        ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
-                        : 'border-[var(--app-border)]'}`}>
-                        <button
-                            type="button"
-                            className="block w-full text-left"
-                            onClick={() => openTurnDetails(turn.id)}
-                            aria-label="Open assistant details"
-                        >
-                            {isLiveTurn ? (
+                    {isLiveTurn ? (
+                        <div className="relative w-full max-w-[92%] rounded-2xl rounded-bl-md border border-blue-500/40 bg-[var(--app-bg)] px-3 py-2 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]">
+                            <button
+                                type="button"
+                                className="block w-full text-left"
+                                onClick={() => openTurnDetails(turn.id)}
+                                aria-label="Open assistant details"
+                            >
                                 <div className="flex min-h-[7.25rem] flex-col gap-1.5 py-1">
                                     <div className="flex items-center gap-2">
                                         <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700">
@@ -652,29 +659,59 @@ export function BriefTurnList(props: {
                                         <span className="underline decoration-dotted">Click to open details</span>
                                     </div>
                                 </div>
-                            ) : (
-                                <>
-                                    <BriefCardMarkdownPreview
-                                        content={assistantPreview}
-                                        style={collapsedPreviewStyle}
-                                        className="text-[var(--app-fg)]"
-                                    />
-                                    {previewFade ? (
-                                        <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
-                                    ) : null}
-                                    <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
-                                        <span>{messageMeta}</span>
-                                        <span>·</span>
-                                        <span className="underline decoration-dotted">Click to open details</span>
-                                    </div>
-                                </>
-                            )}
-                        </button>
-                    </div>
+                            </button>
+                        </div>
+                    ) : shouldShowFullLastBlock ? (
+                        <div className="w-full max-w-[92%] px-1 py-1">
+                            <BriefFullMarkdownContent content={assistantPreview} />
+                            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                                <span>{messageMeta}</span>
+                                <span>·</span>
+                                <button
+                                    type="button"
+                                    className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                    onClick={() => openTurnDetails(turn.id)}
+                                >
+                                    Open details
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="relative w-full max-w-[92%] rounded-2xl rounded-bl-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2">
+                            <button
+                                type="button"
+                                className="block w-full text-left"
+                                onClick={() => openTurnDetails(turn.id)}
+                                aria-label="Open assistant details"
+                            >
+                                <BriefCardMarkdownPreview
+                                    content={assistantPreview}
+                                    style={collapsedPreviewStyle}
+                                    className="text-[var(--app-fg)]"
+                                />
+                                {previewFade ? (
+                                    <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
+                                ) : null}
+                                <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                                    <span>{messageMeta}</span>
+                                    <span>·</span>
+                                    <span className="underline decoration-dotted">Click to open details</span>
+                                </div>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         )
-    }, [activeTurnIdForStreaming, briefCardMaxLines, collapsedPreviewStyle, openTurnDetails, props.thinking])
+    }, [
+        activeTurnIdForStreaming,
+        briefCardMaxLines,
+        briefCardShowLastBlockFullContent,
+        collapsedPreviewStyle,
+        latestTurnId,
+        openTurnDetails,
+        props.thinking
+    ])
 
     useEffect(() => {
         if (props.turns.length === 0) {

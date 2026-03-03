@@ -381,6 +381,8 @@ export default {
   'settings.behavior.briefCardMaxLines': 'Brief 卡片最大行数',
   'settings.behavior.briefCardMaxLines.description': '控制 Brief 模式每张卡片最多显示多少行。',
   'settings.behavior.briefCardMaxLines.value': '{value} 行 · 上限 {max}',
+  'settings.behavior.briefCardShowLastBlockFullContent': 'Brief 最后块显示完整内容',
+  'settings.behavior.briefCardShowLastBlockFullContent.description': '在 Brief 模式中，最新已完成的助手块直接完整显示，效果类似普通模式最终输出。',
   'settings.behavior.imageCompression': '上传图像压缩',
   'settings.behavior.imageCompression.description': '上传前自动压缩图片/截图附件。',
   'settings.behavior.imageCompression.level': '压缩级别',

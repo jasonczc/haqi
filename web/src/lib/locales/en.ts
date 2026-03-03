@@ -379,6 +379,8 @@ export default {
   'settings.behavior.briefCardMaxLines': 'Brief Card Max Lines',
   'settings.behavior.briefCardMaxLines.description': 'Maximum visible lines per card in Brief mode.',
   'settings.behavior.briefCardMaxLines.value': '{value} lines · cap {max}',
+  'settings.behavior.briefCardShowLastBlockFullContent': 'Show Full Last Block in Brief Mode',
+  'settings.behavior.briefCardShowLastBlockFullContent.description': 'Show the latest closed assistant block fully in Brief mode, like normal mode final output.',
   'settings.behavior.imageCompression': 'Image Upload Compression',
   'settings.behavior.imageCompression.description': 'Automatically compress image/screenshot attachments before upload.',
   'settings.behavior.imageCompression.level': 'Compression Level',
