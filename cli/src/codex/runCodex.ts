@@ -71,7 +71,7 @@ export async function runCodex(opts: {
 
     let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'default';
     const currentModel = opts.model;
-    const currentEffort = opts.effort;
+    let currentEffort: ReasoningEffort | undefined = opts.effort;
     let currentCollaborationMode: EnhancedMode['collaborationMode'];
 
     const syncRuntimeMetadata = (): void => {
@@ -236,6 +236,23 @@ export async function runCodex(opts: {
         return trimmed as EnhancedMode['collaborationMode'];
     };
 
+    const resolveThinkEffort = (value: unknown): ReasoningEffort | undefined => {
+        if (value === null) {
+            return undefined;
+        }
+        if (typeof value !== 'string') {
+            throw new Error('Invalid think effort');
+        }
+        const normalized = value.trim().toLowerCase();
+        if (!normalized || normalized === 'auto') {
+            return undefined;
+        }
+        if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'xhigh') {
+            return normalized;
+        }
+        throw new Error('Invalid think effort');
+    };
+
     const resolveQueueItemId = (payload: unknown): string => {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid queue payload');
@@ -322,7 +339,7 @@ export async function runCodex(opts: {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
         }
-        const config = payload as { permissionMode?: unknown; collaborationMode?: unknown };
+        const config = payload as { permissionMode?: unknown; collaborationMode?: unknown; thinkEffort?: unknown };
 
         if (config.permissionMode !== undefined) {
             currentPermissionMode = resolvePermissionMode(config.permissionMode);
@@ -332,8 +349,19 @@ export async function runCodex(opts: {
             currentCollaborationMode = resolveCollaborationMode(config.collaborationMode);
         }
 
+        if (config.thinkEffort !== undefined) {
+            currentEffort = resolveThinkEffort(config.thinkEffort);
+            syncRuntimeMetadata();
+        }
+
         syncSessionMode();
-        return { applied: { permissionMode: currentPermissionMode, collaborationMode: currentCollaborationMode } };
+        return {
+            applied: {
+                permissionMode: currentPermissionMode,
+                collaborationMode: currentCollaborationMode,
+                thinkEffort: currentEffort
+            }
+        };
     });
 
     session.rpcHandlerManager.registerHandler('get-codex-status', async () => {

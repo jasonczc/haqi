@@ -56,6 +56,13 @@ type ComposerModelOption = {
     label: string
 }
 
+type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+
+type ComposerThinkEffortOption = {
+    value: SessionThinkEffort
+    label: string
+}
+
 type ComposerInjectedPrompt = {
     id: number
     text: string
@@ -261,12 +268,34 @@ function buildClaudeModelOptions(
     return options
 }
 
+function getThinkEffortOptionsForFlavor(flavor?: string | null): ComposerThinkEffortOption[] {
+    if (flavor === 'claude') {
+        return [
+            { value: 'auto', label: 'Auto' },
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' },
+        ]
+    }
+    if (flavor === 'codex') {
+        return [
+            { value: 'auto', label: 'Auto' },
+            { value: 'low', label: 'Low' },
+            { value: 'medium', label: 'Medium' },
+            { value: 'high', label: 'High' },
+            { value: 'xhigh', label: 'XHigh' },
+        ]
+    }
+    return []
+}
+
 export function HappyComposer(props: {
     sessionId: string
     disabled?: boolean
     permissionMode?: PermissionMode
     modelMode?: ModelMode
     model?: string
+    thinkEffort?: string
     active?: boolean
     allowSendWhenInactive?: boolean
     thinking?: boolean
@@ -277,6 +306,7 @@ export function HappyComposer(props: {
     agentFlavor?: string | null
     onPermissionModeChange?: (mode: PermissionMode) => void
     onModelChange?: (model: string) => void
+    onThinkEffortChange?: (thinkEffort: SessionThinkEffort) => void
     onSwitchToRemote?: () => void
     onTerminal?: () => void
     onCodexStatus?: () => void
@@ -307,6 +337,7 @@ export function HappyComposer(props: {
         permissionMode: rawPermissionMode,
         modelMode: rawModelMode,
         model: rawModel,
+        thinkEffort: rawThinkEffort,
         active = true,
         allowSendWhenInactive = false,
         thinking = false,
@@ -317,6 +348,7 @@ export function HappyComposer(props: {
         agentFlavor,
         onPermissionModeChange,
         onModelChange,
+        onThinkEffortChange,
         onSwitchToRemote,
         onTerminal,
         onCodexStatus,
@@ -346,6 +378,9 @@ export function HappyComposer(props: {
     const model = typeof rawModel === 'string' && rawModel.trim()
         ? rawModel.trim()
         : undefined
+    const normalizedThinkEffort = typeof rawThinkEffort === 'string'
+        ? rawThinkEffort.trim().toLowerCase()
+        : ''
     const currentModelValue = model ?? (modelMode === 'default' ? 'auto' : modelMode)
     const modelOptions = useMemo(
         () => agentFlavor === 'claude'
@@ -357,6 +392,22 @@ export function HappyComposer(props: {
         () => modelOptions.map((option) => option.value),
         [modelOptions]
     )
+    const thinkEffortOptions = useMemo(
+        () => getThinkEffortOptionsForFlavor(agentFlavor),
+        [agentFlavor]
+    )
+    const currentThinkEffortValue: SessionThinkEffort = useMemo(() => {
+        if (normalizedThinkEffort === 'auto'
+            || normalizedThinkEffort === 'low'
+            || normalizedThinkEffort === 'medium'
+            || normalizedThinkEffort === 'high'
+            || normalizedThinkEffort === 'xhigh') {
+            return thinkEffortOptions.some((option) => option.value === normalizedThinkEffort)
+                ? normalizedThinkEffort
+                : 'auto'
+        }
+        return 'auto'
+    }, [normalizedThinkEffort, thinkEffortOptions])
 
     const api = useAssistantApi()
     const composerText = useAssistantState(({ composer }) => composer.text)
@@ -900,14 +951,24 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onModelChange, controlsDisabled, haptic])
 
+    const handleThinkEffortChange = useCallback((thinkEffortValue: SessionThinkEffort) => {
+        if (!onThinkEffortChange || controlsDisabled) return
+        onThinkEffortChange(thinkEffortValue)
+        setShowSettings(false)
+        haptic('light')
+    }, [onThinkEffortChange, controlsDisabled, haptic])
+
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
     const showModelSettings = Boolean(onModelChange && agentFlavor === 'claude' && modelOptions.length > 0)
-    const showSettingsButton = Boolean(showPermissionSettings || showModelSettings)
+    const showThinkEffortSettings = Boolean(onThinkEffortChange && thinkEffortOptions.length > 0)
+    const showSettingsButton = Boolean(showPermissionSettings || showModelSettings || showThinkEffortSettings)
     const showAbortButton = true
     const voiceEnabled = Boolean(onVoiceToggle)
 
     const overlays = useMemo(() => {
-        if (showSettings && (showPermissionSettings || showModelSettings)) {
+        if (showSettings && (showPermissionSettings || showModelSettings || showThinkEffortSettings)) {
+            const showPermissionDivider = showPermissionSettings && (showModelSettings || showThinkEffortSettings)
+            const showModelDivider = showModelSettings && showThinkEffortSettings
             return (
                 <div className="absolute bottom-[100%] mb-2 w-full">
                     <FloatingOverlay maxHeight={320}>
@@ -948,7 +1009,7 @@ export function HappyComposer(props: {
                             </div>
                         ) : null}
 
-                        {showPermissionSettings && showModelSettings ? (
+                        {showPermissionDivider ? (
                             <div className="mx-3 h-px bg-[var(--app-divider)]" />
                         ) : null}
 
@@ -988,6 +1049,47 @@ export function HappyComposer(props: {
                                 ))}
                             </div>
                         ) : null}
+
+                        {showModelDivider ? (
+                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                        ) : null}
+
+                        {showThinkEffortSettings ? (
+                            <div className="py-2">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                    {t('newSession.think')}
+                                </div>
+                                {thinkEffortOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        disabled={controlsDisabled}
+                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                                            controlsDisabled
+                                                ? 'cursor-not-allowed opacity-50'
+                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                        }`}
+                                        onClick={() => handleThinkEffortChange(option.value)}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                    >
+                                        <div
+                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                                                currentThinkEffortValue === option.value
+                                                    ? 'border-[var(--app-link)]'
+                                                    : 'border-[var(--app-hint)]'
+                                            }`}
+                                        >
+                                            {currentThinkEffortValue === option.value && (
+                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                            )}
+                                        </div>
+                                        <span className={currentThinkEffortValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                            {option.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
                     </FloatingOverlay>
                 </div>
             )
@@ -1012,15 +1114,19 @@ export function HappyComposer(props: {
         showSettings,
         showPermissionSettings,
         showModelSettings,
+        showThinkEffortSettings,
         suggestions,
         selectedIndex,
         controlsDisabled,
         permissionMode,
         currentModelValue,
+        currentThinkEffortValue,
         modelOptions,
+        thinkEffortOptions,
         permissionModeOptions,
         handlePermissionChange,
         handleModelChange,
+        handleThinkEffortChange,
         handleSuggestionSelect
     ])
 

@@ -6,6 +6,8 @@ import { queryKeys } from '@/lib/query-keys'
 import { clearMessageWindow } from '@/lib/message-window-store'
 import { isKnownFlavor } from '@/lib/agentFlavorUtils'
 
+type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+
 export function useSessionActions(
     api: ApiClient | null,
     sessionId: string | null,
@@ -16,6 +18,7 @@ export function useSessionActions(
     switchSession: () => Promise<void>
     setPermissionMode: (mode: PermissionMode) => Promise<void>
     setModel: (model: string) => Promise<void>
+    setThinkEffort: (thinkEffort: SessionThinkEffort) => Promise<void>
     renameSession: (name: string) => Promise<void>
     deleteSession: () => Promise<void>
     spawnSameConfigSession: () => Promise<string>
@@ -83,6 +86,16 @@ export function useSessionActions(
         onSuccess: () => void invalidateSession(),
     })
 
+    const thinkEffortMutation = useMutation({
+        mutationFn: async (thinkEffort: SessionThinkEffort) => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            await api.setThinkEffort(sessionId, thinkEffort)
+        },
+        onSuccess: () => void invalidateSession(),
+    })
+
     const renameMutation = useMutation({
         mutationFn: async (name: string) => {
             if (!api || !sessionId) {
@@ -134,6 +147,7 @@ export function useSessionActions(
         switchSession: switchMutation.mutateAsync,
         setPermissionMode: permissionMutation.mutateAsync,
         setModel: modelMutation.mutateAsync,
+        setThinkEffort: thinkEffortMutation.mutateAsync,
         renameSession: renameMutation.mutateAsync,
         deleteSession: deleteMutation.mutateAsync,
         spawnSameConfigSession: async () => await spawnFromExistingSession(false),
@@ -143,6 +157,7 @@ export function useSessionActions(
             || switchMutation.isPending
             || permissionMutation.isPending
             || modelMutation.isPending
+            || thinkEffortMutation.isPending
             || renameMutation.isPending
             || deleteMutation.isPending
             || spawnFromExistingMutation.isPending,

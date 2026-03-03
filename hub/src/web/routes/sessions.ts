@@ -15,6 +15,10 @@ const modelUpdateSchema = z.object({
     model: z.string().min(1).max(255)
 })
 
+const thinkEffortUpdateSchema = z.object({
+    thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'xhigh'])
+})
+
 const renameSessionSchema = z.object({
     name: z.string().min(1).max(255)
 })
@@ -732,6 +736,43 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ ok: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply model mode'
+            return c.json({ error: message }, 409)
+        }
+    })
+
+    app.post('/sessions/:id/think-effort', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine, { requireActive: true })
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = thinkEffortUpdateSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
+        if (flavor !== 'claude' && flavor !== 'codex') {
+            return c.json({ error: 'Think level is only supported for Claude and Codex sessions' }, 400)
+        }
+
+        if (flavor === 'claude' && parsed.data.thinkEffort === 'xhigh') {
+            return c.json({ error: 'Claude thinkEffort does not support xhigh (expected auto/low/medium/high)' }, 400)
+        }
+
+        try {
+            await engine.applySessionConfig(sessionResult.sessionId, {
+                thinkEffort: parsed.data.thinkEffort
+            })
+            return c.json({ ok: true })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to apply think level'
             return c.json({ error: message }, 409)
         }
     })

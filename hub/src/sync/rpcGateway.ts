@@ -156,6 +156,7 @@ export class RpcGateway {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
             model?: string
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
         }
     ): Promise<unknown> {
         return await this.sessionRpc(sessionId, 'set-session-config', config)

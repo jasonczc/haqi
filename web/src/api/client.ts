@@ -730,6 +730,16 @@ export class ApiClient {
         })
     }
 
+    async setThinkEffort(
+        sessionId: string,
+        thinkEffort: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+    ): Promise<void> {
+        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/think-effort`, {
+            method: 'POST',
+            body: JSON.stringify({ thinkEffort })
+        })
+    }
+
     async setModelMode(sessionId: string, model: ModelMode): Promise<void> {
         await this.setModel(sessionId, model)
     }

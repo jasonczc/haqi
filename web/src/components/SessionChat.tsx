@@ -47,6 +47,8 @@ type McpGuideItem = {
     descriptionKey: string
 }
 
+type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+
 const MCP_GUIDES: McpGuideItem[] = [
     {
         id: 'linear',
@@ -442,7 +444,7 @@ export function SessionChat(props: {
     const dialogQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 6_000
     const agentFlavor = props.session.metadata?.flavor ?? null
     const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
-    const { abortSession, switchSession, setPermissionMode, setModel } = useSessionActions(
+    const { abortSession, switchSession, setPermissionMode, setModel, setThinkEffort } = useSessionActions(
         props.api,
         props.session.id,
         agentFlavor
@@ -667,6 +669,17 @@ export function SessionChat(props: {
             console.error('Failed to set model:', e)
         }
     }, [setModel, props.onRefresh, haptic])
+
+    const handleThinkEffortChange = useCallback(async (thinkEffort: SessionThinkEffort) => {
+        try {
+            await setThinkEffort(thinkEffort)
+            haptic.notification('success')
+            props.onRefresh()
+        } catch (e) {
+            haptic.notification('error')
+            console.error('Failed to set think effort:', e)
+        }
+    }, [setThinkEffort, props.onRefresh, haptic])
 
     // Abort handler
     const handleAbort = useCallback(async () => {
@@ -1331,6 +1344,7 @@ export function SessionChat(props: {
                         permissionMode={props.session.permissionMode}
                         modelMode={props.session.modelMode}
                         model={props.session.metadata?.model}
+                        thinkEffort={props.session.metadata?.thinkEffort}
                         agentFlavor={agentFlavor}
                         active={props.session.active}
                         allowSendWhenInactive
@@ -1341,6 +1355,7 @@ export function SessionChat(props: {
                         controlledByUser={props.session.agentState?.controlledByUser === true}
                         onPermissionModeChange={handlePermissionModeChange}
                         onModelChange={handleModelChange}
+                        onThinkEffortChange={handleThinkEffortChange}
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
                         onCodexStatus={supportsQueueControls ? handleCodexStatus : undefined}

@@ -559,11 +559,29 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         return parsed.data;
     };
 
+    const resolveThinkEffort = (value: unknown): ClaudeThinkEffort | undefined => {
+        if (value === null) {
+            return undefined;
+        }
+        if (typeof value !== 'string') {
+            throw new Error('Invalid think effort');
+        }
+
+        const normalized = value.trim().toLowerCase();
+        if (!normalized || normalized === 'auto') {
+            return undefined;
+        }
+        if (normalized === 'low' || normalized === 'medium' || normalized === 'high') {
+            return normalized;
+        }
+        throw new Error('Invalid think effort');
+    };
+
     session.rpcHandlerManager.registerHandler('set-session-config', async (payload: unknown) => {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
         }
-        const config = payload as { permissionMode?: unknown; modelMode?: unknown; model?: unknown };
+        const config = payload as { permissionMode?: unknown; modelMode?: unknown; model?: unknown; thinkEffort?: unknown };
 
         if (config.permissionMode !== undefined) {
             currentPermissionMode = resolvePermissionMode(config.permissionMode);
@@ -585,12 +603,18 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             syncRuntimeMetadata(currentModel);
         }
 
+        if (config.thinkEffort !== undefined) {
+            currentThinkEffort = resolveThinkEffort(config.thinkEffort);
+            syncRuntimeMetadata(currentModel, currentThinkEffort);
+        }
+
         syncSessionModes();
         return {
             applied: {
                 permissionMode: currentPermissionMode,
                 modelMode: currentModelMode,
-                model: currentModel
+                model: currentModel,
+                thinkEffort: currentThinkEffort
             }
         };
     });

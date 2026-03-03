@@ -902,16 +902,29 @@ export class SyncEngine {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
             model?: string
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
         }
     ): Promise<void> {
-        let applied: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode']; model?: string } | undefined
+        let applied: {
+            permissionMode?: Session['permissionMode']
+            modelMode?: Session['modelMode']
+            model?: string
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+        } | undefined
 
         try {
             const result = await this.rpcGateway.requestSessionConfig(sessionId, config)
             if (!result || typeof result !== 'object') {
                 throw new Error('Invalid response from session config RPC')
             }
-            const obj = result as { applied?: { permissionMode?: Session['permissionMode']; modelMode?: Session['modelMode']; model?: string } }
+            const obj = result as {
+                applied?: {
+                    permissionMode?: Session['permissionMode']
+                    modelMode?: Session['modelMode']
+                    model?: string
+                    thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+                }
+            }
             const fromRpc = obj.applied
             if (!fromRpc || typeof fromRpc !== 'object') {
                 throw new Error('Missing applied session config')
@@ -924,7 +937,8 @@ export class SyncEngine {
             applied = {
                 permissionMode: config.permissionMode,
                 modelMode: config.modelMode,
-                model: config.model
+                model: config.model,
+                thinkEffort: config.thinkEffort
             }
         }
 
@@ -938,7 +952,11 @@ export class SyncEngine {
             modelMode: resolvedModelMode
         })
 
-        if (flavor === 'claude' && (applied.model !== undefined || config.model !== undefined)) {
+        const shouldUpdateModelMetadata = flavor === 'claude' && (applied.model !== undefined || config.model !== undefined)
+        const shouldUpdateThinkEffortMetadata = (flavor === 'claude' || flavor === 'codex')
+            && (applied.thinkEffort !== undefined || config.thinkEffort !== undefined)
+
+        if (shouldUpdateModelMetadata || shouldUpdateThinkEffortMetadata) {
             const rawModel = applied.model ?? config.model
             const model = (() => {
                 if (typeof rawModel !== 'string') return undefined
@@ -947,11 +965,20 @@ export class SyncEngine {
                 const lowered = trimmed.toLowerCase()
                 return lowered === 'default' || lowered === 'auto' ? undefined : trimmed
             })()
+            const thinkEffort = this.normalizeThinkEffortForFlavor(
+                applied.thinkEffort ?? config.thinkEffort,
+                flavor
+            )
             const fallbackMetadata = session?.metadata ?? { path: '', host: '' }
-            await this.sessionCache.updateSessionMetadata(sessionId, (metadata) => ({
-                ...(metadata ?? fallbackMetadata),
-                model
-            }))
+            await this.sessionCache.updateSessionMetadata(sessionId, (metadata) => {
+                const source = metadata ?? fallbackMetadata
+                const { thinkEffort: _previousThinkEffort, ...withoutThinkEffort } = source
+                return {
+                    ...withoutThinkEffort,
+                    ...(shouldUpdateModelMetadata ? { model } : {}),
+                    ...(thinkEffort ? { thinkEffort } : {})
+                }
+            })
         }
 
         if (applied.permissionMode === 'auto-approve') {
@@ -961,7 +988,12 @@ export class SyncEngine {
 
     private shouldFallbackSessionConfig(
         sessionId: string,
-        config: { permissionMode?: PermissionMode; modelMode?: ModelMode; model?: string },
+        config: {
+            permissionMode?: PermissionMode
+            modelMode?: ModelMode
+            model?: string
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+        },
         error: unknown
     ): boolean {
         if (config.permissionMode !== 'auto-approve') {
@@ -975,6 +1007,30 @@ export class SyncEngine {
 
         const session = this.getSession(sessionId)
         return session?.metadata?.flavor === 'codex'
+    }
+
+    private normalizeThinkEffortForFlavor(
+        value: string | undefined,
+        flavor: string | null
+    ): 'low' | 'medium' | 'high' | 'xhigh' | undefined {
+        if (typeof value !== 'string') {
+            return undefined
+        }
+
+        const normalized = value.trim().toLowerCase()
+        if (!normalized || normalized === 'auto') {
+            return undefined
+        }
+        if (normalized !== 'low' && normalized !== 'medium' && normalized !== 'high' && normalized !== 'xhigh') {
+            return undefined
+        }
+        if (flavor === 'claude' && normalized === 'xhigh') {
+            return undefined
+        }
+        if (flavor !== 'claude' && flavor !== 'codex') {
+            return undefined
+        }
+        return normalized
     }
 
     private async maybeAutoApprovePendingRequests(sessionId: string): Promise<void> {
