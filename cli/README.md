@@ -1,11 +1,12 @@
 # haqi CLI
 
-Run Claude Code, Codex, Gemini, or OpenCode sessions from your terminal and control them remotely through the haqi hub.
+Run Claude Code, Codex, Cursor Agent, Gemini, or OpenCode sessions from your terminal and control them remotely through the haqi hub.
 
 ## What it does
 
 - Starts Claude Code sessions and registers them with haqi-hub.
 - Starts Codex mode for OpenAI-based sessions.
+- Starts Cursor Agent mode for Cursor CLI sessions.
 - Starts Gemini mode via ACP (Anthropic Code Plugins).
 - Starts OpenCode mode via ACP and its plugin hook system.
 - Provides an MCP stdio bridge for external tools.
@@ -26,6 +27,9 @@ Run Claude Code, Codex, Gemini, or OpenCode sessions from your terminal and cont
 - `haqi` - Start a Claude Code session (passes through Claude CLI flags). See `src/index.ts`.
 - `haqi codex` - Start Codex mode. See `src/codex/runCodex.ts`.
 - `haqi codex resume <sessionId>` - Resume existing Codex session.
+- `haqi cursor` - Start Cursor Agent mode. See `src/cursor/runCursor.ts`.
+  Supports `haqi cursor resume <chatId>`, `haqi cursor --continue`, `--mode plan|ask`, `--yolo`, `--model`.
+  Local and remote modes supported; remote uses `agent -p` with stream-json.
 - `haqi gemini` - Start Gemini mode via ACP. See `src/agent/runners/runAgentSession.ts`.
   Note: Gemini runs in remote mode only; it waits for messages from the hub UI/Telegram.
 - `haqi opencode` - Start OpenCode mode via ACP. See `src/opencode/runOpencode.ts`.
@@ -104,6 +108,7 @@ Data is stored in `~/.hapi/` (or `$HAPI_HOME`):
 ## Requirements
 
 - Claude CLI installed and logged in (`claude` on PATH).
+- Cursor Agent CLI installed (`agent` on PATH) for `hapi cursor`. Install: `curl https://cursor.com/install -fsS | bash` (macOS/Linux), `irm 'https://cursor.com/install?win32=true' | iex` (Windows).
 - OpenCode CLI installed (`opencode` on PATH).
 - Bun for building from source.
 
@@ -137,6 +142,7 @@ haqi runner start
 - `src/api/` - Bot communication (Socket.IO + REST).
 - `src/claude/` - Claude Code integration.
 - `src/codex/` - Codex mode integration.
+- `src/cursor/` - Cursor Agent integration.
 - `src/agent/` - Multi-agent support (Gemini via ACP).
 - `src/opencode/` - OpenCode ACP + hook integration.
 - `src/runner/` - Background service.

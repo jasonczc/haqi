@@ -171,7 +171,7 @@ export class RpcGateway {
     async spawnSession(
         machineId: string,
         directory: string,
-        agent: 'claude' | 'codex' | 'gemini' | 'opencode' = 'claude',
+        agent: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode' = 'claude',
         model?: string,
         thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
         serviceTier?: 'fast' | 'flex',

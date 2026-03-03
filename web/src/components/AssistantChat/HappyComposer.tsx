@@ -29,7 +29,7 @@ import { useActiveSuggestions } from '@/hooks/useActiveSuggestions'
 import { applySuggestion } from '@/utils/applySuggestion'
 import { usePlatform } from '@/hooks/usePlatform'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
-import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
+import { isClaudeFlavor, supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import { markSkillUsed } from '@/lib/recent-skills'
 import { preserveUploadPathsForQueue } from '@/lib/attachmentAdapter'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
@@ -931,13 +931,7 @@ export function HappyComposer(props: {
 
     useEffect(() => {
         const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
-            if (
-                e.key === 'm'
-                && (e.metaKey || e.ctrlKey)
-                && onModelChange
-                && agentFlavor === 'claude'
-                && modelValues.length > 0
-            ) {
+            if (e.key === 'm' && (e.metaKey || e.ctrlKey) && onModelChange && isClaudeFlavor(agentFlavor) && modelValues.length > 0) {
                 e.preventDefault()
                 const currentIndex = modelValues.indexOf(currentModelValue)
                 const nextIndex = (currentIndex + 1) % modelValues.length
@@ -1032,7 +1026,7 @@ export function HappyComposer(props: {
     }, [onServiceTierChange, controlsDisabled, haptic])
 
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
-    const showModelSettings = Boolean(onModelChange && agentFlavor === 'claude' && modelOptions.length > 0)
+    const showModelSettings = Boolean(onModelChange && isClaudeFlavor(agentFlavor) && modelOptions.length > 0)
     const showThinkEffortSettings = Boolean(onThinkEffortChange && thinkEffortOptions.length > 0)
     const showServiceTierSettings = Boolean(onServiceTierChange && serviceTierOptions.length > 0)
     const showSettingsButton = Boolean(showPermissionSettings || showModelSettings || showThinkEffortSettings || showServiceTierSettings)
