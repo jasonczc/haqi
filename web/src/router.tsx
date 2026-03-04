@@ -944,6 +944,7 @@ function GroupsLayout() {
     const [newGroupName, setNewGroupName] = useState('')
     const [newGroupDesc, setNewGroupDesc] = useState('')
     const [createError, setCreateError] = useState<string | null>(null)
+    const [isCreateSubmitting, setIsCreateSubmitting] = useState(false)
     const [actionMenuOpen, setActionMenuOpen] = useState(false)
     const [actionAnchorPoint, setActionAnchorPoint] = useState({ x: 0, y: 0 })
     const [actionGroupId, setActionGroupId] = useState<string | null>(null)
@@ -977,6 +978,7 @@ function GroupsLayout() {
     const actionTarget = actionGroupId
         ? groups.find((item) => item.group.id === actionGroupId) ?? null
         : null
+    const isCreateRequestInFlight = isCreatingGroup || isCreateSubmitting
 
     // Calculate total member count across all groups
     const totalMemberCount = visibleGroups.reduce((acc, item) => acc + item.members.length, 0)
@@ -1039,12 +1041,16 @@ function GroupsLayout() {
     }, [mobileSidebarOpen])
 
     const handleCreate = async () => {
+        if (isCreateRequestInFlight) {
+            return
+        }
         const trimmedName = newGroupName.trim()
         if (!trimmedName) {
             setCreateError('Name is required')
             return
         }
         setCreateError(null)
+        setIsCreateSubmitting(true)
         try {
             const groupId = await createGroup({
                 name: trimmedName,
@@ -1056,6 +1062,8 @@ function GroupsLayout() {
             navigate({ to: '/groups/$groupId', params: { groupId } })
         } catch (error) {
             setCreateError(error instanceof Error ? error.message : 'Failed to create group')
+        } finally {
+            setIsCreateSubmitting(false)
         }
     }
 
@@ -1354,10 +1362,10 @@ function GroupsLayout() {
                             <button
                                 type="button"
                                 onClick={() => { void handleCreate() }}
-                                disabled={isCreatingGroup}
+                                disabled={isCreateRequestInFlight}
                                 className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
                             >
-                                {isCreatingGroup ? 'Creating...' : 'Create'}
+                                {isCreateRequestInFlight ? 'Creating...' : 'Create'}
                             </button>
                         </div>
                     </div>
