@@ -477,13 +477,6 @@ function ToolCardInner(props: ToolCardProps) {
             return
         }
 
-        if (!isMobileViewport) {
-            if (readTurnChangesDetailToolId(window.location.search) === props.block.id) {
-                writeTurnChangesDetailToolId(null, 'replace')
-            }
-            return
-        }
-
         const syncFromHistory = () => {
             setIsTurnChangesDetailOpen(readTurnChangesDetailToolId(window.location.search) === props.block.id)
         }
@@ -493,7 +486,7 @@ function ToolCardInner(props: ToolCardProps) {
         return () => {
             window.removeEventListener('popstate', syncFromHistory)
         }
-    }, [isMobileViewport, isTurnChangesTool, props.block.id])
+    }, [isTurnChangesTool, props.block.id])
 
     useEffect(() => {
         if (!isDiffTool || typeof window === 'undefined') {
@@ -538,6 +531,9 @@ function ToolCardInner(props: ToolCardProps) {
             }
         }
 
+        if (typeof window !== 'undefined' && readTurnChangesDetailToolId(window.location.search) === props.block.id) {
+            writeTurnChangesDetailToolId(null, 'replace')
+        }
         setIsTurnChangesDetailOpen(false)
     }, [isMobileViewport, props.block.id])
 

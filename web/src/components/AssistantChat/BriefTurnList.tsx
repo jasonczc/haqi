@@ -10,6 +10,7 @@ import { reconcileChatBlocks } from '@/chat/reconcile'
 import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
+import { isBriefTurnLive, shouldShowLatestBriefTurnAsFullContent } from '@/components/AssistantChat/briefTurnPresentation'
 import { Spinner } from '@/components/Spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -35,8 +36,16 @@ const TURN_DETAILS_REFRESH_INTERVAL_MS = 1200
 const BRIEF_PREVIEW_LINE_HEIGHT_REM = 1.4
 const MOBILE_BRIEF_BREAKPOINT_QUERY = '(max-width: 767px)'
 const MOBILE_BRIEF_TURN_QUERY_KEY = 'briefTurnId'
+const TURN_CHANGES_DETAIL_QUERY_KEY = 'turnChangesToolId'
 const LIVE_ACTIVITY_FETCH_LIMIT = 40
 const LIVE_ACTIVITY_MAX_LENGTH = 140
+const TURN_CHANGES_SUMMARY_FETCH_LIMIT = 200
+
+type TurnChangesSummary = {
+    toolId: string
+    additions: number
+    deletions: number
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -190,6 +199,14 @@ function extractLatestLiveActivity(messages: DecryptedMessage[]): string {
     return 'Waiting for Codex activity…'
 }
 
+function isCodexPlanModeEnabled(session: Session): boolean {
+    const flavor = session.metadata?.flavor?.trim().toLowerCase()
+    if (flavor !== 'codex') {
+        return false
+    }
+    return session.metadata?.collaborationMode?.trim().toLowerCase() === 'plan'
+}
+
 function normalizePreview(value: string | null | undefined): string {
     const text = value?.trim() ?? ''
     return text.length > 0 ? text : '(empty)'
@@ -291,6 +308,104 @@ function writeMobileBriefTurnId(turnId: string | null, mode: 'push' | 'replace')
     }
 
     window.history.pushState(window.history.state, '', nextUrl)
+}
+
+function readTurnChangesDetailToolId(search: string): string | null {
+    const rawValue = new URLSearchParams(search).get(TURN_CHANGES_DETAIL_QUERY_KEY)
+    const value = rawValue?.trim() ?? ''
+    return value.length > 0 ? value : null
+}
+
+function writeTurnChangesDetailToolId(toolId: string | null, mode: 'push' | 'replace'): void {
+    if (typeof window === 'undefined') {
+        return
+    }
+
+    const url = new URL(window.location.href)
+    if (toolId) {
+        url.searchParams.set(TURN_CHANGES_DETAIL_QUERY_KEY, toolId)
+    } else {
+        url.searchParams.delete(TURN_CHANGES_DETAIL_QUERY_KEY)
+    }
+
+    const nextUrl = `${url.pathname}${url.search}${url.hash}`
+    if (mode === 'replace') {
+        window.history.replaceState(window.history.state, '', nextUrl)
+        return
+    }
+
+    window.history.pushState(window.history.state, '', nextUrl)
+}
+
+function toNonNegativeNumber(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return Math.max(0, Math.round(value))
+    }
+
+    if (typeof value === 'string') {
+        const parsed = Number.parseFloat(value)
+        if (Number.isFinite(parsed)) {
+            return Math.max(0, Math.round(parsed))
+        }
+    }
+
+    return 0
+}
+
+function extractTurnChangesSummary(messages: DecryptedMessage[]): TurnChangesSummary | null {
+    let matchedToolId: string | null = null
+    let totalAdditions = 0
+    let totalDeletions = 0
+
+    for (const message of messages) {
+        const normalized = normalizeDecryptedMessage(message)
+        if (!normalized || normalized.role !== 'agent') {
+            continue
+        }
+
+        for (const content of normalized.content) {
+            if (content.type !== 'tool-call') {
+                continue
+            }
+            if (content.name.trim().toLowerCase() !== 'codexturnchanges') {
+                continue
+            }
+
+            matchedToolId = content.id
+            const input = asRecord(content.input)
+            const files = Array.isArray(input?.files) ? input.files : []
+            let additions = 0
+            let deletions = 0
+
+            for (const file of files) {
+                const fileRecord = asRecord(file)
+                if (!fileRecord) {
+                    continue
+                }
+                additions += toNonNegativeNumber(fileRecord.additions)
+                deletions += toNonNegativeNumber(fileRecord.deletions)
+            }
+
+            if (additions === 0 && deletions === 0) {
+                const diffStats = asRecord(input?.diff_stats)
+                additions = toNonNegativeNumber(diffStats?.additions)
+                deletions = toNonNegativeNumber(diffStats?.deletions)
+            }
+
+            totalAdditions += additions
+            totalDeletions += deletions
+        }
+    }
+
+    if (!matchedToolId) {
+        return null
+    }
+
+    return {
+        toolId: matchedToolId,
+        additions: totalAdditions,
+        deletions: totalDeletions
+    }
 }
 
 function dedupeAndSortMessages(messages: DecryptedMessage[]): DecryptedMessage[] {
@@ -508,8 +623,7 @@ export function BriefTurnList(props: {
 }) {
     const {
         briefCardAdaptiveHeight,
-        briefCardMaxLines,
-        briefCardShowLastBlockFullContent
+        briefCardMaxLines
     } = useBriefModeCardSettings()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
@@ -517,6 +631,8 @@ export function BriefTurnList(props: {
     const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
     const [turnDetailStateById, setTurnDetailStateById] = useState<TurnDetailStateMap>({})
     const [liveActivityByTurnId, setLiveActivityByTurnId] = useState<Record<string, string>>({})
+    const [turnChangesSummaryByTurnId, setTurnChangesSummaryByTurnId] = useState<Record<string, TurnChangesSummary | null>>({})
+    const turnChangesSummaryInFlightRef = useRef(new Set<string>())
     const [isMobileViewport, setIsMobileViewport] = useState(() => (
         typeof window !== 'undefined' && window.matchMedia(MOBILE_BRIEF_BREAKPOINT_QUERY).matches
     ))
@@ -530,6 +646,11 @@ export function BriefTurnList(props: {
         () => (activeTurnId ? (turnDetailStateById[activeTurnId] ?? buildDefaultTurnState()) : null),
         [activeTurnId, turnDetailStateById]
     )
+    const codexPlanModeEnabled = useMemo(
+        () => isCodexPlanModeEnabled(props.session),
+        [props.session]
+    )
+    const generatingBadgeText = codexPlanModeEnabled ? 'Generating (Plan mode)' : 'Generating'
 
     const fetchTurnMessages = useCallback(async (
         turnId: string,
@@ -598,11 +719,42 @@ export function BriefTurnList(props: {
     const openTurnDetails = useCallback((turnId: string) => {
         setActiveTurnId(turnId)
 
+        if (typeof window !== 'undefined' && readTurnChangesDetailToolId(window.location.search)) {
+            writeTurnChangesDetailToolId(null, 'replace')
+        }
+
         if (isMobileViewport && typeof window !== 'undefined') {
             const currentTurnId = readMobileBriefTurnId(window.location.search)
             if (currentTurnId !== turnId) {
                 writeMobileBriefTurnId(turnId, 'push')
             }
+        }
+    }, [isMobileViewport])
+
+    const openTurnChangesDetails = useCallback((turnId: string, toolId: string) => {
+        setActiveTurnId(turnId)
+        if (typeof window === 'undefined') {
+            return
+        }
+
+        if (isMobileViewport) {
+            const currentTurnId = readMobileBriefTurnId(window.location.search)
+            const currentToolId = readTurnChangesDetailToolId(window.location.search)
+            if (currentTurnId === turnId && currentToolId === toolId) {
+                return
+            }
+
+            const url = new URL(window.location.href)
+            url.searchParams.set(MOBILE_BRIEF_TURN_QUERY_KEY, turnId)
+            url.searchParams.set(TURN_CHANGES_DETAIL_QUERY_KEY, toolId)
+            const nextUrl = `${url.pathname}${url.search}${url.hash}`
+            window.history.pushState(window.history.state, '', nextUrl)
+            return
+        }
+
+        const currentToolId = readTurnChangesDetailToolId(window.location.search)
+        if (currentToolId !== toolId) {
+            writeTurnChangesDetailToolId(toolId, 'replace')
         }
     }, [isMobileViewport])
 
@@ -613,6 +765,10 @@ export function BriefTurnList(props: {
                 window.history.back()
                 return
             }
+        }
+
+        if (typeof window !== 'undefined' && readTurnChangesDetailToolId(window.location.search)) {
+            writeTurnChangesDetailToolId(null, 'replace')
         }
 
         setActiveTurnId(null)
@@ -719,6 +875,61 @@ export function BriefTurnList(props: {
     }, [activeTurnId, fetchTurnMessages, turnDetailStateById])
 
     useEffect(() => {
+        if (activeTurnId !== null || typeof window === 'undefined') {
+            return
+        }
+        if (readTurnChangesDetailToolId(window.location.search)) {
+            writeTurnChangesDetailToolId(null, 'replace')
+        }
+    }, [activeTurnId])
+
+    useEffect(() => {
+        const latestTurn = props.turns[props.turns.length - 1]
+        if (!latestTurn || latestTurn.status !== 'closed') {
+            return
+        }
+
+        const turnId = latestTurn.id
+        if (Object.prototype.hasOwnProperty.call(turnChangesSummaryByTurnId, turnId)) {
+            return
+        }
+        if (turnChangesSummaryInFlightRef.current.has(turnId)) {
+            return
+        }
+
+        let cancelled = false
+        turnChangesSummaryInFlightRef.current.add(turnId)
+
+        void props.api.getConversationTurnMessages(props.session.id, turnId, {
+            limit: TURN_CHANGES_SUMMARY_FETCH_LIMIT,
+            beforeSeq: null
+        }).then((response) => {
+            if (cancelled) {
+                return
+            }
+            const summary = extractTurnChangesSummary(response.messages)
+            setTurnChangesSummaryByTurnId((previous) => ({
+                ...previous,
+                [turnId]: summary
+            }))
+        }).catch(() => {
+            if (cancelled) {
+                return
+            }
+            setTurnChangesSummaryByTurnId((previous) => ({
+                ...previous,
+                [turnId]: null
+            }))
+        }).finally(() => {
+            turnChangesSummaryInFlightRef.current.delete(turnId)
+        })
+
+        return () => {
+            cancelled = true
+        }
+    }, [props.api, props.session.id, props.turns, turnChangesSummaryByTurnId])
+
+    useEffect(() => {
         if (typeof window === 'undefined') {
             return
         }
@@ -822,11 +1033,17 @@ export function BriefTurnList(props: {
         const userPreview = turn.userPreview?.trim() ?? ''
         const assistantPreviewRaw = turn.assistantPreview?.trim() ?? ''
         const assistantPreview = normalizePreview(turn.assistantPreview)
-        const isLiveTurn = props.thinking && activeTurnIdForStreaming === turn.id
+        const isLiveTurn = isBriefTurnLive({
+            status: turn.status,
+            thinking: props.thinking,
+            isActiveStreamingTurn: activeTurnIdForStreaming === turn.id
+        })
         const liveActivity = liveActivityByTurnId[turn.id] ?? 'Waiting for Codex activity…'
-        const shouldShowFullLastBlock = briefCardShowLastBlockFullContent
-            && latestTurnId === turn.id
-            && !isLiveTurn
+        const shouldShowFullLastBlock = shouldShowLatestBriefTurnAsFullContent({
+            isLatestTurn: latestTurnId === turn.id,
+            isLiveTurn
+        })
+        const turnChangesSummary = turnChangesSummaryByTurnId[turn.id]
         const previewFade = shouldShowFullLastBlock
             ? false
             : shouldShowPreviewFade(assistantPreview, briefCardMaxLines)
@@ -860,7 +1077,7 @@ export function BriefTurnList(props: {
                                     <div className="flex items-center gap-2">
                                         <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700">
                                             <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
-                                            Generating
+                                            {generatingBadgeText}
                                         </span>
                                         <span className="ml-auto text-[11px] text-[var(--app-hint)]">{messageMeta}</span>
                                     </div>
@@ -887,6 +1104,18 @@ export function BriefTurnList(props: {
                                 >
                                     Open details
                                 </button>
+                                {turnChangesSummary ? (
+                                    <>
+                                        <span>·</span>
+                                        <button
+                                            type="button"
+                                            className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                            onClick={() => openTurnChangesDetails(turn.id, turnChangesSummary.toolId)}
+                                        >
+                                            Turn changes (+{turnChangesSummary.additions} -{turnChangesSummary.deletions})
+                                        </button>
+                                    </>
+                                ) : null}
                             </div>
                         </div>
                     ) : (
@@ -919,12 +1148,14 @@ export function BriefTurnList(props: {
     }, [
         activeTurnIdForStreaming,
         briefCardMaxLines,
-        briefCardShowLastBlockFullContent,
         collapsedPreviewStyle,
         latestTurnId,
         liveActivityByTurnId,
         openTurnDetails,
-        props.thinking
+        openTurnChangesDetails,
+        props.thinking,
+        turnChangesSummaryByTurnId,
+        generatingBadgeText
     ])
 
     useEffect(() => {
