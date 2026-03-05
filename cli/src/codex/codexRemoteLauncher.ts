@@ -754,6 +754,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 clientInfo: {
                     name: 'hapi-codex-client',
                     version: '1.0.0'
+                },
+                capabilities: {
+                    experimentalApi: true
                 }
             });
         } else if (mcpClient) {
@@ -770,6 +773,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             deferUserMessageUntilDequeue: boolean;
         } | null = null;
         let first = true;
+        let currentThreadModel: string | undefined;
 
         while (!this.shouldExit) {
             logActiveHandles('loop-top');
@@ -859,6 +863,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                                 const resumeRecord = asRecord(resumeResponse);
                                 const resumeThread = resumeRecord ? asRecord(resumeRecord.thread) : null;
                                 threadId = asString(resumeThread?.id) ?? resumeCandidate;
+                                currentThreadModel = asString(resumeRecord?.model) ?? currentThreadModel;
                                 logger.debug(`[Codex] Resumed app-server thread ${threadId}`);
                             } catch (error) {
                                 logger.warn(`[Codex] Failed to resume app-server thread ${resumeCandidate}, starting new thread`, error);
@@ -872,6 +877,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             const threadRecord = asRecord(threadResponse);
                             const thread = threadRecord ? asRecord(threadRecord.thread) : null;
                             threadId = asString(thread?.id);
+                            currentThreadModel = asString(threadRecord?.model) ?? currentThreadModel;
                             if (!threadId) {
                                 throw new Error('app-server thread/start did not return thread.id');
                             }
@@ -889,7 +895,12 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             message: message.message,
                             mode: message.mode,
                             cliOverrides: session.codexCliOverrides,
-                            cwd: session.path
+                            cwd: session.path,
+                            overrides: message.mode.collaborationMode
+                                ? (message.mode.model ?? currentThreadModel
+                                    ? { model: message.mode.model ?? currentThreadModel }
+                                    : undefined)
+                                : undefined
                         });
                         setTurnInFlight(true);
                         const turnResponse = await appServerClient.startTurn(turnParams, {
@@ -931,7 +942,12 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         message: message.message,
                         mode: message.mode,
                         cliOverrides: session.codexCliOverrides,
-                        cwd: session.path
+                        cwd: session.path,
+                        overrides: message.mode.collaborationMode
+                            ? (message.mode.model ?? currentThreadModel
+                                ? { model: message.mode.model ?? currentThreadModel }
+                                : undefined)
+                            : undefined
                     });
                     setTurnInFlight(true);
                     const turnResponse = await appServerClient.startTurn(turnParams, {

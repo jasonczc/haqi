@@ -155,10 +155,13 @@ export function buildTurnStartParams(args: {
     const collaborationMode = args.mode?.collaborationMode;
     const model = args.overrides?.model ?? args.mode?.model;
     if (collaborationMode) {
-        const settings = model ? { model } : undefined;
-        params.collaborationMode = settings
-            ? { mode: collaborationMode, settings }
-            : { mode: collaborationMode };
+        if (!model) {
+            throw new Error('Collaboration mode requires model');
+        }
+        params.collaborationMode = {
+            mode: collaborationMode,
+            settings: { model }
+        };
     } else if (model) {
         params.model = model;
     }

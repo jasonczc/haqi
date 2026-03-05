@@ -69,8 +69,23 @@ export async function runCodex(opts: {
     const codexCliOverrides = parseCodexCliOverrides(opts.codexArgs);
     const sessionWrapperRef: { current: CodexSession | null } = { current: null };
 
+    const normalizeConfiguredModel = (value: unknown): string | undefined => {
+        if (typeof value !== 'string') {
+            return undefined;
+        }
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return undefined;
+        }
+        const lowered = trimmed.toLowerCase();
+        if (lowered === 'default' || lowered === 'auto') {
+            return undefined;
+        }
+        return trimmed;
+    };
+
     let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'default';
-    const currentModel = opts.model;
+    const currentModel = normalizeConfiguredModel(opts.model ?? sessionInfo.metadata?.model);
     let currentEffort: ReasoningEffort | undefined = opts.effort;
     const metadataCollaborationMode = typeof sessionInfo.metadata?.collaborationMode === 'string'
         ? sessionInfo.metadata.collaborationMode.trim().toLowerCase()

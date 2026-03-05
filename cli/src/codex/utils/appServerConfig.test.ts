@@ -75,6 +75,14 @@ describe('appServerConfig', () => {
         expect(params.model).toBeUndefined();
     });
 
+    it('throws when collaboration mode is set but model is absent', () => {
+        expect(() => buildTurnStartParams({
+            threadId: 'thread-1',
+            message: 'hello',
+            mode: { permissionMode: 'default', collaborationMode: 'plan' }
+        })).toThrowError('Collaboration mode requires model');
+    });
+
     it('applies CLI overrides for turns when permission mode is default', () => {
         const params = buildTurnStartParams({
             threadId: 'thread-1',
