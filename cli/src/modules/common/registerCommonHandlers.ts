@@ -22,7 +22,7 @@ export function registerCommonHandlers(
     registerDirectoryHandlers(rpcHandlerManager, workingDirectory)
     registerRipgrepHandlers(rpcHandlerManager, workingDirectory)
     registerDifftasticHandlers(rpcHandlerManager, workingDirectory)
-    registerSlashCommandHandlers(rpcHandlerManager)
+    registerSlashCommandHandlers(rpcHandlerManager, workingDirectory)
     registerSkillsHandlers(rpcHandlerManager)
     registerMcpHandlers(rpcHandlerManager, { flavor: options.flavor })
     registerGitHandlers(rpcHandlerManager, workingDirectory)
