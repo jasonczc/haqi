@@ -10,7 +10,11 @@ import { reconcileChatBlocks } from '@/chat/reconcile'
 import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
-import { isBriefTurnLive, shouldShowLatestBriefTurnAsFullContent } from '@/components/AssistantChat/briefTurnPresentation'
+import {
+    isBriefTurnLive,
+    shouldFetchLatestTurnChangesSummary,
+    shouldShowLatestBriefTurnAsFullContent
+} from '@/components/AssistantChat/briefTurnPresentation'
 import { Spinner } from '@/components/Spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -367,7 +371,8 @@ function extractTurnChangesSummary(messages: DecryptedMessage[]): TurnChangesSum
             if (content.type !== 'tool-call') {
                 continue
             }
-            if (content.name.trim().toLowerCase() !== 'codexturnchanges') {
+            const normalizedToolName = content.name.trim().toLowerCase().replace(/[_-]/g, '')
+            if (!normalizedToolName.endsWith('codexturnchanges')) {
                 continue
             }
 
@@ -406,6 +411,35 @@ function extractTurnChangesSummary(messages: DecryptedMessage[]): TurnChangesSum
         additions: totalAdditions,
         deletions: totalDeletions
     }
+}
+
+async function fetchTurnChangesSummaryByPaging(
+    api: ApiClient,
+    sessionId: string,
+    turnId: string
+): Promise<TurnChangesSummary | null> {
+    let beforeSeq: number | null = null
+    let pageCount = 0
+
+    while (pageCount < 8) {
+        const response = await api.getConversationTurnMessages(sessionId, turnId, {
+            limit: TURN_CHANGES_SUMMARY_FETCH_LIMIT,
+            beforeSeq
+        })
+        const summary = extractTurnChangesSummary(response.messages)
+        if (summary) {
+            return summary
+        }
+
+        if (!response.page.hasMore || response.page.nextBeforeSeq === null) {
+            return null
+        }
+
+        beforeSeq = response.page.nextBeforeSeq
+        pageCount += 1
+    }
+
+    return null
 }
 
 function dedupeAndSortMessages(messages: DecryptedMessage[]): DecryptedMessage[] {
@@ -633,6 +667,7 @@ export function BriefTurnList(props: {
     const [liveActivityByTurnId, setLiveActivityByTurnId] = useState<Record<string, string>>({})
     const [turnChangesSummaryByTurnId, setTurnChangesSummaryByTurnId] = useState<Record<string, TurnChangesSummary | null>>({})
     const turnChangesSummaryInFlightRef = useRef(new Set<string>())
+    const turnChangesSummaryFetchedUpdatedAtRef = useRef<Record<string, number>>({})
     const [isMobileViewport, setIsMobileViewport] = useState(() => (
         typeof window !== 'undefined' && window.matchMedia(MOBILE_BRIEF_BREAKPOINT_QUERY).matches
     ))
@@ -885,29 +920,27 @@ export function BriefTurnList(props: {
 
     useEffect(() => {
         const latestTurn = props.turns[props.turns.length - 1]
-        if (!latestTurn || latestTurn.status !== 'closed') {
+        const latestTurnId = latestTurn?.id ?? null
+        const latestTurnUpdatedAt = latestTurn?.updatedAt ?? null
+
+        if (!shouldFetchLatestTurnChangesSummary({
+            latestTurnId,
+            latestTurnUpdatedAt,
+            fetchedUpdatedAtByTurnId: turnChangesSummaryFetchedUpdatedAtRef.current,
+            inFlightTurnIds: turnChangesSummaryInFlightRef.current
+        })) {
             return
         }
 
-        const turnId = latestTurn.id
-        if (Object.prototype.hasOwnProperty.call(turnChangesSummaryByTurnId, turnId)) {
-            return
-        }
-        if (turnChangesSummaryInFlightRef.current.has(turnId)) {
-            return
-        }
+        const turnId = latestTurnId as string
 
         let cancelled = false
         turnChangesSummaryInFlightRef.current.add(turnId)
 
-        void props.api.getConversationTurnMessages(props.session.id, turnId, {
-            limit: TURN_CHANGES_SUMMARY_FETCH_LIMIT,
-            beforeSeq: null
-        }).then((response) => {
+        void fetchTurnChangesSummaryByPaging(props.api, props.session.id, turnId).then((summary) => {
             if (cancelled) {
                 return
             }
-            const summary = extractTurnChangesSummary(response.messages)
             setTurnChangesSummaryByTurnId((previous) => ({
                 ...previous,
                 [turnId]: summary
@@ -921,13 +954,16 @@ export function BriefTurnList(props: {
                 [turnId]: null
             }))
         }).finally(() => {
+            if (latestTurnUpdatedAt !== null) {
+                turnChangesSummaryFetchedUpdatedAtRef.current[turnId] = latestTurnUpdatedAt
+            }
             turnChangesSummaryInFlightRef.current.delete(turnId)
         })
 
         return () => {
             cancelled = true
         }
-    }, [props.api, props.session.id, props.turns, turnChangesSummaryByTurnId])
+    }, [props.api, props.session.id, props.turns])
 
     useEffect(() => {
         if (typeof window === 'undefined') {
