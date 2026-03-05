@@ -276,8 +276,11 @@ export default {
   // Queue dialog
   'queue.mode.direct': 'Direct',
   'queue.mode.queue': 'Queue',
+  'queue.mode.plan': 'Plan',
   'queue.mode.directHint': 'Send immediately (classic behavior)',
   'queue.mode.queueHint': 'Allow sending while running (queued)',
+  'queue.mode.planEnabledHint': 'Plan mode is on',
+  'queue.mode.planDisabledHint': 'Enable plan mode',
   'queue.dialog.title': 'Queue',
   'queue.dialog.description': 'Inspect and manage pending queued messages',
   'queue.dialog.modeLabel': 'Send mode',
@@ -477,4 +480,6 @@ export default {
   'misc.permissionRequired': 'permission required',
   'misc.percentLeft': '{percent}% left',
   'misc.online': 'online',
+  'codex.mode.plan': 'plan mode',
+  'codex.mode.normal': 'normal mode',
 } as const

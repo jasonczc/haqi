@@ -345,6 +345,10 @@ function writeCodexSendMode(sessionId: string, mode: CodexSendMode): void {
     }
 }
 
+function normalizeCodexCollaborationMode(value: string | undefined): 'plan' | 'default' {
+    return value?.trim().toLowerCase() === 'plan' ? 'plan' : 'default'
+}
+
 export function SessionChat(props: {
     api: ApiClient
     session: Session
@@ -397,6 +401,9 @@ export function SessionChat(props: {
     const [isCodexQueueMutating, setIsCodexQueueMutating] = useState(false)
     const [codexQueueError, setCodexQueueError] = useState<string | null>(null)
     const [codexSendMode, setCodexSendMode] = useState<CodexSendMode>(() => readCodexSendMode(props.session.id))
+    const [codexCollaborationMode, setCodexCollaborationMode] = useState<'plan' | 'default'>(
+        () => normalizeCodexCollaborationMode(props.session.metadata?.collaborationMode)
+    )
     const [dismissedCodexPlanSignature, setDismissedCodexPlanSignature] = useState<string | null>(null)
     const [isCodexPlanCollapsed, setIsCodexPlanCollapsed] = useState(false)
     const [isMcpDialogOpen, setIsMcpDialogOpen] = useState(false)
@@ -444,7 +451,7 @@ export function SessionChat(props: {
     const dialogQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 6_000
     const agentFlavor = props.session.metadata?.flavor ?? null
     const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
-    const { abortSession, switchSession, setPermissionMode, setModel, setThinkEffort } = useSessionActions(
+    const { abortSession, switchSession, setPermissionMode, setModel, setThinkEffort, setCollaborationMode } = useSessionActions(
         props.api,
         props.session.id,
         agentFlavor
@@ -562,6 +569,7 @@ export function SessionChat(props: {
         setIsCodexQueueMutating(false)
         setCodexQueueError(null)
         setCodexSendMode(readCodexSendMode(props.session.id))
+        setCodexCollaborationMode(normalizeCodexCollaborationMode(props.session.metadata?.collaborationMode))
         setDismissedCodexPlanSignature(null)
         setIsCodexPlanCollapsed(false)
         setIsMcpDialogOpen(false)
@@ -576,6 +584,10 @@ export function SessionChat(props: {
         setComposerInjectedPrompt(null)
         composerPromptIdRef.current = 0
     }, [props.session.id])
+
+    useEffect(() => {
+        setCodexCollaborationMode(normalizeCodexCollaborationMode(props.session.metadata?.collaborationMode))
+    }, [props.session.metadata?.collaborationMode])
 
     const normalizedMessages: NormalizedMessage[] = useMemo(() => {
         if (props.viewMode === 'brief') {
@@ -680,6 +692,21 @@ export function SessionChat(props: {
             console.error('Failed to set think effort:', e)
         }
     }, [setThinkEffort, props.onRefresh, haptic])
+
+    const handleCodexPlanModeChange = useCallback(async (enabled: boolean) => {
+        const nextMode: 'plan' | 'default' = enabled ? 'plan' : 'default'
+        const previousMode = codexCollaborationMode
+        setCodexCollaborationMode(nextMode)
+        try {
+            await setCollaborationMode(nextMode)
+            haptic.notification('success')
+            props.onRefresh()
+        } catch (e) {
+            setCodexCollaborationMode(previousMode)
+            haptic.notification('error')
+            console.error('Failed to set codex collaboration mode:', e)
+        }
+    }, [setCollaborationMode, props.onRefresh, haptic, codexCollaborationMode])
 
     // Abort handler
     const handleAbort = useCallback(async () => {
@@ -1345,6 +1372,7 @@ export function SessionChat(props: {
                         modelMode={props.session.modelMode}
                         model={props.session.metadata?.model}
                         thinkEffort={props.session.metadata?.thinkEffort}
+                        codexCollaborationMode={codexCollaborationMode}
                         agentFlavor={agentFlavor}
                         active={props.session.active}
                         allowSendWhenInactive
@@ -1360,6 +1388,7 @@ export function SessionChat(props: {
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
                         onCodexStatus={supportsQueueControls ? handleCodexStatus : undefined}
                         codexSendMode={codexSendMode}
+                        onCodexPlanModeChange={supportsQueueControls ? handleCodexPlanModeChange : undefined}
                         onCodexSendModeChange={supportsQueueControls ? handleCodexQueueModeChange : undefined}
                         codexQueuePendingCount={codexQueuePendingCount}
                         codexQueueSummary={codexQueueSummary}

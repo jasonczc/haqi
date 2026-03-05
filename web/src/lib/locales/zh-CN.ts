@@ -278,8 +278,11 @@ export default {
   // 队列
   'queue.mode.direct': '直发',
   'queue.mode.queue': '排队',
+  'queue.mode.plan': '计划',
   'queue.mode.directHint': '立即发送（传统模式）',
   'queue.mode.queueHint': '运行中也可继续发送（进入队列）',
+  'queue.mode.planEnabledHint': '计划模式已开启',
+  'queue.mode.planDisabledHint': '开启计划模式',
   'queue.dialog.title': '队列',
   'queue.dialog.description': '查看并管理待处理队列消息',
   'queue.dialog.modeLabel': '发送模式',
@@ -479,4 +482,6 @@ export default {
   'misc.permissionRequired': '需要权限',
   'misc.percentLeft': '剩余 {percent}%',
   'misc.online': '在线',
+  'codex.mode.plan': '计划模式',
+  'codex.mode.normal': '普通模式',
 } as const

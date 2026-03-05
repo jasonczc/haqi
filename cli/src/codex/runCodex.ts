@@ -47,7 +47,7 @@ export async function runCodex(opts: {
     let state: AgentState = {
         controlledByUser: false
     };
-    const { api, session } = await bootstrapSession({
+    const { api, session, sessionInfo } = await bootstrapSession({
         flavor: 'codex',
         startedBy,
         workingDirectory,
@@ -72,20 +72,31 @@ export async function runCodex(opts: {
     let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'default';
     const currentModel = opts.model;
     let currentEffort: ReasoningEffort | undefined = opts.effort;
-    let currentCollaborationMode: EnhancedMode['collaborationMode'];
+    const metadataCollaborationMode = typeof sessionInfo.metadata?.collaborationMode === 'string'
+        ? sessionInfo.metadata.collaborationMode.trim().toLowerCase()
+        : '';
+    let currentCollaborationMode: EnhancedMode['collaborationMode'] = metadataCollaborationMode
+        ? (metadataCollaborationMode === 'plan' ? 'plan' : undefined)
+        : undefined;
 
     const syncRuntimeMetadata = (): void => {
         session.updateMetadata((currentMetadata) => {
-            const { thinkEffort: _previousThinkEffort, ...metadataWithoutThinkEffort } = currentMetadata;
+            const {
+                thinkEffort: _previousThinkEffort,
+                collaborationMode: _previousCollaborationMode,
+                ...metadataWithoutRuntime
+            } = currentMetadata;
             return currentEffort
                 ? {
-                    ...metadataWithoutThinkEffort,
+                    ...metadataWithoutRuntime,
                     model: currentModel,
-                    thinkEffort: currentEffort
+                    thinkEffort: currentEffort,
+                    ...(currentCollaborationMode ? { collaborationMode: currentCollaborationMode } : {})
                 }
                 : {
-                    ...metadataWithoutThinkEffort,
-                    model: currentModel
+                    ...metadataWithoutRuntime,
+                    model: currentModel,
+                    ...(currentCollaborationMode ? { collaborationMode: currentCollaborationMode } : {})
                 };
         });
     };
@@ -347,6 +358,7 @@ export async function runCodex(opts: {
 
         if (config.collaborationMode !== undefined) {
             currentCollaborationMode = resolveCollaborationMode(config.collaborationMode);
+            syncRuntimeMetadata();
         }
 
         if (config.thinkEffort !== undefined) {

@@ -110,6 +110,7 @@ export function StatusBar(props: {
     modelMode?: ModelMode
     permissionMode?: PermissionMode
     agentFlavor?: string | null
+    collaborationMode?: string
     voiceStatus?: ConversationStatus
 }) {
     const { t } = useTranslation()
@@ -142,6 +143,13 @@ export function StatusBar(props: {
     const permissionModeLabel = displayPermissionMode ? getPermissionModeLabel(displayPermissionMode) : null
     const permissionModeTone = displayPermissionMode ? getPermissionModeTone(displayPermissionMode) : null
     const permissionModeColor = permissionModeTone ? PERMISSION_TONE_CLASSES[permissionModeTone] : 'text-[var(--app-hint)]'
+    const normalizedCollaborationMode = typeof props.collaborationMode === 'string'
+        ? props.collaborationMode.trim().toLowerCase()
+        : ''
+    const isCodexPlanMode = props.agentFlavor === 'codex' && normalizedCollaborationMode === 'plan'
+    const codexModeLabel = props.agentFlavor === 'codex'
+        ? (isCodexPlanMode ? t('codex.mode.plan') : t('codex.mode.normal'))
+        : null
 
     return (
         <div className="flex items-center justify-between px-2 pb-1">
@@ -153,6 +161,11 @@ export function StatusBar(props: {
                     <span className={`text-xs ${connectionStatus.color}`}>
                         {connectionStatus.text}
                     </span>
+                    {codexModeLabel ? (
+                        <span className={`text-[10px] ${isCodexPlanMode ? 'text-blue-500' : 'text-[var(--app-hint)]'}`}>
+                            {codexModeLabel}
+                        </span>
+                    ) : null}
                 </div>
             </div>
 

@@ -25,6 +25,7 @@ export type SessionMetadataSummary = {
     name?: string
     model?: string
     thinkEffort?: string
+    collaborationMode?: string
     availableModels?: string[]
     os?: string
     summary?: { text: string; updatedAt: number }

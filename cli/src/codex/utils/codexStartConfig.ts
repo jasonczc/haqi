@@ -69,6 +69,9 @@ export function buildCodexStartConfig(args: {
     if (args.mode.model) {
         startConfig.model = args.mode.model;
     }
+    if (args.mode.collaborationMode === 'plan') {
+        startConfig['include-plan-tool'] = true;
+    }
 
     return startConfig;
 }

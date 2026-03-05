@@ -352,6 +352,10 @@ export function ComposerButtons(props: {
     queueDisabled: boolean
     queuePendingCount: number
     onQueue: () => void
+    showPlanModeToggle: boolean
+    planModeEnabled: boolean
+    planModeDisabled: boolean
+    onPlanModeToggle: () => void
     showSendModeToggle: boolean
     sendMode: 'direct' | 'queue'
     sendModeDisabled: boolean
@@ -490,6 +494,23 @@ export function ComposerButtons(props: {
                 className="flex items-center gap-2"
                 title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
             >
+                {props.showPlanModeToggle ? (
+                    <button
+                        type="button"
+                        onClick={props.onPlanModeToggle}
+                        disabled={props.planModeDisabled}
+                        className={`rounded-full border px-2 py-1 text-[10px] font-medium transition-colors ${
+                            props.planModeEnabled
+                                ? 'border-blue-500/50 bg-blue-500/10 text-blue-600'
+                                : 'border-[var(--app-border)] bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                        title={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
+                        aria-label={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
+                    >
+                        {t('queue.mode.plan')}
+                    </button>
+                ) : null}
+
                 {props.showSendModeToggle ? (
                     <div className="inline-flex rounded-full border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-0.5">
                         <button

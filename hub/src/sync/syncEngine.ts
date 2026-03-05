@@ -903,6 +903,7 @@ export class SyncEngine {
             modelMode?: ModelMode
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            collaborationMode?: string | null
         }
     ): Promise<void> {
         let applied: {
@@ -910,6 +911,7 @@ export class SyncEngine {
             modelMode?: Session['modelMode']
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            collaborationMode?: string
         } | undefined
 
         try {
@@ -923,6 +925,7 @@ export class SyncEngine {
                     modelMode?: Session['modelMode']
                     model?: string
                     thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+                    collaborationMode?: string
                 }
             }
             const fromRpc = obj.applied
@@ -938,7 +941,8 @@ export class SyncEngine {
                 permissionMode: config.permissionMode,
                 modelMode: config.modelMode,
                 model: config.model,
-                thinkEffort: config.thinkEffort
+                thinkEffort: config.thinkEffort,
+                collaborationMode: config.collaborationMode ?? undefined
             }
         }
 
@@ -955,8 +959,10 @@ export class SyncEngine {
         const shouldUpdateModelMetadata = flavor === 'claude' && (applied.model !== undefined || config.model !== undefined)
         const shouldUpdateThinkEffortMetadata = (flavor === 'claude' || flavor === 'codex')
             && (applied.thinkEffort !== undefined || config.thinkEffort !== undefined)
+        const shouldUpdateCollaborationModeMetadata = flavor === 'codex'
+            && (applied.collaborationMode !== undefined || config.collaborationMode !== undefined)
 
-        if (shouldUpdateModelMetadata || shouldUpdateThinkEffortMetadata) {
+        if (shouldUpdateModelMetadata || shouldUpdateThinkEffortMetadata || shouldUpdateCollaborationModeMetadata) {
             const rawModel = applied.model ?? config.model
             const model = (() => {
                 if (typeof rawModel !== 'string') return undefined
@@ -969,15 +975,40 @@ export class SyncEngine {
                 applied.thinkEffort ?? config.thinkEffort,
                 flavor
             )
+            const collaborationMode = this.normalizeCollaborationModeForFlavor(
+                applied.collaborationMode ?? config.collaborationMode,
+                flavor
+            )
             const fallbackMetadata = session?.metadata ?? { path: '', host: '' }
             await this.sessionCache.updateSessionMetadata(sessionId, (metadata) => {
                 const source = metadata ?? fallbackMetadata
-                const { thinkEffort: _previousThinkEffort, ...withoutThinkEffort } = source
-                return {
-                    ...withoutThinkEffort,
-                    ...(shouldUpdateModelMetadata ? { model } : {}),
-                    ...(thinkEffort ? { thinkEffort } : {})
+                const next: typeof source = { ...source }
+
+                if (shouldUpdateModelMetadata) {
+                    if (model) {
+                        next.model = model
+                    } else {
+                        delete next.model
+                    }
                 }
+
+                if (shouldUpdateThinkEffortMetadata) {
+                    if (thinkEffort) {
+                        next.thinkEffort = thinkEffort
+                    } else {
+                        delete next.thinkEffort
+                    }
+                }
+
+                if (shouldUpdateCollaborationModeMetadata) {
+                    if (collaborationMode) {
+                        next.collaborationMode = collaborationMode
+                    } else {
+                        delete next.collaborationMode
+                    }
+                }
+
+                return next
             })
         }
 
@@ -993,6 +1024,7 @@ export class SyncEngine {
             modelMode?: ModelMode
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            collaborationMode?: string | null
         },
         error: unknown
     ): boolean {
@@ -1030,6 +1062,26 @@ export class SyncEngine {
         if (flavor !== 'claude' && flavor !== 'codex') {
             return undefined
         }
+        return normalized
+    }
+
+    private normalizeCollaborationModeForFlavor(
+        value: string | null | undefined,
+        flavor: string | null
+    ): string | undefined {
+        if (flavor !== 'codex') {
+            return undefined
+        }
+
+        if (typeof value !== 'string') {
+            return undefined
+        }
+
+        const normalized = value.trim().toLowerCase()
+        if (!normalized || normalized === 'default' || normalized === 'code' || normalized === 'normal') {
+            return undefined
+        }
+
         return normalized
     }
 
@@ -1728,6 +1780,9 @@ ${note.content}
             && isPermissionModeAllowedForFlavor(sourceSession.permissionMode, flavor)
             ? sourceSession.permissionMode
             : undefined
+        const sourceCollaborationMode = flavor === 'codex' && typeof metadata.collaborationMode === 'string'
+            ? (metadata.collaborationMode.trim().toLowerCase() === 'plan' ? 'plan' : undefined)
+            : undefined
         const duplicatedName = this.buildDuplicateSessionName(sourceSession)
 
         const spawn = async (resumeSessionId?: string) => await this.spawnSession(
@@ -1778,16 +1833,19 @@ ${note.content}
             }
         }
 
-        if (sourcePermissionMode !== undefined) {
+        if (sourcePermissionMode !== undefined || sourceCollaborationMode !== undefined) {
             const becameActive = await this.waitForSessionActive(spawnResult.sessionId)
             if (!becameActive) {
-                console.warn(`[SyncEngine] Skipped copying permission mode for ${spawnResult.sessionId}: session not active`)
+                console.warn(`[SyncEngine] Skipped copying session config for ${spawnResult.sessionId}: session not active`)
             } else {
                 try {
-                    await this.applySessionConfig(spawnResult.sessionId, { permissionMode: sourcePermissionMode })
+                    await this.applySessionConfig(spawnResult.sessionId, {
+                        permissionMode: sourcePermissionMode,
+                        collaborationMode: sourceCollaborationMode
+                    })
                 } catch (error) {
                     const message = error instanceof Error ? error.message : String(error)
-                    console.warn(`[SyncEngine] Failed to copy permission mode to ${spawnResult.sessionId}: ${message}`)
+                    console.warn(`[SyncEngine] Failed to copy session config to ${spawnResult.sessionId}: ${message}`)
                 }
             }
         }

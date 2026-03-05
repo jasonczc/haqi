@@ -19,6 +19,7 @@ export function useSessionActions(
     setPermissionMode: (mode: PermissionMode) => Promise<void>
     setModel: (model: string) => Promise<void>
     setThinkEffort: (thinkEffort: SessionThinkEffort) => Promise<void>
+    setCollaborationMode: (mode: 'default' | 'plan') => Promise<void>
     renameSession: (name: string) => Promise<void>
     deleteSession: () => Promise<void>
     spawnSameConfigSession: () => Promise<string>
@@ -96,6 +97,16 @@ export function useSessionActions(
         onSuccess: () => void invalidateSession(),
     })
 
+    const collaborationModeMutation = useMutation({
+        mutationFn: async (mode: 'default' | 'plan') => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            await api.setCollaborationMode(sessionId, mode)
+        },
+        onSuccess: () => void invalidateSession(),
+    })
+
     const renameMutation = useMutation({
         mutationFn: async (name: string) => {
             if (!api || !sessionId) {
@@ -148,6 +159,7 @@ export function useSessionActions(
         setPermissionMode: permissionMutation.mutateAsync,
         setModel: modelMutation.mutateAsync,
         setThinkEffort: thinkEffortMutation.mutateAsync,
+        setCollaborationMode: collaborationModeMutation.mutateAsync,
         renameSession: renameMutation.mutateAsync,
         deleteSession: deleteMutation.mutateAsync,
         spawnSameConfigSession: async () => await spawnFromExistingSession(false),
@@ -158,6 +170,7 @@ export function useSessionActions(
             || permissionMutation.isPending
             || modelMutation.isPending
             || thinkEffortMutation.isPending
+            || collaborationModeMutation.isPending
             || renameMutation.isPending
             || deleteMutation.isPending
             || spawnFromExistingMutation.isPending,

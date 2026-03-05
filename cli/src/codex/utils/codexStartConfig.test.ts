@@ -60,4 +60,15 @@ describe('buildCodexStartConfig', () => {
 
         expect(config.model).toBe('o3');
     });
+
+    it('enables plan tool when collaboration mode is plan', () => {
+        const config = buildCodexStartConfig({
+            message: 'hello',
+            mode: { permissionMode: 'default', collaborationMode: 'plan' },
+            first: false,
+            mcpServers
+        });
+
+        expect(config['include-plan-tool']).toBe(true);
+    });
 });

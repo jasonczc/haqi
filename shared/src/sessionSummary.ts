@@ -7,6 +7,7 @@ export type SessionSummaryMetadata = {
     machineId?: string
     model?: string
     thinkEffort?: string
+    collaborationMode?: string
     summary?: { text: string }
     flavor?: string | null
     worktree?: WorktreeMetadata
@@ -33,6 +34,7 @@ export function toSessionSummary(session: Session): SessionSummary {
         machineId: session.metadata.machineId ?? undefined,
         model: session.metadata.model,
         thinkEffort: session.metadata.thinkEffort,
+        collaborationMode: session.metadata.collaborationMode,
         summary: session.metadata.summary ? { text: session.metadata.summary.text } : undefined,
         flavor: session.metadata.flavor ?? null,
         worktree: session.metadata.worktree

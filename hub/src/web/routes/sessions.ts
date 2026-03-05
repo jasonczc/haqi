@@ -19,6 +19,10 @@ const thinkEffortUpdateSchema = z.object({
     thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'xhigh'])
 })
 
+const collaborationModeUpdateSchema = z.object({
+    mode: z.enum(['default', 'plan'])
+})
+
 const renameSessionSchema = z.object({
     name: z.string().min(1).max(255)
 })
@@ -773,6 +777,39 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ ok: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply think level'
+            return c.json({ error: message }, 409)
+        }
+    })
+
+    app.post('/sessions/:id/collaboration-mode', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine, { requireActive: true })
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = collaborationModeUpdateSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
+        if (flavor !== 'codex') {
+            return c.json({ error: 'Collaboration mode is only supported for Codex sessions' }, 400)
+        }
+
+        try {
+            await engine.applySessionConfig(sessionResult.sessionId, {
+                collaborationMode: parsed.data.mode === 'plan' ? 'plan' : null
+            })
+            return c.json({ ok: true })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to apply collaboration mode'
             return c.json({ error: message }, 409)
         }
     })

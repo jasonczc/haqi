@@ -311,7 +311,9 @@ export function HappyComposer(props: {
     onTerminal?: () => void
     onCodexStatus?: () => void
     codexSendMode?: CodexSendMode
+    codexCollaborationMode?: string
     onCodexSendModeChange?: (mode: CodexSendMode) => void
+    onCodexPlanModeChange?: (enabled: boolean) => void
     codexQueuePendingCount?: number
     codexQueueSummary?: QueueSummary | null
     codexQueueEntries?: QueueEntry[]
@@ -353,7 +355,9 @@ export function HappyComposer(props: {
         onTerminal,
         onCodexStatus,
         codexSendMode = 'direct',
+        codexCollaborationMode,
         onCodexSendModeChange,
+        onCodexPlanModeChange,
         codexQueuePendingCount = 0,
         codexQueueSummary = null,
         codexQueueEntries = [],
@@ -417,6 +421,10 @@ export function HappyComposer(props: {
 
     const controlsDisabled = disabled || (!active && !allowSendWhenInactive) || threadIsDisabled
     const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
+    const normalizedCollaborationMode = typeof codexCollaborationMode === 'string'
+        ? codexCollaborationMode.trim().toLowerCase()
+        : ''
+    const isCodexPlanMode = normalizedCollaborationMode === 'plan'
     const queueSendEnabled = supportsQueueControls && codexSendMode === 'queue'
     const showInlineQueuePanel = supportsQueueControls && codexQueueInlinePanelMode !== 'off'
     const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
@@ -706,6 +714,14 @@ export function HappyComposer(props: {
         onCodexSendModeChange(nextMode)
         haptic('light')
     }, [onCodexSendModeChange, controlsDisabled, codexSendMode, haptic])
+
+    const handleCodexPlanModeToggle = useCallback(() => {
+        if (!onCodexPlanModeChange || controlsDisabled) {
+            return
+        }
+        onCodexPlanModeChange(!isCodexPlanMode)
+        haptic('light')
+    }, [onCodexPlanModeChange, controlsDisabled, isCodexPlanMode, haptic])
 
     const shouldEnqueueWithoutImmediateChat = queueSendEnabled
         && Boolean(onCodexQueueEnqueue)
@@ -1145,6 +1161,7 @@ export function HappyComposer(props: {
                         modelMode={modelMode}
                         permissionMode={permissionMode}
                         agentFlavor={agentFlavor}
+                        collaborationMode={codexCollaborationMode}
                         voiceStatus={voiceStatus}
                     />
 
@@ -1295,6 +1312,10 @@ export function HappyComposer(props: {
                                 queueDisabled={controlsDisabled}
                                 queuePendingCount={Math.max(0, codexQueuePendingCount)}
                                 onQueue={handleCodexQueueOpen}
+                                showPlanModeToggle={supportsQueueControls && Boolean(onCodexPlanModeChange)}
+                                planModeEnabled={isCodexPlanMode}
+                                planModeDisabled={controlsDisabled || !onCodexPlanModeChange}
+                                onPlanModeToggle={handleCodexPlanModeToggle}
                                 showSendModeToggle={supportsQueueControls}
                                 sendMode={codexSendMode}
                                 sendModeDisabled={controlsDisabled || !onCodexSendModeChange}

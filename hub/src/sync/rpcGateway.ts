@@ -157,6 +157,7 @@ export class RpcGateway {
             modelMode?: ModelMode
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            collaborationMode?: string | null
         }
     ): Promise<unknown> {
         return await this.sessionRpc(sessionId, 'set-session-config', config)
