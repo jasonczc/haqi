@@ -253,6 +253,7 @@ export default function SettingsPage() {
     const currentFontScaleLabel = fontScaleOptions.find((opt) => opt.value === fontScale)?.label ?? '100%'
     const currentVoiceLanguage = voiceLanguages.find((lang) => lang.code === voiceLanguage)
     const currentQueuePanelLabel = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}`)
+    const currentQueuePanelModeDescription = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}.description`)
     const currentImageCompressionLevelLabel = t(
         `settings.behavior.imageCompression.level.${imageUploadCompressionLevel}`
     )
@@ -894,7 +895,7 @@ export default function SettingsPage() {
                         <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
                             {t('settings.behavior.title')}
                         </div>
-                        <div ref={queuePanelContainerRef} className="relative border-b border-[var(--app-divider)]">
+                        <div ref={queuePanelContainerRef} className="relative border-b border-[var(--app-border)]">
                             <button
                                 type="button"
                                 onClick={() => setIsQueuePanelOpen(!isQueuePanelOpen)}
@@ -907,7 +908,7 @@ export default function SettingsPage() {
                                         {t('settings.behavior.queueInlinePanel')}
                                     </span>
                                     <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.behavior.queueInlinePanel.description')}
+                                        {t('settings.behavior.queueInlinePanel.description')} · {currentQueuePanelModeDescription}
                                     </span>
                                 </div>
                                 <span className="flex items-center gap-1 text-[var(--app-hint)]">
@@ -918,7 +919,7 @@ export default function SettingsPage() {
 
                             {isQueuePanelOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[180px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
                                     role="listbox"
                                     aria-label={t('settings.behavior.queueInlinePanel')}
                                 >
@@ -931,15 +932,24 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleQueuePanelModeChange(mode)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
+                                                className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition-colors ${
                                                     isSelected
                                                         ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
                                                         : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
                                                 }`}
                                             >
-                                                <span>{t(`settings.behavior.queueInlinePanel.${mode}`)}</span>
+                                                <span className="flex min-w-0 flex-col">
+                                                    <span>{t(`settings.behavior.queueInlinePanel.${mode}`)}</span>
+                                                    <span
+                                                        className={`text-xs ${
+                                                            isSelected ? 'text-[var(--app-link)] opacity-80' : 'text-[var(--app-hint)]'
+                                                        }`}
+                                                    >
+                                                        {t(`settings.behavior.queueInlinePanel.${mode}.description`)}
+                                                    </span>
+                                                </span>
                                                 {isSelected && (
-                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                    <span className="mt-0.5 shrink-0 text-[var(--app-link)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
