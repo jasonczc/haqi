@@ -428,7 +428,9 @@ export function HappyComposer(props: {
         : ''
     const isCodexPlanMode = normalizedCollaborationMode === 'plan'
     const queueSendEnabled = supportsQueueControls && codexSendMode === 'queue'
-    const showInlineQueuePanel = supportsQueueControls && codexQueueInlinePanelMode !== 'off'
+    const showInlineQueuePanel = supportsQueueControls
+        && codexSendMode === 'queue'
+        && codexQueueInlinePanelMode !== 'off'
     const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
     const inlineQueueInQueue = codexQueueSummary?.inQueue ?? false
     const inlineQueueTaskRunning = codexQueueSummary?.taskRunning ?? false
