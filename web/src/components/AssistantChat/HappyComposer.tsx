@@ -317,6 +317,7 @@ export function HappyComposer(props: {
     codexQueuePendingCount?: number
     codexQueueSummary?: QueueSummary | null
     codexQueueEntries?: QueueEntry[]
+    codexQueueDialogOpen?: boolean
     codexQueueInlinePanelMode?: QueueInlinePanelMode
     onCodexQueueOpen?: () => void
     onCodexQueueUpdated?: () => void
@@ -361,6 +362,7 @@ export function HappyComposer(props: {
         codexQueuePendingCount = 0,
         codexQueueSummary = null,
         codexQueueEntries = [],
+        codexQueueDialogOpen = false,
         codexQueueInlinePanelMode = 'compact',
         onCodexQueueOpen,
         onCodexQueueUpdated,
@@ -1309,6 +1311,7 @@ export function HappyComposer(props: {
                                 statusDisabled={controlsDisabled || threadIsRunning}
                                 onStatus={handleCodexStatus}
                                 showQueueButton={showQueueButton}
+                                queueActive={codexQueueDialogOpen}
                                 queueDisabled={controlsDisabled}
                                 queuePendingCount={Math.max(0, codexQueuePendingCount)}
                                 onQueue={handleCodexQueueOpen}

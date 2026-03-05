@@ -930,9 +930,14 @@ export function SessionChat(props: {
         if (!supportsQueueControls) {
             return
         }
-        setIsCodexQueueDialogOpen(true)
-        setCodexQueueError(null)
-        void refreshCodexQueue()
+        setIsCodexQueueDialogOpen((previous) => {
+            const next = !previous
+            if (next) {
+                setCodexQueueError(null)
+                void refreshCodexQueue()
+            }
+            return next
+        })
     }, [supportsQueueControls, refreshCodexQueue])
 
     const handleCodexQueueEnqueue = useCallback(async (payload: {
@@ -1393,6 +1398,7 @@ export function SessionChat(props: {
                         codexQueuePendingCount={codexQueuePendingCount}
                         codexQueueSummary={codexQueueSummary}
                         codexQueueEntries={codexQueueEntries}
+                        codexQueueDialogOpen={isCodexQueueDialogOpen}
                         codexQueueInlinePanelMode={isCodexQueueDialogOpen ? 'off' : queueInlinePanelMode}
                         onCodexQueueOpen={supportsQueueControls ? handleCodexQueueOpen : undefined}
                         onCodexQueueUpdated={supportsQueueControls ? handleCodexQueueRefreshAfterSend : undefined}

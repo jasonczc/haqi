@@ -349,6 +349,7 @@ export function ComposerButtons(props: {
     statusDisabled: boolean
     onStatus: () => void
     showQueueButton: boolean
+    queueActive: boolean
     queueDisabled: boolean
     queuePendingCount: number
     onQueue: () => void
@@ -434,7 +435,11 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={t('composer.queue')}
                         title={t('composer.queue')}
-                        className="relative flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className={`relative flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            props.queueActive
+                                ? 'bg-violet-500/10 text-violet-600'
+                                : 'text-[var(--app-fg)]/60 hover:bg-[var(--app-bg)] hover:text-violet-600'
+                        }`}
                         onClick={props.onQueue}
                         disabled={props.queueDisabled}
                     >
