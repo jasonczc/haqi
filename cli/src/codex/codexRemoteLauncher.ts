@@ -39,6 +39,8 @@ function shouldUseAppServer(): boolean {
     return !useMcpServer;
 }
 
+const AUTO_EXECUTE_PLAN_PROMPT = 'Plan approved. Exit plan mode and start implementing now.';
+
 class CodexRemoteLauncher extends RemoteLauncherBase {
     private readonly session: CodexSession;
     private readonly useAppServer: boolean;
@@ -313,6 +315,11 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             return rows.length > 0 ? rows.join('\n') : null;
         };
 
+        let activeTurnMode: EnhancedMode | null = null;
+        let planAutoExecutePending: {
+            turnId: string | null;
+        } | null = null;
+
         const permissionHandler = new CodexPermissionHandler(session.client, {
             getPermissionMode: () => session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined,
             onRequest: ({ id, toolName, input }) => {
@@ -476,10 +483,23 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 sendReady();
             }
 
+            if (msgType === 'tool_call_end') {
+                const toolName = asString(msg.name);
+                if (toolName === 'ExitPlanMode' || toolName === 'exit_plan_mode') {
+                    if (session.getCollaborationMode() === 'plan') {
+                        planAutoExecutePending = {
+                            turnId: eventTurnId ?? this.currentTurnId
+                        };
+                        messageBuffer.addMessage('Plan approved. Preparing auto-execution...', 'status');
+                    }
+                }
+            }
+
             if (msgType === 'task_started') {
                 setTurnInFlight(true);
             }
             if (isTerminalTurnEvent) {
+                const terminalTurnId = eventTurnId ?? this.currentTurnId;
                 setTurnInFlight(false);
 
                 const summaryStatus = msgType === 'task_complete'
@@ -504,6 +524,31 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     },
                     id: randomUUID()
                 });
+
+                const planAutoExecuteMatchedTurn = Boolean(
+                    planAutoExecutePending
+                    && (!planAutoExecutePending.turnId || !terminalTurnId || planAutoExecutePending.turnId === terminalTurnId)
+                );
+                if (msgType === 'task_complete' && planAutoExecuteMatchedTurn) {
+                    const fallbackPermissionMode = session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined;
+                    const executeMode: EnhancedMode = {
+                        ...(activeTurnMode ?? { permissionMode: fallbackPermissionMode ?? 'default' }),
+                        collaborationMode: undefined,
+                        routeContext: undefined
+                    };
+                    session.setCollaborationMode(undefined, { syncMetadata: true });
+                    session.queue.unshift(AUTO_EXECUTE_PLAN_PROMPT, executeMode, {
+                        deferUserMessageUntilDequeue: true
+                    });
+                    session.sendSessionEvent({
+                        type: 'message',
+                        message: 'Plan 已确认，自动切换到默认模式并开始执行。'
+                    });
+                    planAutoExecutePending = null;
+                } else if (planAutoExecuteMatchedTurn) {
+                    planAutoExecutePending = null;
+                }
+                activeTurnMode = null;
 
                 diffProcessor.reset();
                 this.turnChangeTracker.reset();
@@ -839,6 +884,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             currentModeHash = message.hash;
 
             try {
+                activeTurnMode = message.mode;
                 if (!wasCreated) {
                     if (useAppServer && appServerClient) {
                         const threadParams = buildThreadStartParams({
@@ -968,6 +1014,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 const isAbortError = error instanceof Error && error.name === 'AbortError';
                 clearLiveActivity();
                 setTurnInFlight(false);
+                activeTurnMode = null;
+                planAutoExecutePending = null;
 
                 if (isAbortError) {
                     messageBuffer.addMessage('Aborted by user', 'status');

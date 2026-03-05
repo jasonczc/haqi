@@ -17,6 +17,7 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
     readonly startedBy: 'runner' | 'terminal';
     readonly startingMode: 'local' | 'remote';
     localLaunchFailure: LocalLaunchFailure | null = null;
+    private collaborationMode: EnhancedMode['collaborationMode'];
 
     constructor(opts: {
         api: ApiClient;
@@ -32,6 +33,7 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
         codexArgs?: string[];
         codexCliOverrides?: CodexCliOverrides;
         permissionMode?: PermissionMode;
+        collaborationMode?: EnhancedMode['collaborationMode'];
     }) {
         super({
             api: opts.api,
@@ -56,10 +58,34 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
         this.startedBy = opts.startedBy;
         this.startingMode = opts.startingMode;
         this.permissionMode = opts.permissionMode;
+        this.collaborationMode = opts.collaborationMode;
     }
 
     setPermissionMode = (mode: PermissionMode): void => {
         this.permissionMode = mode;
+    };
+
+    setCollaborationMode = (
+        mode: EnhancedMode['collaborationMode'],
+        options?: { syncMetadata?: boolean }
+    ): void => {
+        this.collaborationMode = mode;
+
+        if (options?.syncMetadata) {
+            this.client.updateMetadata((metadata) => {
+                const next = { ...metadata };
+                if (mode) {
+                    next.collaborationMode = mode;
+                } else {
+                    delete next.collaborationMode;
+                }
+                return next;
+            });
+        }
+    };
+
+    getCollaborationMode = (): EnhancedMode['collaborationMode'] => {
+        return this.collaborationMode;
     };
 
     recordLocalLaunchFailure = (message: string, exitReason: LocalLaunchExitReason): void => {

@@ -94,7 +94,12 @@ export async function runCodex(opts: {
         ? (metadataCollaborationMode === 'plan' ? 'plan' : undefined)
         : undefined;
 
+    const getCurrentCollaborationMode = (): EnhancedMode['collaborationMode'] => {
+        return sessionWrapperRef.current?.getCollaborationMode() ?? currentCollaborationMode;
+    };
+
     const syncRuntimeMetadata = (): void => {
+        const collaborationMode = getCurrentCollaborationMode();
         session.updateMetadata((currentMetadata) => {
             const {
                 thinkEffort: _previousThinkEffort,
@@ -106,12 +111,12 @@ export async function runCodex(opts: {
                     ...metadataWithoutRuntime,
                     model: currentModel,
                     thinkEffort: currentEffort,
-                    ...(currentCollaborationMode ? { collaborationMode: currentCollaborationMode } : {})
+                    ...(collaborationMode ? { collaborationMode } : {})
                 }
                 : {
                     ...metadataWithoutRuntime,
                     model: currentModel,
-                    ...(currentCollaborationMode ? { collaborationMode: currentCollaborationMode } : {})
+                    ...(collaborationMode ? { collaborationMode } : {})
                 };
         });
     };
@@ -186,7 +191,7 @@ export async function runCodex(opts: {
             mode: sessionInstance?.mode ?? startingMode,
             sessionId: sessionInstance?.sessionId ?? null,
             permissionMode: currentPermissionMode,
-            collaborationMode: currentCollaborationMode,
+            collaborationMode: getCurrentCollaborationMode(),
             queueSnapshot: getCodexQueueSnapshot()
         });
     };
@@ -223,7 +228,7 @@ export async function runCodex(opts: {
             permissionMode: messagePermissionMode ?? 'default',
             model: currentModel,
             effort: currentEffort,
-            collaborationMode: currentCollaborationMode,
+            collaborationMode: getCurrentCollaborationMode(),
             routeContext: message.meta?.routeContext
         };
         const formattedText = formatMessageWithAttachments(message.content.text, message.content.attachments);
@@ -373,6 +378,7 @@ export async function runCodex(opts: {
 
         if (config.collaborationMode !== undefined) {
             currentCollaborationMode = resolveCollaborationMode(config.collaborationMode);
+            sessionWrapperRef.current?.setCollaborationMode(currentCollaborationMode);
             syncRuntimeMetadata();
         }
 
@@ -385,7 +391,7 @@ export async function runCodex(opts: {
         return {
             applied: {
                 permissionMode: currentPermissionMode,
-                collaborationMode: currentCollaborationMode,
+                collaborationMode: getCurrentCollaborationMode(),
                 thinkEffort: currentEffort
             }
         };
@@ -418,7 +424,7 @@ export async function runCodex(opts: {
                 permissionMode: currentPermissionMode ?? 'default',
                 model: currentModel,
                 effort: currentEffort,
-                collaborationMode: currentCollaborationMode,
+                collaborationMode: getCurrentCollaborationMode(),
                 routeContext: parsed.routeContext
             };
             messageQueue.push(formattedText, enhancedMode, {
@@ -498,6 +504,7 @@ export async function runCodex(opts: {
             onSessionReady: (instance) => {
                 sessionWrapperRef.current = instance;
                 syncSessionMode();
+                instance.setCollaborationMode(currentCollaborationMode);
             }
         });
     } catch (error) {
