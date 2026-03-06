@@ -1,4 +1,4 @@
-import type { AgentType, SessionType, ThinkEffort } from './types'
+import type { AgentType, ServiceTier, SessionType, ThinkEffort } from './types'
 
 export function resolveSpawnModel(
     agent: AgentType,
@@ -43,6 +43,19 @@ export function resolveSpawnThinkEffort(
     }
 
     return undefined
+}
+
+export function resolveSpawnServiceTier(
+    agent: AgentType,
+    serviceTier: ServiceTier | undefined
+): 'fast' | 'flex' | undefined {
+    if (agent !== 'codex') {
+        return undefined
+    }
+    if (!serviceTier || serviceTier === 'auto') {
+        return undefined
+    }
+    return serviceTier
 }
 
 export function resolveSpawnSessionSettings(

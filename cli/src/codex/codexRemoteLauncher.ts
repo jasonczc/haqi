@@ -820,6 +820,28 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         let first = true;
         let currentThreadModel: string | undefined;
 
+        const resolveTurnCollaborationMode = (
+            collaborationMode: EnhancedMode['collaborationMode']
+        ): EnhancedMode['collaborationMode'] => {
+            if (typeof collaborationMode !== 'string') {
+                return 'code';
+            }
+            const normalized = collaborationMode.trim().toLowerCase();
+            if (!normalized || normalized === 'default' || normalized === 'normal') {
+                return 'code';
+            }
+            return normalized as EnhancedMode['collaborationMode'];
+        };
+
+        const buildTurnOverrides = (
+            mode: EnhancedMode
+        ): NonNullable<Parameters<typeof buildTurnStartParams>[0]['overrides']> => ({
+            ...(mode.model ?? currentThreadModel
+                ? { model: mode.model ?? currentThreadModel }
+                : {}),
+            collaborationMode: resolveTurnCollaborationMode(mode.collaborationMode)
+        });
+
         while (!this.shouldExit) {
             logActiveHandles('loop-top');
 
@@ -942,11 +964,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             mode: message.mode,
                             cliOverrides: session.codexCliOverrides,
                             cwd: session.path,
-                            overrides: message.mode.collaborationMode
-                                ? (message.mode.model ?? currentThreadModel
-                                    ? { model: message.mode.model ?? currentThreadModel }
-                                    : undefined)
-                                : undefined
+                            overrides: buildTurnOverrides(message.mode)
                         });
                         setTurnInFlight(true);
                         const turnResponse = await appServerClient.startTurn(turnParams, {
@@ -989,11 +1007,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         mode: message.mode,
                         cliOverrides: session.codexCliOverrides,
                         cwd: session.path,
-                        overrides: message.mode.collaborationMode
-                            ? (message.mode.model ?? currentThreadModel
-                                ? { model: message.mode.model ?? currentThreadModel }
-                                : undefined)
-                            : undefined
+                        overrides: buildTurnOverrides(message.mode)
                     });
                     setTurnInFlight(true);
                     const turnResponse = await appServerClient.startTurn(turnParams, {

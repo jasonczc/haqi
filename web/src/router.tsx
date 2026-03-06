@@ -21,10 +21,11 @@ import {
     loadPreferredAgent,
     loadPreferredCustomModel,
     loadPreferredModel,
+    loadPreferredServiceTier,
     loadPreferredThinkEffort,
     loadPreferredYoloMode
 } from '@/components/NewSession/preferences'
-import { resolveSpawnModel, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
+import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
@@ -307,11 +308,13 @@ function SessionsPage() {
             const quickModel = lastConfig?.model ?? loadPreferredModel(quickCreateAgent) ?? undefined
             const quickCustomModel = (lastConfig?.customModel ?? loadPreferredCustomModel(quickCreateAgent)).trim()
             const quickThinkEffort = lastConfig?.thinkEffort ?? loadPreferredThinkEffort(quickCreateAgent) ?? 'auto'
+            const quickServiceTier = lastConfig?.serviceTier ?? loadPreferredServiceTier(quickCreateAgent) ?? 'auto'
             const quickYolo = lastConfig?.yoloMode ?? loadPreferredYoloMode()
             const quickPreviewUrl = lastConfig?.previewUrl ?? ''
 
             const resolvedModel = resolveSpawnModel(quickCreateAgent, quickModel, quickCustomModel)
             const resolvedThinkEffort = resolveSpawnThinkEffort(quickCreateAgent, quickThinkEffort)
+            const resolvedServiceTier = resolveSpawnServiceTier(quickCreateAgent, quickServiceTier)
             // Project-level quick create should stay in the clicked project directory.
             // Force simple mode so worktree preferences don't move cwd unexpectedly.
             const sessionSettings = resolveSpawnSessionSettings('simple', '', quickPreviewUrl)
@@ -321,6 +324,7 @@ function SessionsPage() {
                 agent: quickCreateAgent,
                 model: resolvedModel,
                 thinkEffort: resolvedThinkEffort,
+                serviceTier: resolvedServiceTier,
                 yolo: quickYolo,
                 sessionType: sessionSettings.sessionType,
                 worktreeName: sessionSettings.worktreeName,

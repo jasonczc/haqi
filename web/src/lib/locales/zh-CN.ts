@@ -128,6 +128,7 @@ export default {
   'newSession.model.customPlaceholder': '自定义模型（可选）',
   'newSession.model.customHint': '若填写，将覆盖下拉选择。',
   'newSession.think': '思考程度',
+  'newSession.serviceTier': '服务层级',
   'newSession.yolo': 'YOLO 模式',
   'newSession.yolo.title': '跳过审批和沙箱',
   'newSession.yolo.desc': '启动时使用危险的代理标志。',

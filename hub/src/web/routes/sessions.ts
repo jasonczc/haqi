@@ -18,6 +18,9 @@ const modelUpdateSchema = z.object({
 const thinkEffortUpdateSchema = z.object({
     thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'xhigh'])
 })
+const serviceTierUpdateSchema = z.object({
+    serviceTier: z.enum(['auto', 'fast', 'flex'])
+})
 
 const collaborationModeUpdateSchema = z.object({
     mode: z.enum(['default', 'plan'])
@@ -777,6 +780,42 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ ok: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply think level'
+            return c.json({ error: message }, 409)
+        }
+    })
+
+    app.post('/sessions/:id/service-tier', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine, { requireActive: true })
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = serviceTierUpdateSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const flavor = sessionResult.session.metadata?.flavor ?? 'claude'
+        if (flavor !== 'codex') {
+            return c.json({ error: 'Service tier is only supported for Codex sessions' }, 400)
+        }
+
+        try {
+            const serviceTier = parsed.data.serviceTier === 'auto'
+                ? undefined
+                : parsed.data.serviceTier
+            await engine.applySessionConfig(sessionResult.sessionId, {
+                serviceTier
+            })
+            return c.json({ ok: true })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to apply service tier'
             return c.json({ error: message }, 409)
         }
     })

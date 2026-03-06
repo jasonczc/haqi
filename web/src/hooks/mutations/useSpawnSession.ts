@@ -9,6 +9,7 @@ type SpawnInput = {
     agent?: 'claude' | 'codex' | 'gemini' | 'opencode'
     model?: string
     thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+    serviceTier?: 'fast' | 'flex'
     yolo?: boolean
     sessionType?: 'simple' | 'worktree'
     worktreeName?: string
@@ -33,6 +34,7 @@ export function useSpawnSession(api: ApiClient | null): {
                 input.agent,
                 input.model,
                 input.thinkEffort,
+                input.serviceTier,
                 input.yolo,
                 input.sessionType,
                 input.worktreeName,

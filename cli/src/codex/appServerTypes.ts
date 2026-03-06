@@ -1,5 +1,6 @@
 export type ApprovalPolicy = 'untrusted' | 'on-failure' | 'on-request' | 'never';
 export type SandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access';
+export type ServiceTier = 'fast' | 'flex';
 
 export interface InitializeParams {
     clientInfo: {
@@ -21,6 +22,7 @@ export interface InitializeResponse {
 export interface ThreadStartParams {
     model?: string;
     modelProvider?: string;
+    serviceTier?: ServiceTier | null;
     cwd?: string;
     approvalPolicy?: ApprovalPolicy;
     sandbox?: SandboxMode;
@@ -47,6 +49,7 @@ export interface ThreadResumeParams {
     path?: string;
     model?: string;
     modelProvider?: string;
+    serviceTier?: ServiceTier | null;
     cwd?: string;
     approvalPolicy?: ApprovalPolicy;
     sandbox?: SandboxMode;
@@ -113,6 +116,7 @@ export interface TurnStartParams {
     approvalPolicy?: ApprovalPolicy;
     sandboxPolicy?: SandboxPolicy;
     model?: string;
+    serviceTier?: ServiceTier | null;
     effort?: ReasoningEffort;
     summary?: ReasoningSummary;
     personality?: string;

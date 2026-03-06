@@ -903,6 +903,7 @@ export class SyncEngine {
             modelMode?: ModelMode
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            serviceTier?: 'fast' | 'flex'
             collaborationMode?: string | null
         }
     ): Promise<void> {
@@ -911,6 +912,7 @@ export class SyncEngine {
             modelMode?: Session['modelMode']
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            serviceTier?: 'fast' | 'flex'
             collaborationMode?: string
         } | undefined
 
@@ -925,6 +927,7 @@ export class SyncEngine {
                     modelMode?: Session['modelMode']
                     model?: string
                     thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+                    serviceTier?: 'fast' | 'flex'
                     collaborationMode?: string
                 }
             }
@@ -942,6 +945,7 @@ export class SyncEngine {
                 modelMode: config.modelMode,
                 model: config.model,
                 thinkEffort: config.thinkEffort,
+                serviceTier: config.serviceTier,
                 collaborationMode: config.collaborationMode ?? undefined
             }
         }
@@ -959,10 +963,12 @@ export class SyncEngine {
         const shouldUpdateModelMetadata = flavor === 'claude' && (applied.model !== undefined || config.model !== undefined)
         const shouldUpdateThinkEffortMetadata = (flavor === 'claude' || flavor === 'codex')
             && (applied.thinkEffort !== undefined || config.thinkEffort !== undefined)
+        const shouldUpdateServiceTierMetadata = flavor === 'codex'
+            && (applied.serviceTier !== undefined || config.serviceTier !== undefined)
         const shouldUpdateCollaborationModeMetadata = flavor === 'codex'
             && (applied.collaborationMode !== undefined || config.collaborationMode !== undefined)
 
-        if (shouldUpdateModelMetadata || shouldUpdateThinkEffortMetadata || shouldUpdateCollaborationModeMetadata) {
+        if (shouldUpdateModelMetadata || shouldUpdateThinkEffortMetadata || shouldUpdateServiceTierMetadata || shouldUpdateCollaborationModeMetadata) {
             const rawModel = applied.model ?? config.model
             const model = (() => {
                 if (typeof rawModel !== 'string') return undefined
@@ -977,6 +983,10 @@ export class SyncEngine {
             )
             const collaborationMode = this.normalizeCollaborationModeForFlavor(
                 applied.collaborationMode ?? config.collaborationMode,
+                flavor
+            )
+            const serviceTier = this.normalizeServiceTierForFlavor(
+                applied.serviceTier ?? config.serviceTier,
                 flavor
             )
             const fallbackMetadata = session?.metadata ?? { path: '', host: '' }
@@ -997,6 +1007,14 @@ export class SyncEngine {
                         next.thinkEffort = thinkEffort
                     } else {
                         delete next.thinkEffort
+                    }
+                }
+
+                if (shouldUpdateServiceTierMetadata) {
+                    if (serviceTier) {
+                        next.serviceTier = serviceTier
+                    } else {
+                        delete next.serviceTier
                     }
                 }
 
@@ -1024,6 +1042,7 @@ export class SyncEngine {
             modelMode?: ModelMode
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            serviceTier?: 'fast' | 'flex'
             collaborationMode?: string | null
         },
         error: unknown
@@ -1083,6 +1102,20 @@ export class SyncEngine {
         }
 
         return normalized
+    }
+
+    private normalizeServiceTierForFlavor(
+        value: string | undefined,
+        flavor: string | null
+    ): 'fast' | 'flex' | undefined {
+        if (flavor !== 'codex' || typeof value !== 'string') {
+            return undefined
+        }
+        const normalized = value.trim().toLowerCase()
+        if (normalized === 'fast' || normalized === 'flex') {
+            return normalized
+        }
+        return undefined
     }
 
     private async maybeAutoApprovePendingRequests(sessionId: string): Promise<void> {
@@ -1678,6 +1711,7 @@ ${note.content}
         agent?: 'claude' | 'codex' | 'gemini' | 'opencode',
         model?: string,
         thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
+        serviceTier?: 'fast' | 'flex',
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
@@ -1691,6 +1725,7 @@ ${note.content}
             resolvedAgent,
             model,
             thinkEffort,
+            serviceTier,
             yolo,
             sessionType,
             worktreeName,
@@ -1766,6 +1801,15 @@ ${note.content}
             }
             return value
         })()
+        const serviceTier = (() => {
+            const value = typeof metadata.serviceTier === 'string'
+                ? metadata.serviceTier.trim().toLowerCase()
+                : ''
+            if (value !== 'fast' && value !== 'flex') {
+                return undefined
+            }
+            return value
+        })()
         const sessionType: 'simple' | 'worktree' = metadata.worktree ? 'worktree' : 'simple'
         const directory = metadata.worktree?.basePath?.trim() || metadata.path.trim()
         if (!directory) {
@@ -1791,6 +1835,7 @@ ${note.content}
             flavor,
             model,
             thinkEffort,
+            serviceTier,
             undefined,
             sessionType,
             undefined,
@@ -2053,6 +2098,7 @@ ${note.content}
             targetMachine.id,
             metadata.path,
             flavor,
+            undefined,
             undefined,
             undefined,
             undefined,

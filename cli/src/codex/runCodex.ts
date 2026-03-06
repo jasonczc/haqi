@@ -11,7 +11,7 @@ import { createModeChangeHandler, createRunnerLifecycle, setControlledByUser } f
 import { isPermissionModeAllowedForFlavor } from '@hapi/protocol';
 import { PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
-import type { ReasoningEffort } from './appServerTypes';
+import type { ReasoningEffort, ServiceTier } from './appServerTypes';
 import { buildCodexStatusMessage, isCodexStatusCommand, type CodexQueueSnapshot } from './utils/codexStatusCommand';
 import { MessageRouteContextSchema } from '@/api/types';
 
@@ -38,6 +38,7 @@ export async function runCodex(opts: {
     resumeSessionId?: string;
     model?: string;
     effort?: ReasoningEffort;
+    serviceTier?: ServiceTier;
 }): Promise<void> {
     const workingDirectory = process.env.HAPI_WORKING_DIRECTORY ?? process.cwd();
     const startedBy = opts.startedBy ?? 'terminal';
@@ -62,6 +63,7 @@ export async function runCodex(opts: {
         permissionMode: mode.permissionMode,
         model: mode.model,
         effort: mode.effort,
+        serviceTier: mode.serviceTier,
         collaborationMode: mode.collaborationMode,
         routeContext: mode.routeContext
     }));
@@ -84,9 +86,21 @@ export async function runCodex(opts: {
         return trimmed;
     };
 
+    const normalizeServiceTier = (value: unknown): ServiceTier | undefined => {
+        if (typeof value !== 'string') {
+            return undefined;
+        }
+        const normalized = value.trim().toLowerCase();
+        if (normalized === 'fast' || normalized === 'flex') {
+            return normalized;
+        }
+        return undefined;
+    };
+
     let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'default';
     const currentModel = normalizeConfiguredModel(opts.model ?? sessionInfo.metadata?.model);
     let currentEffort: ReasoningEffort | undefined = opts.effort;
+    let currentServiceTier: ServiceTier | undefined = normalizeServiceTier(opts.serviceTier ?? sessionInfo.metadata?.serviceTier);
     const metadataCollaborationMode = typeof sessionInfo.metadata?.collaborationMode === 'string'
         ? sessionInfo.metadata.collaborationMode.trim().toLowerCase()
         : '';
@@ -103,21 +117,24 @@ export async function runCodex(opts: {
         session.updateMetadata((currentMetadata) => {
             const {
                 thinkEffort: _previousThinkEffort,
+                serviceTier: _previousServiceTier,
                 collaborationMode: _previousCollaborationMode,
                 ...metadataWithoutRuntime
             } = currentMetadata;
-            return currentEffort
-                ? {
-                    ...metadataWithoutRuntime,
-                    model: currentModel,
-                    thinkEffort: currentEffort,
-                    ...(collaborationMode ? { collaborationMode } : {})
-                }
-                : {
-                    ...metadataWithoutRuntime,
-                    model: currentModel,
-                    ...(collaborationMode ? { collaborationMode } : {})
-                };
+            const nextMetadata: typeof currentMetadata = {
+                ...metadataWithoutRuntime,
+                model: currentModel
+            };
+            if (currentEffort) {
+                nextMetadata.thinkEffort = currentEffort;
+            }
+            if (currentServiceTier) {
+                nextMetadata.serviceTier = currentServiceTier;
+            }
+            if (collaborationMode) {
+                nextMetadata.collaborationMode = collaborationMode;
+            }
+            return nextMetadata;
         });
     };
 
@@ -228,6 +245,7 @@ export async function runCodex(opts: {
             permissionMode: messagePermissionMode ?? 'default',
             model: currentModel,
             effort: currentEffort,
+            serviceTier: currentServiceTier,
             collaborationMode: getCurrentCollaborationMode(),
             routeContext: message.meta?.routeContext
         };
@@ -282,6 +300,23 @@ export async function runCodex(opts: {
             return normalized;
         }
         throw new Error('Invalid think effort');
+    };
+
+    const resolveServiceTier = (value: unknown): ServiceTier | undefined => {
+        if (value === null) {
+            return undefined;
+        }
+        if (typeof value !== 'string') {
+            throw new Error('Invalid service tier');
+        }
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) {
+            return undefined;
+        }
+        if (normalized === 'fast' || normalized === 'flex') {
+            return normalized;
+        }
+        throw new Error('Invalid service tier');
     };
 
     const resolveQueueItemId = (payload: unknown): string => {
@@ -370,7 +405,12 @@ export async function runCodex(opts: {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
         }
-        const config = payload as { permissionMode?: unknown; collaborationMode?: unknown; thinkEffort?: unknown };
+        const config = payload as {
+            permissionMode?: unknown;
+            collaborationMode?: unknown;
+            thinkEffort?: unknown;
+            serviceTier?: unknown;
+        };
 
         if (config.permissionMode !== undefined) {
             currentPermissionMode = resolvePermissionMode(config.permissionMode);
@@ -386,13 +426,18 @@ export async function runCodex(opts: {
             currentEffort = resolveThinkEffort(config.thinkEffort);
             syncRuntimeMetadata();
         }
+        if (config.serviceTier !== undefined) {
+            currentServiceTier = resolveServiceTier(config.serviceTier);
+            syncRuntimeMetadata();
+        }
 
         syncSessionMode();
         return {
             applied: {
                 permissionMode: currentPermissionMode,
                 collaborationMode: getCurrentCollaborationMode(),
-                thinkEffort: currentEffort
+                thinkEffort: currentEffort,
+                serviceTier: currentServiceTier
             }
         };
     });
@@ -424,6 +469,7 @@ export async function runCodex(opts: {
                 permissionMode: currentPermissionMode ?? 'default',
                 model: currentModel,
                 effort: currentEffort,
+                serviceTier: currentServiceTier,
                 collaborationMode: getCurrentCollaborationMode(),
                 routeContext: parsed.routeContext
             };

@@ -7,6 +7,7 @@ export interface SpawnSessionOptions {
     agent?: 'claude' | 'codex' | 'gemini' | 'opencode'
     model?: string
     thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+    serviceTier?: 'fast' | 'flex'
     yolo?: boolean
     token?: string
     sessionType?: 'simple' | 'worktree'

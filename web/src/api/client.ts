@@ -745,6 +745,16 @@ export class ApiClient {
         })
     }
 
+    async setServiceTier(
+        sessionId: string,
+        serviceTier: 'auto' | 'fast' | 'flex'
+    ): Promise<void> {
+        await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/service-tier`, {
+            method: 'POST',
+            body: JSON.stringify({ serviceTier })
+        })
+    }
+
     async setCollaborationMode(sessionId: string, mode: 'default' | 'plan'): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/collaboration-mode`, {
             method: 'POST',
@@ -811,6 +821,7 @@ export class ApiClient {
         agent?: 'claude' | 'codex' | 'gemini' | 'opencode',
         model?: string,
         thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
+        serviceTier?: 'fast' | 'flex',
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
@@ -818,7 +829,7 @@ export class ApiClient {
     ): Promise<SpawnResponse> {
         return await this.request<SpawnResponse>(`/api/machines/${encodeURIComponent(machineId)}/spawn`, {
             method: 'POST',
-            body: JSON.stringify({ directory, agent, model, thinkEffort, yolo, sessionType, worktreeName, previewUrl })
+            body: JSON.stringify({ directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, previewUrl })
         })
     }
 

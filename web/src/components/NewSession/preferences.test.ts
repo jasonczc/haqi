@@ -4,6 +4,7 @@ import {
     loadPreferredAgent,
     loadPreferredCustomModel,
     loadPreferredModel,
+    loadPreferredServiceTier,
     loadPreferredSessionType,
     loadPreferredThinkEffort,
     loadPreferredYoloMode,
@@ -11,6 +12,7 @@ import {
     savePreferredAgent,
     savePreferredCustomModel,
     savePreferredModel,
+    savePreferredServiceTier,
     savePreferredSessionType,
     savePreferredThinkEffort,
     savePreferredYoloMode,
@@ -26,6 +28,7 @@ describe('NewSession preferences', () => {
         expect(loadPreferredYoloMode()).toBe(false)
         expect(loadPreferredSessionType()).toBe('simple')
         expect(loadPreferredThinkEffort('claude')).toBeNull()
+        expect(loadPreferredServiceTier('codex')).toBeNull()
         expect(loadPreferredModel('claude')).toBeNull()
         expect(loadPreferredCustomModel('claude')).toBe('')
     })
@@ -36,6 +39,9 @@ describe('NewSession preferences', () => {
         localStorage.setItem('hapi:newSession:sessionType', 'worktree')
         localStorage.setItem('hapi:newSession:thinkEffortByAgent', JSON.stringify({
             codex: 'medium'
+        }))
+        localStorage.setItem('hapi:newSession:serviceTierByAgent', JSON.stringify({
+            codex: 'fast'
         }))
         localStorage.setItem('hapi:newSession:modelByAgent', JSON.stringify({
             codex: 'gpt-5.3-codex'
@@ -48,6 +54,7 @@ describe('NewSession preferences', () => {
         expect(loadPreferredYoloMode()).toBe(true)
         expect(loadPreferredSessionType()).toBe('worktree')
         expect(loadPreferredThinkEffort('codex')).toBe('medium')
+        expect(loadPreferredServiceTier('codex')).toBe('fast')
         expect(loadPreferredModel('codex')).toBe('gpt-5.3-codex')
         expect(loadPreferredCustomModel('codex')).toBe('my-custom-model')
     })
@@ -80,7 +87,8 @@ describe('NewSession preferences', () => {
         savePreferredYoloMode(true)
         savePreferredSessionType('worktree')
         savePreferredThinkEffort('codex', 'high')
-        savePreferredModel('codex', 'gpt-5.3-codex-spark')
+        savePreferredServiceTier('codex', 'flex')
+        savePreferredModel('codex', 'gpt-5.4')
         savePreferredCustomModel('codex', 'my-custom-model')
 
         expect(localStorage.getItem('hapi:newSession:agent')).toBe('gemini')
@@ -89,8 +97,11 @@ describe('NewSession preferences', () => {
         expect(localStorage.getItem('hapi:newSession:thinkEffortByAgent')).toBe(JSON.stringify({
             codex: 'high'
         }))
+        expect(localStorage.getItem('hapi:newSession:serviceTierByAgent')).toBe(JSON.stringify({
+            codex: 'flex'
+        }))
         expect(localStorage.getItem('hapi:newSession:modelByAgent')).toBe(JSON.stringify({
-            codex: 'gpt-5.3-codex-spark'
+            codex: 'gpt-5.4'
         }))
         expect(localStorage.getItem('hapi:newSession:customModelByAgent')).toBe(JSON.stringify({
             codex: 'my-custom-model'
@@ -109,6 +120,7 @@ describe('NewSession preferences', () => {
             model: 'gpt-5.3-codex',
             customModel: 'custom-model',
             thinkEffort: 'high',
+            serviceTier: 'fast',
             yoloMode: true,
             sessionType: 'worktree',
             worktreeName: 'feat-branch',
@@ -120,6 +132,7 @@ describe('NewSession preferences', () => {
             model: 'gpt-5.3-codex',
             customModel: 'custom-model',
             thinkEffort: 'high',
+            serviceTier: 'fast',
             yoloMode: true,
             sessionType: 'worktree',
             worktreeName: 'feat-branch',

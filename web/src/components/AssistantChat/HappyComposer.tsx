@@ -57,9 +57,15 @@ type ComposerModelOption = {
 }
 
 type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+type SessionServiceTier = 'auto' | 'fast' | 'flex'
 
 type ComposerThinkEffortOption = {
     value: SessionThinkEffort
+    label: string
+}
+
+type ComposerServiceTierOption = {
+    value: SessionServiceTier
     label: string
 }
 
@@ -289,6 +295,17 @@ function getThinkEffortOptionsForFlavor(flavor?: string | null): ComposerThinkEf
     return []
 }
 
+function getServiceTierOptionsForFlavor(flavor?: string | null): ComposerServiceTierOption[] {
+    if (flavor === 'codex') {
+        return [
+            { value: 'auto', label: 'Auto' },
+            { value: 'fast', label: 'Fast' },
+            { value: 'flex', label: 'Flex' },
+        ]
+    }
+    return []
+}
+
 export function HappyComposer(props: {
     sessionId: string
     disabled?: boolean
@@ -296,6 +313,7 @@ export function HappyComposer(props: {
     modelMode?: ModelMode
     model?: string
     thinkEffort?: string
+    serviceTier?: string
     active?: boolean
     allowSendWhenInactive?: boolean
     thinking?: boolean
@@ -307,6 +325,7 @@ export function HappyComposer(props: {
     onPermissionModeChange?: (mode: PermissionMode) => void
     onModelChange?: (model: string) => void
     onThinkEffortChange?: (thinkEffort: SessionThinkEffort) => void
+    onServiceTierChange?: (serviceTier: SessionServiceTier) => void
     onSwitchToRemote?: () => void
     onTerminal?: () => void
     onCodexStatus?: () => void
@@ -341,6 +360,7 @@ export function HappyComposer(props: {
         modelMode: rawModelMode,
         model: rawModel,
         thinkEffort: rawThinkEffort,
+        serviceTier: rawServiceTier,
         active = true,
         allowSendWhenInactive = false,
         thinking = false,
@@ -352,6 +372,7 @@ export function HappyComposer(props: {
         onPermissionModeChange,
         onModelChange,
         onThinkEffortChange,
+        onServiceTierChange,
         onSwitchToRemote,
         onTerminal,
         onCodexStatus,
@@ -402,6 +423,10 @@ export function HappyComposer(props: {
         () => getThinkEffortOptionsForFlavor(agentFlavor),
         [agentFlavor]
     )
+    const serviceTierOptions = useMemo(
+        () => getServiceTierOptionsForFlavor(agentFlavor),
+        [agentFlavor]
+    )
     const currentThinkEffortValue: SessionThinkEffort = useMemo(() => {
         if (normalizedThinkEffort === 'auto'
             || normalizedThinkEffort === 'low'
@@ -414,6 +439,16 @@ export function HappyComposer(props: {
         }
         return 'auto'
     }, [normalizedThinkEffort, thinkEffortOptions])
+    const currentServiceTierValue: SessionServiceTier = useMemo(() => {
+        if (typeof rawServiceTier !== 'string') {
+            return 'auto'
+        }
+        const normalized = rawServiceTier.trim().toLowerCase()
+        if (normalized === 'fast' || normalized === 'flex') {
+            return normalized
+        }
+        return 'auto'
+    }, [rawServiceTier])
 
     const api = useAssistantApi()
     const composerText = useAssistantState(({ composer }) => composer.text)
@@ -978,17 +1013,26 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onThinkEffortChange, controlsDisabled, haptic])
 
+    const handleServiceTierChange = useCallback((serviceTierValue: SessionServiceTier) => {
+        if (!onServiceTierChange || controlsDisabled) return
+        onServiceTierChange(serviceTierValue)
+        setShowSettings(false)
+        haptic('light')
+    }, [onServiceTierChange, controlsDisabled, haptic])
+
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
     const showModelSettings = Boolean(onModelChange && agentFlavor === 'claude' && modelOptions.length > 0)
     const showThinkEffortSettings = Boolean(onThinkEffortChange && thinkEffortOptions.length > 0)
-    const showSettingsButton = Boolean(showPermissionSettings || showModelSettings || showThinkEffortSettings)
+    const showServiceTierSettings = Boolean(onServiceTierChange && serviceTierOptions.length > 0)
+    const showSettingsButton = Boolean(showPermissionSettings || showModelSettings || showThinkEffortSettings || showServiceTierSettings)
     const showAbortButton = true
     const voiceEnabled = Boolean(onVoiceToggle)
 
     const overlays = useMemo(() => {
-        if (showSettings && (showPermissionSettings || showModelSettings || showThinkEffortSettings)) {
-            const showPermissionDivider = showPermissionSettings && (showModelSettings || showThinkEffortSettings)
-            const showModelDivider = showModelSettings && showThinkEffortSettings
+        if (showSettings && (showPermissionSettings || showModelSettings || showThinkEffortSettings || showServiceTierSettings)) {
+            const showPermissionDivider = showPermissionSettings && (showModelSettings || showThinkEffortSettings || showServiceTierSettings)
+            const showModelDivider = showModelSettings && (showThinkEffortSettings || showServiceTierSettings)
+            const showThinkEffortDivider = showThinkEffortSettings && showServiceTierSettings
             return (
                 <div className="absolute bottom-[100%] mb-2 w-full">
                     <FloatingOverlay maxHeight={320}>
@@ -1110,6 +1154,47 @@ export function HappyComposer(props: {
                                 ))}
                             </div>
                         ) : null}
+
+                        {showThinkEffortDivider ? (
+                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                        ) : null}
+
+                        {showServiceTierSettings ? (
+                            <div className="py-2">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                    {t('newSession.serviceTier')}
+                                </div>
+                                {serviceTierOptions.map((option) => (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        disabled={controlsDisabled}
+                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                                            controlsDisabled
+                                                ? 'cursor-not-allowed opacity-50'
+                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                        }`}
+                                        onClick={() => handleServiceTierChange(option.value)}
+                                        onMouseDown={(e) => e.preventDefault()}
+                                    >
+                                        <div
+                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                                                currentServiceTierValue === option.value
+                                                    ? 'border-[var(--app-link)]'
+                                                    : 'border-[var(--app-hint)]'
+                                            }`}
+                                        >
+                                            {currentServiceTierValue === option.value && (
+                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                            )}
+                                        </div>
+                                        <span className={currentServiceTierValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                            {option.label}
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
                     </FloatingOverlay>
                 </div>
             )
@@ -1135,18 +1220,22 @@ export function HappyComposer(props: {
         showPermissionSettings,
         showModelSettings,
         showThinkEffortSettings,
+        showServiceTierSettings,
         suggestions,
         selectedIndex,
         controlsDisabled,
         permissionMode,
         currentModelValue,
         currentThinkEffortValue,
+        currentServiceTierValue,
         modelOptions,
         thinkEffortOptions,
+        serviceTierOptions,
         permissionModeOptions,
         handlePermissionChange,
         handleModelChange,
         handleThinkEffortChange,
+        handleServiceTierChange,
         handleSuggestionSelect
     ])
 

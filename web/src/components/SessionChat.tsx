@@ -48,6 +48,7 @@ type McpGuideItem = {
 }
 
 type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+type SessionServiceTier = 'auto' | 'fast' | 'flex'
 
 const MCP_GUIDES: McpGuideItem[] = [
     {
@@ -451,7 +452,7 @@ export function SessionChat(props: {
     const dialogQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 6_000
     const agentFlavor = props.session.metadata?.flavor ?? null
     const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
-    const { abortSession, switchSession, setPermissionMode, setModel, setThinkEffort, setCollaborationMode } = useSessionActions(
+    const { abortSession, switchSession, setPermissionMode, setModel, setThinkEffort, setServiceTier, setCollaborationMode } = useSessionActions(
         props.api,
         props.session.id,
         agentFlavor
@@ -692,6 +693,17 @@ export function SessionChat(props: {
             console.error('Failed to set think effort:', e)
         }
     }, [setThinkEffort, props.onRefresh, haptic])
+
+    const handleServiceTierChange = useCallback(async (serviceTier: SessionServiceTier) => {
+        try {
+            await setServiceTier(serviceTier)
+            haptic.notification('success')
+            props.onRefresh()
+        } catch (e) {
+            haptic.notification('error')
+            console.error('Failed to set service tier:', e)
+        }
+    }, [setServiceTier, props.onRefresh, haptic])
 
     const handleCodexPlanModeChange = useCallback(async (enabled: boolean) => {
         const nextMode: 'plan' | 'default' = enabled ? 'plan' : 'default'
@@ -1377,6 +1389,7 @@ export function SessionChat(props: {
                         modelMode={props.session.modelMode}
                         model={props.session.metadata?.model}
                         thinkEffort={props.session.metadata?.thinkEffort}
+                        serviceTier={props.session.metadata?.serviceTier}
                         codexCollaborationMode={codexCollaborationMode}
                         agentFlavor={agentFlavor}
                         active={props.session.active}
@@ -1389,6 +1402,7 @@ export function SessionChat(props: {
                         onPermissionModeChange={handlePermissionModeChange}
                         onModelChange={handleModelChange}
                         onThinkEffortChange={handleThinkEffortChange}
+                        onServiceTierChange={handleServiceTierChange}
                         onSwitchToRemote={handleSwitchToRemote}
                         onTerminal={props.session.active ? handleViewTerminal : undefined}
                         onCodexStatus={supportsQueueControls ? handleCodexStatus : undefined}

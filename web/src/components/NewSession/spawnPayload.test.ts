@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
     resolveSpawnModel,
+    resolveSpawnServiceTier,
     resolveSpawnSessionSettings,
     resolveSpawnThinkEffort
 } from './spawnPayload'
@@ -29,6 +30,15 @@ describe('resolveSpawnThinkEffort', () => {
         expect(resolveSpawnThinkEffort('claude', 'medium')).toBe('medium')
         expect(resolveSpawnThinkEffort('claude', 'xhigh')).toBeUndefined()
         expect(resolveSpawnThinkEffort('gemini', 'high')).toBeUndefined()
+    })
+})
+
+describe('resolveSpawnServiceTier', () => {
+    it('only keeps codex fast/flex service tiers', () => {
+        expect(resolveSpawnServiceTier('codex', 'fast')).toBe('fast')
+        expect(resolveSpawnServiceTier('codex', 'flex')).toBe('flex')
+        expect(resolveSpawnServiceTier('codex', 'auto')).toBeUndefined()
+        expect(resolveSpawnServiceTier('claude', 'fast')).toBeUndefined()
     })
 })
 

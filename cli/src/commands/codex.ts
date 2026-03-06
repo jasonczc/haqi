@@ -4,7 +4,7 @@ import { initializeToken } from '@/ui/tokenInit'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
 import type { CommandDefinition } from './types'
 import type { CodexPermissionMode } from '@hapi/protocol/types'
-import type { ReasoningEffort } from '@/codex/appServerTypes'
+import type { ReasoningEffort, ServiceTier } from '@/codex/appServerTypes'
 
 export const codexCommand: CommandDefinition = {
     name: 'codex',
@@ -20,6 +20,7 @@ export const codexCommand: CommandDefinition = {
                 resumeSessionId?: string
                 model?: string
                 effort?: ReasoningEffort
+                serviceTier?: ServiceTier
             } = {}
             const unknownArgs: string[] = []
 
@@ -58,6 +59,16 @@ export const codexCommand: CommandDefinition = {
                     }
                     options.effort = effort
                     unknownArgs.push('--effort', effort)
+                } else if (arg === '--service-tier') {
+                    const serviceTier = commandArgs[++i]
+                    if (!serviceTier) {
+                        throw new Error('Missing --service-tier value')
+                    }
+                    if (serviceTier !== 'fast' && serviceTier !== 'flex') {
+                        throw new Error('Invalid --service-tier value (expected fast or flex)')
+                    }
+                    options.serviceTier = serviceTier
+                    unknownArgs.push('--service-tier', serviceTier)
                 } else {
                     unknownArgs.push(arg)
                 }

@@ -24,6 +24,7 @@ import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
 import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
+import { ServiceTierSelector } from './ServiceTierSelector'
 import { ThinkEffortSelector } from './ThinkEffortSelector'
 import {
     loadLastSessionConfig,
@@ -31,6 +32,7 @@ import {
     loadPreferredCustomModel,
     loadPreferredModel,
     loadPreferredSessionType,
+    loadPreferredServiceTier,
     loadPreferredThinkEffort,
     loadPreferredYoloMode,
     saveLastSessionConfig,
@@ -38,12 +40,13 @@ import {
     savePreferredCustomModel,
     savePreferredModel,
     savePreferredSessionType,
+    savePreferredServiceTier,
     savePreferredThinkEffort,
     savePreferredYoloMode,
 } from './preferences'
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
-import { resolveSpawnModel, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
+import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -92,6 +95,11 @@ export function NewSession(props: {
     const [model, setModel] = useState(initialModel)
     const [customModel, setCustomModel] = useState(() => lastSessionConfig?.customModel ?? loadPreferredCustomModel(initialAgent))
     const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(initialThinkEffort)
+    const [serviceTier, setServiceTier] = useState(() => (
+        lastSessionConfig?.serviceTier
+        ?? loadPreferredServiceTier(initialAgent)
+        ?? 'auto'
+    ))
     const [yoloMode, setYoloMode] = useState(() => lastSessionConfig?.yoloMode ?? loadPreferredYoloMode())
     const [sessionType, setSessionType] = useState<SessionType>(() => lastSessionConfig?.sessionType ?? loadPreferredSessionType())
     const [worktreeName, setWorktreeName] = useState(() => lastSessionConfig?.worktreeName ?? '')
@@ -118,6 +126,7 @@ export function NewSession(props: {
         setModel(loadPreferredModel(agent) ?? (MODEL_OPTIONS[agent][0]?.value ?? 'auto'))
         setCustomModel(loadPreferredCustomModel(agent))
         setThinkEffort(loadPreferredThinkEffort(agent) ?? getDefaultThinkEffort(agent))
+        setServiceTier(loadPreferredServiceTier(agent) ?? 'auto')
     }, [agent])
 
     useEffect(() => {
@@ -307,6 +316,7 @@ export function NewSession(props: {
             const customModelValue = customModel.trim()
             const resolvedModel = resolveSpawnModel(agent, model, customModelValue)
             const resolvedThinkEffort = resolveSpawnThinkEffort(agent, thinkEffort)
+            const resolvedServiceTier = resolveSpawnServiceTier(agent, serviceTier)
             const sessionSettings = resolveSpawnSessionSettings(
                 sessionType,
                 worktreeName,
@@ -318,6 +328,7 @@ export function NewSession(props: {
                 agent,
                 model: resolvedModel,
                 thinkEffort: resolvedThinkEffort,
+                serviceTier: resolvedServiceTier,
                 yolo: yoloMode,
                 sessionType: sessionSettings.sessionType,
                 worktreeName: sessionSettings.worktreeName,
@@ -332,6 +343,7 @@ export function NewSession(props: {
                 savePreferredModel(agent, model)
                 savePreferredCustomModel(agent, customModelValue)
                 savePreferredThinkEffort(agent, thinkEffort)
+                savePreferredServiceTier(agent, serviceTier)
                 savePreferredYoloMode(yoloMode)
                 savePreferredSessionType(sessionType)
                 saveLastSessionConfig({
@@ -339,6 +351,7 @@ export function NewSession(props: {
                     model,
                     customModel: customModelValue,
                     thinkEffort,
+                    serviceTier,
                     yoloMode,
                     sessionType,
                     worktreeName: worktreeName.trim(),
@@ -456,6 +469,12 @@ export function NewSession(props: {
                 thinkEffort={thinkEffort}
                 isDisabled={isFormDisabled}
                 onThinkEffortChange={setThinkEffort}
+            />
+            <ServiceTierSelector
+                agent={agent}
+                serviceTier={serviceTier}
+                isDisabled={isFormDisabled}
+                onServiceTierChange={setServiceTier}
             />
             <YoloToggle
                 yoloMode={yoloMode}

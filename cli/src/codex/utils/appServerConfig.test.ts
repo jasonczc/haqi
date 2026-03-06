@@ -82,7 +82,7 @@ describe('appServerConfig', () => {
             threadId: 'thread-1',
             message: 'hello',
             cwd: '/tmp/repo',
-            mode: { permissionMode: 'read-only', model: 'o3', effort: 'high' }
+            mode: { permissionMode: 'read-only', model: 'o3', effort: 'high', serviceTier: 'fast' }
         });
 
         expect(params.threadId).toBe('thread-1');
@@ -92,6 +92,16 @@ describe('appServerConfig', () => {
         expect(params.sandboxPolicy).toEqual({ type: 'readOnly' });
         expect(params.model).toBe('o3');
         expect(params.effort).toBe('high');
+        expect(params.serviceTier).toBe('fast');
+    });
+
+    it('passes service tier for thread start', () => {
+        const params = buildThreadStartParams({
+            mode: { permissionMode: 'default', serviceTier: 'flex' },
+            mcpServers
+        });
+
+        expect(params.serviceTier).toBe('flex');
     });
 
     it('puts collaboration mode in turn params with model settings', () => {
@@ -111,6 +121,18 @@ describe('appServerConfig', () => {
             message: 'hello',
             mode: { permissionMode: 'default', collaborationMode: 'plan' }
         })).toThrowError('Collaboration mode requires model');
+    });
+
+    it('allows non-plan collaboration mode without model', () => {
+        const params = buildTurnStartParams({
+            threadId: 'thread-1',
+            message: 'hello',
+            mode: { permissionMode: 'default' },
+            overrides: { collaborationMode: 'code' }
+        });
+
+        expect(params.collaborationMode).toEqual({ mode: 'code' });
+        expect(params.model).toBeUndefined();
     });
 
     it('applies CLI overrides for turns when permission mode is default', () => {
@@ -154,11 +176,12 @@ describe('appServerConfig', () => {
             threadId: 'thread-1',
             message: 'hello',
             mode: { permissionMode: 'default' },
-            overrides: { approvalPolicy: 'on-request', model: 'gpt-5', effort: 'low' }
+            overrides: { approvalPolicy: 'on-request', model: 'gpt-5', effort: 'low', serviceTier: 'flex' }
         });
 
         expect(params.approvalPolicy).toBe('on-request');
         expect(params.model).toBe('gpt-5');
         expect(params.effort).toBe('low');
+        expect(params.serviceTier).toBe('flex');
     });
 });

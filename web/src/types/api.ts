@@ -25,6 +25,7 @@ export type SessionMetadataSummary = {
     name?: string
     model?: string
     thinkEffort?: string
+    serviceTier?: string
     collaborationMode?: string
     availableModels?: string[]
     os?: string

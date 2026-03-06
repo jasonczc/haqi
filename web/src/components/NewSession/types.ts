@@ -3,6 +3,7 @@ export type SessionType = 'simple' | 'worktree'
 export type ThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
 export type ModelOption = { value: string; label: string }
 export type CodexThinkEffort = ThinkEffort
+export type ServiceTier = 'auto' | 'fast' | 'flex'
 
 export const CLAUDE_THINK_EFFORT_OPTIONS: { value: ThinkEffort; label: string }[] = [
     { value: 'high', label: 'High' },
@@ -17,6 +18,12 @@ export const CODEX_THINK_EFFORT_OPTIONS: { value: ThinkEffort; label: string }[]
     { value: 'low', label: 'Low' },
     { value: 'medium', label: 'Medium' },
     { value: 'high', label: 'High' },
+]
+
+export const CODEX_SERVICE_TIER_OPTIONS: { value: ServiceTier; label: string }[] = [
+    { value: 'auto', label: 'Auto' },
+    { value: 'fast', label: 'Fast' },
+    { value: 'flex', label: 'Flex' },
 ]
 
 export function getThinkEffortOptions(agent: AgentType): { value: ThinkEffort; label: string }[] {
@@ -39,8 +46,8 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
         { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
     ],
     codex: [
+        { value: 'gpt-5.4', label: 'GPT-5.4' },
         { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
-        { value: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark' },
         { value: 'auto', label: 'Auto' },
         { value: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
         { value: 'gpt-5.2', label: 'GPT-5.2' },

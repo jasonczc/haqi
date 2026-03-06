@@ -111,6 +111,9 @@ export function buildThreadStartParams(args: {
     if (args.mode.model) {
         params.model = args.mode.model;
     }
+    if (args.mode.serviceTier) {
+        params.serviceTier = args.mode.serviceTier;
+    }
 
     return params;
 }
@@ -125,7 +128,9 @@ export function buildTurnStartParams(args: {
         approvalPolicy?: TurnStartParams['approvalPolicy'];
         sandboxPolicy?: TurnStartParams['sandboxPolicy'];
         model?: string;
+        serviceTier?: TurnStartParams['serviceTier'];
         effort?: TurnStartParams['effort'];
+        collaborationMode?: EnhancedMode['collaborationMode'];
     };
 }): TurnStartParams {
     const params: TurnStartParams = {
@@ -154,18 +159,22 @@ export function buildTurnStartParams(args: {
         params.sandboxPolicy = sandboxPolicy;
     }
 
-    const collaborationMode = args.mode?.collaborationMode;
+    const collaborationMode = args.overrides?.collaborationMode ?? args.mode?.collaborationMode;
     const model = args.overrides?.model ?? args.mode?.model;
+    const serviceTier = args.overrides?.serviceTier ?? args.mode?.serviceTier;
     if (collaborationMode) {
-        if (!model) {
+        if (collaborationMode === 'plan' && !model) {
             throw new Error('Collaboration mode requires model');
         }
         params.collaborationMode = {
             mode: collaborationMode,
-            settings: { model }
+            ...(model ? { settings: { model } } : {})
         };
     } else if (model) {
         params.model = model;
+    }
+    if (serviceTier !== undefined) {
+        params.serviceTier = serviceTier;
     }
 
     const effort = args.overrides?.effort ?? args.mode?.effort;

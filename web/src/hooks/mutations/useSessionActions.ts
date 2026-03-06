@@ -7,6 +7,7 @@ import { clearMessageWindow } from '@/lib/message-window-store'
 import { isKnownFlavor } from '@/lib/agentFlavorUtils'
 
 type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+type SessionServiceTier = 'auto' | 'fast' | 'flex'
 
 export function useSessionActions(
     api: ApiClient | null,
@@ -19,6 +20,7 @@ export function useSessionActions(
     setPermissionMode: (mode: PermissionMode) => Promise<void>
     setModel: (model: string) => Promise<void>
     setThinkEffort: (thinkEffort: SessionThinkEffort) => Promise<void>
+    setServiceTier: (serviceTier: SessionServiceTier) => Promise<void>
     setCollaborationMode: (mode: 'default' | 'plan') => Promise<void>
     renameSession: (name: string) => Promise<void>
     deleteSession: () => Promise<void>
@@ -107,6 +109,16 @@ export function useSessionActions(
         onSuccess: () => void invalidateSession(),
     })
 
+    const serviceTierMutation = useMutation({
+        mutationFn: async (serviceTier: SessionServiceTier) => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            await api.setServiceTier(sessionId, serviceTier)
+        },
+        onSuccess: () => void invalidateSession(),
+    })
+
     const renameMutation = useMutation({
         mutationFn: async (name: string) => {
             if (!api || !sessionId) {
@@ -159,6 +171,7 @@ export function useSessionActions(
         setPermissionMode: permissionMutation.mutateAsync,
         setModel: modelMutation.mutateAsync,
         setThinkEffort: thinkEffortMutation.mutateAsync,
+        setServiceTier: serviceTierMutation.mutateAsync,
         setCollaborationMode: collaborationModeMutation.mutateAsync,
         renameSession: renameMutation.mutateAsync,
         deleteSession: deleteMutation.mutateAsync,
@@ -170,6 +183,7 @@ export function useSessionActions(
             || permissionMutation.isPending
             || modelMutation.isPending
             || thinkEffortMutation.isPending
+            || serviceTierMutation.isPending
             || collaborationModeMutation.isPending
             || renameMutation.isPending
             || deleteMutation.isPending

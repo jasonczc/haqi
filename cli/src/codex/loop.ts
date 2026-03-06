@@ -7,7 +7,7 @@ import { codexRemoteLauncher } from './codexRemoteLauncher';
 import { ApiClient, ApiSessionClient } from '@/lib';
 import type { CodexCliOverrides } from './utils/codexCliOverrides';
 import type { CodexPermissionMode } from '@hapi/protocol/types';
-import type { CollaborationMode, ReasoningEffort } from './appServerTypes';
+import type { CollaborationMode, ReasoningEffort, ServiceTier } from './appServerTypes';
 import type { MessageRouteContext } from '@/api/types';
 
 export type PermissionMode = CodexPermissionMode;
@@ -16,6 +16,7 @@ export interface EnhancedMode {
     permissionMode: PermissionMode;
     model?: string;
     effort?: ReasoningEffort;
+    serviceTier?: ServiceTier;
     collaborationMode?: CollaborationMode['mode'];
     routeContext?: MessageRouteContext;
 }

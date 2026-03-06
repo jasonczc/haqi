@@ -56,6 +56,9 @@ export function buildCodexStartConfig(args: {
     const config: Record<string, unknown> = {
         mcp_servers: args.mcpServers
     };
+    if (args.mode.serviceTier) {
+        config.service_tier = args.mode.serviceTier;
+    }
     if (combinedInstructions.trim()) {
         config.developer_instructions = combinedInstructions;
     }

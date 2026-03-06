@@ -126,6 +126,7 @@ export default {
   'newSession.model.customPlaceholder': 'Custom model (optional)',
   'newSession.model.customHint': 'If set, this value overrides the dropdown selection.',
   'newSession.think': 'Think level',
+  'newSession.serviceTier': 'Service tier',
   'newSession.yolo': 'YOLO mode',
   'newSession.yolo.title': 'Bypass approvals and sandbox',
   'newSession.yolo.desc': 'Uses dangerous agent flags when spawning.',

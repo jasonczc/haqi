@@ -73,12 +73,17 @@ describe('buildCodexStartConfig', () => {
     it('passes model when provided', () => {
         const config = buildCodexStartConfig({
             message: 'hello',
-            mode: { permissionMode: 'default', model: 'o3' },
+            mode: { permissionMode: 'default', model: 'o3', serviceTier: 'fast' },
             first: false,
             mcpServers
         });
 
         expect(config.model).toBe('o3');
+        expect(config.config).toEqual({
+            mcp_servers: mcpServers,
+            service_tier: 'fast',
+            developer_instructions: codexSystemPrompt
+        });
     });
 
     it('enables plan tool when collaboration mode is plan', () => {

@@ -157,6 +157,7 @@ export class RpcGateway {
             modelMode?: ModelMode
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            serviceTier?: 'fast' | 'flex'
             collaborationMode?: string | null
         }
     ): Promise<unknown> {
@@ -173,6 +174,7 @@ export class RpcGateway {
         agent: 'claude' | 'codex' | 'gemini' | 'opencode' = 'claude',
         model?: string,
         thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
+        serviceTier?: 'fast' | 'flex',
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
@@ -182,7 +184,7 @@ export class RpcGateway {
             const result = await this.machineRpc(
                 machineId,
                 'spawn-happy-session',
-                { type: 'spawn-in-directory', directory, agent, model, thinkEffort, yolo, sessionType, worktreeName, resumeSessionId }
+                { type: 'spawn-in-directory', directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, resumeSessionId }
             )
             if (result && typeof result === 'object') {
                 const obj = result as Record<string, unknown>

@@ -185,6 +185,7 @@ export async function startRunner(): Promise<void> {
       const { directory, sessionId, machineId, approvedNewDirectoryCreation = true } = options;
       const agent = options.agent ?? 'claude';
       const thinkEffort = options.thinkEffort;
+      const serviceTier = options.serviceTier;
       const yolo = options.yolo === true;
       const sessionType = options.sessionType ?? 'simple';
       const worktreeName = options.worktreeName;
@@ -357,6 +358,9 @@ export async function startRunner(): Promise<void> {
         }
         if (agent === 'codex' && thinkEffort) {
           args.push('--effort', thinkEffort);
+        }
+        if (agent === 'codex' && serviceTier) {
+          args.push('--service-tier', serviceTier);
         }
         if (agent === 'claude' && (thinkEffort === 'low' || thinkEffort === 'medium' || thinkEffort === 'high')) {
           args.push('--effort', thinkEffort);

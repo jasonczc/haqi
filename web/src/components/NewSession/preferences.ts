@@ -1,10 +1,11 @@
-import type { AgentType, SessionType, ThinkEffort } from './types'
-import { MODEL_OPTIONS, getThinkEffortOptions } from './types'
+import type { AgentType, ServiceTier, SessionType, ThinkEffort } from './types'
+import { CODEX_SERVICE_TIER_OPTIONS, MODEL_OPTIONS, getThinkEffortOptions } from './types'
 
 const AGENT_STORAGE_KEY = 'hapi:newSession:agent'
 const YOLO_STORAGE_KEY = 'hapi:newSession:yolo'
 const SESSION_TYPE_STORAGE_KEY = 'hapi:newSession:sessionType'
 const THINK_EFFORT_STORAGE_KEY = 'hapi:newSession:thinkEffortByAgent'
+const SERVICE_TIER_STORAGE_KEY = 'hapi:newSession:serviceTierByAgent'
 const MODEL_STORAGE_KEY = 'hapi:newSession:modelByAgent'
 const CUSTOM_MODEL_STORAGE_KEY = 'hapi:newSession:customModelByAgent'
 const LAST_CONFIG_STORAGE_KEY = 'hapi:newSession:lastConfig'
@@ -18,6 +19,7 @@ export type LastSessionConfig = {
     model?: string
     customModel?: string
     thinkEffort?: ThinkEffort
+    serviceTier?: ServiceTier
     yoloMode?: boolean
     sessionType?: SessionType
     worktreeName?: string
@@ -142,6 +144,33 @@ export function savePreferredThinkEffort(agent: AgentType, value: ThinkEffort): 
     saveAgentPreferenceValue(THINK_EFFORT_STORAGE_KEY, agent, value)
 }
 
+export function loadPreferredServiceTier(agent: AgentType): ServiceTier | null {
+    if (agent !== 'codex') {
+        return null
+    }
+
+    const storedValue = loadAgentPreferenceMap(SERVICE_TIER_STORAGE_KEY)[agent]
+    if (!storedValue) {
+        return null
+    }
+
+    if (CODEX_SERVICE_TIER_OPTIONS.some((option) => option.value === storedValue)) {
+        return storedValue as ServiceTier
+    }
+
+    return null
+}
+
+export function savePreferredServiceTier(agent: AgentType, value: ServiceTier): void {
+    if (agent !== 'codex') {
+        return
+    }
+    if (!CODEX_SERVICE_TIER_OPTIONS.some((option) => option.value === value)) {
+        return
+    }
+    saveAgentPreferenceValue(SERVICE_TIER_STORAGE_KEY, agent, value)
+}
+
 export function loadPreferredModel(agent: AgentType): string | null {
     const availableOptions = MODEL_OPTIONS[agent]
     if (availableOptions.length === 0) {
@@ -203,6 +232,9 @@ export function loadLastSessionConfig(): LastSessionConfig | null {
         }
         if (typeof parsed.thinkEffort === 'string' && VALID_THINK_EFFORTS.includes(parsed.thinkEffort as ThinkEffort)) {
             config.thinkEffort = parsed.thinkEffort as ThinkEffort
+        }
+        if (typeof parsed.serviceTier === 'string' && CODEX_SERVICE_TIER_OPTIONS.some((option) => option.value === parsed.serviceTier)) {
+            config.serviceTier = parsed.serviceTier as ServiceTier
         }
         if (typeof parsed.yoloMode === 'boolean') {
             config.yoloMode = parsed.yoloMode

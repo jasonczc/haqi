@@ -142,6 +142,7 @@ export function SessionHeader(props: {
     const worktreeBranch = session.metadata?.worktree?.branch
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
     const displayThinkEffort = session.metadata?.thinkEffort?.trim()
+    const displayServiceTier = session.metadata?.serviceTier?.trim()
     const sidebarToggleLabel = props.sidebarVisible
         ? t('sessions.sidebar.hideDesktop')
         : t('sessions.sidebar.showDesktop')
@@ -269,6 +270,7 @@ export function SessionHeader(props: {
                             <span>
                                 {t('session.item.model')}: {displayModel}
                                 {displayThinkEffort ? ` · ${t('session.item.thinkLevel')}: ${displayThinkEffort}` : ''}
+                                {displayServiceTier ? ` · ${t('newSession.serviceTier')}: ${displayServiceTier}` : ''}
                             </span>
                             {worktreeBranch ? (
                                 <span>{t('session.item.worktree')}: {worktreeBranch}</span>

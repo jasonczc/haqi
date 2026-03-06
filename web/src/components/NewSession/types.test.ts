@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CLAUDE_THINK_EFFORT_OPTIONS, CODEX_THINK_EFFORT_OPTIONS, MODEL_OPTIONS } from './types'
+import { CLAUDE_THINK_EFFORT_OPTIONS, CODEX_SERVICE_TIER_OPTIONS, CODEX_THINK_EFFORT_OPTIONS, MODEL_OPTIONS } from './types'
 
 describe('NewSession model options', () => {
     it('uses fixed Claude model presets', () => {
@@ -14,10 +14,10 @@ describe('NewSession model options', () => {
         ])
     })
 
-    it('includes GPT-5.3 Codex in codex model options', () => {
+    it('includes latest Codex model presets', () => {
         const codexValues = MODEL_OPTIONS.codex.map((option) => option.value)
+        expect(codexValues).toContain('gpt-5.4')
         expect(codexValues).toContain('gpt-5.3-codex')
-        expect(codexValues).toContain('gpt-5.3-codex-spark')
     })
 
     it('uses Gemini auto/manual presets', () => {
@@ -33,5 +33,10 @@ describe('NewSession model options', () => {
     it('includes codex think effort options', () => {
         const thinkEfforts = CODEX_THINK_EFFORT_OPTIONS.map((option) => option.value)
         expect(thinkEfforts).toEqual(['xhigh', 'auto', 'low', 'medium', 'high'])
+    })
+
+    it('includes codex service tier options', () => {
+        const serviceTiers = CODEX_SERVICE_TIER_OPTIONS.map((option) => option.value)
+        expect(serviceTiers).toEqual(['auto', 'fast', 'flex'])
     })
 })
