@@ -6,6 +6,7 @@ import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language 
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
+import { useCodexSendModePreference } from '@/hooks/useCodexSendModePreference'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import {
     BRIEF_CARD_MAX_LINES_LIMIT,
@@ -32,6 +33,7 @@ const locales: { value: Locale; nativeLabel: string }[] = [
 const voiceLanguages = getElevenLabsSupportedLanguages()
 const themePreferences: ThemePreference[] = ['light', 'dark', 'system']
 const queueInlinePanelModes: QueueInlinePanelMode[] = ['off', 'compact', 'full']
+const codexSendModes = ['direct', 'queue'] as const
 const imageUploadCompressionLevels: ImageUploadCompressionLevel[] = ['light', 'balanced', 'aggressive']
 const imageUploadCompressionTargetSizes: ImageUploadCompressionTargetSize[] = ['auto', '500kb', '1mb', '2mb', '5mb']
 const SETTINGS_GROUP_EXPANDED_STORAGE_KEY = 'hapi-settings-group-expanded-v1'
@@ -189,6 +191,7 @@ export default function SettingsPage() {
     const [isFontOpen, setIsFontOpen] = useState(false)
     const [isVoiceOpen, setIsVoiceOpen] = useState(false)
     const [isQueuePanelOpen, setIsQueuePanelOpen] = useState(false)
+    const [isSendModeOpen, setIsSendModeOpen] = useState(false)
     const [isImageCompressionLevelOpen, setIsImageCompressionLevelOpen] = useState(false)
     const [isImageCompressionTargetSizeOpen, setIsImageCompressionTargetSizeOpen] = useState(false)
     const [groupExpandedState, setGroupExpandedState] = useState<SettingsGroupExpandedState>(() => readSettingsGroupExpandedState())
@@ -201,11 +204,13 @@ export default function SettingsPage() {
     const fontContainerRef = useRef<HTMLDivElement>(null)
     const voiceContainerRef = useRef<HTMLDivElement>(null)
     const queuePanelContainerRef = useRef<HTMLDivElement>(null)
+    const sendModeContainerRef = useRef<HTMLDivElement>(null)
     const imageCompressionLevelContainerRef = useRef<HTMLDivElement>(null)
     const imageCompressionTargetSizeContainerRef = useRef<HTMLDivElement>(null)
     const { fontScale, setFontScale } = useFontScale()
     const { themePreference, setThemePreference } = useThemePreference()
     const { queueInlinePanelMode, setQueueInlinePanelMode } = useQueueInlinePanel()
+    const { codexSendModeDefault, setCodexSendModeDefault } = useCodexSendModePreference()
     const {
         briefCardAdaptiveHeight,
         briefCardMaxLines,
@@ -254,6 +259,7 @@ export default function SettingsPage() {
     const currentFontScaleLabel = fontScaleOptions.find((opt) => opt.value === fontScale)?.label ?? '100%'
     const currentVoiceLanguage = voiceLanguages.find((lang) => lang.code === voiceLanguage)
     const currentQueuePanelLabel = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}`)
+    const currentCodexSendModeLabel = t(`queue.mode.${codexSendModeDefault}`)
     const currentQueuePanelModeDescription = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}.description`)
     const currentImageCompressionLevelLabel = t(
         `settings.behavior.imageCompression.level.${imageUploadCompressionLevel}`
@@ -434,6 +440,11 @@ export default function SettingsPage() {
         setIsQueuePanelOpen(false)
     }
 
+    const handleCodexSendModeDefaultChange = (mode: typeof codexSendModes[number]) => {
+        setCodexSendModeDefault(mode)
+        setIsSendModeOpen(false)
+    }
+
     const handleProjectQuickCreateToggle = (value: boolean) => {
         setProjectQuickCreateEnabled(value)
     }
@@ -504,6 +515,7 @@ export default function SettingsPage() {
             const nextInteractionExpanded = !previousState.interaction
             if (!nextInteractionExpanded) {
                 setIsQueuePanelOpen(false)
+                setIsSendModeOpen(false)
                 setIsImageCompressionLevelOpen(false)
                 setIsImageCompressionTargetSizeOpen(false)
             }
@@ -577,6 +589,7 @@ export default function SettingsPage() {
             !isFontOpen &&
             !isVoiceOpen &&
             !isQueuePanelOpen &&
+            !isSendModeOpen &&
             !isImageCompressionLevelOpen &&
             !isImageCompressionTargetSizeOpen
         ) return
@@ -596,6 +609,9 @@ export default function SettingsPage() {
             }
             if (isQueuePanelOpen && queuePanelContainerRef.current && !queuePanelContainerRef.current.contains(event.target as Node)) {
                 setIsQueuePanelOpen(false)
+            }
+            if (isSendModeOpen && sendModeContainerRef.current && !sendModeContainerRef.current.contains(event.target as Node)) {
+                setIsSendModeOpen(false)
             }
             if (
                 isImageCompressionLevelOpen &&
@@ -621,6 +637,7 @@ export default function SettingsPage() {
         isFontOpen,
         isVoiceOpen,
         isQueuePanelOpen,
+        isSendModeOpen,
         isImageCompressionLevelOpen,
         isImageCompressionTargetSizeOpen
     ])
@@ -633,6 +650,7 @@ export default function SettingsPage() {
             !isFontOpen &&
             !isVoiceOpen &&
             !isQueuePanelOpen &&
+            !isSendModeOpen &&
             !isImageCompressionLevelOpen &&
             !isImageCompressionTargetSizeOpen
         ) return
@@ -644,6 +662,7 @@ export default function SettingsPage() {
                 setIsFontOpen(false)
                 setIsVoiceOpen(false)
                 setIsQueuePanelOpen(false)
+                setIsSendModeOpen(false)
                 setIsImageCompressionLevelOpen(false)
                 setIsImageCompressionTargetSizeOpen(false)
             }
@@ -657,6 +676,7 @@ export default function SettingsPage() {
         isFontOpen,
         isVoiceOpen,
         isQueuePanelOpen,
+        isSendModeOpen,
         isImageCompressionLevelOpen,
         isImageCompressionTargetSizeOpen
     ])
@@ -918,6 +938,71 @@ export default function SettingsPage() {
                         <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
                             {t('settings.behavior.title')}
                         </div>
+                        <div ref={sendModeContainerRef} className="relative border-b border-[var(--app-border)]">
+                            <button
+                                type="button"
+                                onClick={() => setIsSendModeOpen(!isSendModeOpen)}
+                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                aria-expanded={isSendModeOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <div className="flex flex-col">
+                                    <span className="text-[var(--app-fg)]">
+                                        {t('settings.behavior.defaultSendMode')}
+                                    </span>
+                                    <span className="text-xs text-[var(--app-hint)]">
+                                        {t('settings.behavior.defaultSendMode.description')}
+                                    </span>
+                                </div>
+                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
+                                    <span>{currentCodexSendModeLabel}</span>
+                                    <ChevronDownIcon className={`transition-transform ${isSendModeOpen ? 'rotate-180' : ''}`} />
+                                </span>
+                            </button>
+
+                            {isSendModeOpen && (
+                                <div
+                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    role="listbox"
+                                    aria-label={t('settings.behavior.defaultSendMode')}
+                                >
+                                    {codexSendModes.map((mode) => {
+                                        const isSelected = codexSendModeDefault === mode
+                                        return (
+                                            <button
+                                                key={mode}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={isSelected}
+                                                onClick={() => handleCodexSendModeDefaultChange(mode)}
+                                                className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition-colors ${
+                                                    isSelected
+                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
+                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                                                }`}
+                                            >
+                                                <span className="flex min-w-0 flex-col">
+                                                    <span>{t(`queue.mode.${mode}`)}</span>
+                                                    <span
+                                                        className={`text-xs ${
+                                                            isSelected ? 'text-[var(--app-link)] opacity-80' : 'text-[var(--app-hint)]'
+                                                        }`}
+                                                    >
+                                                        {t(`queue.mode.${mode}Hint`)}
+                                                    </span>
+                                                </span>
+                                                {isSelected && (
+                                                    <span className="mt-0.5 shrink-0 text-[var(--app-link)]">
+                                                        <CheckIcon />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
                         <div ref={queuePanelContainerRef} className="relative border-b border-[var(--app-border)]">
                             <button
                                 type="button"

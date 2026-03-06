@@ -373,6 +373,8 @@ export default {
   'settings.display.theme.system': '跟随系统',
   'settings.display.fontSize': '字体大小',
   'settings.behavior.title': '行为',
+  'settings.behavior.defaultSendMode': '默认发送模式',
+  'settings.behavior.defaultSendMode.description': '会话未单独切换前，默认使用这个发送模式。',
   'settings.behavior.queueInlinePanel': '队列内联面板',
   'settings.behavior.queueInlinePanel.description': '在输入框上方显示队列预览。',
   'settings.behavior.queueInlinePanel.off': '关闭',

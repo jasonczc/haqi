@@ -8,6 +8,24 @@ import SettingsPage from './index'
 
 const SETTINGS_GROUP_EXPANDED_STORAGE_KEY = 'hapi-settings-group-expanded-v1'
 
+const localStorageState = new Map<string, string>()
+const mockLocalStorage = {
+    getItem: vi.fn((key: string) => localStorageState.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+        localStorageState.set(key, value)
+    }),
+    removeItem: vi.fn((key: string) => {
+        localStorageState.delete(key)
+    }),
+    clear: vi.fn(() => {
+        localStorageState.clear()
+    }),
+    key: vi.fn((index: number) => Array.from(localStorageState.keys())[index] ?? null),
+    get length() {
+        return localStorageState.size
+    }
+}
+
 const getUsageOverviewMock = vi.fn(async () => ({
     success: true,
     overview: {
@@ -201,6 +219,10 @@ describe('SettingsPage', () => {
 
     beforeEach(() => {
         vi.clearAllMocks()
+        Object.defineProperty(window, 'localStorage', {
+            value: mockLocalStorage,
+            configurable: true
+        })
         window.localStorage.clear()
     })
 
@@ -241,6 +263,15 @@ describe('SettingsPage', () => {
             dataDiagnostics: false,
             about: true
         })
+    })
+
+    it('persists default send mode preference', () => {
+        renderWithProviders(<SettingsPage />)
+
+        fireEvent.click(screen.getByRole('button', { name: /Default Send Mode/i }))
+        fireEvent.click(screen.getByRole('option', { name: /Queue/i }))
+
+        expect(window.localStorage.getItem('hapi:codexSendModeDefault')).toBe('queue')
     })
 
     it('displays the App Version with correct value', () => {
@@ -286,6 +317,7 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.display.theme')
         expect(calledKeys).toContain('settings.display.theme.system')
         expect(calledKeys).toContain('settings.behavior.imageCompression')
+        expect(calledKeys).toContain('settings.behavior.defaultSendMode')
         expect(calledKeys).toContain('settings.behavior.projectQuickCreate')
         expect(calledKeys).toContain('settings.behavior.imageCompression.level')
         expect(calledKeys).toContain('settings.behavior.imageCompression.targetSize')

@@ -371,6 +371,8 @@ export default {
   'settings.display.theme.system': 'Follow system',
   'settings.display.fontSize': 'Font Size',
   'settings.behavior.title': 'Behavior',
+  'settings.behavior.defaultSendMode': 'Default Send Mode',
+  'settings.behavior.defaultSendMode.description': 'Default mode for sessions before you change the per-session toggle.',
   'settings.behavior.queueInlinePanel': 'Queue Inline Panel',
   'settings.behavior.queueInlinePanel.description': 'Attach queue preview above the composer.',
   'settings.behavior.queueInlinePanel.off': 'Off',

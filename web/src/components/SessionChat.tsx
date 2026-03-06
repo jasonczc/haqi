@@ -19,6 +19,7 @@ import { normalizeDecryptedMessage } from '@/chat/normalize'
 import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
 import { HappyComposer, type CodexSendMode } from '@/components/AssistantChat/HappyComposer'
+import { safeReadCodexSendModeDefault } from '@/hooks/useCodexSendModePreference'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
 import { BriefTurnList } from '@/components/AssistantChat/BriefTurnList'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
@@ -330,9 +331,12 @@ function readCodexSendMode(sessionId: string): CodexSendMode {
     }
     try {
         const value = localStorage.getItem(getCodexSendModeStorageKey(sessionId))
-        return value === 'queue' ? 'queue' : 'direct'
+        if (value === 'queue' || value === 'direct') {
+            return value
+        }
+        return safeReadCodexSendModeDefault()
     } catch {
-        return 'direct'
+        return safeReadCodexSendModeDefault()
     }
 }
 
