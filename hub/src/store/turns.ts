@@ -47,7 +47,6 @@ type MutableTurn = {
 }
 
 const PREVIEW_TEXT_MAX_LENGTH = 6000
-const ASSISTANT_PREVIEW_SNIPPET_WINDOW = 50
 const TEXT_EXTRACTION_DEPTH_LIMIT = 5
 const PRIORITY_TEXT_KEYS = ['text', 'summary', 'message', 'content', 'prompt', 'title', 'error']
 const NON_CONTENT_FIELD_KEYS = new Set(['type', 'role', 'id', 'uuid', 'name'])
@@ -83,14 +82,16 @@ function toStoredMessage(row: DbMessageRow): StoredMessage {
 
 function normalizePreviewText(text: string): string | null {
     const normalizedNewlines = text.replace(/\r\n?/g, '\n')
-    const trimmed = normalizedNewlines.trim()
-    if (!trimmed) {
+    const trimmedEdgeBlankLines = normalizedNewlines
+        .replace(/^(?:[ \t]*\n)+/, '')
+        .replace(/(?:\n[ \t]*)+$/, '')
+    if (!trimmedEdgeBlankLines.trim()) {
         return null
     }
-    if (trimmed.length <= PREVIEW_TEXT_MAX_LENGTH) {
-        return trimmed
+    if (trimmedEdgeBlankLines.length <= PREVIEW_TEXT_MAX_LENGTH) {
+        return trimmedEdgeBlankLines
     }
-    return `${trimmed.slice(0, PREVIEW_TEXT_MAX_LENGTH - 1)}…`
+    return `${trimmedEdgeBlankLines.slice(0, PREVIEW_TEXT_MAX_LENGTH - 1)}…`
 }
 
 function trimPreviewTail(text: string): string {
@@ -100,31 +101,22 @@ function trimPreviewTail(text: string): string {
     return `…${text.slice(Math.max(0, text.length - (PREVIEW_TEXT_MAX_LENGTH - 1)))}`
 }
 
-function splitAssistantPreviewSnippets(preview: string | null): string[] {
-    if (!preview) {
-        return []
-    }
-    return preview
-        .split('\n')
-        .map((snippet) => normalizePreviewText(snippet))
-        .filter((snippet): snippet is string => Boolean(snippet))
-}
-
 function buildRollingAssistantPreview(previousPreview: string | null, nextSnippet: string | null): string | null {
-    const snippets = splitAssistantPreviewSnippets(previousPreview)
+    const previous = previousPreview ? normalizePreviewText(previousPreview) : null
     const normalizedNext = nextSnippet ? normalizePreviewText(nextSnippet) : null
-    if (normalizedNext) {
-        if (snippets[snippets.length - 1] !== normalizedNext) {
-            snippets.push(normalizedNext)
-        }
+    if (!normalizedNext) {
+        return previous
     }
 
-    const tail = snippets.slice(-ASSISTANT_PREVIEW_SNIPPET_WINDOW)
-    if (tail.length === 0) {
-        return null
+    if (!previous) {
+        return normalizedNext
     }
 
-    return trimPreviewTail(tail.join('\n'))
+    if (previous === normalizedNext || previous.endsWith(`\n${normalizedNext}`)) {
+        return previous
+    }
+
+    return trimPreviewTail(`${previous}\n${normalizedNext}`)
 }
 
 function extractTextSnippet(value: unknown, depth: number = 0): string | null {

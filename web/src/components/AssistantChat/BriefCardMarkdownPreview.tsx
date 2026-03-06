@@ -25,7 +25,10 @@ const briefPreviewComponents = {
 
 export function BriefCardMarkdownPreview(props: BriefCardMarkdownPreviewProps) {
     return (
-        <div className={cn('overflow-hidden', props.className)} style={props.style}>
+        <div
+            className={cn('overflow-y-hidden', props.className)}
+            style={props.style}
+        >
             <div
                 className={cn(
                     'aui-md min-w-0 max-w-full break-words text-sm leading-[1.4rem] [overflow-wrap:anywhere]',

@@ -190,4 +190,34 @@ describe('TurnStore projection', () => {
         expect(turns[0]?.userPreview).toBe('line-1\nline-2')
         expect(turns[0]?.assistantPreview).toContain('answer-1\nanswer-2')
     })
+
+    it('preserves nested markdown list indentation across multiple assistant chunks', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-preserve-list-indent', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('show steps'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('1. Parent'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('   - Child'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('2. Next'))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('1. Parent\n   - Child\n2. Next')
+    })
+
+    it('rebuild preserves nested markdown list indentation', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-rebuild-list-indent', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('show steps'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('1. Parent'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('   - Child'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('2. Next'))
+
+        store.turns.rebuildAllTurns()
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('1. Parent\n   - Child\n2. Next')
+    })
 })

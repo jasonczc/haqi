@@ -144,4 +144,48 @@ describe('Group turn projection', () => {
         expect(turns[0]?.initiatorPreview).toBe('@all run\n- step 1')
         expect(turns[0]?.responderPreview).toContain('result line 1\nresult line 2')
     })
+
+    it('preserves nested markdown list indentation in group responder previews', () => {
+        const store = new Store(':memory:')
+        const group = store.groups.createGroup({
+            namespace: 'default',
+            name: 'Group list previews'
+        })
+
+        store.groups.addGroupMessage({
+            groupId: group.id,
+            namespace: 'default',
+            type: 'command',
+            source: 'user:web',
+            payload: { text: '@all summarize' }
+        })
+        store.groups.addGroupMessage({
+            groupId: group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: 'session:agent-1',
+            actorSessionId: 'agent-1',
+            payload: { text: '1. Parent' }
+        })
+        store.groups.addGroupMessage({
+            groupId: group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: 'session:agent-1',
+            actorSessionId: 'agent-1',
+            payload: { text: '   - Child' }
+        })
+        store.groups.addGroupMessage({
+            groupId: group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: 'session:agent-1',
+            actorSessionId: 'agent-1',
+            payload: { text: '2. Next' }
+        })
+
+        const turns = store.groups.getConversationTurns(group.id, 'default', 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.responderPreview).toBe('1. Parent\n   - Child\n2. Next')
+    })
 })

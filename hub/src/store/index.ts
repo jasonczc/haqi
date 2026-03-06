@@ -43,7 +43,7 @@ export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 
-const SCHEMA_VERSION: number = 10
+const SCHEMA_VERSION: number = 11
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -202,6 +202,13 @@ export class Store {
         if (currentVersion === 9 && SCHEMA_VERSION >= 10) {
             this.migrateFromV9ToV10()
             this.setUserVersion(10)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 10 && SCHEMA_VERSION >= 11) {
+            this.migrateFromV10ToV11()
+            this.setUserVersion(11)
             this.initSchema()
             return
         }
@@ -890,6 +897,28 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite conversation preview refresh failed during v9->v10 migration: ${message}`)
+        }
+    }
+
+    private migrateFromV10ToV11(): void {
+        try {
+            this.db.exec('BEGIN')
+
+            if (this.hasTable('sessions') && this.hasTable('messages') && this.hasTable('conversation_turns')) {
+                const turnStore = new TurnStore(this.db)
+                turnStore.rebuildAllTurns()
+            }
+
+            if (this.hasTable('groups') && this.hasTable('group_messages') && this.hasTable('group_conversation_turns')) {
+                const groupStore = new GroupStore(this.db)
+                groupStore.rebuildAllGroupConversationTurns()
+            }
+
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite conversation preview indentation refresh failed during v10->v11 migration: ${message}`)
         }
     }
 

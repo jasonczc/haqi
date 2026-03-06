@@ -60,8 +60,6 @@ type MutableGroupTurn = {
 }
 
 const PREVIEW_TEXT_MAX_LENGTH = 6000
-const PREVIEW_WINDOW_SIZE = 50
-
 function toStoredGroupConversationTurn(row: DbGroupConversationTurnRow): StoredGroupConversationTurn {
     return {
         id: row.id,
@@ -114,8 +112,10 @@ function toStoredGroupMessage(row: DbGroupMessageRow): StoredGroupMessage {
 
 function normalizePreviewText(text: string): string | null {
     const normalizedNewlines = text.replace(/\r\n?/g, '\n')
-    const normalized = normalizedNewlines.trim()
-    if (!normalized) {
+    const normalized = normalizedNewlines
+        .replace(/^(?:[ \t]*\n)+/, '')
+        .replace(/(?:\n[ \t]*)+$/, '')
+    if (!normalized.trim()) {
         return null
     }
     if (normalized.length <= PREVIEW_TEXT_MAX_LENGTH) {
@@ -168,28 +168,22 @@ function extractSnippetFromPayload(payload: unknown): string | null {
     }
 }
 
-function splitPreviewSnippets(preview: string | null): string[] {
-    if (!preview) {
-        return []
-    }
-    return preview
-        .split('\n')
-        .map((snippet) => normalizePreviewText(snippet))
-        .filter((snippet): snippet is string => Boolean(snippet))
-}
-
 function buildRollingPreview(previousPreview: string | null, nextSnippet: string | null): string | null {
-    const snippets = splitPreviewSnippets(previousPreview)
+    const previous = previousPreview ? normalizePreviewText(previousPreview) : null
     const normalizedSnippet = nextSnippet ? normalizePreviewText(nextSnippet) : null
-    if (normalizedSnippet && snippets[snippets.length - 1] !== normalizedSnippet) {
-        snippets.push(normalizedSnippet)
+    if (!normalizedSnippet) {
+        return previous
     }
 
-    const tail = snippets.slice(-PREVIEW_WINDOW_SIZE)
-    if (tail.length === 0) {
-        return null
+    if (!previous) {
+        return normalizedSnippet
     }
-    return trimTail(tail.join('\n'))
+
+    if (previous === normalizedSnippet || previous.endsWith(`\n${normalizedSnippet}`)) {
+        return previous
+    }
+
+    return trimTail(`${previous}\n${normalizedSnippet}`)
 }
 
 function isInitiatorMessage(message: StoredGroupMessage): boolean {
