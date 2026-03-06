@@ -18,6 +18,7 @@ import { isModelModeAllowedForFlavor, isPermissionModeAllowedForFlavor } from '@
 import { ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import { findClaudeThinkEffortFromArgs, type ClaudeThinkEffort, resolveClaudeModelSelection } from './modelMode';
+import { isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
 
 export interface StartOptions {
     model?: string
@@ -427,11 +428,15 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         }
         const messagePermissionMode = currentPermissionMode;
         const messageModel = currentModel;
+        const pureContextMode = isPureContextModeEnabled();
         logger.debug(`[loop] User message received with permission mode: ${currentPermissionMode}, modelMode: ${currentModelMode}, model: ${currentModel ?? 'default'}`);
 
         // Resolve custom system prompt - use message.meta.customSystemPrompt if provided, otherwise use current
         let messageCustomSystemPrompt = currentCustomSystemPrompt;
-        if (message.meta?.hasOwnProperty('customSystemPrompt')) {
+        if (pureContextMode) {
+            messageCustomSystemPrompt = undefined;
+            currentCustomSystemPrompt = undefined;
+        } else if (message.meta?.hasOwnProperty('customSystemPrompt')) {
             messageCustomSystemPrompt = message.meta.customSystemPrompt || undefined; // null becomes undefined
             currentCustomSystemPrompt = messageCustomSystemPrompt;
             logger.debug(`[loop] Custom system prompt updated from user message: ${messageCustomSystemPrompt ? 'set' : 'reset to none'}`);
@@ -451,7 +456,10 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
         // Resolve append system prompt - use message.meta.appendSystemPrompt if provided, otherwise use current
         let messageAppendSystemPrompt = currentAppendSystemPrompt;
-        if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
+        if (pureContextMode) {
+            messageAppendSystemPrompt = undefined;
+            currentAppendSystemPrompt = undefined;
+        } else if (message.meta?.hasOwnProperty('appendSystemPrompt')) {
             messageAppendSystemPrompt = message.meta.appendSystemPrompt || undefined; // null becomes undefined
             currentAppendSystemPrompt = messageAppendSystemPrompt;
             logger.debug(`[loop] Append system prompt updated from user message: ${messageAppendSystemPrompt ? 'set' : 'reset to none'}`);
@@ -632,13 +640,14 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         try {
             const parsed = resolveEnqueuePayload(payload);
             const formattedText = formatMessageWithAttachments(parsed.text, parsed.attachments);
+            const pureContextMode = isPureContextModeEnabled();
             const enhancedMode: EnhancedMode = {
                 permissionMode: currentPermissionMode ?? 'default',
                 model: currentModel,
                 thinkEffort: currentThinkEffort,
                 fallbackModel: currentFallbackModel,
-                customSystemPrompt: currentCustomSystemPrompt,
-                appendSystemPrompt: currentAppendSystemPrompt,
+                customSystemPrompt: pureContextMode ? undefined : currentCustomSystemPrompt,
+                appendSystemPrompt: pureContextMode ? undefined : currentAppendSystemPrompt,
                 allowedTools: currentAllowedTools,
                 disallowedTools: currentDisallowedTools,
                 routeContext: parsed.routeContext
@@ -727,12 +736,13 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         try {
             const parsed = resolveEnqueuePayload(payload);
             const formattedText = formatMessageWithAttachments(parsed.text, parsed.attachments);
+            const pureContextMode = isPureContextModeEnabled();
             const enhancedMode: EnhancedMode = {
                 permissionMode: currentPermissionMode ?? 'default',
                 model: currentModelMode === 'default' ? undefined : currentModelMode,
                 fallbackModel: currentFallbackModel,
-                customSystemPrompt: currentCustomSystemPrompt,
-                appendSystemPrompt: currentAppendSystemPrompt,
+                customSystemPrompt: pureContextMode ? undefined : currentCustomSystemPrompt,
+                appendSystemPrompt: pureContextMode ? undefined : currentAppendSystemPrompt,
                 allowedTools: currentAllowedTools,
                 disallowedTools: currentDisallowedTools,
                 routeContext: parsed.routeContext

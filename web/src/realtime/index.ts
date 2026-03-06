@@ -19,7 +19,7 @@ export { realtimeClientTools, registerSessionStore } from './realtimeClientTools
 export { RealtimeVoiceSession, type RealtimeVoiceSessionProps } from './RealtimeVoiceSession'
 
 // Voice hooks
-export { voiceHooks, registerVoiceHooksStore } from './hooks/voiceHooks'
+export { voiceHooks, registerVoiceHooksStore, setVoicePureContextModeEnabled } from './hooks/voiceHooks'
 
 // Context formatters
 export {

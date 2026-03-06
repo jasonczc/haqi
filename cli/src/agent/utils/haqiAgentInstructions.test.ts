@@ -107,4 +107,25 @@ describe('haqiAgentInstructions', () => {
 
         expect(prompt).toContain('[truncated: MEMORY.md exceeded 65536 bytes]')
     })
+
+    it('skips all automatic prompt injections when pure context mode is enabled', () => {
+        const startDir = join(tempRoot, 'workspace')
+        const hapiHome = join(tempRoot, 'hapi-home')
+        mkdirSync(startDir, { recursive: true })
+        mkdirSync(hapiHome, { recursive: true })
+        process.env.HAPI_HOME = hapiHome
+        writeFileSync(join(startDir, 'HAQI-Agent.md'), 'repo-rules')
+        writeFileSync(
+            join(hapiHome, 'settings.json'),
+            JSON.stringify({
+                memoryInjectionEnabled: true,
+                pureContextMode: true
+            }, null, 2)
+        )
+
+        const prompt = buildPromptWithHaqiAgentInstructions('BASE PROMPT', startDir)
+
+        expect(prompt).toBe('BASE PROMPT')
+        expect(existsSync(join(hapiHome, 'MEMORY.md'))).toBe(false)
+    })
 })

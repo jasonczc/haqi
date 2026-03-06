@@ -8,6 +8,7 @@ const WORKSPACE_INSTRUCTIONS_FILE = 'HAQI-Agent.md'
 const GLOBAL_MEMORY_FILE = 'MEMORY.md'
 const GLOBAL_SETTINGS_FILE = 'settings.json'
 const DEFAULT_MEMORY_INJECTION_ENABLED = false
+const DEFAULT_PURE_CONTEXT_MODE = false
 const MAX_FILE_BYTES = 64 * 1024
 const DEFAULT_MEMORY_TEMPLATE = trimIdent(`
     # MEMORY.md
@@ -61,25 +62,52 @@ function resolveGlobalSettingsPath(): string {
     return join(resolveHapiHomeDir(), GLOBAL_SETTINGS_FILE)
 }
 
-function isGlobalMemoryInjectionEnabled(): boolean {
+type GlobalPromptSettings = {
+    memoryInjectionEnabled: boolean
+    pureContextMode: boolean
+}
+
+function readGlobalPromptSettings(): GlobalPromptSettings {
     try {
         const filepath = resolveGlobalSettingsPath()
         if (!existsSync(filepath)) {
-            return DEFAULT_MEMORY_INJECTION_ENABLED
+            return {
+                memoryInjectionEnabled: DEFAULT_MEMORY_INJECTION_ENABLED,
+                pureContextMode: DEFAULT_PURE_CONTEXT_MODE
+            }
         }
         const raw = readFileSync(filepath, 'utf-8').trim()
         if (!raw) {
-            return DEFAULT_MEMORY_INJECTION_ENABLED
+            return {
+                memoryInjectionEnabled: DEFAULT_MEMORY_INJECTION_ENABLED,
+                pureContextMode: DEFAULT_PURE_CONTEXT_MODE
+            }
         }
-        const parsed = JSON.parse(raw) as { memoryInjectionEnabled?: unknown }
-        if (typeof parsed.memoryInjectionEnabled === 'boolean') {
-            return parsed.memoryInjectionEnabled
+        const parsed = JSON.parse(raw) as {
+            memoryInjectionEnabled?: unknown
+            pureContextMode?: unknown
         }
-        return DEFAULT_MEMORY_INJECTION_ENABLED
+        const memoryInjectionEnabled = typeof parsed.memoryInjectionEnabled === 'boolean'
+            ? parsed.memoryInjectionEnabled
+            : DEFAULT_MEMORY_INJECTION_ENABLED
+        const pureContextMode = typeof parsed.pureContextMode === 'boolean'
+            ? parsed.pureContextMode
+            : DEFAULT_PURE_CONTEXT_MODE
+        return {
+            memoryInjectionEnabled,
+            pureContextMode
+        }
     } catch (error) {
         logger.debug('[haqi-agent-instructions] failed to load global settings', error)
-        return DEFAULT_MEMORY_INJECTION_ENABLED
+        return {
+            memoryInjectionEnabled: DEFAULT_MEMORY_INJECTION_ENABLED,
+            pureContextMode: DEFAULT_PURE_CONTEXT_MODE
+        }
     }
+}
+
+export function isPureContextModeEnabled(): boolean {
+    return readGlobalPromptSettings().pureContextMode
 }
 
 function ensureGlobalMemoryFile(filepath: string): void {
@@ -140,9 +168,13 @@ export function loadGlobalMemory(): { path: string; content: string } | null {
 }
 
 export function buildPromptWithHaqiAgentInstructions(basePrompt: string, startDir: string): string {
+    const promptSettings = readGlobalPromptSettings()
+    if (promptSettings.pureContextMode) {
+        return basePrompt
+    }
+
     const instructions = loadHaqiAgentInstructions(startDir)
-    const memoryInjectionEnabled = isGlobalMemoryInjectionEnabled()
-    const globalMemory = memoryInjectionEnabled ? loadGlobalMemory() : null
+    const globalMemory = promptSettings.memoryInjectionEnabled ? loadGlobalMemory() : null
     if (!instructions && !globalMemory) {
         return basePrompt
     }

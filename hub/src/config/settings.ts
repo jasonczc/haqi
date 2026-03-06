@@ -8,6 +8,7 @@ export interface Settings {
     runnerAutoStartWhenRunningHappy?: boolean
     cliApiToken?: string
     memoryInjectionEnabled?: boolean
+    pureContextMode?: boolean
     vapidKeys?: {
         publicKey: string
         privateKey: string

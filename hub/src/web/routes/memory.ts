@@ -9,6 +9,7 @@ import type { WebAppEnv } from '../middleware/auth'
 const MEMORY_FILENAME = 'MEMORY.md'
 const MAX_MEMORY_BYTES = 512 * 1024
 const DEFAULT_MEMORY_INJECTION_ENABLED = false
+const DEFAULT_PURE_CONTEXT_MODE = false
 
 const DEFAULT_MEMORY_TEMPLATE = `
     # MEMORY.md
@@ -33,12 +34,13 @@ const DEFAULT_MEMORY_TEMPLATE = `
 const updateMemorySchema = z.object({
     content: z.string().optional(),
     enabled: z.boolean().optional(),
+    pureContextMode: z.boolean().optional(),
     updatedBy: z.string().trim().max(255).optional()
 }).superRefine((value, ctx) => {
-    if (value.content === undefined && value.enabled === undefined) {
+    if (value.content === undefined && value.enabled === undefined && value.pureContextMode === undefined) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'Either content or enabled must be provided'
+            message: 'Either content, enabled, or pureContextMode must be provided'
         })
     }
 })
@@ -52,6 +54,7 @@ type MemoryDocument = {
 
 type MemoryPayload = MemoryDocument & {
     enabled: boolean
+    pureContextMode: boolean
 }
 
 function resolveMemoryPath(): string {
@@ -83,12 +86,31 @@ async function updateMemoryInjectionEnabled(enabled: boolean): Promise<void> {
     await writeSettings(configuration.settingsFile, settings)
 }
 
+async function readPureContextMode(): Promise<boolean> {
+    const settings = await readSettingsOrThrow(configuration.settingsFile)
+    if (typeof settings.pureContextMode === 'boolean') {
+        return settings.pureContextMode
+    }
+    return DEFAULT_PURE_CONTEXT_MODE
+}
+
+async function updatePureContextMode(enabled: boolean): Promise<void> {
+    const settings = await readSettingsOrThrow(configuration.settingsFile)
+    if (settings.pureContextMode === enabled) {
+        return
+    }
+    settings.pureContextMode = enabled
+    await writeSettings(configuration.settingsFile, settings)
+}
+
 async function readMemoryPayload(filepath: string): Promise<MemoryPayload> {
     const memory = readMemoryDocument(filepath)
     const enabled = await readMemoryInjectionEnabled()
+    const pureContextMode = await readPureContextMode()
     return {
         ...memory,
-        enabled
+        enabled,
+        pureContextMode
     }
 }
 
@@ -144,6 +166,9 @@ export function createMemoryRoutes(): Hono<WebAppEnv> {
             }
             if (parsed.data.enabled !== undefined) {
                 await updateMemoryInjectionEnabled(parsed.data.enabled)
+            }
+            if (parsed.data.pureContextMode !== undefined) {
+                await updatePureContextMode(parsed.data.pureContextMode)
             }
             const memory = await readMemoryPayload(filepath)
             return c.json({ memory })

@@ -76,17 +76,23 @@ const getMemoryMock = vi.fn(async () => ({
         content: '# MEMORY.md\n',
         updatedAt: Date.now(),
         bytes: 12,
-        enabled: true
+        enabled: true,
+        pureContextMode: false
     }
 }))
 
-const updateMemoryMock = vi.fn(async (payload: { content?: string; enabled?: boolean }) => ({
+const updateMemoryMock = vi.fn(async (payload: {
+    content?: string
+    enabled?: boolean
+    pureContextMode?: boolean
+}) => ({
     memory: {
         path: '/tmp/MEMORY.md',
         content: payload.content ?? '# MEMORY.md\n',
         updatedAt: Date.now(),
         bytes: (payload.content ?? '# MEMORY.md\n').length,
-        enabled: payload.enabled ?? true
+        enabled: payload.enabled ?? true,
+        pureContextMode: payload.pureContextMode ?? false
     }
 }))
 
@@ -283,7 +289,9 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.behavior.projectQuickCreate')
         expect(calledKeys).toContain('settings.behavior.imageCompression.level')
         expect(calledKeys).toContain('settings.behavior.imageCompression.targetSize')
-        expect(calledKeys).toContain('settings.memory.title')
+        expect(calledKeys).toContain('settings.memory.injection.title')
+        expect(calledKeys).toContain('settings.memory.pureContextMode.title')
+        expect(calledKeys).toContain('settings.memory.pureContextMode.description')
         expect(calledKeys).toContain('settings.reportDomain.title')
         expect(calledKeys).toContain('settings.memory.actions.save')
         expect(calledKeys).toContain('settings.about.website')

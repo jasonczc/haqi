@@ -24,6 +24,7 @@ let lastFocusSession: string | null = null
 // Session and message store references
 let sessionGetter: ((sessionId: string) => Session | null) | null = null
 let messagesGetter: ((sessionId: string) => DecryptedMessage[]) | null = null
+let pureContextModeEnabled = false
 
 /**
  * Register the session and message getters for voice hooks
@@ -36,7 +37,12 @@ export function registerVoiceHooksStore(
     messagesGetter = getMessages
 }
 
+export function setVoicePureContextModeEnabled(enabled: boolean) {
+    pureContextModeEnabled = enabled
+}
+
 function reportContextualUpdate(update: string | null | undefined) {
+    if (pureContextModeEnabled) return
     if (VOICE_CONFIG.ENABLE_DEBUG_LOGGING) {
         console.log('[Voice] Reporting contextual update:', update)
     }
@@ -47,6 +53,7 @@ function reportContextualUpdate(update: string | null | undefined) {
 }
 
 function reportTextUpdate(update: string | null | undefined) {
+    if (pureContextModeEnabled) return
     if (VOICE_CONFIG.ENABLE_DEBUG_LOGGING) {
         console.log('[Voice] Reporting text update:', update)
     }
@@ -57,6 +64,7 @@ function reportTextUpdate(update: string | null | undefined) {
 }
 
 function reportSession(sessionId: string) {
+    if (pureContextModeEnabled) return
     if (shownSessions.has(sessionId)) return
     shownSessions.add(sessionId)
 
@@ -130,6 +138,9 @@ export const voiceHooks = {
             console.log('[Voice] Voice session started for:', sessionId)
         }
         shownSessions.clear()
+        if (pureContextModeEnabled) {
+            return ''
+        }
 
         const session = sessionGetter?.(sessionId) ?? null
         const messages = messagesGetter?.(sessionId) ?? []

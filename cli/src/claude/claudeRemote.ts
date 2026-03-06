@@ -10,6 +10,7 @@ import { awaitFileExist } from "@/modules/watcher/awaitFileExist";
 import { buildClaudeSystemPrompt } from "./utils/systemPrompt";
 import { PermissionResult } from "./sdk/types";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
+import { isPureContextModeEnabled } from "@/agent/utils/haqiAgentInstructions";
 
 export async function claudeRemote(opts: {
 
@@ -108,6 +109,23 @@ export async function claudeRemote(opts: {
     }
 
     const resolvedSystemPrompt = buildClaudeSystemPrompt(opts.path);
+    const pureContextMode = isPureContextModeEnabled();
+    const normalizedSystemPrompt = resolvedSystemPrompt.trim();
+
+    const customSystemPrompt = pureContextMode
+        ? undefined
+        : (initial.mode.customSystemPrompt
+            ? (normalizedSystemPrompt
+                ? `${initial.mode.customSystemPrompt}\n\n${normalizedSystemPrompt}`
+                : initial.mode.customSystemPrompt)
+            : undefined);
+    const appendSystemPrompt = pureContextMode
+        ? undefined
+        : (initial.mode.appendSystemPrompt
+            ? (normalizedSystemPrompt
+                ? `${initial.mode.appendSystemPrompt}\n\n${normalizedSystemPrompt}`
+                : initial.mode.appendSystemPrompt)
+            : (normalizedSystemPrompt || undefined));
 
     // Prepare SDK options
     let mode = initial.mode;
@@ -119,8 +137,8 @@ export async function claudeRemote(opts: {
         model: initial.mode.model,
         effort: initial.mode.thinkEffort,
         fallbackModel: initial.mode.fallbackModel,
-        customSystemPrompt: initial.mode.customSystemPrompt ? initial.mode.customSystemPrompt + '\n\n' + resolvedSystemPrompt : undefined,
-        appendSystemPrompt: initial.mode.appendSystemPrompt ? initial.mode.appendSystemPrompt + '\n\n' + resolvedSystemPrompt : resolvedSystemPrompt,
+        customSystemPrompt,
+        appendSystemPrompt,
         allowedTools: initial.mode.allowedTools ? initial.mode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
         disallowedTools: initial.mode.disallowedTools,
         canCallTool: (toolName: string, input: unknown, options: { signal: AbortSignal }) => opts.canCallTool(toolName, input, mode, options),

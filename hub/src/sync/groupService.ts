@@ -101,7 +101,9 @@ const NOTE_REFRESH_TASK_LIMIT = 120
 const NOTE_REFRESH_NOTE_MAX_LENGTH = 2_000
 const NOTE_REFRESH_PAYLOAD_MAX_LENGTH = 500
 const GROUP_NOTE_FILENAME = 'GROUP-NOTE.md'
+const SETTINGS_FILENAME = 'settings.json'
 const QUOTED_CONTEXT_MAX_LENGTH = 2_000
+const DEFAULT_PURE_CONTEXT_MODE = false
 
 function extractCommandText(payload: unknown): string {
     if (typeof payload === 'string') {
@@ -191,6 +193,30 @@ function resolveHapiHomeDir(): string {
         return raw.replace(/^~(?=\/|$)/, homedir())
     }
     return join(homedir(), '.hapi')
+}
+
+function resolveSettingsPath(): string {
+    return join(resolveHapiHomeDir(), SETTINGS_FILENAME)
+}
+
+function isPureContextModeEnabled(): boolean {
+    try {
+        const filepath = resolveSettingsPath()
+        if (!existsSync(filepath)) {
+            return DEFAULT_PURE_CONTEXT_MODE
+        }
+        const raw = readFileSync(filepath, 'utf-8').trim()
+        if (!raw) {
+            return DEFAULT_PURE_CONTEXT_MODE
+        }
+        const parsed = JSON.parse(raw) as { pureContextMode?: unknown }
+        if (typeof parsed.pureContextMode === 'boolean') {
+            return parsed.pureContextMode
+        }
+        return DEFAULT_PURE_CONTEXT_MODE
+    } catch {
+        return DEFAULT_PURE_CONTEXT_MODE
+    }
 }
 
 function normalizeGroupNoteContent(content: string): string {
@@ -644,6 +670,10 @@ export class GroupService {
 
         const traceId = randomUUID()
         const source = options.source ?? 'user:web'
+        const pureContextMode = isPureContextModeEnabled()
+        if (pureContextMode && (!options.command || !options.command.trim())) {
+            return { triggered: false, reason: 'pure context mode enabled' }
+        }
         const command = options.command ?? this.buildNoteRefreshCommand(detail, source)
         const result = await this.executeNoteRefresh({
             groupId: options.groupId,
@@ -1205,6 +1235,9 @@ export class GroupService {
     }
 
     private buildCommandWithQuotedContext(command: string, quotedMessage: TimelineQuotedMessage | undefined): string {
+        if (isPureContextModeEnabled()) {
+            return command
+        }
         if (!quotedMessage || command.trimStart().startsWith('>')) {
             return command
         }
@@ -1224,6 +1257,9 @@ export class GroupService {
         command: string
         includeTaskContext: boolean
     }): string {
+        if (isPureContextModeEnabled()) {
+            return options.command
+        }
         const trimmedCommand = options.command.trimStart()
         if (trimmedCommand.startsWith('/')) {
             // Keep slash commands intact so agent-native command parsing remains unchanged.

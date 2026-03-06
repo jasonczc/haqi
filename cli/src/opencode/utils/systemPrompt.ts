@@ -6,7 +6,7 @@
  */
 
 import { trimIdent } from '@/utils/trimIdent';
-import { buildPromptWithHaqiAgentInstructions } from '@/agent/utils/haqiAgentInstructions';
+import { buildPromptWithHaqiAgentInstructions, isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
 
 /**
  * Title instruction for OpenCode to call the haqi MCP tool.
@@ -27,5 +27,8 @@ export const TITLE_INSTRUCTION = trimIdent(`
 export const opencodeSystemPrompt = TITLE_INSTRUCTION;
 
 export function buildOpencodeSystemPrompt(startDir: string): string {
+    if (isPureContextModeEnabled()) {
+        return '';
+    }
     return buildPromptWithHaqiAgentInstructions(opencodeSystemPrompt, startDir);
 }

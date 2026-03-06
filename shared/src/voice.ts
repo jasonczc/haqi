@@ -217,7 +217,8 @@ export interface VoiceAgentConfig {
  * Build the agent configuration for Hapi Voice Assistant.
  * Used by both server-side auto-creation and client-side configuration.
  */
-export function buildVoiceAgentConfig(): VoiceAgentConfig {
+export function buildVoiceAgentConfig(options?: { pureContextMode?: boolean }): VoiceAgentConfig {
+    const pureContextMode = options?.pureContextMode === true
     return {
         name: VOICE_AGENT_NAME,
         conversation_config: {
@@ -225,7 +226,7 @@ export function buildVoiceAgentConfig(): VoiceAgentConfig {
                 first_message: VOICE_FIRST_MESSAGE,
                 language: 'en',
                 prompt: {
-                    prompt: VOICE_SYSTEM_PROMPT,
+                    prompt: pureContextMode ? '' : VOICE_SYSTEM_PROMPT,
                     llm: 'gemini-2.5-flash',
                     temperature: 0.7,
                     max_tokens: 1024,

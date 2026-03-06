@@ -53,7 +53,9 @@ export async function claudeLocal(opts: {
     }
 
     const resolvedSystemPrompt = buildClaudeSystemPrompt(opts.path);
-    args.push('--append-system-prompt', stripNewlinesForWindowsShellArg(resolvedSystemPrompt));
+    if (resolvedSystemPrompt.trim()) {
+        args.push('--append-system-prompt', stripNewlinesForWindowsShellArg(resolvedSystemPrompt));
+    }
 
     const cleanupMcpConfig = appendMcpConfigArg(args, opts.mcpServers, {
         baseDir: projectDir

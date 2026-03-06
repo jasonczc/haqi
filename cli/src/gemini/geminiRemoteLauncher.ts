@@ -111,7 +111,7 @@ class GeminiRemoteLauncher extends RemoteLauncherBase {
             messageBuffer.addMessage(batch.message, 'user');
 
             let messageText = batch.message;
-            if (!this.instructionsSent) {
+            if (!this.instructionsSent && baseInstructions.trim()) {
                 messageText = `${baseInstructions}\n\n${batch.message}`;
                 this.instructionsSent = true;
             }

@@ -117,7 +117,7 @@ class OpencodeRemoteLauncher extends RemoteLauncherBase {
 
             // Inject title instructions on first prompt
             let messageText = batch.message;
-            if (!this.instructionsSent) {
+            if (!this.instructionsSent && baseInstructions.trim()) {
                 messageText = `${baseInstructions}\n\n${batch.message}`;
                 this.instructionsSent = true;
             }

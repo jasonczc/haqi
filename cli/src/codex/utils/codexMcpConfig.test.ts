@@ -89,5 +89,10 @@ describe('codexMcpConfig', () => {
 
             expect(args[1]).toContain('\\\\');
         });
+
+        it('returns no args for empty instructions', () => {
+            const args = buildDeveloperInstructionsArg('   ');
+            expect(args).toEqual([]);
+        });
     });
 });

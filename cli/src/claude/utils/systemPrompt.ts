@@ -1,6 +1,6 @@
 import { trimIdent } from "@/utils/trimIdent";
 import { shouldIncludeCoAuthoredBy } from "./claudeSettings";
-import { buildPromptWithHaqiAgentInstructions } from "@/agent/utils/haqiAgentInstructions";
+import { buildPromptWithHaqiAgentInstructions, isPureContextModeEnabled } from "@/agent/utils/haqiAgentInstructions";
 
 /**
  * Base system prompt shared across all configurations
@@ -43,5 +43,8 @@ export const systemPrompt = (() => {
 })();
 
 export function buildClaudeSystemPrompt(startDir: string): string {
+  if (isPureContextModeEnabled()) {
+    return '';
+  }
   return buildPromptWithHaqiAgentInstructions(systemPrompt, startDir);
 }

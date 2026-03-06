@@ -1,7 +1,9 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { ConversationStatus, StatusCallback } from '@/realtime/types'
-import { startRealtimeSession, stopRealtimeSession, voiceHooks } from '@/realtime'
+import { setVoicePureContextModeEnabled, startRealtimeSession, stopRealtimeSession, voiceHooks } from '@/realtime'
 import { getElevenLabsCodeFromPreference } from '@/lib/languages'
+import { useAppContext } from '@/lib/app-context'
+import { useMemory } from '@/hooks/queries/useMemory'
 
 interface VoiceContextValue {
     status: ConversationStatus
@@ -18,6 +20,9 @@ interface VoiceContextValue {
 const VoiceContext = createContext<VoiceContextValue | null>(null)
 
 export function VoiceProvider({ children }: { children: ReactNode }) {
+    const { api } = useAppContext()
+    const { memory } = useMemory(api)
+    const pureContextModeEnabled = memory?.pureContextMode ?? false
     const [status, setStatusInternal] = useState<ConversationStatus>('disconnected')
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const [micMuted, setMicMuted] = useState(false)
@@ -36,16 +41,22 @@ export function VoiceProvider({ children }: { children: ReactNode }) {
         setMicMuted((prev) => !prev)
     }, [])
 
+    useEffect(() => {
+        setVoicePureContextModeEnabled(pureContextModeEnabled)
+    }, [pureContextModeEnabled])
+
     const startVoice = useCallback(async (sessionId: string) => {
         setCurrentSessionId(sessionId)
-        const initialContext = voiceHooks.onVoiceStarted(sessionId)
+        const initialContext = pureContextModeEnabled
+            ? ''
+            : voiceHooks.onVoiceStarted(sessionId)
 
         // Read voice language preference from localStorage
         const voiceLang = localStorage.getItem('hapi-voice-lang')
         const elevenLabsLang = getElevenLabsCodeFromPreference(voiceLang)
 
         await startRealtimeSession(sessionId, initialContext, elevenLabsLang)
-    }, [])
+    }, [pureContextModeEnabled])
 
     const stopVoice = useCallback(async () => {
         voiceHooks.onVoiceStopped()

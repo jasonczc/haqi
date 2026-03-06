@@ -246,6 +246,7 @@ export default function SettingsPage() {
     const [reportDomainStatusMessage, setReportDomainStatusMessage] = useState<string | null>(null)
     const isReportDomainDirty = reportDomainDraft.trim() !== reportDomainSaved.trim()
     const memoryInjectionEnabled = memory?.enabled ?? false
+    const pureContextModeEnabled = memory?.pureContextMode ?? false
 
     const fontScaleOptions = getFontScaleOptions()
     const currentLocale = locales.find((loc) => loc.value === locale)
@@ -384,6 +385,23 @@ export default function SettingsPage() {
                 enabled
                     ? t('settings.memory.status.injectionEnabled')
                     : t('settings.memory.status.injectionDisabled')
+            )
+            await queryClient.invalidateQueries({ queryKey: queryKeys.memory })
+        },
+        onError: (error) => {
+            setMemoryStatusMessage(error instanceof Error ? error.message : t('settings.memory.status.toggleFailed'))
+        }
+    })
+
+    const togglePureContextModeMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            return await api.updateMemory({ pureContextMode: enabled, updatedBy: 'user:web:settings' })
+        },
+        onSuccess: async (_result, enabled) => {
+            setMemoryStatusMessage(
+                enabled
+                    ? t('settings.memory.status.pureContextModeEnabled')
+                    : t('settings.memory.status.pureContextModeDisabled')
             )
             await queryClient.invalidateQueries({ queryKey: queryKeys.memory })
         },
@@ -534,6 +552,11 @@ export default function SettingsPage() {
     const handleMemoryInjectionToggle = async (value: boolean) => {
         setMemoryStatusMessage(null)
         await toggleMemoryInjectionMutation.mutateAsync(value)
+    }
+
+    const handlePureContextModeToggle = async (value: boolean) => {
+        setMemoryStatusMessage(null)
+        await togglePureContextModeMutation.mutateAsync(value)
     }
 
     const handleReloadReportDomain = async () => {
@@ -1363,13 +1386,27 @@ export default function SettingsPage() {
                     <div className="border-b border-[var(--app-divider)]">
                         <div className="flex items-center justify-between gap-3 px-3 py-2">
                             <div className="text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
-                                {t('settings.memory.title')}
+                                {t('settings.memory.pureContextMode.title')}
+                            </div>
+                            <Switch
+                                checked={pureContextModeEnabled}
+                                onCheckedChange={(value) => { void handlePureContextModeToggle(value) }}
+                                disabled={memoryLoading || togglePureContextModeMutation.isPending}
+                                ariaLabel={t('settings.memory.pureContextMode.title')}
+                            />
+                        </div>
+                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
+                            {t('settings.memory.pureContextMode.description')}
+                        </div>
+                        <div className="flex items-center justify-between gap-3 px-3 py-2">
+                            <div className="text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                                {t('settings.memory.injection.title')}
                             </div>
                             <Switch
                                 checked={memoryInjectionEnabled}
                                 onCheckedChange={(value) => { void handleMemoryInjectionToggle(value) }}
-                                disabled={memoryLoading || toggleMemoryInjectionMutation.isPending}
-                                ariaLabel={t('settings.memory.title')}
+                                disabled={memoryLoading || toggleMemoryInjectionMutation.isPending || pureContextModeEnabled}
+                                ariaLabel={t('settings.memory.injection.title')}
                             />
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">

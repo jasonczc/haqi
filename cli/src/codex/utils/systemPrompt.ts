@@ -6,7 +6,7 @@
  */
 
 import { trimIdent } from '@/utils/trimIdent';
-import { buildPromptWithHaqiAgentInstructions } from '@/agent/utils/haqiAgentInstructions';
+import { buildPromptWithHaqiAgentInstructions, isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
 
 /**
  * Title instruction for Codex to call the haqi MCP tool.
@@ -48,5 +48,8 @@ export const TITLE_INSTRUCTION = trimIdent(`
 export const codexSystemPrompt = TITLE_INSTRUCTION;
 
 export function buildCodexSystemPrompt(startDir: string): string {
+    if (isPureContextModeEnabled()) {
+        return '';
+    }
     return buildPromptWithHaqiAgentInstructions(codexSystemPrompt, startDir);
 }

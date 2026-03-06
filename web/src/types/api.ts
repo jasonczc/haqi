@@ -325,6 +325,7 @@ export type GlobalMemory = {
     updatedAt: number
     bytes: number
     enabled: boolean
+    pureContextMode: boolean
 }
 
 export type MemoryResponse = {

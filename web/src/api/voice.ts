@@ -107,12 +107,15 @@ export async function findHapiAgent(apiKey: string): Promise<FindAgentResult> {
 /**
  * Create or update the "Hapi Voice Assistant" agent with our default configuration.
  */
-export async function createOrUpdateHapiAgent(apiKey: string): Promise<CreateAgentResult> {
+export async function createOrUpdateHapiAgent(
+    apiKey: string,
+    options?: { pureContextMode?: boolean }
+): Promise<CreateAgentResult> {
     try {
         const findResult = await findHapiAgent(apiKey)
         const existingAgentId = findResult.success ? findResult.agentId : null
 
-        const agentConfig = buildVoiceAgentConfig()
+        const agentConfig = buildVoiceAgentConfig({ pureContextMode: options?.pureContextMode === true })
 
         let response: Response
         let created = false

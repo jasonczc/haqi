@@ -2,6 +2,7 @@ import type { EnhancedMode } from '../loop';
 import type { CodexCliOverrides } from './codexCliOverrides';
 import type { McpServersConfig } from './buildHapiMcpBridge';
 import { codexSystemPrompt } from './systemPrompt';
+import { isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
 import type {
     ApprovalPolicy,
     SandboxMode,
@@ -91,12 +92,13 @@ export function buildThreadStartParams(args: {
     const resolvedSandbox = cliOverrides?.sandbox ?? sandbox;
 
     const config = buildMcpServerConfig(args.mcpServers);
-    const baseInstructions = args.baseInstructions ?? codexSystemPrompt;
+    const defaultBaseInstructions = isPureContextModeEnabled() ? '' : codexSystemPrompt;
+    const baseInstructions = args.baseInstructions ?? defaultBaseInstructions;
 
     const params: ThreadStartParams = {
         approvalPolicy: resolvedApprovalPolicy,
         sandbox: resolvedSandbox,
-        baseInstructions,
+        ...(baseInstructions.trim() ? { baseInstructions } : {}),
         ...(args.developerInstructions ? { developerInstructions: args.developerInstructions } : {}),
         ...(Object.keys(config).length > 0 ? { config } : {})
     };

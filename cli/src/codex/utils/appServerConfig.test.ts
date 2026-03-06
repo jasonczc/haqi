@@ -1,9 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildThreadStartParams, buildTurnStartParams } from './appServerConfig';
 import { codexSystemPrompt } from './systemPrompt';
 
 describe('appServerConfig', () => {
+    let tempRoot: string;
+    let previousHapiHome: string | undefined;
     const mcpServers = { hapi: { command: 'node', args: ['mcp'] } };
+
+    beforeEach(() => {
+        tempRoot = mkdtempSync(join(tmpdir(), 'app-server-config-'));
+        previousHapiHome = process.env.HAPI_HOME;
+        process.env.HAPI_HOME = tempRoot;
+    });
+
+    afterEach(() => {
+        if (previousHapiHome === undefined) {
+            delete process.env.HAPI_HOME;
+        } else {
+            process.env.HAPI_HOME = previousHapiHome;
+        }
+        rmSync(tempRoot, { recursive: true, force: true });
+    });
 
     it('applies CLI overrides when permission mode is default', () => {
         const params = buildThreadStartParams({
@@ -45,6 +65,16 @@ describe('appServerConfig', () => {
 
         expect(params.sandbox).toBe('danger-full-access');
         expect(params.approvalPolicy).toBe('never');
+    });
+
+    it('omits base instructions when empty', () => {
+        const params = buildThreadStartParams({
+            mode: { permissionMode: 'default' },
+            mcpServers,
+            baseInstructions: ''
+        });
+
+        expect(params.baseInstructions).toBeUndefined();
     });
 
     it('builds turn params with mode defaults', () => {
