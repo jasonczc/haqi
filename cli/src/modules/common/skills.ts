@@ -116,23 +116,7 @@ async function listTopLevelSkillDirs(skillsRoot: string): Promise<string[]> {
         const result: string[] = [];
 
         for (const entry of entries) {
-            if (!entry.isDirectory()) {
-                continue;
-            }
-
-            if (entry.name === '.system') {
-                const systemRoot = join(skillsRoot, entry.name);
-                try {
-                    const systemEntries = await readdir(systemRoot, { withFileTypes: true });
-                    for (const systemEntry of systemEntries) {
-                        if (!systemEntry.isDirectory()) {
-                            continue;
-                        }
-                        result.push(join(systemRoot, systemEntry.name));
-                    }
-                } catch {
-                    // ignore unreadable .system
-                }
+            if (!entry.isDirectory() || entry.name.startsWith('.')) {
                 continue;
             }
 
