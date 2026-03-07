@@ -119,6 +119,14 @@ function buildRollingAssistantPreview(previousPreview: string | null, nextSnippe
     return trimPreviewTail(`${previous}\n${normalizedNext}`)
 }
 
+function isReasoningBlock(value: unknown): boolean {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return false
+    }
+    const record = value as Record<string, unknown>
+    return record.type === 'thinking' || record.type === 'reasoning'
+}
+
 function extractTextSnippet(value: unknown, depth: number = 0): string | null {
     if (depth > TEXT_EXTRACTION_DEPTH_LIMIT) {
         return null
@@ -130,6 +138,9 @@ function extractTextSnippet(value: unknown, depth: number = 0): string | null {
 
     if (Array.isArray(value)) {
         for (const item of value) {
+            if (isReasoningBlock(item)) {
+                continue
+            }
             const snippet = extractTextSnippet(item, depth + 1)
             if (snippet) {
                 return snippet

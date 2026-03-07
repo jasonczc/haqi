@@ -33,6 +33,43 @@ function makeAgentTextMessage(text: string): unknown {
     }
 }
 
+function makeAgentThinkingAndTextMessage(thinking: string, text: string): unknown {
+    return {
+        role: 'agent',
+        content: {
+            type: 'output',
+            data: {
+                type: 'assistant',
+                message: {
+                    role: 'assistant',
+                    content: [
+                        { type: 'thinking', thinking },
+                        { type: 'text', text }
+                    ]
+                }
+            }
+        }
+    }
+}
+
+function makeAgentThinkingOnlyMessage(thinking: string): unknown {
+    return {
+        role: 'agent',
+        content: {
+            type: 'output',
+            data: {
+                type: 'assistant',
+                message: {
+                    role: 'assistant',
+                    content: [
+                        { type: 'thinking', thinking }
+                    ]
+                }
+            }
+        }
+    }
+}
+
 function makeCodexMessage(data: Record<string, unknown>): unknown {
     return {
         role: 'agent',
@@ -219,5 +256,73 @@ describe('TurnStore projection', () => {
         const turns = store.turns.getTurns(session.id, 20)
         expect(turns).toHaveLength(1)
         expect(turns[0]?.assistantPreview).toBe('1. Parent\n   - Child\n2. Next')
+    })
+
+    it('excludes reasoning blocks from assistant preview when text is also present', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-reasoning-with-text', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('explain something'))
+        store.messages.addMessage(session.id, makeAgentThinkingAndTextMessage(
+            'Let me think about this step by step...',
+            'Here is the actual answer.'
+        ))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Here is the actual answer.')
+        expect(turns[0]?.assistantPreview).not.toContain('step by step')
+    })
+
+    it('does not add reasoning-only messages to assistant preview', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-reasoning-only', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('think about it'))
+        store.messages.addMessage(session.id, makeAgentThinkingOnlyMessage('Internal reasoning only'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Final response'))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Final response')
+        expect(turns[0]?.assistantPreview).not.toContain('Internal reasoning')
+    })
+
+    it('excludes codex reasoning messages from assistant preview', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-codex-reasoning', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('do something'))
+        store.messages.addMessage(session.id, makeCodexMessage({
+            type: 'reasoning',
+            message: 'Codex internal reasoning'
+        }))
+        store.messages.addMessage(session.id, makeCodexMessage({
+            type: 'message',
+            message: 'Codex final answer'
+        }))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Codex final answer')
+        expect(turns[0]?.assistantPreview).not.toContain('internal reasoning')
+    })
+
+    it('rebuild excludes reasoning blocks from assistant preview', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-rebuild-reasoning', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('explain'))
+        store.messages.addMessage(session.id, makeAgentThinkingAndTextMessage(
+            'Deep reasoning here...',
+            'The answer is 42.'
+        ))
+
+        store.turns.rebuildAllTurns()
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('The answer is 42.')
+        expect(turns[0]?.assistantPreview).not.toContain('Deep reasoning')
     })
 })
