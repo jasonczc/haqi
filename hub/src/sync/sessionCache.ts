@@ -1,4 +1,4 @@
-import { AgentStateSchema, MetadataSchema } from '@hapi/protocol/schemas'
+import { AgentStateSchema, MetadataSchema, TeamStateSchema } from '@hapi/protocol/schemas'
 import type { ModelMode, PermissionMode, Session } from '@hapi/protocol/types'
 import type { PreviewUrlHistoryEntry, Store } from '../store'
 import { clampAliveTime } from './aliveTime'
@@ -108,6 +108,12 @@ export class SessionCache {
             return parsed.success ? parsed.data : undefined
         })()
 
+        const teamState = (() => {
+            if (stored.teamState === null || stored.teamState === undefined) return undefined
+            const parsed = TeamStateSchema.safeParse(stored.teamState)
+            return parsed.success ? parsed.data : undefined
+        })()
+
         const session: Session = {
             id: stored.id,
             namespace: stored.namespace,
@@ -124,6 +130,7 @@ export class SessionCache {
             thinking: existing?.thinking ?? false,
             thinkingAt: existing?.thinkingAt ?? 0,
             todos,
+            teamState,
             permissionMode: existing?.permissionMode,
             modelMode: existing?.modelMode
         }
@@ -379,8 +386,18 @@ export class SessionCache {
             )
         }
 
+<<<<<<< HEAD
         if (oldStored.previewUrl && !newStored.previewUrl) {
             this.store.sessions.setSessionPreviewUrl(newSessionId, oldStored.previewUrl, namespace)
+=======
+        if (oldStored.teamState !== null && oldStored.teamStateUpdatedAt !== null) {
+            this.store.sessions.setSessionTeamState(
+                newSessionId,
+                oldStored.teamState,
+                oldStored.teamStateUpdatedAt,
+                namespace
+            )
+>>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
         }
 
         const deleted = this.store.sessions.deleteSession(oldSessionId, namespace)

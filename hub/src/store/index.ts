@@ -43,7 +43,11 @@ export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 
+<<<<<<< HEAD
 const SCHEMA_VERSION: number = 11
+=======
+const SCHEMA_VERSION: number = 4
+>>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -213,6 +217,12 @@ export class Store {
             return
         }
 
+        if (currentVersion === 3 && SCHEMA_VERSION === 4) {
+            this.migrateFromV3ToV4()
+            this.setUserVersion(SCHEMA_VERSION)
+            return
+        }
+
         if (currentVersion !== SCHEMA_VERSION) {
             throw this.buildSchemaMismatchError(currentVersion)
         }
@@ -237,6 +247,8 @@ export class Store {
                 preview_url TEXT,
                 todos TEXT,
                 todos_updated_at INTEGER,
+                team_state TEXT,
+                team_state_updated_at INTEGER,
                 active INTEGER DEFAULT 0,
                 active_at INTEGER,
                 seq INTEGER DEFAULT 0
@@ -600,6 +612,7 @@ export class Store {
     }
 
     private migrateFromV3ToV4(): void {
+<<<<<<< HEAD
         const sessionColumns = this.getSessionColumnNames()
         try {
             this.db.exec('BEGIN')
@@ -920,6 +933,20 @@ export class Store {
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite conversation preview indentation refresh failed during v10->v11 migration: ${message}`)
         }
+=======
+        const columns = this.getSessionColumnNames()
+        if (!columns.has('team_state')) {
+            this.db.exec('ALTER TABLE sessions ADD COLUMN team_state TEXT')
+        }
+        if (!columns.has('team_state_updated_at')) {
+            this.db.exec('ALTER TABLE sessions ADD COLUMN team_state_updated_at INTEGER')
+        }
+    }
+
+    private getSessionColumnNames(): Set<string> {
+        const rows = this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>
+        return new Set(rows.map((row) => row.name))
+>>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
     }
 
     private getMachineColumnNames(): Set<string> {

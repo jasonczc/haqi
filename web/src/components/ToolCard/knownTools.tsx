@@ -2,8 +2,11 @@ import type { ReactNode } from 'react'
 import type { SessionMetadataSummary } from '@/types/api'
 import { isObject } from '@hapi/protocol'
 import { BulbIcon, ClipboardIcon, EyeIcon, FileDiffIcon, GlobeIcon, MessageSquareIcon, PuzzleIcon, QuestionIcon, RocketIcon, SearchIcon, TerminalIcon, UsersIcon, WrenchIcon } from '@/components/ToolCard/icons'
+<<<<<<< HEAD
 import type { ChecklistItem } from '@/components/ToolCard/checklist'
 import { extractTodoChecklist, extractUpdatePlanChecklist } from '@/components/ToolCard/checklist'
+=======
+>>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
 import { basename, resolveDisplayPath } from '@/utils/path'
 import { getInputStringAny, truncate } from '@/lib/toolInputUtils'
 
@@ -150,6 +153,9 @@ export const knownTools: Record<string, {
     Task: {
         icon: () => <RocketIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
+            const name = getInputStringAny(opts.input, ['name'])
+            const teamName = getInputStringAny(opts.input, ['team_name'])
+            if (name && teamName) return `Agent: ${name}`
             const description = getInputStringAny(opts.input, ['description'])
             return description ?? 'Task'
         },
@@ -158,6 +164,36 @@ export const knownTools: Record<string, {
             return prompt ? truncate(prompt, 120) : null
         },
         minimal: (opts) => opts.childrenCount === 0
+    },
+    TeamCreate: {
+        icon: () => <UsersIcon className={DEFAULT_ICON_CLASS} />,
+        title: (opts) => {
+            const teamName = getInputStringAny(opts.input, ['team_name'])
+            return teamName ? `Team: ${teamName}` : 'Create Team'
+        },
+        subtitle: (opts) => getInputStringAny(opts.input, ['description']) ?? null,
+        minimal: false
+    },
+    TeamDelete: {
+        icon: () => <UsersIcon className={DEFAULT_ICON_CLASS} />,
+        title: () => 'Delete Team',
+        minimal: true
+    },
+    SendMessage: {
+        icon: () => <MessageSquareIcon className={DEFAULT_ICON_CLASS} />,
+        title: (opts) => {
+            const recipient = getInputStringAny(opts.input, ['recipient'])
+            const msgType = getInputStringAny(opts.input, ['type'])
+            if (msgType === 'broadcast') return 'Broadcast'
+            if (msgType === 'shutdown_request') return `Shutdown: ${recipient ?? 'agent'}`
+            if (msgType === 'shutdown_response') return 'Shutdown Response'
+            return recipient ? `Message: ${recipient}` : 'Send Message'
+        },
+        subtitle: (opts) => {
+            const summary = getInputStringAny(opts.input, ['summary'])
+            return summary ? truncate(summary, 120) : null
+        },
+        minimal: true
     },
     Bash: {
         icon: () => <TerminalIcon className={DEFAULT_ICON_CLASS} />,
