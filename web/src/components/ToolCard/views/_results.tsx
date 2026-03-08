@@ -5,6 +5,7 @@ import { CodeBlock } from '@/components/CodeBlock'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { PathActionLink } from '@/components/assistant-ui/path-action-link'
 import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
+import { ChecklistList, extractTodoChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
 
 const MAX_IMAGE_PREVIEW_BYTES = 8 * 1024 * 1024
@@ -575,6 +576,7 @@ const CodexDiffResultView: ToolViewComponent = (props: ToolViewProps) => {
     )
 }
 
+<<<<<<< HEAD
 type CollabAgentStateEntry = {
     agentId: string
     status: string | null
@@ -752,24 +754,15 @@ function todoIcon(todo: TodoItem): string {
     return '☐'
 }
 
+=======
+>>>>>>> 4f06cdf (Support codex plan tool)
 const TodoWriteResultView: ToolViewComponent = (props: ToolViewProps) => {
-    const todos = extractTodos(props.block.tool.input, props.block.tool.result)
+    const todos = extractTodoChecklist(props.block.tool.input, props.block.tool.result)
     if (todos.length === 0) {
         return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
     }
 
-    return (
-        <div className="flex flex-col gap-1">
-            {todos.map((todo, idx) => {
-                const text = todo.content?.trim() ? todo.content.trim() : '(empty)'
-                return (
-                    <div key={todo.id ?? String(idx)} className={`text-sm ${todoTone(todo)}`}>
-                        {todoIcon(todo)} {text}
-                    </div>
-                )
-            })}
-        </div>
-    )
+    return <ChecklistList items={todos} />
 }
 
 const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
