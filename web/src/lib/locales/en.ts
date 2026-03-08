@@ -368,10 +368,17 @@ export default {
   'settings.language.title': 'Language',
   'settings.language.label': 'Language',
   'settings.display.title': 'Display',
+<<<<<<< HEAD
   'settings.display.theme': 'Theme',
   'settings.display.theme.light': 'Light',
   'settings.display.theme.dark': 'Dark',
   'settings.display.theme.system': 'Follow system',
+=======
+  'settings.display.appearance': 'Appearance',
+  'settings.display.appearance.system': 'Follow System',
+  'settings.display.appearance.dark': 'Dark',
+  'settings.display.appearance.light': 'Light',
+>>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
   'settings.display.fontSize': 'Font Size',
   'settings.behavior.title': 'Behavior',
   'settings.behavior.defaultSendMode': 'Default Send Mode',
