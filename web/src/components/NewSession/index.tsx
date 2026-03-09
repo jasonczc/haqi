@@ -47,6 +47,7 @@ import {
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
+import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -146,6 +147,15 @@ export function NewSession(props: {
             setMachineId(props.machines[0].id)
         }
     }, [props.machines, machineId, getLastUsedMachineId, getRecentPaths, hasPresetDirectory])
+
+    const selectedMachine = useMemo(
+        () => (machineId ? props.machines.find((machine) => machine.id === machineId) ?? null : null),
+        [machineId, props.machines]
+    )
+    const runnerSpawnError = useMemo(
+        () => formatRunnerSpawnError(selectedMachine),
+        [selectedMachine]
+    )
 
     const recentPaths = useMemo(
         () => getRecentPaths(machineId),
@@ -401,6 +411,11 @@ export function NewSession(props: {
                 isDisabled={isFormDisabled}
                 onChange={handleMachineChange}
             />
+            {runnerSpawnError ? (
+                <div className="px-3 py-2 text-xs text-red-600">
+                    Runner last spawn error: {runnerSpawnError}
+                </div>
+            ) : null}
             <DirectorySection
                 directory={directory}
                 suggestions={suggestions}
