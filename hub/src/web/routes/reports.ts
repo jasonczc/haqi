@@ -142,6 +142,11 @@ function reportAssetPath(root: string, reportId: string, storageKey: string): st
     return join(reportStorageDir(root, reportId), storageKey)
 }
 
+function toContentDisposition(fileName: string, mode: 'inline' | 'attachment'): string {
+    const safeFileName = fileName.replace(/"/g, '')
+    return `${mode}; filename="${safeFileName}"`
+}
+
 function toApiAsset(
     report: StoredReport,
     asset: StoredReportAsset,
@@ -438,6 +443,7 @@ export function createReportsRoutes(options: {
         const namespace = c.get('namespace')
         const reportId = c.req.param('id')
         const assetId = c.req.param('assetId')
+        const download = c.req.query('download') === '1'
 
         const report = options.store.reports.getReportByNamespace(reportId, namespace)
         if (!report) {
@@ -454,7 +460,8 @@ export function createReportsRoutes(options: {
             headers: {
                 'Content-Type': asset.mimeType,
                 'Cache-Control': 'private, max-age=3600',
-                'Content-Disposition': `inline; filename="${asset.fileName.replace(/"/g, '')}"`
+                'X-Content-Type-Options': 'nosniff',
+                'Content-Disposition': toContentDisposition(asset.fileName, download ? 'attachment' : 'inline')
             }
         })
     })
