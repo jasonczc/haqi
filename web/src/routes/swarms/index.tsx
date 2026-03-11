@@ -27,6 +27,19 @@ type SwarmListItem = {
     latestOutcomePreview?: string | null
 }
 
+type SwarmTemplate = {
+    id: string
+    title: string
+    summary: string
+    phase: string
+    workItems: Array<{
+        title: string
+        intent: string
+        expectedArtifact: string
+        doneCriteria: string
+    }>
+}
+
 const inputClass = 'w-full rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm text-[var(--app-fg)] outline-none transition-colors focus:border-[var(--app-link)]'
 const primaryButtonClass = 'rounded-xl bg-[var(--app-link)] px-3 py-2 text-sm font-medium text-white shadow-sm disabled:opacity-60'
 const subtleButtonClass = 'rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:opacity-60'
@@ -100,26 +113,86 @@ export default function SwarmsIndexPage() {
     const [draftSummary, setDraftSummary] = useState('')
     const [isCreating, setIsCreating] = useState(false)
 
-    const templates = [
+    const templates: SwarmTemplate[] = [
         {
             id: 'feature',
             title: 'Feature delivery',
             summary: 'Ship a feature from plan to implementation to review.',
-            phase: 'plan'
+            phase: 'plan',
+            workItems: [
+                {
+                    title: 'Clarify scope and success criteria',
+                    intent: 'Turn the feature request into a clear implementation scope with constraints and user-facing goals.',
+                    expectedArtifact: 'Scope summary',
+                    doneCriteria: 'Feature boundaries and success criteria are clearly written.'
+                },
+                {
+                    title: 'Implement core changes',
+                    intent: 'Build the primary backend/frontend changes required for the feature.',
+                    expectedArtifact: 'Code changes',
+                    doneCriteria: 'Core implementation is complete and ready for review.'
+                },
+                {
+                    title: 'Review and verify the feature',
+                    intent: 'Check the delivered result, call out risks, and confirm the feature is ready.',
+                    expectedArtifact: 'Review summary',
+                    doneCriteria: 'The feature is reviewed and verification results are recorded.'
+                }
+            ]
         },
         {
             id: 'bug',
             title: 'Bug investigation',
             summary: 'Reproduce, diagnose, fix, and verify a complex bug.',
-            phase: 'investigate'
+            phase: 'investigate',
+            workItems: [
+                {
+                    title: 'Reproduce the bug',
+                    intent: 'Capture the failing behavior, inputs, and environment needed to reproduce the issue.',
+                    expectedArtifact: 'Reproduction notes',
+                    doneCriteria: 'The bug can be reproduced reliably or reproduction blockers are documented.'
+                },
+                {
+                    title: 'Find the root cause',
+                    intent: 'Inspect logs, code, and state transitions to identify why the bug happens.',
+                    expectedArtifact: 'Root cause summary',
+                    doneCriteria: 'A plausible root cause is documented with evidence.'
+                },
+                {
+                    title: 'Fix and verify',
+                    intent: 'Implement the fix and confirm the bug is no longer present.',
+                    expectedArtifact: 'Fix patch and verification summary',
+                    doneCriteria: 'The fix is delivered and verification evidence is recorded.'
+                }
+            ]
         },
         {
             id: 'research',
             title: 'Research mission',
             summary: 'Explore a topic, compare options, and deliver a recommendation.',
-            phase: 'research'
+            phase: 'research',
+            workItems: [
+                {
+                    title: 'Define the research question',
+                    intent: 'Clarify the decision to make, the options to compare, and any constraints.',
+                    expectedArtifact: 'Research brief',
+                    doneCriteria: 'The research question and scope are clearly defined.'
+                },
+                {
+                    title: 'Gather and compare evidence',
+                    intent: 'Collect findings, compare approaches, and document tradeoffs.',
+                    expectedArtifact: 'Comparison notes',
+                    doneCriteria: 'Key options and tradeoffs are captured with evidence.'
+                },
+                {
+                    title: 'Deliver recommendation',
+                    intent: 'Summarize findings into a recommendation with reasoning and follow-up suggestions.',
+                    expectedArtifact: 'Recommendation summary',
+                    doneCriteria: 'A clear recommendation is recorded for review.'
+                }
+            ]
         }
-    ] as const
+    ]
 
     if (isLoading) {
         return <div className="p-4 text-sm text-[var(--app-hint)]">Loading swarms...</div>
@@ -148,7 +221,12 @@ export default function SwarmsIndexPage() {
         void navigate({ to: '/swarms/$swarmId', params: { swarmId } })
     }
 
-    const handleCreateSwarm = async (title: string, summary: string, phase: string = 'plan') => {
+    const handleCreateSwarm = async (
+        title: string,
+        summary: string,
+        phase: string = 'plan',
+        template?: SwarmTemplate | null
+    ) => {
         if (!api || !title.trim() || !summary.trim()) {
             return
         }
@@ -164,6 +242,18 @@ export default function SwarmsIndexPage() {
                     status: 'open'
                 }
             })
+            if (template) {
+                for (const workItem of template.workItems) {
+                    await api.addSwarmWorkItem(response.swarm.swarm.id, {
+                        subjectId: response.swarm.subject?.id,
+                        title: workItem.title,
+                        intent: workItem.intent,
+                        expectedArtifact: workItem.expectedArtifact,
+                        doneCriteria: workItem.doneCriteria,
+                        status: 'open'
+                    })
+                }
+            }
             setDraftTitle('')
             setDraftSummary('')
             await refetch()
@@ -225,7 +315,10 @@ export default function SwarmsIndexPage() {
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     type="button"
-                                    onClick={() => { void handleCreateSwarm(draftTitle, draftSummary) }}
+                                    onClick={() => {
+                                        const matchedTemplate = templates.find((item) => item.title === draftTitle && item.summary === draftSummary) ?? null
+                                        void handleCreateSwarm(draftTitle, draftSummary, matchedTemplate?.phase ?? 'plan', matchedTemplate)
+                                    }}
                                     disabled={isCreating || !draftTitle.trim() || !draftSummary.trim()}
                                     className={primaryButtonClass}
                                 >
@@ -241,6 +334,17 @@ export default function SwarmsIndexPage() {
                                 >
                                     Use Example
                                 </button>
+                                {templates.map((template) => (
+                                    <button
+                                        key={`starter:${template.id}`}
+                                        type="button"
+                                        onClick={() => { void handleCreateSwarm(template.title, template.summary, template.phase, template) }}
+                                        disabled={isCreating}
+                                        className={subtleButtonClass}
+                                    >
+                                        Start {template.title}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     </div>
