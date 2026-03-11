@@ -310,6 +310,41 @@ export default function SwarmDetailPage() {
         updateSearch({ thread: threadId })
     }
 
+    const moveSelectedWorkItemToExecution = () => {
+        if (!selectedWorkItem) {
+            return
+        }
+        setDispatchWorkItemId(selectedWorkItem.id)
+        if (!dispatchText.trim()) {
+            setDispatchText(`Take ownership of "${selectedWorkItem.title}" and return a concrete deliverable.`)
+        }
+        openTab('execute')
+    }
+
+    const moveSelectedWorkItemToDecision = () => {
+        if (!selectedWorkItem) {
+            return
+        }
+        setOutcomeWorkItemId(selectedWorkItem.id)
+        setArtifactWorkItemId(selectedWorkItem.id)
+        if (!reviewArtifactId && selectedWorkItemArtifacts[0]) {
+            setReviewArtifactId(selectedWorkItemArtifacts[0].id)
+        }
+        openTab('decide')
+    }
+
+    const continueWithNextTask = () => {
+        if (!nextWorkItem) {
+            openTab('plan')
+            return
+        }
+        selectWorkItem(nextWorkItem.id)
+        setDispatchWorkItemId(nextWorkItem.id)
+        setOutcomeWorkItemId(nextWorkItem.id)
+        setArtifactWorkItemId(nextWorkItem.id)
+        openTab('plan')
+    }
+
     const navItems: Array<{ id: SwarmTab, label: string, hint: string }> = [
         { id: 'overview', label: 'Overview', hint: 'health + next steps' },
         { id: 'plan', label: 'Plan', hint: 'work items' },
@@ -1201,6 +1236,22 @@ export default function SwarmDetailPage() {
                                                 </div>
                                             </div>
                                         </div>
+                                        <div className={`${softPanelClass} flex flex-col gap-3 md:flex-row md:items-center md:justify-between`}>
+                                            <div>
+                                                <div className="text-sm font-semibold text-[var(--app-fg)]">Move this task forward</div>
+                                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                                    When the plan looks right, assign the task or jump straight to review context.
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button type="button" onClick={moveSelectedWorkItemToExecution} className={primaryButtonClass}>
+                                                    Assign Selected Task
+                                                </button>
+                                                <button type="button" onClick={moveSelectedWorkItemToDecision} className={subtleButtonClass}>
+                                                    Review This Task
+                                                </button>
+                                            </div>
+                                        </div>
                                         <div className="grid gap-3 md:grid-cols-2">
                                             <div className={softPanelClass}>
                                                 <div className="mb-2 text-sm font-semibold text-[var(--app-fg)]">Assignments & leases</div>
@@ -1347,6 +1398,24 @@ export default function SwarmDetailPage() {
                                     <div className={`${softPanelClass} mb-4 space-y-2`}>
                                         <div className="text-sm font-medium text-[var(--app-fg)]">{selectedWorkItem.title}</div>
                                         <div className="text-xs text-[var(--app-hint)]">assigned {selectedWorkItem.assignedParticipantId ?? '—'} · expected {selectedWorkItem.expectedArtifact ?? '—'}</div>
+                                    </div>
+                                ) : null}
+                                {selectedWorkItem ? (
+                                    <div className={`${softPanelClass} mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between`}>
+                                        <div>
+                                            <div className="text-sm font-semibold text-[var(--app-fg)]">Execution next step</div>
+                                            <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                                Assign the task, report progress, then hand off a result for review.
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button type="button" onClick={moveSelectedWorkItemToDecision} className={primaryButtonClass}>
+                                                Record Result For This Task
+                                            </button>
+                                            <button type="button" onClick={() => openTab('plan')} className={subtleButtonClass}>
+                                                Back To Plan
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : null}
                                 <div className="grid gap-4 lg:grid-cols-2">
@@ -1551,16 +1620,16 @@ export default function SwarmDetailPage() {
                                 </section>
 
                                 <section className={pageCardClass}>
-                                    <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Decision support</div>
+                                    <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Decision checklist</div>
                                     <div className="grid gap-2 text-xs">
                                         <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">review queue {reviewQueue.length}</div>
                                         <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">decision cards {decisionOutcomes.length}</div>
-                                        <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">threads {swarm.threads.length}</div>
+                                        <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">discussion notes {swarm.threads.length}</div>
                                     </div>
                                 </section>
 
                                 <section className={pageCardClass}>
-                                    <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Discussion threads</div>
+                                    <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Discussion notes</div>
                                     <div className={`mb-3 flex gap-2 ${softPanelClass}`}>
                                         <input value={threadTitle} onChange={(event) => setThreadTitle(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Thread title" />
                                             <button type="button" onClick={() => { void handleAddThread() }} disabled={isSubmitting || !threadTitle.trim()} className={primaryButtonClass}>Create Thread</button>
@@ -1621,6 +1690,24 @@ export default function SwarmDetailPage() {
                                             <div className="grid gap-2 md:grid-cols-2">
                                                 <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-hint)]">reviews {selectedWorkItemReviews.length}</div>
                                                 <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs text-[var(--app-hint)]">artifacts {selectedWorkItemArtifacts.length}</div>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    {selectedWorkItem ? (
+                                        <div className={`${softPanelClass} mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between`}>
+                                            <div>
+                                                <div className="text-sm font-semibold text-[var(--app-fg)]">Decision next step</div>
+                                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                                    Review the evidence, save a verdict, then continue with the next task.
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button type="button" onClick={continueWithNextTask} className={primaryButtonClass}>
+                                                    Approve & Continue
+                                                </button>
+                                                <button type="button" onClick={() => openTab('execute')} className={subtleButtonClass}>
+                                                    Back To Execution
+                                                </button>
                                             </div>
                                         </div>
                                     ) : null}
