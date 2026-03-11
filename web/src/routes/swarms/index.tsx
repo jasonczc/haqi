@@ -257,6 +257,9 @@ export default function SwarmsIndexPage() {
             setDraftTitle('')
             setDraftSummary('')
             await refetch()
+            if (typeof window !== 'undefined') {
+                window.localStorage.setItem('haqi:onboarding-swarm', response.swarm.swarm.id)
+            }
             void navigate({ to: '/swarms/$swarmId', params: { swarmId: response.swarm.swarm.id } })
         } finally {
             setIsCreating(false)

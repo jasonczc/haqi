@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { useAppContext } from '@/lib/app-context'
 import { useGroups } from '@/hooks/queries/useGroups'
@@ -68,6 +68,7 @@ export default function SwarmDetailPage() {
     const { skills: swarmSkills } = useSwarmSkills(api, swarmId)
     const [activeTab, setActiveTab] = useState<SwarmTab>('overview')
     const [selectedSessionId, setSelectedSessionId] = useState('')
+    const [showFirstRunGuide, setShowFirstRunGuide] = useState(false)
     const [subjectSummary, setSubjectSummary] = useState('')
     const [outcomeKind, setOutcomeKind] = useState('summary')
     const [outcomeWorkItemId, setOutcomeWorkItemId] = useState('')
@@ -244,6 +245,21 @@ export default function SwarmDetailPage() {
                 : reviewQueue.length > 0
                     ? { tab: 'decide' as SwarmTab, title: 'Review Work In Flight', body: 'Open the decision queue and approve, request changes, or comment.' }
                     : { tab: 'execute' as SwarmTab, title: 'Assign The Next Task', body: 'Dispatch an open work item and ask for a concrete deliverable.' }
+
+    useEffect(() => {
+        if (typeof window === 'undefined') {
+            return
+        }
+        const onboardingSwarmId = window.localStorage.getItem('haqi:onboarding-swarm')
+        setShowFirstRunGuide(onboardingSwarmId === swarmId)
+    }, [swarmId])
+
+    const dismissFirstRunGuide = () => {
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('haqi:onboarding-swarm')
+        }
+        setShowFirstRunGuide(false)
+    }
 
     const navItems: Array<{ id: SwarmTab, label: string, hint: string }> = [
         { id: 'overview', label: 'Overview', hint: 'health + next steps' },
@@ -715,6 +731,49 @@ export default function SwarmDetailPage() {
     return (
         <div className="h-full overflow-y-auto bg-[var(--app-bg)]">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4">
+                {showFirstRunGuide ? (
+                    <section className="rounded-3xl border border-[var(--app-link)]/25 bg-[var(--app-link)]/10 p-5 shadow-sm">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--app-link)]">First run guide</div>
+                                <h2 className="mt-2 text-xl font-semibold text-[var(--app-fg)]">Your swarm is ready. Start here.</h2>
+                                <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--app-hint)]">
+                                    We created a starter mission for you. Follow these steps in order so the swarm immediately feels useful.
+                                </p>
+                            </div>
+                            <button type="button" onClick={dismissFirstRunGuide} className={subtleButtonClass}>
+                                Dismiss
+                            </button>
+                        </div>
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('plan')}
+                                className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
+                            >
+                                <div className="text-sm font-medium text-[var(--app-fg)]">Step 1: Review starter tasks</div>
+                                <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">Open Plan and inspect the seeded work items. Edit them if they do not match your mission.</div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('execute')}
+                                className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
+                            >
+                                <div className="text-sm font-medium text-[var(--app-fg)]">Step 2: Add participants</div>
+                                <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">Open Execute, attach a session, then assign the first task.</div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('decide')}
+                                className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
+                            >
+                                <div className="text-sm font-medium text-[var(--app-fg)]">Step 3: Review the result</div>
+                                <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">When work comes back, use Decide to approve, request changes, or record a conclusion.</div>
+                            </button>
+                        </div>
+                    </section>
+                ) : null}
+
                 <SwarmHeaderPanel
                     title={swarm.swarm.title}
                     phase={swarm.swarm.currentPhase}
