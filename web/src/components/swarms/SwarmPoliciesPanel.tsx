@@ -18,12 +18,15 @@ export function SwarmPoliciesPanel(props: SwarmPoliciesPanelProps) {
             <div className="mb-1 text-sm font-semibold text-[var(--app-fg)]">Policies</div>
             <div className="mb-3 text-xs text-[var(--app-hint)]">Define automation rules and fine-tune how swarms escalate or dispatch work.</div>
             <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/70 p-3 sm:flex-row">
-                <input
-                    value={props.policyKind}
-                    onChange={(event) => props.onPolicyKindChange(event.target.value)}
-                    className="min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
-                    placeholder="Policy kind"
-                />
+                <label className="min-w-0 flex-1 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                    Policy type
+                    <input
+                        value={props.policyKind}
+                        onChange={(event) => props.onPolicyKindChange(event.target.value)}
+                        className="mt-1 min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
+                        placeholder="Ex: escalation"
+                    />
+                </label>
                 <button
                     type="button"
                     onClick={props.onAddPolicy}

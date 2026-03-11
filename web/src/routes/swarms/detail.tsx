@@ -50,6 +50,7 @@ const inputClass = 'w-full rounded-xl border border-[var(--app-divider)] bg-[var
 const subtleButtonClass = 'rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:opacity-60'
 const primaryButtonClass = 'rounded-xl bg-[var(--app-link)] px-3 py-2 text-sm font-medium text-white shadow-sm disabled:opacity-60'
 const sectionTitleClass = 'text-sm font-semibold text-[var(--app-fg)]'
+const fieldLabelClass = 'text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]'
 const workbenchSidebarClass = 'lg:sticky lg:top-24 self-start'
 
 function getStateBadgeClass(value: string): string {
@@ -419,6 +420,12 @@ export default function SwarmDetailPage() {
             setOutcomeWorkItemId('')
             setOutcomeContent('')
             await refetch()
+            addToast({
+                title: 'Result recorded',
+                body: 'The result is now ready for review or follow-up.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -441,6 +448,12 @@ export default function SwarmDetailPage() {
             setArtifactTitle('')
             setArtifactUrl('')
             await refetch()
+            addToast({
+                title: 'Deliverable attached',
+                body: 'The review queue now has the latest evidence.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -470,7 +483,7 @@ export default function SwarmDetailPage() {
         }
         setIsSubmitting(true)
         try {
-            await api.addSwarmWorkItem(swarmId, {
+            const response = await api.addSwarmWorkItem(swarmId, {
                 subjectId: swarm.subject?.id,
                 title: workItemTitle.trim(),
                 intent: workItemIntent.trim() || undefined,
@@ -478,11 +491,15 @@ export default function SwarmDetailPage() {
                 doneCriteria: workItemDoneCriteria.trim() || undefined,
                 status: 'open'
             })
+            const newWorkItemId = response.workItem?.id ?? ''
             setWorkItemTitle('')
             setWorkItemIntent('')
             setWorkItemExpectedArtifact('')
             setWorkItemDoneCriteria('')
             await refetch()
+            if (newWorkItemId) {
+                selectWorkItem(newWorkItemId)
+            }
             addToast({
                 title: 'Task created',
                 body: 'Review the new task in Plan or assign it in Execute.',
@@ -789,6 +806,11 @@ export default function SwarmDetailPage() {
                 sessionId: swarmId,
                 url: `/swarms/${swarmId}`
             })
+            if (reviewVerdict === 'approved') {
+                continueWithNextTask()
+            } else if (reviewVerdict === 'changes_requested') {
+                openTab('execute')
+            }
         } catch (reviewError) {
             addToast({
                 title: 'Save review failed',
@@ -826,6 +848,38 @@ export default function SwarmDetailPage() {
             addToast({
                 title: 'Assign task failed',
                 body: dispatchError instanceof Error ? dispatchError.message : 'Unable to assign task.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleRemoveParticipant = async (participantId: string, participantLabel: string) => {
+        if (!api) {
+            return
+        }
+        if (typeof window !== 'undefined') {
+            const confirmed = window.confirm(`Remove ${participantLabel} from this mission? Existing history stays, but they will no longer receive new work.`)
+            if (!confirmed) {
+                return
+            }
+        }
+        setIsSubmitting(true)
+        try {
+            await api.removeSwarmParticipant(swarmId, participantId)
+            await refetch()
+            addToast({
+                title: 'Participant removed',
+                body: `${participantLabel} will no longer receive new work.`,
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
+        } catch (removeError) {
+            addToast({
+                title: 'Remove participant failed',
+                body: removeError instanceof Error ? removeError.message : 'Unable to remove participant.',
                 sessionId: swarmId,
                 url: `/swarms/${swarmId}`
             })
@@ -1099,7 +1153,10 @@ export default function SwarmDetailPage() {
                                             </div>
                                         ) : <div className="text-sm text-[var(--app-hint)]">No subject yet.</div>}
                                         <div className="mt-3 flex gap-2">
-                                            <input value={subjectSummary} onChange={(event) => setSubjectSummary(event.target.value)} placeholder="Update subject summary" className={`min-w-0 flex-1 ${inputClass}`} />
+                                            <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                                Mission summary
+                                                <input value={subjectSummary} onChange={(event) => setSubjectSummary(event.target.value)} placeholder="Summarize the goal, scope, and success signal…" className={`mt-1 min-w-0 flex-1 ${inputClass}`} />
+                                            </label>
                                             <button type="button" onClick={() => { void handleUpdateSubject() }} disabled={isSubmitting || !subjectSummary.trim()} className={primaryButtonClass}>Save</button>
                                         </div>
                                     </div>
@@ -1189,11 +1246,23 @@ export default function SwarmDetailPage() {
                                 <div className="text-sm font-semibold text-[var(--app-fg)]">Create Work Item</div>
                                 <div className="mt-1 text-xs text-[var(--app-hint)]">Define what should be done, what output should come back, and how you will know it is done.</div>
                                 <div className={`${softPanelClass} mt-3 space-y-2`}>
-                                    <input value={workItemTitle} onChange={(event) => setWorkItemTitle(event.target.value)} placeholder="Title" className={inputClass} />
-                                    <textarea value={workItemIntent} onChange={(event) => setWorkItemIntent(event.target.value)} placeholder="Intent / task body" className={`min-h-24 ${inputClass}`} />
-                                    <input value={workItemExpectedArtifact} onChange={(event) => setWorkItemExpectedArtifact(event.target.value)} placeholder="Expected artifact" className={inputClass} />
+                                    <label className={fieldLabelClass}>
+                                        Task title
+                                        <input value={workItemTitle} onChange={(event) => setWorkItemTitle(event.target.value)} placeholder="Ex: Implement swarm review approval flow…" className={`mt-1 ${inputClass}`} />
+                                    </label>
+                                    <label className={fieldLabelClass}>
+                                        Task brief
+                                        <textarea value={workItemIntent} onChange={(event) => setWorkItemIntent(event.target.value)} placeholder="Describe what should happen, key constraints, and who this serves…" className={`mt-1 min-h-24 ${inputClass}`} />
+                                    </label>
+                                    <label className={fieldLabelClass}>
+                                        Expected deliverable
+                                        <input value={workItemExpectedArtifact} onChange={(event) => setWorkItemExpectedArtifact(event.target.value)} placeholder="Ex: UI patch, review notes, and screenshots…" className={`mt-1 ${inputClass}`} />
+                                    </label>
                                     <div className="flex gap-2">
-                                        <input value={workItemDoneCriteria} onChange={(event) => setWorkItemDoneCriteria(event.target.value)} placeholder="Done criteria" className={`min-w-0 flex-1 ${inputClass}`} />
+                                        <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                            Done criteria
+                                            <input value={workItemDoneCriteria} onChange={(event) => setWorkItemDoneCriteria(event.target.value)} placeholder="Ex: User can finish the flow without asking what to click next…" className={`mt-1 min-w-0 flex-1 ${inputClass}`} />
+                                        </label>
                                         <button type="button" onClick={() => { void handleAddWorkItem() }} disabled={isSubmitting || !workItemTitle.trim()} className={primaryButtonClass}>Create Task</button>
                                     </div>
                                 </div>
@@ -1340,16 +1409,7 @@ export default function SwarmDetailPage() {
                                                     </div>
                                                     <button
                                                         type="button"
-                                                        onClick={async () => {
-                                                            if (!api) return
-                                                            setIsSubmitting(true)
-                                                            try {
-                                                                await api.removeSwarmParticipant(swarmId, participant.id)
-                                                                await refetch()
-                                                            } finally {
-                                                                setIsSubmitting(false)
-                                                            }
-                                                        }}
+                                                        onClick={() => { void handleRemoveParticipant(participant.id, participant.refId ?? participant.id) }}
                                                         className={subtleButtonClass}
                                                     >
                                                         Remove
@@ -1360,12 +1420,15 @@ export default function SwarmDetailPage() {
                                     </div>
                                 ) : <div className="text-sm text-[var(--app-hint)]">No participants yet.</div>}
                                 <div className="mt-3 flex gap-2">
-                                    <select value={selectedSessionId} onChange={(event) => setSelectedSessionId(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`}>
-                                        <option value="">Add session participant…</option>
-                                        {availableSessions.map((session) => (
-                                            <option key={session.id} value={session.id}>{session.metadata?.name ?? session.id}</option>
-                                        ))}
-                                    </select>
+                                    <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                        Add participant
+                                        <select value={selectedSessionId} onChange={(event) => setSelectedSessionId(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`}>
+                                            <option value="">Choose a session to join this mission…</option>
+                                            {availableSessions.map((session) => (
+                                                <option key={session.id} value={session.id}>{session.metadata?.name ?? session.id}</option>
+                                            ))}
+                                        </select>
+                                    </label>
                                     <button type="button" onClick={() => { void handleAddSessionParticipant() }} disabled={isSubmitting || !selectedSessionId} className={primaryButtonClass}>Add</button>
                                 </div>
                             </section>
@@ -1422,32 +1485,47 @@ export default function SwarmDetailPage() {
                                     <div className={softPanelClass}>
                                         <div className="mb-2 text-sm font-semibold text-[var(--app-fg)]">Dispatch task</div>
                                         <div className="space-y-2">
-                                            <select value={dispatchTargetId} onChange={(event) => setDispatchTargetId(event.target.value)} className={inputClass}>
-                                                <option value="">Auto-select best participant…</option>
-                                                {sessionParticipants.map((participant) => (
-                                                    <option key={participant.id} value={participant.id}>{participant.refId}</option>
-                                                ))}
-                                            </select>
-                                            <select value={dispatchWorkItemId} onChange={(event) => setDispatchWorkItemId(event.target.value)} className={inputClass}>
-                                                <option value="">Link work item…</option>
-                                                {prioritizedWorkItems.map((workItem) => (
-                                                    <option key={workItem.id} value={workItem.id}>{workItem.title}</option>
-                                                ))}
-                                            </select>
-                                            <input value={dispatchText} onChange={(event) => setDispatchText(event.target.value)} placeholder="Tell the assignee what to do next" className={inputClass} />
+                                            <label className={fieldLabelClass}>
+                                                Assignee
+                                                <select value={dispatchTargetId} onChange={(event) => setDispatchTargetId(event.target.value)} className={`mt-1 ${inputClass}`}>
+                                                    <option value="">Auto-select the best participant…</option>
+                                                    {sessionParticipants.map((participant) => (
+                                                        <option key={participant.id} value={participant.id}>{participant.refId}</option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                            <label className={fieldLabelClass}>
+                                                Task to assign
+                                                <select value={dispatchWorkItemId} onChange={(event) => setDispatchWorkItemId(event.target.value)} className={`mt-1 ${inputClass}`}>
+                                                    <option value="">Choose the task to dispatch…</option>
+                                                    {prioritizedWorkItems.map((workItem) => (
+                                                        <option key={workItem.id} value={workItem.id}>{workItem.title}</option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                            <label className={fieldLabelClass}>
+                                                Assignment note
+                                                <input value={dispatchText} onChange={(event) => setDispatchText(event.target.value)} placeholder="Tell the assignee what good looks like and what to return…" className={`mt-1 ${inputClass}`} />
+                                            </label>
                                                 <button type="button" onClick={() => { void handleDispatch() }} disabled={isSubmitting || !dispatchText.trim()} className={primaryButtonClass}>Assign Task</button>
                                             </div>
                                         </div>
                                         <div className={softPanelClass}>
                                         <div className="mb-2 text-sm font-semibold text-[var(--app-fg)]">Broadcast update</div>
                                         <div className="space-y-2">
-                                            <select value={broadcastGroupId} onChange={(event) => setBroadcastGroupId(event.target.value)} className={inputClass}>
-                                                <option value="">Choose group…</option>
-                                                {groups.map((group) => (
-                                                    <option key={group.group.id} value={group.group.id}>{group.group.name}</option>
-                                                ))}
-                                            </select>
-                                            <input value={broadcastText} onChange={(event) => setBroadcastText(event.target.value)} placeholder="Optional swarm update" className={inputClass} />
+                                            <label className={fieldLabelClass}>
+                                                Group
+                                                <select value={broadcastGroupId} onChange={(event) => setBroadcastGroupId(event.target.value)} className={`mt-1 ${inputClass}`}>
+                                                    <option value="">Choose where to share this update…</option>
+                                                    {groups.map((group) => (
+                                                        <option key={group.group.id} value={group.group.id}>{group.group.name}</option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                            <label className={fieldLabelClass}>
+                                                Update note
+                                                <input value={broadcastText} onChange={(event) => setBroadcastText(event.target.value)} placeholder="Summarize progress, blockers, or the ask for help…" className={`mt-1 ${inputClass}`} />
+                                            </label>
                                                 <button type="button" onClick={() => { void handleBroadcast() }} disabled={isSubmitting || !broadcastGroupId} className={primaryButtonClass}>Share Update</button>
                                             </div>
                                         </div>
@@ -1458,16 +1536,25 @@ export default function SwarmDetailPage() {
                                 <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Progress updates</div>
                                 <div className={`mb-3 space-y-2 ${softPanelClass}`}>
                                     <div className="flex gap-2">
-                                        <input value={activityKind} onChange={(event) => setActivityKind(event.target.value)} className="w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="kind" />
-                                        <select value={roleParticipantId} onChange={(event) => setRoleParticipantId(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`}>
-                                            <option value="">Participant…</option>
-                                            {swarm.participants.map((participant) => (
-                                                <option key={participant.id} value={participant.id}>{participant.kind} {participant.refId ?? participant.id}</option>
-                                            ))}
-                                        </select>
+                                        <label className={`w-32 ${fieldLabelClass}`}>
+                                            Update type
+                                            <input value={activityKind} onChange={(event) => setActivityKind(event.target.value)} className="mt-1 w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="status" />
+                                        </label>
+                                        <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                            Who is speaking
+                                            <select value={roleParticipantId} onChange={(event) => setRoleParticipantId(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`}>
+                                                <option value="">Choose a participant…</option>
+                                                {swarm.participants.map((participant) => (
+                                                    <option key={participant.id} value={participant.id}>{participant.kind} {participant.refId ?? participant.id}</option>
+                                                ))}
+                                            </select>
+                                        </label>
                                     </div>
                                     <div className="flex gap-2">
-                                        <input value={activityContent} onChange={(event) => setActivityContent(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Report progress, blocker, or handoff" />
+                                        <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                            Progress note
+                                            <input value={activityContent} onChange={(event) => setActivityContent(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`} placeholder="Share progress, blocker, or handoff in one sentence…" />
+                                        </label>
                                         <button type="button" onClick={() => { void handleAddActivity() }} disabled={isSubmitting || !activityKind.trim()} className={primaryButtonClass}>Report Progress</button>
                                     </div>
                                 </div>
@@ -1589,20 +1676,29 @@ export default function SwarmDetailPage() {
                                         <div className={`mt-3 space-y-3 ${softPanelClass}`}>
                                             <div className="text-sm font-medium text-[var(--app-fg)]">Review {selectedWorkItem.title}</div>
                                             <div className="flex gap-2">
-                                                <select value={reviewArtifactId} onChange={(event) => setReviewArtifactId(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`}>
-                                                    <option value="">Select artifact…</option>
-                                                    {selectedWorkItemArtifacts.map((item) => (
-                                                        <option key={item.id} value={item.id}>{item.title}</option>
-                                                    ))}
-                                                </select>
-                                                <select value={reviewVerdict} onChange={(event) => setReviewVerdict(event.target.value)} className="w-44 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]">
-                                                    <option value="approved">approved</option>
-                                                    <option value="changes_requested">changes_requested</option>
-                                                    <option value="commented">commented</option>
-                                                </select>
+                                                <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                                    Evidence
+                                                    <select value={reviewArtifactId} onChange={(event) => setReviewArtifactId(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`}>
+                                                        <option value="">Select the deliverable to review…</option>
+                                                        {selectedWorkItemArtifacts.map((item) => (
+                                                            <option key={item.id} value={item.id}>{item.title}</option>
+                                                        ))}
+                                                    </select>
+                                                </label>
+                                                <label className={`w-44 ${fieldLabelClass}`}>
+                                                    Verdict
+                                                    <select value={reviewVerdict} onChange={(event) => setReviewVerdict(event.target.value)} className="mt-1 w-44 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]">
+                                                        <option value="approved">approved</option>
+                                                        <option value="changes_requested">changes_requested</option>
+                                                        <option value="commented">commented</option>
+                                                    </select>
+                                                </label>
                                             </div>
                                             <div className="flex gap-2">
-                                                <input value={reviewSummary} onChange={(event) => setReviewSummary(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Review summary" />
+                                                <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                                    Review note
+                                                    <input value={reviewSummary} onChange={(event) => setReviewSummary(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`} placeholder="Explain why this is approved, blocked, or needs changes…" />
+                                                </label>
                                                 <button type="button" onClick={() => { void handleAddReview() }} disabled={isSubmitting} className={primaryButtonClass}>Save Review</button>
                                             </div>
                                             {selectedWorkItemReviews.length > 0 ? (
@@ -1631,7 +1727,10 @@ export default function SwarmDetailPage() {
                                 <section className={pageCardClass}>
                                     <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Discussion notes</div>
                                     <div className={`mb-3 flex gap-2 ${softPanelClass}`}>
-                                        <input value={threadTitle} onChange={(event) => setThreadTitle(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Thread title" />
+                                        <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                            Note title
+                                            <input value={threadTitle} onChange={(event) => setThreadTitle(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`} placeholder="Ex: Risks to resolve before approving…" />
+                                        </label>
                                             <button type="button" onClick={() => { void handleAddThread() }} disabled={isSubmitting || !threadTitle.trim()} className={primaryButtonClass}>Create Thread</button>
                                         </div>
                                     <div className="space-y-2">
@@ -1657,8 +1756,14 @@ export default function SwarmDetailPage() {
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
-                                                <input value={threadEntryKind} onChange={(event) => setThreadEntryKind(event.target.value)} className="w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="kind" />
-                                                <input value={threadEntryContent} onChange={(event) => setThreadEntryContent(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Thread entry" />
+                                                <label className={`w-32 ${fieldLabelClass}`}>
+                                                    Note type
+                                                    <input value={threadEntryKind} onChange={(event) => setThreadEntryKind(event.target.value)} className="mt-1 w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="risk" />
+                                                </label>
+                                                <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                                    Note
+                                                    <input value={threadEntryContent} onChange={(event) => setThreadEntryContent(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`} placeholder="Capture the question, context, or recommendation…" />
+                                                </label>
                                                 <button type="button" onClick={() => { void handleAddThreadEntry() }} disabled={isSubmitting || !threadEntryKind.trim()} className={primaryButtonClass}>Add Entry</button>
                                             </div>
                                             <div className="space-y-2">
@@ -1717,16 +1822,25 @@ export default function SwarmDetailPage() {
                                     <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Record outcome</div>
                                     <div className={`mb-3 flex flex-col gap-2 ${softPanelClass}`}>
                                         <div className="flex gap-2">
-                                            <input value={outcomeKind} onChange={(event) => setOutcomeKind(event.target.value)} className="w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="kind" />
+                                            <label className={`w-32 ${fieldLabelClass}`}>
+                                                Result type
+                                                <input value={outcomeKind} onChange={(event) => setOutcomeKind(event.target.value)} className="mt-1 w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="summary" />
+                                            </label>
                                             <button type="button" onClick={() => { void handleAddOutcome() }} disabled={isSubmitting || !outcomeContent.trim()} className={primaryButtonClass}>Record Result</button>
                                         </div>
-                                        <select value={outcomeWorkItemId} onChange={(event) => setOutcomeWorkItemId(event.target.value)} className={inputClass}>
-                                            <option value="">Link work item…</option>
-                                            {swarm.workItems.map((workItem) => (
-                                                <option key={workItem.id} value={workItem.id}>{workItem.title}</option>
-                                            ))}
-                                        </select>
-                                        <textarea value={outcomeContent} onChange={(event) => setOutcomeContent(event.target.value)} placeholder="Outcome content" className={`min-h-24 ${inputClass}`} />
+                                        <label className={fieldLabelClass}>
+                                            Linked task
+                                            <select value={outcomeWorkItemId} onChange={(event) => setOutcomeWorkItemId(event.target.value)} className={`mt-1 ${inputClass}`}>
+                                                <option value="">Choose the task this result belongs to…</option>
+                                                {swarm.workItems.map((workItem) => (
+                                                    <option key={workItem.id} value={workItem.id}>{workItem.title}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label className={fieldLabelClass}>
+                                            Result summary
+                                            <textarea value={outcomeContent} onChange={(event) => setOutcomeContent(event.target.value)} placeholder="Summarize what happened, what changed, and what decision should follow…" className={`mt-1 min-h-24 ${inputClass}`} />
+                                        </label>
                                     </div>
                                     <div className="space-y-3">
                                         {swarm.outcomes.map((outcome) => (
@@ -1747,26 +1861,41 @@ export default function SwarmDetailPage() {
                                     <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Artifacts</div>
                                     <div className={`mb-3 flex flex-col gap-2 ${softPanelClass}`}>
                                         <div className="flex gap-2">
-                                            <input value={artifactKind} onChange={(event) => setArtifactKind(event.target.value)} className="w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="kind" />
-                                            <input value={artifactTitle} onChange={(event) => setArtifactTitle(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Artifact title" />
+                                            <label className={`w-32 ${fieldLabelClass}`}>
+                                                Deliverable type
+                                                <input value={artifactKind} onChange={(event) => setArtifactKind(event.target.value)} className="mt-1 w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="report" />
+                                            </label>
+                                            <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                                Deliverable title
+                                                <input value={artifactTitle} onChange={(event) => setArtifactTitle(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`} placeholder="Ex: Final review checklist and screenshots…" />
+                                            </label>
                                         </div>
                                         <div className="flex gap-2">
-                                            <select value={artifactWorkItemId} onChange={(event) => setArtifactWorkItemId(event.target.value)} className="w-44 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]">
-                                                <option value="">Link work item…</option>
-                                                {swarm.workItems.map((workItem) => (
-                                                    <option key={workItem.id} value={workItem.id}>{workItem.title}</option>
-                                                ))}
-                                            </select>
-                                            <input value={artifactUrl} onChange={(event) => setArtifactUrl(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Optional URL" />
+                                            <label className={`w-44 ${fieldLabelClass}`}>
+                                                Linked task
+                                                <select value={artifactWorkItemId} onChange={(event) => setArtifactWorkItemId(event.target.value)} className="mt-1 w-44 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]">
+                                                    <option value="">Choose the task this deliverable supports…</option>
+                                                    {swarm.workItems.map((workItem) => (
+                                                        <option key={workItem.id} value={workItem.id}>{workItem.title}</option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                            <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                                Optional link
+                                                <input value={artifactUrl} onChange={(event) => setArtifactUrl(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`} placeholder="Paste a doc, PR, or preview URL…" />
+                                            </label>
                                             <button type="button" onClick={() => { void handleAddArtifact() }} disabled={isSubmitting || !artifactTitle.trim()} className={primaryButtonClass}>Attach Deliverable</button>
                                         </div>
                                         <div className="flex gap-2">
-                                            <select value={reportArtifactId} onChange={(event) => setReportArtifactId(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`}>
-                                                <option value="">Import report…</option>
-                                                {reports.map((report) => (
-                                                    <option key={report.id} value={report.id}>{report.title} · {report.status}</option>
-                                                ))}
-                                            </select>
+                                            <label className={`min-w-0 flex-1 ${fieldLabelClass}`}>
+                                                Import from report
+                                                <select value={reportArtifactId} onChange={(event) => setReportArtifactId(event.target.value)} className={`mt-1 min-w-0 flex-1 ${inputClass}`}>
+                                                    <option value="">Choose a saved report to attach…</option>
+                                                    {reports.map((report) => (
+                                                        <option key={report.id} value={report.id}>{report.title} · {report.status}</option>
+                                                    ))}
+                                                </select>
+                                            </label>
                                             <button type="button" onClick={() => { void handleAddReportArtifact() }} disabled={isSubmitting || !reportArtifactId.trim()} className={subtleButtonClass}>Import Report</button>
                                         </div>
                                     </div>

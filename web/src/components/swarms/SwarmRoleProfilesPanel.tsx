@@ -45,24 +45,30 @@ export function SwarmRoleProfilesPanel(props: SwarmRoleProfilesPanelProps) {
             <div className="mb-1 text-sm font-semibold text-[var(--app-fg)]">Roles & Profiles</div>
             <div className="mb-3 text-xs text-[var(--app-hint)]">Bind participants to responsibilities, then define reusable behavior contracts for each role.</div>
             <div className="mb-4 flex flex-col gap-2 rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/70 p-3 lg:flex-row">
-                <select
-                    value={props.roleParticipantId}
-                    onChange={(event) => props.onRoleParticipantChange(event.target.value)}
-                    className="min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
-                >
-                    <option value="">Participant…</option>
-                    {props.swarm.participants.map((participant) => (
-                        <option key={participant.id} value={participant.id}>
-                            {participant.kind} {participant.refId ?? participant.id}
-                        </option>
-                    ))}
-                </select>
-                <input
-                    value={props.roleName}
-                    onChange={(event) => props.onRoleNameChange(event.target.value)}
-                    className="w-full rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)] lg:w-36"
-                    placeholder="role"
-                />
+                <label className="min-w-0 flex-1 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                    Participant
+                    <select
+                        value={props.roleParticipantId}
+                        onChange={(event) => props.onRoleParticipantChange(event.target.value)}
+                        className="mt-1 min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
+                    >
+                        <option value="">Choose who should own this role…</option>
+                        {props.swarm.participants.map((participant) => (
+                            <option key={participant.id} value={participant.id}>
+                                {participant.kind} {participant.refId ?? participant.id}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <label className="text-xs font-medium uppercase tracking-wide text-[var(--app-hint)] lg:w-36">
+                    Role name
+                    <input
+                        value={props.roleName}
+                        onChange={(event) => props.onRoleNameChange(event.target.value)}
+                        className="mt-1 w-full rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
+                        placeholder="Ex: reviewer"
+                    />
+                </label>
                 <button
                     type="button"
                     onClick={props.onBindRole}
@@ -99,38 +105,53 @@ export function SwarmRoleProfilesPanel(props: SwarmRoleProfilesPanelProps) {
                 <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">Role Profiles</div>
                 <div className="mb-3 space-y-2 rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/70 p-3">
                     <div className="flex flex-col gap-2 sm:flex-row">
-                        <input
-                            value={props.roleProfileRole}
-                            onChange={(event) => props.onRoleProfileRoleChange(event.target.value)}
-                            className="w-full rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)] sm:w-36"
-                            placeholder="role"
-                        />
-                        <input
-                            value={props.roleProfileOutputContract}
-                            onChange={(event) => props.onRoleProfileOutputContractChange(event.target.value)}
-                            className="min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
-                            placeholder="output contract"
-                        />
+                        <label className="text-xs font-medium uppercase tracking-wide text-[var(--app-hint)] sm:w-36">
+                            Role
+                            <input
+                                value={props.roleProfileRole}
+                                onChange={(event) => props.onRoleProfileRoleChange(event.target.value)}
+                                className="mt-1 w-full rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
+                                placeholder="Ex: planner"
+                            />
+                        </label>
+                        <label className="min-w-0 flex-1 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                            Output contract
+                            <input
+                                value={props.roleProfileOutputContract}
+                                onChange={(event) => props.onRoleProfileOutputContractChange(event.target.value)}
+                                className="mt-1 min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
+                                placeholder="Ex: short plan + owner recommendation"
+                            />
+                        </label>
                     </div>
-                    <textarea
-                        value={props.roleProfileInstruction}
-                        onChange={(event) => props.onRoleProfileInstructionChange(event.target.value)}
-                        className="min-h-[120px] w-full rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
-                        placeholder="role instructions"
-                    />
+                    <label className="text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                        Role instructions
+                        <textarea
+                            value={props.roleProfileInstruction}
+                            onChange={(event) => props.onRoleProfileInstructionChange(event.target.value)}
+                            className="mt-1 min-h-[120px] w-full rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
+                            placeholder="Explain how this role should think, what to avoid, and what a good response includes…"
+                        />
+                    </label>
                     <div className="flex flex-col gap-2 lg:flex-row">
-                        <input
-                            value={props.roleProfileSkills}
-                            onChange={(event) => props.onRoleProfileSkillsChange(event.target.value)}
-                            className="min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
-                            placeholder="preferred skills, comma separated"
-                        />
-                        <input
-                            value={props.roleProfileTools}
-                            onChange={(event) => props.onRoleProfileToolsChange(event.target.value)}
-                            className="min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
-                            placeholder="allowed tools, comma separated"
-                        />
+                        <label className="min-w-0 flex-1 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                            Preferred skills
+                            <input
+                                value={props.roleProfileSkills}
+                                onChange={(event) => props.onRoleProfileSkillsChange(event.target.value)}
+                                className="mt-1 min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
+                                placeholder="Ex: web-design-guidelines, code-review"
+                            />
+                        </label>
+                        <label className="min-w-0 flex-1 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                            Allowed tools
+                            <input
+                                value={props.roleProfileTools}
+                                onChange={(event) => props.onRoleProfileToolsChange(event.target.value)}
+                                className="mt-1 min-w-0 flex-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]"
+                                placeholder="Ex: read, edit, test"
+                            />
+                        </label>
                         <button
                             type="button"
                             onClick={props.onAddRoleProfile}
