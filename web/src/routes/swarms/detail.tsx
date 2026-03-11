@@ -227,6 +227,23 @@ export default function SwarmDetailPage() {
     const selectedWorkItemIndex = prioritizedWorkItems.findIndex((item) => item.id === selectedWorkItem?.id)
     const previousWorkItem = selectedWorkItemIndex > 0 ? prioritizedWorkItems[selectedWorkItemIndex - 1] : null
     const nextWorkItem = selectedWorkItemIndex >= 0 && selectedWorkItemIndex < prioritizedWorkItems.length - 1 ? prioritizedWorkItems[selectedWorkItemIndex + 1] : null
+    const onboardingSteps = [
+        { label: 'Define Goal', done: Boolean(swarm.subject?.summary), help: 'Write a clear mission summary.' },
+        { label: 'Plan Tasks', done: swarm.workItems.length > 0, help: 'Create 3–5 small work items.' },
+        { label: 'Add Participants', done: swarm.participants.length > 0, help: 'Add sessions or agents before dispatch.' },
+        { label: 'Start Execution', done: swarm.activities.length > 0 || swarm.assignments.length > 0, help: 'Assign work & report progress.' },
+        { label: 'Review Results', done: swarm.reviews.length > 0 || decisionOutcomes.length > 0, help: 'Approve outcomes or resolve blockers.' }
+    ]
+    const nextOnboardingStep = onboardingSteps.find((item) => !item.done) ?? null
+    const nextRecommendedAction = !swarm.subject?.summary
+        ? { tab: 'overview' as SwarmTab, title: 'Define The Mission', body: 'Add a short subject summary so everyone understands the goal.' }
+        : swarm.workItems.length === 0
+            ? { tab: 'plan' as SwarmTab, title: 'Break The Work Into Tasks', body: 'Create 3–5 work items or auto-plan from the mission goal.' }
+            : swarm.participants.length === 0
+                ? { tab: 'execute' as SwarmTab, title: 'Add Participants', body: 'Attach one or more sessions before assigning work.' }
+                : reviewQueue.length > 0
+                    ? { tab: 'decide' as SwarmTab, title: 'Review Work In Flight', body: 'Open the decision queue and approve, request changes, or comment.' }
+                    : { tab: 'execute' as SwarmTab, title: 'Assign The Next Task', body: 'Dispatch an open work item and ask for a concrete deliverable.' }
 
     const navItems: Array<{ id: SwarmTab, label: string, hint: string }> = [
         { id: 'overview', label: 'Overview', hint: 'health + next steps' },
@@ -769,6 +786,53 @@ export default function SwarmDetailPage() {
                             </div>
                         </section>
 
+                        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                            <div className={pageCardClass}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div className={sectionTitleClass}>Setup Checklist</div>
+                                        <div className="mt-1 text-xs text-[var(--app-hint)]">A product should show what is still missing before collaboration feels useful.</div>
+                                    </div>
+                                    <span className="rounded-full bg-[var(--app-secondary-bg)] px-3 py-1 text-xs text-[var(--app-hint)]">
+                                        {onboardingSteps.filter((item) => item.done).length}/{onboardingSteps.length} complete
+                                    </span>
+                                </div>
+                                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                    {onboardingSteps.map((item) => (
+                                        <div key={item.label} className={`rounded-2xl border px-3 py-3 ${item.done ? 'border-emerald-200 bg-emerald-50/60' : 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55'}`}>
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="text-sm font-medium text-[var(--app-fg)]">{item.label}</div>
+                                                <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}`}>
+                                                    {item.done ? 'Done' : 'Next'}
+                                                </span>
+                                            </div>
+                                            <div className="mt-1 text-xs text-[var(--app-hint)]">{item.help}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className={pageCardClass}>
+                                <div className={sectionTitleClass}>Next Recommended Action</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">One clear next move beats five equal-weight panels.</div>
+                                <div className="mt-4 rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-4">
+                                    <div className="text-sm font-medium text-[var(--app-fg)]">{nextRecommendedAction.title}</div>
+                                    <div className="mt-2 text-sm leading-6 text-[var(--app-hint)]">{nextRecommendedAction.body}</div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab(nextRecommendedAction.tab)}
+                                        className="mt-4 rounded-xl bg-[var(--app-link)] px-3 py-2 text-sm font-medium text-white shadow-sm"
+                                    >
+                                        Open {nextRecommendedAction.tab[0].toUpperCase() + nextRecommendedAction.tab.slice(1)}
+                                    </button>
+                                </div>
+                                {nextOnboardingStep ? (
+                                    <div className="mt-3 text-xs text-[var(--app-hint)]">
+                                        Current bottleneck: <span className="font-medium text-[var(--app-fg)]">{nextOnboardingStep.label}</span>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </section>
+
                         <section className="grid gap-4 md:grid-cols-4">
                             <div className={`${pageCardClass} md:col-span-2`}>
                                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--app-hint)]">Mission summary</div>
@@ -919,7 +983,7 @@ export default function SwarmDetailPage() {
                                         <div className="mt-1">Start by creating 3–5 small tasks, or auto-plan from the mission goal.</div>
                                         <div className="mt-3 flex flex-wrap gap-2">
                                             <button type="button" onClick={() => { void handleAutoPlan(false) }} disabled={isSubmitting} className={subtleButtonClass}>
-                                                Auto plan
+                                                Auto Plan
                                             </button>
                                         </div>
                                     </div>
@@ -927,7 +991,7 @@ export default function SwarmDetailPage() {
                             </section>
 
                             <section className={pageCardClass}>
-                                <div className="text-sm font-semibold text-[var(--app-fg)]">Create work item</div>
+                                <div className="text-sm font-semibold text-[var(--app-fg)]">Create Work Item</div>
                                 <div className="mt-1 text-xs text-[var(--app-hint)]">Define what should be done, what output should come back, and how you will know it is done.</div>
                                 <div className={`${softPanelClass} mt-3 space-y-2`}>
                                     <input value={workItemTitle} onChange={(event) => setWorkItemTitle(event.target.value)} placeholder="Title" className={inputClass} />
@@ -935,7 +999,7 @@ export default function SwarmDetailPage() {
                                     <input value={workItemExpectedArtifact} onChange={(event) => setWorkItemExpectedArtifact(event.target.value)} placeholder="Expected artifact" className={inputClass} />
                                     <div className="flex gap-2">
                                         <input value={workItemDoneCriteria} onChange={(event) => setWorkItemDoneCriteria(event.target.value)} placeholder="Done criteria" className={`min-w-0 flex-1 ${inputClass}`} />
-                                        <button type="button" onClick={() => { void handleAddWorkItem() }} disabled={isSubmitting || !workItemTitle.trim()} className={primaryButtonClass}>Create</button>
+                                        <button type="button" onClick={() => { void handleAddWorkItem() }} disabled={isSubmitting || !workItemTitle.trim()} className={primaryButtonClass}>Create Task</button>
                                     </div>
                                 </div>
                             </section>
@@ -1142,10 +1206,10 @@ export default function SwarmDetailPage() {
                                                 ))}
                                             </select>
                                             <input value={dispatchText} onChange={(event) => setDispatchText(event.target.value)} placeholder="Tell the assignee what to do next" className={inputClass} />
-                                            <button type="button" onClick={() => { void handleDispatch() }} disabled={isSubmitting || !dispatchText.trim()} className={primaryButtonClass}>Dispatch</button>
+                                                <button type="button" onClick={() => { void handleDispatch() }} disabled={isSubmitting || !dispatchText.trim()} className={primaryButtonClass}>Assign Task</button>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className={softPanelClass}>
+                                        <div className={softPanelClass}>
                                         <div className="mb-2 text-sm font-semibold text-[var(--app-fg)]">Broadcast update</div>
                                         <div className="space-y-2">
                                             <select value={broadcastGroupId} onChange={(event) => setBroadcastGroupId(event.target.value)} className={inputClass}>
@@ -1155,10 +1219,10 @@ export default function SwarmDetailPage() {
                                                 ))}
                                             </select>
                                             <input value={broadcastText} onChange={(event) => setBroadcastText(event.target.value)} placeholder="Optional swarm update" className={inputClass} />
-                                            <button type="button" onClick={() => { void handleBroadcast() }} disabled={isSubmitting || !broadcastGroupId} className={primaryButtonClass}>Broadcast</button>
+                                                <button type="button" onClick={() => { void handleBroadcast() }} disabled={isSubmitting || !broadcastGroupId} className={primaryButtonClass}>Share Update</button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
                             </section>
 
                             <section className={pageCardClass}>
@@ -1175,7 +1239,7 @@ export default function SwarmDetailPage() {
                                     </div>
                                     <div className="flex gap-2">
                                         <input value={activityContent} onChange={(event) => setActivityContent(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Report progress, blocker, or handoff" />
-                                        <button type="button" onClick={() => { void handleAddActivity() }} disabled={isSubmitting || !activityKind.trim()} className={primaryButtonClass}>Add</button>
+                                        <button type="button" onClick={() => { void handleAddActivity() }} disabled={isSubmitting || !activityKind.trim()} className={primaryButtonClass}>Report Progress</button>
                                     </div>
                                 </div>
                                 <div className="space-y-2">
@@ -1310,7 +1374,7 @@ export default function SwarmDetailPage() {
                                             </div>
                                             <div className="flex gap-2">
                                                 <input value={reviewSummary} onChange={(event) => setReviewSummary(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Review summary" />
-                                                <button type="button" onClick={() => { void handleAddReview() }} disabled={isSubmitting} className={primaryButtonClass}>Review</button>
+                                                <button type="button" onClick={() => { void handleAddReview() }} disabled={isSubmitting} className={primaryButtonClass}>Save Review</button>
                                             </div>
                                             {selectedWorkItemReviews.length > 0 ? (
                                                 <div className="space-y-2">
@@ -1339,8 +1403,8 @@ export default function SwarmDetailPage() {
                                     <div className="mb-3 text-sm font-semibold text-[var(--app-fg)]">Discussion threads</div>
                                     <div className={`mb-3 flex gap-2 ${softPanelClass}`}>
                                         <input value={threadTitle} onChange={(event) => setThreadTitle(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Thread title" />
-                                        <button type="button" onClick={() => { void handleAddThread() }} disabled={isSubmitting || !threadTitle.trim()} className={primaryButtonClass}>Add</button>
-                                    </div>
+                                            <button type="button" onClick={() => { void handleAddThread() }} disabled={isSubmitting || !threadTitle.trim()} className={primaryButtonClass}>Create Thread</button>
+                                        </div>
                                     <div className="space-y-2">
                                         {swarm.threads.length > 0 ? swarm.threads.map((item) => (
                                             <button
@@ -1359,14 +1423,14 @@ export default function SwarmDetailPage() {
                                             <div className="flex items-center justify-between gap-2">
                                                 <div className="text-sm font-medium text-[var(--app-fg)]">Thread entries</div>
                                                 <div className="flex gap-2">
-                                                    <button type="button" onClick={() => { void handleSynthesizeThread(false) }} disabled={isSubmitting} className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-1 text-xs text-[var(--app-fg)] disabled:opacity-60">Synthesize</button>
-                                                    <button type="button" onClick={() => { void handleSynthesizeThread(true) }} disabled={isSubmitting} className="rounded-xl bg-[var(--app-link)] px-2.5 py-1 text-xs text-white disabled:opacity-60">Decide</button>
+                                                    <button type="button" onClick={() => { void handleSynthesizeThread(false) }} disabled={isSubmitting} className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-1 text-xs text-[var(--app-fg)] disabled:opacity-60">Summarize Thread</button>
+                                                    <button type="button" onClick={() => { void handleSynthesizeThread(true) }} disabled={isSubmitting} className="rounded-xl bg-[var(--app-link)] px-2.5 py-1 text-xs text-white disabled:opacity-60">Create Decision</button>
                                                 </div>
                                             </div>
                                             <div className="flex gap-2">
                                                 <input value={threadEntryKind} onChange={(event) => setThreadEntryKind(event.target.value)} className="w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="kind" />
                                                 <input value={threadEntryContent} onChange={(event) => setThreadEntryContent(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Thread entry" />
-                                                <button type="button" onClick={() => { void handleAddThreadEntry() }} disabled={isSubmitting || !threadEntryKind.trim()} className={primaryButtonClass}>Add</button>
+                                                <button type="button" onClick={() => { void handleAddThreadEntry() }} disabled={isSubmitting || !threadEntryKind.trim()} className={primaryButtonClass}>Add Entry</button>
                                             </div>
                                             <div className="space-y-2">
                                                 {selectedThreadEntries.map((entry) => (
@@ -1407,7 +1471,7 @@ export default function SwarmDetailPage() {
                                     <div className={`mb-3 flex flex-col gap-2 ${softPanelClass}`}>
                                         <div className="flex gap-2">
                                             <input value={outcomeKind} onChange={(event) => setOutcomeKind(event.target.value)} className="w-32 rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm outline-none focus:border-[var(--app-link)]" placeholder="kind" />
-                                            <button type="button" onClick={() => { void handleAddOutcome() }} disabled={isSubmitting || !outcomeContent.trim()} className={primaryButtonClass}>Add outcome</button>
+                                            <button type="button" onClick={() => { void handleAddOutcome() }} disabled={isSubmitting || !outcomeContent.trim()} className={primaryButtonClass}>Record Result</button>
                                         </div>
                                         <select value={outcomeWorkItemId} onChange={(event) => setOutcomeWorkItemId(event.target.value)} className={inputClass}>
                                             <option value="">Link work item…</option>
@@ -1447,7 +1511,7 @@ export default function SwarmDetailPage() {
                                                 ))}
                                             </select>
                                             <input value={artifactUrl} onChange={(event) => setArtifactUrl(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`} placeholder="Optional URL" />
-                                            <button type="button" onClick={() => { void handleAddArtifact() }} disabled={isSubmitting || !artifactTitle.trim()} className={primaryButtonClass}>Add artifact</button>
+                                            <button type="button" onClick={() => { void handleAddArtifact() }} disabled={isSubmitting || !artifactTitle.trim()} className={primaryButtonClass}>Attach Deliverable</button>
                                         </div>
                                         <div className="flex gap-2">
                                             <select value={reportArtifactId} onChange={(event) => setReportArtifactId(event.target.value)} className={`min-w-0 flex-1 ${inputClass}`}>
@@ -1456,7 +1520,7 @@ export default function SwarmDetailPage() {
                                                     <option key={report.id} value={report.id}>{report.title} · {report.status}</option>
                                                 ))}
                                             </select>
-                                            <button type="button" onClick={() => { void handleAddReportArtifact() }} disabled={isSubmitting || !reportArtifactId.trim()} className={subtleButtonClass}>Import report</button>
+                                            <button type="button" onClick={() => { void handleAddReportArtifact() }} disabled={isSubmitting || !reportArtifactId.trim()} className={subtleButtonClass}>Import Report</button>
                                         </div>
                                     </div>
                                     <div className="space-y-3">
