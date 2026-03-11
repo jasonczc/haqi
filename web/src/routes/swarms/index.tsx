@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAppContext } from '@/lib/app-context'
 import { useSwarms } from '@/hooks/queries/useSwarms'
 import { useNavigate } from '@tanstack/react-router'
@@ -25,6 +26,10 @@ type SwarmListItem = {
     updatedAt: number
     latestOutcomePreview?: string | null
 }
+
+const inputClass = 'w-full rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2.5 text-sm text-[var(--app-fg)] outline-none transition-colors focus:border-[var(--app-link)]'
+const primaryButtonClass = 'rounded-xl bg-[var(--app-link)] px-3 py-2 text-sm font-medium text-white shadow-sm disabled:opacity-60'
+const subtleButtonClass = 'rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:opacity-60'
 
 function SwarmCard({ item, onOpen }: { item: SwarmListItem, onOpen: (swarmId: string) => void }) {
     return (
@@ -90,7 +95,31 @@ function SwarmSection({
 export default function SwarmsIndexPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
-    const { swarms, isLoading, error } = useSwarms(api)
+    const { swarms, isLoading, error, refetch } = useSwarms(api)
+    const [draftTitle, setDraftTitle] = useState('')
+    const [draftSummary, setDraftSummary] = useState('')
+    const [isCreating, setIsCreating] = useState(false)
+
+    const templates = [
+        {
+            id: 'feature',
+            title: 'Feature delivery',
+            summary: 'Ship a feature from plan to implementation to review.',
+            phase: 'plan'
+        },
+        {
+            id: 'bug',
+            title: 'Bug investigation',
+            summary: 'Reproduce, diagnose, fix, and verify a complex bug.',
+            phase: 'investigate'
+        },
+        {
+            id: 'research',
+            title: 'Research mission',
+            summary: 'Explore a topic, compare options, and deliver a recommendation.',
+            phase: 'research'
+        }
+    ] as const
 
     if (isLoading) {
         return <div className="p-4 text-sm text-[var(--app-hint)]">Loading swarms...</div>
@@ -119,6 +148,31 @@ export default function SwarmsIndexPage() {
         void navigate({ to: '/swarms/$swarmId', params: { swarmId } })
     }
 
+    const handleCreateSwarm = async (title: string, summary: string, phase: string = 'plan') => {
+        if (!api || !title.trim() || !summary.trim()) {
+            return
+        }
+        setIsCreating(true)
+        try {
+            const response = await api.createSwarm({
+                title: title.trim(),
+                currentPhase: phase,
+                status: 'active',
+                subject: {
+                    kind: 'goal',
+                    summary: summary.trim(),
+                    status: 'open'
+                }
+            })
+            setDraftTitle('')
+            setDraftSummary('')
+            await refetch()
+            void navigate({ to: '/swarms/$swarmId', params: { swarmId: response.swarm.swarm.id } })
+        } finally {
+            setIsCreating(false)
+        }
+    }
+
     return (
         <div className="h-full overflow-y-auto bg-[var(--app-bg)]">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4">
@@ -131,6 +185,66 @@ export default function SwarmsIndexPage() {
                 </section>
 
                 <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <div className="text-sm font-semibold text-[var(--app-fg)]">Create A New Swarm</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">Start with one clear mission. You can refine the plan after creation.</div>
+                            </div>
+                            <span className="rounded-full bg-[var(--app-secondary-bg)] px-3 py-1 text-xs text-[var(--app-hint)]">Best for first-time users</span>
+                        </div>
+                        <div className="mt-4 grid gap-3 md:grid-cols-3">
+                            {templates.map((template) => (
+                                <button
+                                    key={template.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setDraftTitle(template.title)
+                                        setDraftSummary(template.summary)
+                                    }}
+                                    className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
+                                >
+                                    <div className="text-sm font-medium text-[var(--app-fg)]">{template.title}</div>
+                                    <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">{template.summary}</div>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="mt-4 grid gap-3">
+                            <input
+                                value={draftTitle}
+                                onChange={(event) => setDraftTitle(event.target.value)}
+                                placeholder="Mission title"
+                                className={inputClass}
+                            />
+                            <textarea
+                                value={draftSummary}
+                                onChange={(event) => setDraftSummary(event.target.value)}
+                                placeholder="What is this swarm trying to achieve?"
+                                className={`min-h-24 ${inputClass}`}
+                            />
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { void handleCreateSwarm(draftTitle, draftSummary) }}
+                                    disabled={isCreating || !draftTitle.trim() || !draftSummary.trim()}
+                                    className={primaryButtonClass}
+                                >
+                                    Create Swarm
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setDraftTitle('Feature delivery')
+                                        setDraftSummary('Ship a feature from plan to implementation to review.')
+                                    }}
+                                    className={subtleButtonClass}
+                                >
+                                    Use Example
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
                         <div className="text-sm font-semibold text-[var(--app-fg)]">How Swarms Work</div>
                         <div className="mt-1 text-xs text-[var(--app-hint)]">The UI should teach the workflow directly.</div>
