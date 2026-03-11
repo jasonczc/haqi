@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { CreateManagedMappingRequestSchema, DeleteManagedMappingRequestSchema, MachineMappingsSchema } from '@hapi/protocol/schemas'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireMachine } from './guards'
@@ -18,6 +19,10 @@ const spawnBodySchema = z.object({
 
 const pathsExistsSchema = z.object({
     paths: z.array(z.string().min(1)).max(1000)
+})
+
+const mappingsBodySchema = z.object({
+    mappings: MachineMappingsSchema
 })
 
 function normalizePreviewUrl(raw: string | undefined): { ok: true; value?: string } | { ok: false; error: string } {
@@ -126,6 +131,155 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ exists })
         } catch (error) {
             return c.json({ error: error instanceof Error ? error.message : 'Failed to check paths' }, 500)
+        }
+    })
+
+    app.get('/machines/:id/mappings', (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const namespace = c.get('namespace')
+        const mappings = engine.getMachineMappingsByNamespace(machineId, namespace)
+        return c.json({ mappings })
+    })
+
+    app.put('/machines/:id/mappings', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = mappingsBodySchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const namespace = c.get('namespace')
+        const mappings = engine.updateMachineMappings(machineId, namespace, parsed.data.mappings)
+        return c.json({ mappings })
+    })
+
+    app.post('/machines/:id/mappings/import-ngrok', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const namespace = c.get('namespace')
+        try {
+            const result = await engine.importNgrokMappings(machineId, namespace)
+            return c.json({ provider: 'ngrok', mappings: result.mappings, imported: result.imported })
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to import ngrok mappings' }, 500)
+        }
+    })
+
+    app.post('/machines/:id/mappings/create', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = CreateManagedMappingRequestSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const namespace = c.get('namespace')
+        try {
+            const mappings = await engine.createManagedMachineMapping({
+                machineId,
+                namespace,
+                provider: parsed.data.provider,
+                name: parsed.data.name,
+                kind: parsed.data.kind,
+                localUrl: parsed.data.localUrl,
+                auth: parsed.data.auth
+            })
+            return c.json({ mappings })
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to create managed mapping' }, 500)
+        }
+    })
+
+    app.post('/machines/:id/mappings/refresh', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const namespace = c.get('namespace')
+        try {
+            const mappings = await engine.refreshMachineMappings(machineId, namespace, 'ngrok')
+            return c.json({ mappings })
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to refresh mappings' }, 500)
+        }
+    })
+
+    app.delete('/machines/:id/mappings', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = DeleteManagedMappingRequestSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const namespace = c.get('namespace')
+        try {
+            const mappings = await engine.deleteManagedMachineMapping({
+                machineId,
+                namespace,
+                provider: parsed.data.provider,
+                mappingId: parsed.data.mapping.id
+            })
+            return c.json({ mappings })
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to delete mapping' }, 500)
         }
     })
 

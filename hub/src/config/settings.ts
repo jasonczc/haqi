@@ -21,6 +21,15 @@ export interface Settings {
     publicUrl?: string
     reportPublicBaseUrl?: string
     corsOrigins?: string[]
+    providers?: {
+        ngrok?: {
+            enabled?: boolean
+            managed?: boolean
+            authToken?: string
+            region?: string
+            apiBaseUrl?: string
+        }
+    }
     // Legacy field names (for migration, read-only)
     webappHost?: string
     webappPort?: number

@@ -1,12 +1,13 @@
 import {
     AgentStateSchema,
     AttachmentMetadataSchema,
+    MachineMappingsSchema,
     MetadataSchema,
     ModelModeSchema,
     PermissionModeSchema,
     TodosSchema
 } from '@hapi/protocol/schemas'
-import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
+import type { MachineMapping, ModelMode, PermissionMode } from '@hapi/protocol/types'
 import { z } from 'zod'
 import { UsageSchema } from '@/claude/types'
 
@@ -32,10 +33,12 @@ export const MachineMetadataSchema = z.object({
     displayName: z.string().optional(),
     homeDir: z.string(),
     happyHomeDir: z.string(),
-    happyLibDir: z.string()
+    happyLibDir: z.string(),
+    mappings: MachineMappingsSchema.optional()
 })
 
 export type MachineMetadata = z.infer<typeof MachineMetadataSchema>
+export type { MachineMapping }
 
 export const RunnerStateSchema = z.object({
     status: z.union([z.enum(['running', 'shutting-down']), z.string()]),

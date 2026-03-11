@@ -21,6 +21,15 @@ interface Settings {
   apiUrl?: string
   // Legacy field name (for migration, read-only)
   serverUrl?: string
+  providers?: {
+    ngrok?: {
+      enabled?: boolean
+      managed?: boolean
+      authToken?: string
+      region?: string
+      apiBaseUrl?: string
+    }
+  }
 }
 
 const defaultSettings: Settings = {}

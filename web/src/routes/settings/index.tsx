@@ -151,14 +151,25 @@ type SettingsSectionProps = {
     children: ReactNode
 }
 
+const settingsSectionItemClass = 'border-b border-[var(--app-divider)] last:border-b-0'
+const settingsSectionHeaderClass = 'mx-3 mb-1 rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)]/70 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-hint)] shadow-sm'
+const settingsSelectTriggerClass = 'flex w-full items-center justify-between rounded-lg px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]'
+const settingsDropdownClass = 'absolute right-3 top-full z-50 mt-2 overflow-hidden rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] shadow-xl ring-1 ring-[var(--app-border)]/80'
+
+function getSettingsSelectTriggerClass(isOpen: boolean, extraClassName?: string) {
+    return `${settingsSelectTriggerClass} ${isOpen ? 'bg-[var(--app-bg)]/70 ring-1 ring-[var(--app-border)] shadow-sm' : ''} ${extraClassName ?? ''}`.trim()
+}
+
 function SettingsSection(props: SettingsSectionProps) {
     const sectionContentId = useId()
     return (
-        <section className="border-b border-[var(--app-divider)]">
+        <section className="rounded-xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-sm">
             <button
                 type="button"
                 onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                className={`flex w-full items-start justify-between gap-3 rounded-xl px-4 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)] ${
+                    props.isExpanded ? 'rounded-b-none border-b border-[var(--app-divider)] bg-[var(--app-bg)]/60' : ''
+                }`}
                 aria-expanded={props.isExpanded}
                 aria-controls={sectionContentId}
             >
@@ -173,7 +184,7 @@ function SettingsSection(props: SettingsSectionProps) {
                 />
             </button>
             {props.isExpanded && (
-                <div id={sectionContentId}>
+                <div id={sectionContentId} className="rounded-b-xl bg-[var(--app-secondary-bg)]">
                     {props.children}
                 </div>
             )}
@@ -250,6 +261,15 @@ export default function SettingsPage() {
     const [reportDomainLoading, setReportDomainLoading] = useState(false)
     const [reportDomainStatusMessage, setReportDomainStatusMessage] = useState<string | null>(null)
     const isReportDomainDirty = reportDomainDraft.trim() !== reportDomainSaved.trim()
+    const [ngrokManaged, setNgrokManaged] = useState(true)
+    const [ngrokEnabled, setNgrokEnabled] = useState(true)
+    const [ngrokRegionDraft, setNgrokRegionDraft] = useState('')
+    const [ngrokApiBaseUrlDraft, setNgrokApiBaseUrlDraft] = useState('')
+    const [ngrokTokenDraft, setNgrokTokenDraft] = useState('')
+    const [ngrokHasToken, setNgrokHasToken] = useState(false)
+    const [ngrokTokenLastFour, setNgrokTokenLastFour] = useState('')
+    const [ngrokLoading, setNgrokLoading] = useState(false)
+    const [ngrokStatusMessage, setNgrokStatusMessage] = useState<string | null>(null)
     const memoryInjectionEnabled = memory?.enabled ?? false
     const pureContextModeEnabled = memory?.pureContextMode ?? false
 
@@ -325,6 +345,26 @@ export default function SettingsPage() {
         }
     }, [api, t])
 
+    const loadProviderSettings = useCallback(async () => {
+        setNgrokLoading(true)
+        setNgrokStatusMessage(null)
+        try {
+            const result = await api.getProviderSettings()
+            const ngrok = result.providers.find((item) => item.provider === 'ngrok')
+            setNgrokManaged(ngrok?.managed ?? true)
+            setNgrokEnabled(ngrok?.enabled ?? true)
+            setNgrokRegionDraft(ngrok?.region ?? '')
+            setNgrokApiBaseUrlDraft(ngrok?.apiBaseUrl ?? '')
+            setNgrokHasToken(ngrok?.hasAuthToken === true)
+            setNgrokTokenLastFour(ngrok?.authTokenLastFour ?? '')
+            setNgrokTokenDraft('')
+        } catch (error) {
+            setNgrokStatusMessage(error instanceof Error ? error.message : 'Failed to load ngrok settings')
+        } finally {
+            setNgrokLoading(false)
+        }
+    }, [api])
+
     useEffect(() => {
         void loadUsageOverview(false)
     }, [loadUsageOverview])
@@ -332,6 +372,10 @@ export default function SettingsPage() {
     useEffect(() => {
         void loadReportDomainSettings()
     }, [loadReportDomainSettings])
+
+    useEffect(() => {
+        void loadProviderSettings()
+    }, [loadProviderSettings])
 
     useEffect(() => {
         if (!memory) {
@@ -379,6 +423,33 @@ export default function SettingsPage() {
             setReportDomainStatusMessage(
                 error instanceof Error ? error.message : t('settings.reportDomain.status.saveFailed')
             )
+        }
+    })
+
+    const saveNgrokProviderMutation = useMutation({
+        mutationFn: async () => {
+            return await api.updateNgrokProviderSettings({
+                enabled: ngrokEnabled,
+                managed: ngrokManaged,
+                authToken: ngrokTokenDraft.trim().length > 0 ? ngrokTokenDraft.trim() : undefined,
+                region: ngrokRegionDraft.trim().length > 0 ? ngrokRegionDraft.trim() : null,
+                apiBaseUrl: ngrokApiBaseUrlDraft.trim().length > 0 ? ngrokApiBaseUrlDraft.trim() : null
+            })
+        },
+        onSuccess: (result) => {
+            const provider = result.provider
+            setNgrokEnabled(provider.enabled ?? true)
+            setNgrokManaged(provider.managed ?? true)
+            setNgrokRegionDraft(provider.region ?? '')
+            setNgrokApiBaseUrlDraft(provider.apiBaseUrl ?? '')
+            setNgrokHasToken(provider.hasAuthToken === true)
+            setNgrokTokenLastFour(provider.authTokenLastFour ?? '')
+            setNgrokTokenDraft('')
+            setNgrokStatusMessage('Saved')
+            void queryClient.invalidateQueries({ queryKey: ['provider-settings'] })
+        },
+        onError: (error) => {
+            setNgrokStatusMessage(error instanceof Error ? error.message : 'Failed to save ngrok settings')
         }
     })
 
@@ -581,6 +652,16 @@ export default function SettingsPage() {
         await saveReportDomainMutation.mutateAsync(reportDomainDraft)
     }
 
+    const handleReloadNgrokSettings = async () => {
+        await loadProviderSettings()
+        setNgrokStatusMessage('Reloaded')
+    }
+
+    const handleSaveNgrokSettings = async () => {
+        setNgrokStatusMessage(null)
+        await saveNgrokProviderMutation.mutateAsync()
+    }
+
     // Close dropdown when clicking outside
     useEffect(() => {
         if (
@@ -697,7 +778,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex-1 overflow-y-auto">
-                <div className="mx-auto w-full max-w-content">
+                <div className="mx-auto flex w-full max-w-content flex-col gap-4 p-3">
                     <SettingsSection
                         title={t('settings.group.general.title')}
                         description={t('settings.group.general.description')}
@@ -705,15 +786,15 @@ export default function SettingsPage() {
                         onToggle={handleGeneralGroupToggle}
                     >
                     {/* Language section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                    <div className={settingsSectionItemClass}>
+                        <div className={settingsSectionHeaderClass}>
                             {t('settings.language.title')}
                         </div>
                         <div ref={containerRef} className="relative">
                             <button
                                 type="button"
                                 onClick={() => setIsOpen(!isOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className={getSettingsSelectTriggerClass(isOpen)}
                                 aria-expanded={isOpen}
                                 aria-haspopup="listbox"
                             >
@@ -726,7 +807,7 @@ export default function SettingsPage() {
 
                             {isOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[160px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`${settingsDropdownClass} min-w-[160px]`}
                                     role="listbox"
                                     aria-label={t('settings.language.title')}
                                 >
@@ -760,15 +841,15 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Display section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                    <div className={settingsSectionItemClass}>
+                        <div className={settingsSectionHeaderClass}>
                             {t('settings.display.title')}
                         </div>
                         <div ref={themeContainerRef} className="relative">
                             <button
                                 type="button"
                                 onClick={() => setIsThemeOpen(!isThemeOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className={getSettingsSelectTriggerClass(isThemeOpen)}
                                 aria-expanded={isThemeOpen}
                                 aria-haspopup="listbox"
                             >
@@ -781,7 +862,7 @@ export default function SettingsPage() {
 
                             {isThemeOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`${settingsDropdownClass} min-w-[140px]`}
                                     role="listbox"
                                     aria-label={t('settings.display.theme')}
                                 >
@@ -816,7 +897,7 @@ export default function SettingsPage() {
                             <button
                                 type="button"
                                 onClick={() => setIsFontOpen(!isFontOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className={getSettingsSelectTriggerClass(isFontOpen)}
                                 aria-expanded={isFontOpen}
                                 aria-haspopup="listbox"
                             >
@@ -829,7 +910,7 @@ export default function SettingsPage() {
 
                             {isFontOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`${settingsDropdownClass} min-w-[140px]`}
                                     role="listbox"
                                     aria-label={t('settings.display.fontSize')}
                                 >
@@ -863,15 +944,15 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Voice Assistant section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                    <div className={settingsSectionItemClass}>
+                        <div className={settingsSectionHeaderClass}>
                             {t('settings.voice.title')}
                         </div>
                         <div ref={voiceContainerRef} className="relative">
                             <button
                                 type="button"
                                 onClick={() => setIsVoiceOpen(!isVoiceOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className={getSettingsSelectTriggerClass(isVoiceOpen)}
                                 aria-expanded={isVoiceOpen}
                                 aria-haspopup="listbox"
                             >
@@ -890,7 +971,7 @@ export default function SettingsPage() {
 
                             {isVoiceOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[200px] max-h-[300px] overflow-y-auto rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg z-50"
+                                    className={`${settingsDropdownClass} min-w-[200px] max-h-[300px] overflow-y-auto`}
                                     role="listbox"
                                     aria-label={t('settings.voice.title')}
                                 >
@@ -934,15 +1015,15 @@ export default function SettingsPage() {
                         onToggle={handleInteractionGroupToggle}
                     >
                     {/* Behavior section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                    <div className={settingsSectionItemClass}>
+                        <div className={settingsSectionHeaderClass}>
                             {t('settings.behavior.title')}
                         </div>
-                        <div ref={sendModeContainerRef} className="relative border-b border-[var(--app-border)]">
+                        <div ref={sendModeContainerRef} className="relative border-b border-[var(--app-divider)]">
                             <button
                                 type="button"
                                 onClick={() => setIsSendModeOpen(!isSendModeOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className={getSettingsSelectTriggerClass(isSendModeOpen)}
                                 aria-expanded={isSendModeOpen}
                                 aria-haspopup="listbox"
                             >
@@ -962,7 +1043,7 @@ export default function SettingsPage() {
 
                             {isSendModeOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    className={`${settingsDropdownClass} min-w-[220px] divide-y divide-[var(--app-divider)]`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.defaultSendMode')}
                                 >
@@ -1003,11 +1084,11 @@ export default function SettingsPage() {
                             )}
                         </div>
 
-                        <div ref={queuePanelContainerRef} className="relative border-b border-[var(--app-border)]">
+                        <div ref={queuePanelContainerRef} className="relative border-b border-[var(--app-divider)]">
                             <button
                                 type="button"
                                 onClick={() => setIsQueuePanelOpen(!isQueuePanelOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className={getSettingsSelectTriggerClass(isQueuePanelOpen)}
                                 aria-expanded={isQueuePanelOpen}
                                 aria-haspopup="listbox"
                             >
@@ -1027,7 +1108,7 @@ export default function SettingsPage() {
 
                             {isQueuePanelOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    className={`${settingsDropdownClass} min-w-[220px] divide-y divide-[var(--app-divider)]`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.queueInlinePanel')}
                                 >
@@ -1165,11 +1246,11 @@ export default function SettingsPage() {
                                     setIsImageCompressionLevelOpen(!isImageCompressionLevelOpen)
                                 }}
                                 disabled={!imageUploadCompressionEnabled}
-                                className={`flex w-full items-center justify-between px-3 py-3 text-left transition-colors ${
+                                className={getSettingsSelectTriggerClass(isImageCompressionLevelOpen, 
                                     imageUploadCompressionEnabled
                                         ? 'hover:bg-[var(--app-subtle-bg)]'
                                         : 'cursor-not-allowed opacity-60'
-                                }`}
+                                )}
                                 aria-expanded={isImageCompressionLevelOpen}
                                 aria-haspopup="listbox"
                             >
@@ -1189,7 +1270,7 @@ export default function SettingsPage() {
 
                             {isImageCompressionLevelOpen && imageUploadCompressionEnabled && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`${settingsDropdownClass} min-w-[220px]`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.imageCompression.level')}
                                 >
@@ -1230,11 +1311,11 @@ export default function SettingsPage() {
                                     setIsImageCompressionTargetSizeOpen(!isImageCompressionTargetSizeOpen)
                                 }}
                                 disabled={!imageUploadCompressionEnabled}
-                                className={`flex w-full items-center justify-between px-3 py-3 text-left transition-colors ${
+                                className={getSettingsSelectTriggerClass(isImageCompressionTargetSizeOpen,
                                     imageUploadCompressionEnabled
                                         ? 'hover:bg-[var(--app-subtle-bg)]'
                                         : 'cursor-not-allowed opacity-60'
-                                }`}
+                                )}
                                 aria-expanded={isImageCompressionTargetSizeOpen}
                                 aria-haspopup="listbox"
                             >
@@ -1254,7 +1335,7 @@ export default function SettingsPage() {
 
                             {isImageCompressionTargetSizeOpen && imageUploadCompressionEnabled && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`${settingsDropdownClass} min-w-[220px]`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.imageCompression.targetSize')}
                                 >
@@ -1310,8 +1391,8 @@ export default function SettingsPage() {
                         onToggle={handleDataDiagnosticsGroupToggle}
                     >
                     {/* Usage section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                    <div className={settingsSectionItemClass}>
+                        <div className={settingsSectionHeaderClass}>
                             {t('settings.usage.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
@@ -1412,8 +1493,80 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Report domain section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                    <div className={settingsSectionItemClass}>
+                        <div className={settingsSectionHeaderClass}>
+                            ngrok
+                        </div>
+                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
+                            Managed token storage for automatic ngrok endpoint creation.
+                        </div>
+                        <div className="space-y-3 px-3 pb-3">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <div className="text-sm text-[var(--app-fg)]">Enable ngrok integration</div>
+                                    <div className="text-xs text-[var(--app-hint)]">Allow mappings panel to import and create endpoints.</div>
+                                </div>
+                                <Switch checked={ngrokEnabled} onCheckedChange={setNgrokEnabled} />
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <div className="text-sm text-[var(--app-fg)]">Managed agent</div>
+                                    <div className="text-xs text-[var(--app-hint)]">If local agent is absent, HAQI will try `ngrok start --none`.</div>
+                                </div>
+                                <Switch checked={ngrokManaged} onCheckedChange={setNgrokManaged} />
+                            </div>
+                            <input
+                                value={ngrokTokenDraft}
+                                onChange={(event) => setNgrokTokenDraft(event.target.value)}
+                                placeholder={ngrokHasToken ? `Token saved ••••${ngrokTokenLastFour}` : 'Paste ngrok auth token'}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                spellCheck={false}
+                            />
+                            <div className="grid gap-2 md:grid-cols-2">
+                                <input
+                                    value={ngrokRegionDraft}
+                                    onChange={(event) => setNgrokRegionDraft(event.target.value)}
+                                    placeholder="Region (optional)"
+                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                    spellCheck={false}
+                                />
+                                <input
+                                    value={ngrokApiBaseUrlDraft}
+                                    onChange={(event) => setNgrokApiBaseUrlDraft(event.target.value)}
+                                    placeholder="Agent API URL (default http://127.0.0.1:4040)"
+                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                    spellCheck={false}
+                                />
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-xs text-[var(--app-hint)]">
+                                    {ngrokStatusMessage ?? (ngrokHasToken ? `Token saved ••••${ngrokTokenLastFour}` : 'No token saved')}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleReloadNgrokSettings() }}
+                                        disabled={ngrokLoading || saveNgrokProviderMutation.isPending}
+                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        Reload
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleSaveNgrokSettings() }}
+                                        disabled={saveNgrokProviderMutation.isPending}
+                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {saveNgrokProviderMutation.isPending ? 'Saving…' : 'Save'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Report domain section */}
+                    <div className={settingsSectionItemClass}>
+                        <div className={settingsSectionHeaderClass}>
                             {t('settings.reportDomain.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
@@ -1468,7 +1621,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Memory section */}
-                    <div className="border-b border-[var(--app-divider)]">
+                    <div className={settingsSectionItemClass}>
                         <div className="flex items-center justify-between gap-3 px-3 py-2">
                             <div className="text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
                                 {t('settings.memory.pureContextMode.title')}
@@ -1551,7 +1704,7 @@ export default function SettingsPage() {
                         onToggle={handleAboutGroupToggle}
                     >
                     {/* About section */}
-                    <div className="border-b border-[var(--app-divider)]">
+                    <div className={settingsSectionItemClass}>
                         <div className="flex w-full items-center justify-between px-3 py-3">
                             <span className="text-[var(--app-fg)]">{t('settings.about.website')}</span>
                             <a

@@ -11,6 +11,7 @@ import { SessionStore } from './sessionStore'
 import { UserStore } from './userStore'
 import { GroupStore } from './groupStore'
 import { ReportStore } from './reportStore'
+import { SwarmStore } from './swarmStore'
 import { createConversationTurnsSchema } from './turns'
 import { createGroupConversationTurnsSchema } from './groupTurns'
 
@@ -30,6 +31,24 @@ export type {
     StoredReportAsset,
     StoredReportShare,
     StoredSession,
+    StoredSwarm,
+    StoredSwarmActivity,
+    StoredSwarmArtifact,
+    StoredSwarmEvent,
+    StoredSwarmOutcome,
+    StoredSwarmParticipant,
+    StoredSwarmParticipantLease,
+    StoredSwarmPolicy,
+    StoredSwarmReview,
+    StoredSwarmRoleBinding,
+    StoredSwarmRoleBindingHistory,
+    StoredSwarmRoleProfile,
+    StoredSwarmSubject,
+    StoredSwarmThread,
+    StoredSwarmThreadEntry,
+    StoredSwarmTransition,
+    StoredSwarmWorkItem,
+    StoredSwarmWorkItemAssignment,
     StoredUser,
     VersionedUpdateResult
 } from './types'
@@ -42,8 +61,9 @@ export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
+export { SwarmStore } from './swarmStore'
 
-const SCHEMA_VERSION: number = 11
+const SCHEMA_VERSION: number = 20
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -59,6 +79,25 @@ const REQUIRED_TABLES = [
     'group_conversation_turns',
     'group_tasks',
     'group_notes',
+    'swarms',
+    'swarm_subjects',
+    'swarm_participants',
+    'swarm_outcomes',
+    'swarm_work_items',
+    'swarm_artifacts',
+    'swarm_transitions',
+    'swarm_events',
+    'swarm_effects',
+    'swarm_activities',
+    'swarm_role_bindings',
+    'swarm_role_binding_history',
+    'swarm_role_profiles',
+    'swarm_threads',
+    'swarm_policies',
+    'swarm_reviews',
+    'swarm_thread_entries',
+    'swarm_work_item_assignments',
+    'swarm_participant_leases',
     'reports',
     'report_assets',
     'report_shares'
@@ -76,6 +115,7 @@ export class Store {
     readonly push: PushStore
     readonly projectPreferences: ProjectPreferenceStore
     readonly groups: GroupStore
+    readonly swarms: SwarmStore
     readonly reports: ReportStore
 
     constructor(dbPath: string) {
@@ -121,6 +161,7 @@ export class Store {
         this.push = new PushStore(this.db)
         this.projectPreferences = new ProjectPreferenceStore(this.db)
         this.groups = new GroupStore(this.db)
+        this.swarms = new SwarmStore(this.db)
         this.reports = new ReportStore(this.db)
     }
 
@@ -209,6 +250,69 @@ export class Store {
         if (currentVersion === 10 && SCHEMA_VERSION >= 11) {
             this.migrateFromV10ToV11()
             this.setUserVersion(11)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 11 && SCHEMA_VERSION >= 12) {
+            this.migrateFromV11ToV12()
+            this.setUserVersion(12)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 12 && SCHEMA_VERSION >= 13) {
+            this.migrateFromV12ToV13()
+            this.setUserVersion(13)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 13 && SCHEMA_VERSION >= 14) {
+            this.migrateFromV13ToV14()
+            this.setUserVersion(14)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 14 && SCHEMA_VERSION >= 15) {
+            this.migrateFromV14ToV15()
+            this.setUserVersion(15)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 15 && SCHEMA_VERSION >= 16) {
+            this.migrateFromV15ToV16()
+            this.setUserVersion(16)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 16 && SCHEMA_VERSION >= 17) {
+            this.migrateFromV16ToV17()
+            this.setUserVersion(17)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 17 && SCHEMA_VERSION >= 18) {
+            this.migrateFromV17ToV18()
+            this.setUserVersion(18)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 18 && SCHEMA_VERSION >= 19) {
+            this.migrateFromV18ToV19()
+            this.setUserVersion(19)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 19 && SCHEMA_VERSION >= 20) {
+            this.migrateFromV19ToV20()
+            this.setUserVersion(20)
             this.initSchema()
             return
         }
@@ -456,6 +560,315 @@ export class Store {
                 );
             CREATE INDEX IF NOT EXISTS idx_group_notes_namespace ON group_notes(namespace);
 
+            CREATE TABLE IF NOT EXISTS swarms (
+                id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                title TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                current_phase TEXT NOT NULL DEFAULT 'define',
+                created_by TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarms_namespace_updated
+                ON swarms(namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_subjects (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                kind TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                success_criteria TEXT,
+                constraints_json TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_subjects_swarm
+                ON swarm_subjects(swarm_id, namespace, created_at ASC);
+
+            CREATE TABLE IF NOT EXISTS swarm_participants (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                kind TEXT NOT NULL,
+                ref_id TEXT,
+                provider TEXT,
+                model TEXT,
+                capabilities_json TEXT,
+                availability TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_participants_swarm
+                ON swarm_participants(swarm_id, namespace, created_at ASC);
+
+            CREATE TABLE IF NOT EXISTS swarm_outcomes (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                subject_id TEXT,
+                work_item_id TEXT,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                kind TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_by_participant_id TEXT,
+                content_json TEXT,
+                artifact_refs_json TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                FOREIGN KEY (subject_id) REFERENCES swarm_subjects(id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_outcomes_swarm
+                ON swarm_outcomes(swarm_id, namespace, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_work_items (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                subject_id TEXT,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                title TEXT NOT NULL,
+                intent TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
+                assigned_participant_id TEXT,
+                expected_artifact TEXT,
+                done_criteria TEXT,
+                last_dispatch_at INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                FOREIGN KEY (subject_id) REFERENCES swarm_subjects(id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_work_items_swarm
+                ON swarm_work_items(swarm_id, namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_artifacts (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                work_item_id TEXT,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                kind TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content_json TEXT,
+                url TEXT,
+                status TEXT NOT NULL DEFAULT 'draft',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_artifacts_swarm
+                ON swarm_artifacts(swarm_id, namespace, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_transitions (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                from_state TEXT,
+                to_state TEXT NOT NULL,
+                reason TEXT,
+                by_participant_id TEXT,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_transitions_swarm
+                ON swarm_transitions(swarm_id, namespace, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_events (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                type TEXT NOT NULL,
+                payload_json TEXT,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_events_swarm
+                ON swarm_events(swarm_id, namespace, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_effects (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                work_item_id TEXT,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                kind TEXT NOT NULL,
+                summary TEXT,
+                data_json TEXT,
+                raw_json TEXT,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_effects_swarm
+                ON swarm_effects(swarm_id, namespace, created_at DESC);
+
+
+            CREATE TABLE IF NOT EXISTS swarm_activities (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                subject_id TEXT,
+                work_item_id TEXT,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                kind TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                participant_id TEXT,
+                content_json TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_activities_swarm
+                ON swarm_activities(swarm_id, namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_role_bindings (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                participant_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                phase TEXT,
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_role_bindings_swarm
+                ON swarm_role_bindings(swarm_id, namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_role_binding_history (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                participant_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                phase TEXT,
+                action TEXT NOT NULL,
+                reason TEXT,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_role_binding_history_swarm
+                ON swarm_role_binding_history(swarm_id, namespace, created_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_role_profiles (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                role TEXT NOT NULL,
+                instruction_text TEXT,
+                preferred_skill_ids_json TEXT,
+                allowed_tools_json TEXT,
+                output_contract TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_role_profiles_swarm
+                ON swarm_role_profiles(swarm_id, namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_threads (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                title TEXT NOT NULL,
+                kind TEXT NOT NULL DEFAULT 'discussion',
+                status TEXT NOT NULL DEFAULT 'open',
+                summary TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_threads_swarm
+                ON swarm_threads(swarm_id, namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_policies (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                kind TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                config_json TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_policies_swarm
+                ON swarm_policies(swarm_id, namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_reviews (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                work_item_id TEXT,
+                artifact_id TEXT,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                status TEXT NOT NULL DEFAULT 'open',
+                verdict TEXT,
+                summary TEXT,
+                created_by_participant_id TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_reviews_swarm
+                ON swarm_reviews(swarm_id, namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_thread_entries (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                thread_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                kind TEXT NOT NULL,
+                participant_id TEXT,
+                reply_to_entry_id TEXT,
+                cites_entry_ids_json TEXT,
+                content_json TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                FOREIGN KEY (thread_id) REFERENCES swarm_threads(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_thread_entries_thread
+                ON swarm_thread_entries(thread_id, namespace, created_at ASC);
+
+            CREATE TABLE IF NOT EXISTS swarm_work_item_assignments (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                work_item_id TEXT NOT NULL,
+                participant_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                status TEXT NOT NULL DEFAULT 'active',
+                assigned_at INTEGER NOT NULL,
+                unassigned_at INTEGER,
+                reason TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                FOREIGN KEY (work_item_id) REFERENCES swarm_work_items(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_work_item_assignments_swarm
+                ON swarm_work_item_assignments(swarm_id, namespace, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS swarm_participant_leases (
+                id TEXT PRIMARY KEY,
+                swarm_id TEXT NOT NULL,
+                work_item_id TEXT NOT NULL,
+                participant_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                status TEXT NOT NULL DEFAULT 'active',
+                assigned_at INTEGER NOT NULL,
+                last_heartbeat_at INTEGER,
+                expires_at INTEGER,
+                released_at INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                FOREIGN KEY (work_item_id) REFERENCES swarm_work_items(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_swarm_participant_leases_swarm
+                ON swarm_participant_leases(swarm_id, namespace, updated_at DESC);
             CREATE TABLE IF NOT EXISTS reports (
                 id TEXT PRIMARY KEY,
                 namespace TEXT NOT NULL DEFAULT 'default',
@@ -919,6 +1332,457 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite conversation preview indentation refresh failed during v10->v11 migration: ${message}`)
+        }
+    }
+
+    private migrateFromV11ToV12(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS swarms (
+                    id TEXT PRIMARY KEY,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    current_phase TEXT NOT NULL DEFAULT 'define',
+                    created_by TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarms_namespace_updated
+                    ON swarms(namespace, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_subjects (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    kind TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    success_criteria TEXT,
+                    constraints_json TEXT,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_subjects_swarm
+                    ON swarm_subjects(swarm_id, namespace, created_at ASC);
+
+                CREATE TABLE IF NOT EXISTS swarm_participants (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    kind TEXT NOT NULL,
+                    ref_id TEXT,
+                    provider TEXT,
+                    model TEXT,
+                    capabilities_json TEXT,
+                    availability TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_participants_swarm
+                    ON swarm_participants(swarm_id, namespace, created_at ASC);
+
+                CREATE TABLE IF NOT EXISTS swarm_outcomes (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    subject_id TEXT,
+                    work_item_id TEXT,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    created_by_participant_id TEXT,
+                    content_json TEXT,
+                    artifact_refs_json TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                    FOREIGN KEY (subject_id) REFERENCES swarm_subjects(id) ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_outcomes_swarm
+                    ON swarm_outcomes(swarm_id, namespace, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_work_items (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    subject_id TEXT,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    title TEXT NOT NULL,
+                    intent TEXT,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    assigned_participant_id TEXT,
+                    expected_artifact TEXT,
+                    done_criteria TEXT,
+                    last_dispatch_at INTEGER,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                    FOREIGN KEY (subject_id) REFERENCES swarm_subjects(id) ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_work_items_swarm
+                    ON swarm_work_items(swarm_id, namespace, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_artifacts (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    work_item_id TEXT,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    kind TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    content_json TEXT,
+                    url TEXT,
+                    status TEXT NOT NULL DEFAULT 'draft',
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_artifacts_swarm
+                    ON swarm_artifacts(swarm_id, namespace, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_transitions (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    from_state TEXT,
+                    to_state TEXT NOT NULL,
+                    reason TEXT,
+                    by_participant_id TEXT,
+                    created_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_transitions_swarm
+                    ON swarm_transitions(swarm_id, namespace, created_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_events (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    type TEXT NOT NULL,
+                    payload_json TEXT,
+                    created_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_events_swarm
+                    ON swarm_events(swarm_id, namespace, created_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v11->v12 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV12ToV13(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS swarm_work_items (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    subject_id TEXT,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    title TEXT NOT NULL,
+                    intent TEXT,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    assigned_participant_id TEXT,
+                    expected_artifact TEXT,
+                    done_criteria TEXT,
+                    last_dispatch_at INTEGER,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                    FOREIGN KEY (subject_id) REFERENCES swarm_subjects(id) ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_work_items_swarm
+                    ON swarm_work_items(swarm_id, namespace, updated_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v12->v13 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV13ToV14(): void {
+        try {
+            this.db.exec('BEGIN')
+            const swarmOutcomeColumns = new Set(
+                (this.db.prepare('PRAGMA table_info(swarm_outcomes)').all() as Array<{ name: string }>).map((row) => row.name)
+            )
+            if (!swarmOutcomeColumns.has('work_item_id')) {
+                this.db.exec('ALTER TABLE swarm_outcomes ADD COLUMN work_item_id TEXT')
+            }
+
+            const swarmArtifactColumns = new Set(
+                (this.db.prepare('PRAGMA table_info(swarm_artifacts)').all() as Array<{ name: string }>).map((row) => row.name)
+            )
+            if (!swarmArtifactColumns.has('work_item_id')) {
+                this.db.exec('ALTER TABLE swarm_artifacts ADD COLUMN work_item_id TEXT')
+            }
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v13->v14 failed: ${message}`)
+        }
+    }
+
+
+    private migrateFromV15ToV16(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS swarm_reviews (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    work_item_id TEXT,
+                    artifact_id TEXT,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    status TEXT NOT NULL DEFAULT 'open',
+                    verdict TEXT,
+                    summary TEXT,
+                    created_by_participant_id TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_reviews_swarm
+                    ON swarm_reviews(swarm_id, namespace, updated_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v15->v16 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV14ToV15(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS swarm_activities (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    subject_id TEXT,
+                    work_item_id TEXT,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'open',
+                    participant_id TEXT,
+                    content_json TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_activities_swarm
+                    ON swarm_activities(swarm_id, namespace, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_role_bindings (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    participant_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    phase TEXT,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_role_bindings_swarm
+                    ON swarm_role_bindings(swarm_id, namespace, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_threads (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    title TEXT NOT NULL,
+                    kind TEXT NOT NULL DEFAULT 'discussion',
+                    status TEXT NOT NULL DEFAULT 'open',
+                    summary TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_threads_swarm
+                    ON swarm_threads(swarm_id, namespace, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_policies (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    kind TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'active',
+                    config_json TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_policies_swarm
+                    ON swarm_policies(swarm_id, namespace, updated_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v14->v15 failed: ${message}`)
+        }
+    }
+
+
+    private migrateFromV16ToV17(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS swarm_thread_entries (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    thread_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    kind TEXT NOT NULL,
+                    participant_id TEXT,
+                    reply_to_entry_id TEXT,
+                    cites_entry_ids_json TEXT,
+                    content_json TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                    FOREIGN KEY (thread_id) REFERENCES swarm_threads(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_thread_entries_thread
+                    ON swarm_thread_entries(thread_id, namespace, created_at ASC);
+
+                CREATE TABLE IF NOT EXISTS swarm_work_item_assignments (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    work_item_id TEXT NOT NULL,
+                    participant_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    status TEXT NOT NULL DEFAULT 'active',
+                    assigned_at INTEGER NOT NULL,
+                    unassigned_at INTEGER,
+                    reason TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                    FOREIGN KEY (work_item_id) REFERENCES swarm_work_items(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_work_item_assignments_swarm
+                    ON swarm_work_item_assignments(swarm_id, namespace, updated_at DESC);
+
+                CREATE TABLE IF NOT EXISTS swarm_participant_leases (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    work_item_id TEXT NOT NULL,
+                    participant_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    status TEXT NOT NULL DEFAULT 'active',
+                    assigned_at INTEGER NOT NULL,
+                    last_heartbeat_at INTEGER,
+                    expires_at INTEGER,
+                    released_at INTEGER,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE,
+                    FOREIGN KEY (work_item_id) REFERENCES swarm_work_items(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_participant_leases_swarm
+                    ON swarm_participant_leases(swarm_id, namespace, updated_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v16->v17 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV17ToV18(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS swarm_role_binding_history (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    participant_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    phase TEXT,
+                    action TEXT NOT NULL,
+                    reason TEXT,
+                    created_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_role_binding_history_swarm
+                    ON swarm_role_binding_history(swarm_id, namespace, created_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v17->v18 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV18ToV19(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS swarm_role_profiles (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    role TEXT NOT NULL,
+                    instruction_text TEXT,
+                    preferred_skill_ids_json TEXT,
+                    allowed_tools_json TEXT,
+                    output_contract TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_role_profiles_swarm
+                    ON swarm_role_profiles(swarm_id, namespace, updated_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v18->v19 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV19ToV20(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS swarm_effects (
+                    id TEXT PRIMARY KEY,
+                    swarm_id TEXT NOT NULL,
+                    work_item_id TEXT,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    kind TEXT NOT NULL,
+                    summary TEXT,
+                    data_json TEXT,
+                    raw_json TEXT,
+                    created_at INTEGER NOT NULL,
+                    FOREIGN KEY (swarm_id) REFERENCES swarms(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_swarm_effects_swarm
+                    ON swarm_effects(swarm_id, namespace, created_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v19->v20 failed: ${message}`)
         }
     }
 

@@ -1,5 +1,7 @@
 import type {
     DecryptedMessage as ProtocolDecryptedMessage,
+    MachineMapping,
+    ProviderProfile,
     Session,
     SessionSummary,
     SyncEvent as ProtocolSyncEvent,
@@ -9,6 +11,8 @@ import type {
 export type {
     AgentState,
     AttachmentMetadata,
+    MachineMapping,
+    ProviderProfile,
     ModelMode,
     PermissionMode,
     Session,
@@ -51,6 +55,7 @@ export type Machine = {
         platform: string
         happyCliVersion: string
         displayName?: string
+        mappings?: MachineMapping[]
     } | null
 }
 
@@ -124,6 +129,15 @@ export type ConversationTurnMessagesResponse = {
 
 export type MachinesResponse = { machines: Machine[] }
 export type MachinePathsExistsResponse = { exists: Record<string, boolean> }
+export type MachineMappingsResponse = { mappings: MachineMapping[] }
+export type ImportMachineMappingsResponse = {
+    provider: 'ngrok'
+    mappings: MachineMapping[]
+    imported: number
+}
+export type RefreshMachineMappingsResponse = { mappings: MachineMapping[] }
+export type ProviderSettingsResponse = { providers: ProviderProfile[] }
+export type UpdateProviderResponse = { provider: ProviderProfile }
 
 export type GroupTimelineMessageType = 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
 
@@ -320,6 +334,337 @@ export type GroupTaskActionResponse = {
     task: GroupTask
 }
 
+export type Swarm = {
+    id: string
+    namespace: string
+    title: string
+    status: string
+    currentPhase: string
+    latestOutcomePreview?: string | null
+    createdBy: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmSubject = {
+    id: string
+    swarmId: string
+    namespace: string
+    kind: string
+    summary: string
+    successCriteria: string | null
+    constraints: unknown | null
+    status: string
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmParticipant = {
+    id: string
+    swarmId: string
+    namespace: string
+    kind: 'human' | 'agent' | 'service'
+    refId: string | null
+    provider: string | null
+    model: string | null
+    capabilities: string[] | null
+    availability: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmOutcome = {
+    id: string
+    swarmId: string
+    subjectId: string | null
+    workItemId: string | null
+    namespace: string
+    kind: string
+    status: string
+    createdByParticipantId: string | null
+    content: unknown | null
+    artifactRefs: string[] | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmWorkItem = {
+    id: string
+    swarmId: string
+    subjectId: string | null
+    namespace: string
+    title: string
+    intent: string | null
+    status: string
+    assignedParticipantId: string | null
+    expectedArtifact: string | null
+    doneCriteria: string | null
+    lastDispatchAt: number | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmArtifact = {
+    id: string
+    swarmId: string
+    workItemId: string | null
+    namespace: string
+    kind: string
+    title: string
+    content: unknown | null
+    url: string | null
+    status: string
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmTransition = {
+    id: string
+    swarmId: string
+    namespace: string
+    entityType: string
+    entityId: string
+    fromState: string | null
+    toState: string
+    reason: string | null
+    byParticipantId: string | null
+    createdAt: number
+}
+
+export type SwarmEvent = {
+    id: string
+    swarmId: string
+    namespace: string
+    type: string
+    payload: unknown | null
+    createdAt: number
+}
+
+export type SwarmEffect = {
+    id: string
+    swarmId: string
+    workItemId: string | null
+    namespace: string
+    kind: string
+    summary: string | null
+    data: unknown | null
+    raw: unknown | null
+    createdAt: number
+}
+
+export type SwarmActivity = {
+    id: string
+    swarmId: string
+    subjectId: string | null
+    workItemId: string | null
+    namespace: string
+    kind: string
+    status: string
+    participantId: string | null
+    content: unknown | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmRoleBinding = {
+    id: string
+    swarmId: string
+    namespace: string
+    participantId: string
+    role: string
+    phase: string | null
+    status: string
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmRoleBindingHistory = {
+    id: string
+    swarmId: string
+    namespace: string
+    participantId: string
+    role: string
+    phase: string | null
+    action: string
+    reason: string | null
+    createdAt: number
+}
+
+export type SwarmRoleProfile = {
+    id: string
+    swarmId: string
+    namespace: string
+    role: string
+    instructionText: string | null
+    preferredSkillIds: string[] | null
+    allowedTools: string[] | null
+    outputContract: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmThread = {
+    id: string
+    swarmId: string
+    namespace: string
+    title: string
+    kind: string
+    status: string
+    summary: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmPolicy = {
+    id: string
+    swarmId: string
+    namespace: string
+    kind: string
+    status: string
+    config: unknown | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmReview = {
+    id: string
+    swarmId: string
+    workItemId: string | null
+    artifactId: string | null
+    namespace: string
+    status: string
+    verdict: string | null
+    summary: string | null
+    createdByParticipantId: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmThreadEntry = {
+    id: string
+    swarmId: string
+    threadId: string
+    namespace: string
+    kind: string
+    participantId: string | null
+    replyToEntryId: string | null
+    citesEntryIds: string[] | null
+    content: unknown | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmWorkItemAssignment = {
+    id: string
+    swarmId: string
+    workItemId: string
+    participantId: string
+    namespace: string
+    status: string
+    assignedAt: number
+    unassignedAt: number | null
+    reason: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmParticipantLease = {
+    id: string
+    swarmId: string
+    workItemId: string
+    participantId: string
+    namespace: string
+    status: string
+    assignedAt: number
+    lastHeartbeatAt: number | null
+    expiresAt: number | null
+    releasedAt: number | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type SwarmDetail = {
+    swarm: Swarm
+    subject: SwarmSubject | null
+    participants: SwarmParticipant[]
+    activities: SwarmActivity[]
+    roleBindings: SwarmRoleBinding[]
+    roleBindingHistory: SwarmRoleBindingHistory[]
+    roleProfiles: SwarmRoleProfile[]
+    threads: SwarmThread[]
+    threadEntries: SwarmThreadEntry[]
+    policies: SwarmPolicy[]
+    reviews: SwarmReview[]
+    assignments: SwarmWorkItemAssignment[]
+    leases: SwarmParticipantLease[]
+    outcomes: SwarmOutcome[]
+    workItems: SwarmWorkItem[]
+    artifacts: SwarmArtifact[]
+    transitions: SwarmTransition[]
+    effects: SwarmEffect[]
+    events: SwarmEvent[]
+}
+
+export type SwarmsResponse = {
+    swarms: Swarm[]
+}
+
+export type SwarmResponse = {
+    swarm: SwarmDetail
+}
+
+export type SwarmSubjectResponse = {
+    subject: SwarmSubject | null
+}
+
+export type SwarmParticipantsResponse = {
+    participants: SwarmParticipant[]
+}
+
+export type SwarmParticipantResponse = {
+    participant: SwarmParticipant
+}
+
+export type SwarmOutcomesResponse = {
+    outcomes: SwarmOutcome[]
+}
+
+export type SwarmOutcomeResponse = {
+    outcome: SwarmOutcome
+}
+
+export type SwarmWorkItemsResponse = {
+    workItems: SwarmWorkItem[]
+}
+
+export type SwarmWorkItemResponse = {
+    workItem: SwarmWorkItem
+}
+
+export type SwarmArtifactsResponse = {
+    artifacts: SwarmArtifact[]
+}
+
+export type SwarmArtifactResponse = {
+    artifact: SwarmArtifact
+}
+
+export type SwarmTransitionsResponse = {
+    transitions: SwarmTransition[]
+}
+
+export type SwarmTransitionResponse = {
+    transition: SwarmTransition
+}
+
+export type SwarmEventsResponse = {
+    events: SwarmEvent[]
+}
+
+export type SwarmEffectsResponse = {
+    effects: SwarmEffect[]
+}
+
 export type GlobalMemory = {
     path: string
     content: string
@@ -345,6 +690,50 @@ export type ReportDomainSettings = {
 
 export type ReportDomainResponse = {
     settings: ReportDomainSettings
+}
+
+export type ReportSummary = {
+    id: string
+    namespace: string
+    sessionId: string | null
+    taskId: string | null
+    title: string
+    status: string
+    markdown: string
+    metadata: unknown | null
+    createdAt: number
+    updatedAt: number
+    reportUrl: string
+    publicShareUrl: string | null
+    assets: Array<{
+        id: string
+        reportId: string
+        namespace: string
+        fileName: string
+        storageKey: string
+        mimeType: string
+        size: number
+        caption: string | null
+        createdAt: number
+        assetUrl: string
+        markdownRef: string
+    }>
+    shares: Array<{
+        id: string
+        reportId: string
+        namespace: string
+        token: string
+        createdBy: string | null
+        createdAt: number
+        expiresAt: number | null
+        revokedAt: number | null
+        active: boolean
+        shareUrl: string
+    }>
+}
+
+export type ReportsResponse = {
+    reports: ReportSummary[]
 }
 
 export type ProjectOfflineSettingsResponse = {
@@ -577,6 +966,11 @@ export type SkillsResponse = {
     success: boolean
     skills?: SkillSummary[]
     error?: string
+}
+
+export type SwarmSkillsResponse = {
+    success: boolean
+    skills: SkillSummary[]
 }
 
 export type McpServerSummary = {

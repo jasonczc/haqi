@@ -7,7 +7,7 @@ import { stat } from 'node:fs/promises'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
 import type { Update, UpdateMachineBody } from '@hapi/protocol'
-import type { RunnerState, Machine, MachineMetadata } from './types'
+import type { MachineMapping, RunnerState, Machine, MachineMetadata } from './types'
 import { RunnerStateSchema, MachineMetadataSchema } from './types'
 import { backoff } from '@/utils/time'
 import { RpcHandlerManager } from './rpc/RpcHandlerManager'
@@ -15,6 +15,8 @@ import { registerCommonHandlers } from '../modules/common/registerCommonHandlers
 import type { SpawnSessionOptions, SpawnSessionResult } from '../modules/common/rpcTypes'
 import { applyVersionedAck } from './versionedUpdate'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
+import { readSettings } from '@/persistence'
+import { getProviderController } from '@/providers/providerRegistry'
 
 const LOCAL_HUB_RECOVERY_MIN_INTERVAL_MS = 10_000
 
@@ -101,6 +103,57 @@ export class ApiMachineClient {
             }))
 
             return { exists }
+        })
+
+        this.rpcHandlerManager.registerHandler<{ provider?: string }, { mappings: MachineMapping[] }>('provider-list-mappings', async (params) => {
+            const settings = await readSettings()
+            const provider = typeof params?.provider === 'string' ? params.provider : 'ngrok'
+            const controller = getProviderController(provider, settings.providers ?? {})
+            const mappings = await controller.listMappings()
+            return { mappings }
+        })
+
+        this.rpcHandlerManager.registerHandler<undefined, { mappings: MachineMapping[] }>('ngrok-endpoints', async () => {
+            const settings = await readSettings()
+            const controller = getProviderController('ngrok', settings.providers ?? {})
+            const mappings = await controller.listMappings()
+            return { mappings }
+        })
+
+        this.rpcHandlerManager.registerHandler<{
+            provider?: string
+            name?: string
+            kind?: MachineMapping['kind']
+            localUrl?: string
+            auth?: MachineMapping['auth']
+        }, { mapping: MachineMapping }>('provider-create-mapping', async (params) => {
+            const settings = await readSettings()
+            const provider = typeof params?.provider === 'string' ? params.provider : 'ngrok'
+            const controller = getProviderController(provider, settings.providers ?? {})
+            if (!params?.name || !params.kind || !params.localUrl) {
+                throw new Error('name, kind, and localUrl are required')
+            }
+            const mapping = await controller.createManagedMapping({
+                name: params.name,
+                kind: params.kind,
+                localUrl: params.localUrl,
+                auth: params.auth
+            })
+            return { mapping }
+        })
+
+        this.rpcHandlerManager.registerHandler<{
+            provider?: string
+            mapping?: MachineMapping
+        }, { ok: true }>('provider-delete-mapping', async (params) => {
+            const settings = await readSettings()
+            const provider = typeof params?.provider === 'string' ? params.provider : 'ngrok'
+            const controller = getProviderController(provider, settings.providers ?? {})
+            if (!params?.mapping) {
+                throw new Error('mapping is required')
+            }
+            await controller.deleteManagedMapping(params.mapping)
+            return { ok: true }
         })
     }
 

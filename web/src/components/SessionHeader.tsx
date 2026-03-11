@@ -107,6 +107,26 @@ function PlugIcon(props: { className?: string }) {
     )
 }
 
+function LinkIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <path d="M10 13a5 5 0 0 0 7.54.54l2.92-2.92a5 5 0 0 0-7.07-7.07L11.2 5.74" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-2.92 2.92a5 5 0 0 0 7.07 7.07l2.19-2.19" />
+        </svg>
+    )
+}
+
 function MoreVerticalIcon(props: { className?: string }) {
     return (
         <svg
@@ -131,6 +151,7 @@ export function SessionHeader(props: {
     onToggleSidebar?: () => void
     sidebarVisible?: boolean
     onViewPreview?: () => void
+    onViewMappings?: () => void
     onViewFiles?: () => void
     onViewMcpStatus?: () => void
     api: ApiClient | null
@@ -287,6 +308,18 @@ export function SessionHeader(props: {
                             aria-label="Preview"
                         >
                             <BrowserIcon />
+                        </button>
+                    ) : null}
+
+                    {props.onViewMappings ? (
+                        <button
+                            type="button"
+                            onClick={props.onViewMappings}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title="Mappings"
+                            aria-label="Mappings"
+                        >
+                            <LinkIcon />
                         </button>
                     ) : null}
 

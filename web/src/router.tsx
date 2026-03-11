@@ -58,10 +58,15 @@ import { filterSessionsBySearch } from '@/lib/session-search'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
+import MappingsPage from '@/routes/sessions/mappings'
 import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
 import GroupDetailPage from '@/routes/groups/detail'
 import { useGroups } from '@/hooks/queries/useGroups'
+import SwarmDetailPage from '@/routes/swarms/detail'
+import SwarmsIndexPage from '@/routes/swarms/index'
+import { useSwarms } from '@/hooks/queries/useSwarms'
+import type { Swarm } from '@/types/api'
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -140,6 +145,28 @@ function GroupsIcon(props: { className?: string }) {
             <circle cx="8.5" cy="7" r="4" />
             <path d="M20 8v6" />
             <path d="M23 11h-6" />
+        </svg>
+    )
+}
+
+function SwarmsIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <path d="M12 3l7 4v10l-7 4-7-4V7z" />
+            <path d="M12 12l7-5" />
+            <path d="M12 12L5 7" />
+            <path d="M12 21v-9" />
         </svg>
     )
 }
@@ -452,6 +479,13 @@ function SessionsPage() {
                                 className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                             >
                                 Groups
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/swarms' })}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Swarms
                             </button>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -1159,6 +1193,16 @@ function GroupsLayout() {
                             >
                                 Groups
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onClose?.()
+                                    navigate({ to: '/swarms' })
+                                }}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Swarms
+                            </button>
                         </div>
                         <div className="flex items-center gap-1.5">
                             {!isGroupsIndex ? (
@@ -1456,6 +1500,206 @@ function GroupsIndexPage() {
     )
 }
 
+function filterSwarmsBySearch(swarms: Swarm[], query: string): Swarm[] {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) {
+        return swarms
+    }
+    return swarms.filter((item) => {
+        return item.title.toLowerCase().includes(normalizedQuery)
+            || item.currentPhase.toLowerCase().includes(normalizedQuery)
+            || item.id.toLowerCase().includes(normalizedQuery)
+    })
+}
+
+function SwarmsLayout() {
+    const { api } = useAppContext()
+    const navigate = useNavigate()
+    const pathname = useLocation({ select: location => location.pathname })
+    const matchRoute = useMatchRoute()
+    const { swarms, isLoading } = useSwarms(api)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [newTitle, setNewTitle] = useState('')
+    const [newSummary, setNewSummary] = useState('')
+    const [createError, setCreateError] = useState<string | null>(null)
+    const [isCreateSubmitting, setIsCreateSubmitting] = useState(false)
+
+    const swarmMatch = matchRoute({ to: '/swarms/$swarmId', fuzzy: true })
+    const selectedSwarmId = swarmMatch ? swarmMatch.swarmId : null
+    const isSwarmsIndex = pathname === '/swarms' || pathname === '/swarms/'
+    const selectedSwarm = selectedSwarmId
+        ? swarms.find((item) => item.id === selectedSwarmId) ?? null
+        : null
+    const visibleSwarms = useMemo(() => filterSwarmsBySearch(swarms, searchQuery), [swarms, searchQuery])
+
+    const handleCreate = async () => {
+        if (!api) {
+            setCreateError('API unavailable')
+            return
+        }
+        const title = newTitle.trim()
+        if (!title) {
+            setCreateError('Title is required')
+            return
+        }
+        setCreateError(null)
+        setIsCreateSubmitting(true)
+        try {
+            const created = await api.createSwarm({
+                title,
+                subject: newSummary.trim()
+                    ? { summary: newSummary.trim(), kind: 'goal' }
+                    : undefined
+            })
+            setShowCreateModal(false)
+            setNewTitle('')
+            setNewSummary('')
+            navigate({ to: '/swarms/$swarmId', params: { swarmId: created.swarm.swarm.id } })
+        } catch (error) {
+            setCreateError(error instanceof Error ? error.message : 'Failed to create swarm')
+        } finally {
+            setIsCreateSubmitting(false)
+        }
+    }
+
+    return (
+        <div className="flex h-full min-h-0">
+            <div className="hidden w-full shrink-0 border-r border-[var(--app-divider)] bg-[var(--app-bg)] lg:block lg:w-80">
+                <div className="border-b border-[var(--app-divider)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] lg:pt-2">
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1">
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/sessions' })}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Sessions
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/groups' })}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Groups
+                            </button>
+                            <button
+                                type="button"
+                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
+                            >
+                                Swarms
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowCreateModal(true)}
+                            className="rounded-full p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-subtle-bg)]"
+                            title="New Swarm"
+                            aria-label="New Swarm"
+                        >
+                            <PlusIcon className="h-5 w-5" />
+                        </button>
+                    </div>
+                    <div className="mt-2 text-xs text-[var(--app-hint)]">
+                        {visibleSwarms.length} {visibleSwarms.length === 1 ? 'swarm' : 'swarms'}
+                    </div>
+                    <div className="mt-2">
+                        <input
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Search swarms"
+                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
+                        />
+                    </div>
+                </div>
+                <div className="h-[calc(100%-92px)] overflow-y-auto">
+                    {isLoading ? (
+                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">Loading...</div>
+                    ) : visibleSwarms.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">
+                            {searchQuery.trim() ? 'No swarms match.' : 'No swarms yet.'}
+                        </div>
+                    ) : (
+                        <div className="py-1">
+                            {visibleSwarms.map((item) => (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => navigate({ to: '/swarms/$swarmId', params: { swarmId: item.id } })}
+                                    className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)] ${selectedSwarmId === item.id ? 'bg-[var(--app-subtle-bg)]' : ''}`}
+                                >
+                                    <div className="truncate font-medium text-[var(--app-fg)]">{item.title}</div>
+                                    <div className="truncate text-xs text-[var(--app-hint)]">
+                                        {item.currentPhase} · {item.status}
+                                    </div>
+                                    {item.latestOutcomePreview ? (
+                                        <div className="truncate text-xs text-[var(--app-hint)]">
+                                            {item.latestOutcomePreview}
+                                        </div>
+                                    ) : null}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
+                {!isSwarmsIndex ? (
+                    <div className="flex items-center gap-2 border-b border-[var(--app-divider)] px-3 py-2">
+                        <SwarmsIcon className="h-5 w-5 text-[var(--app-hint)]" />
+                        <div className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--app-fg)]">
+                            {selectedSwarm?.title ?? 'Swarm'}
+                        </div>
+                    </div>
+                ) : null}
+                <div className="min-h-0 flex-1">
+                    <Outlet />
+                </div>
+            </div>
+
+            {showCreateModal ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-sm rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-xl">
+                        <div className="mb-3 font-semibold text-[var(--app-fg)]">New Swarm</div>
+                        <input
+                            autoFocus
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            placeholder="Swarm title"
+                            className="mb-2 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                        />
+                        <textarea
+                            value={newSummary}
+                            onChange={(e) => setNewSummary(e.target.value)}
+                            placeholder="Subject summary (optional)"
+                            className="mb-3 min-h-24 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                        />
+                        {createError ? <div className="mb-2 text-xs text-red-600">{createError}</div> : null}
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => { setShowCreateModal(false); setCreateError(null) }}
+                                className="rounded-md border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { void handleCreate() }}
+                                disabled={isCreateSubmitting}
+                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                            >
+                                {isCreateSubmitting ? 'Creating...' : 'Create'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
 const rootRoute = createRootRoute({
     component: App,
 })
@@ -1510,6 +1754,12 @@ const sessionPreviewRoute = createRoute({
     getParentRoute: () => sessionDetailRoute,
     path: 'preview',
     component: PreviewPage,
+})
+
+const sessionMappingsRoute = createRoute({
+    getParentRoute: () => sessionDetailRoute,
+    path: 'mappings',
+    component: MappingsPage,
 })
 
 type SessionFileSearch = {
@@ -1591,6 +1841,24 @@ const groupDetailRoute = createRoute({
     component: GroupDetailPage,
 })
 
+const swarmsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/swarms',
+    component: SwarmsLayout,
+})
+
+const swarmsIndexRoute = createRoute({
+    getParentRoute: () => swarmsRoute,
+    path: '/',
+    component: SwarmsIndexPage,
+})
+
+const swarmDetailRoute = createRoute({
+    getParentRoute: () => swarmsRoute,
+    path: '$swarmId',
+    component: SwarmDetailPage,
+})
+
 export const routeTree = rootRoute.addChildren([
     indexRoute,
     sessionsRoute.addChildren([
@@ -1598,6 +1866,7 @@ export const routeTree = rootRoute.addChildren([
         newSessionRoute,
         sessionDetailRoute.addChildren([
             sessionPreviewRoute,
+            sessionMappingsRoute,
             sessionTerminalRoute,
             sessionFilesRoute,
             sessionFileRoute,
@@ -1606,6 +1875,10 @@ export const routeTree = rootRoute.addChildren([
     groupsRoute.addChildren([
         groupsIndexRoute,
         groupDetailRoute,
+    ]),
+    swarmsRoute.addChildren([
+        swarmsIndexRoute,
+        swarmDetailRoute,
     ]),
     settingsRoute,
 ])

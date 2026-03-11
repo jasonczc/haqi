@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { MachineMappingsSchema } from '@hapi/protocol/schemas'
+import type { MachineMapping } from '@hapi/protocol/types'
 import type { Store } from '../store'
 import { clampAliveTime } from './aliveTime'
 import { EventPublisher } from './eventPublisher'
@@ -10,7 +12,8 @@ const machineMetadataSchema = z.object({
     displayName: z.string().optional(),
     homeDir: z.string().optional(),
     happyHomeDir: z.string().optional(),
-    happyLibDir: z.string().optional()
+    happyLibDir: z.string().optional(),
+    mappings: MachineMappingsSchema.optional()
 })
 
 export interface Machine {
@@ -29,6 +32,7 @@ export interface Machine {
         homeDir?: string
         happyHomeDir?: string
         happyLibDir?: string
+        mappings?: MachineMapping[]
     } | null
     metadataVersion: number
     runnerState: unknown | null
@@ -101,7 +105,8 @@ export class MachineCache {
             const homeDir = typeof data.homeDir === 'string' ? data.homeDir : undefined
             const happyHomeDir = typeof data.happyHomeDir === 'string' ? data.happyHomeDir : undefined
             const happyLibDir = typeof data.happyLibDir === 'string' ? data.happyLibDir : undefined
-            return { host, platform, happyCliVersion, displayName, homeDir, happyHomeDir, happyLibDir }
+            const mappings = Array.isArray(data.mappings) ? data.mappings : undefined
+            return { host, platform, happyCliVersion, displayName, homeDir, happyHomeDir, happyLibDir, mappings }
         })()
 
         const storedActiveAt = stored.activeAt ?? stored.createdAt

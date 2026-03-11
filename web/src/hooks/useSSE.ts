@@ -175,6 +175,20 @@ export function useSSE(options: {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.groupNote(event.groupId) })
             }
 
+            if (event.type === 'swarm-added' || event.type === 'swarm-updated') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.swarms })
+                void queryClient.invalidateQueries({ queryKey: queryKeys.swarm(event.swarmId) })
+            }
+
+            if (event.type === 'swarm-outcome-updated'
+                || event.type === 'swarm-work-item-updated'
+                || event.type === 'swarm-artifact-updated'
+                || event.type === 'swarm-transition-created'
+                || event.type === 'swarm-event-created'
+            ) {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.swarm(event.swarmId) })
+            }
+
             onEventRef.current(event)
         }
 

@@ -77,6 +77,54 @@ export const reportCreateShareInputSchema: z.ZodTypeAny = z.object({
     created_by: z.string().min(1).max(255).optional()
 })
 
+
+export const swarmRecordActivityInputSchema: z.ZodTypeAny = z.object({
+    swarm_id: z.string().min(1).max(255),
+    work_item_id: z.string().min(1).max(255).optional(),
+    kind: z.enum(['explore', 'propose', 'implement', 'verify', 'summarize', 'coordinate']),
+    status: z.enum(['open', 'completed', 'failed']).optional(),
+    summary: z.string().max(1000).optional(),
+    content: z.unknown().optional()
+})
+
+export const swarmRecordOutcomeInputSchema: z.ZodTypeAny = z.object({
+    swarm_id: z.string().min(1).max(255),
+    subject_id: z.string().min(1).max(255).optional(),
+    work_item_id: z.string().min(1).max(255).optional(),
+    kind: z.enum(['proposal', 'decision', 'diff', 'report', 'test_result', 'question', 'blocker', 'summary']),
+    status: z.string().min(1).max(64).optional(),
+    content: z.unknown(),
+    artifact_refs: z.array(z.string().min(1).max(255)).optional()
+})
+
+export const swarmRecordArtifactInputSchema: z.ZodTypeAny = z.object({
+    swarm_id: z.string().min(1).max(255),
+    work_item_id: z.string().min(1).max(255).optional(),
+    kind: z.enum(['report', 'diff', 'patch', 'document', 'test_result', 'link', 'file_bundle']),
+    title: z.string().min(1).max(255),
+    url: z.string().url().optional(),
+    content: z.unknown().optional(),
+    status: z.string().min(1).max(64).optional()
+})
+
+export const swarmRecordReviewInputSchema: z.ZodTypeAny = z.object({
+    swarm_id: z.string().min(1).max(255),
+    work_item_id: z.string().min(1).max(255).optional(),
+    artifact_id: z.string().min(1).max(255).optional(),
+    verdict: z.enum(['approved', 'changes_requested', 'commented']),
+    summary: z.string().max(2000).optional(),
+    evidence: z.string().max(4000).optional()
+})
+
+export const swarmRecordEffectInputSchema: z.ZodTypeAny = z.object({
+    swarm_id: z.string().min(1).max(255),
+    work_item_id: z.string().min(1).max(255).optional(),
+    kind: z.enum(['native', 'progress', 'file_change', 'permission', 'delegation', 'other']),
+    summary: z.string().max(2000).optional(),
+    data: z.unknown().optional(),
+    raw: z.unknown().optional()
+})
+
 export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     {
         name: 'change_title',
@@ -119,6 +167,35 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         title: 'Create Report Share',
         description: 'Create a public share link for a report',
         inputSchema: reportCreateShareInputSchema
+    },
+    {
+        name: 'record_activity',
+        title: 'Record Swarm Activity',
+        description: 'Record a structured Swarm activity for the current mission/work item',
+        inputSchema: swarmRecordActivityInputSchema
+    },
+    {
+        name: 'record_outcome',
+        title: 'Record Swarm Outcome',
+        description: 'Record a structured Swarm outcome such as proposal, blocker, decision, or summary',
+        inputSchema: swarmRecordOutcomeInputSchema
+    },
+    {
+        name: 'record_artifact',
+        title: 'Record Swarm Artifact',
+        description: 'Record a structured Swarm artifact such as diff, patch, report, or document',
+        inputSchema: swarmRecordArtifactInputSchema
+    },
+    {
+        name: 'record_review',
+        title: 'Record Swarm Review',
+        description: 'Record a Swarm review verdict for a work item or artifact',
+        inputSchema: swarmRecordReviewInputSchema
+    },
+    {
+        name: 'record_effect',
+        title: 'Record Swarm Effect',
+        description: 'Record a fallback Swarm effect or native side effect when no stricter tool fits',
+        inputSchema: swarmRecordEffectInputSchema
     }
 ]
-

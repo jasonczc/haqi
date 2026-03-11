@@ -8,7 +8,8 @@
  */
 
 import { inferClaudeModelModeFromModel, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
-import type { DecryptedMessage, ModelMode, PermissionMode, Session, SyncEvent } from '@hapi/protocol/types'
+import type { DecryptedMessage, MachineMapping, ModelMode, PermissionMode, Session, SyncEvent } from '@hapi/protocol/types'
+import { MachineMappingsSchema } from '@hapi/protocol/schemas'
 import type { Server } from 'socket.io'
 import type { PreviewUrlHistoryEntry, Store } from '../store'
 import type { RpcRegistry } from '../socket/rpcRegistry'
@@ -17,6 +18,7 @@ import { EventPublisher, type SyncEventListener } from './eventPublisher'
 import { GroupService, type GroupWithDetails } from './groupService'
 import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
+import { withSwarmAutomationLock } from './swarmAutomationLock'
 import {
     type RpcCodexQueueState,
     type RpcCodexQueueResponse,
@@ -87,6 +89,12 @@ type MirroredPayload = {
 type BufferedCodexGroupMirror = {
     route: GroupRouteContext
     chunks: string[]
+}
+
+type SwarmMessageProjection = {
+    role: string
+    contentType: string | null
+    text: string | null
 }
 
 const NOTE_REFRESH_TASK_PREFIX = 'note-refresh:'
@@ -247,6 +255,29 @@ function extractCodexText(data: unknown): string | null {
     return null
 }
 
+function extractSwarmProjection(envelope: MessageEnvelope): SwarmMessageProjection | null {
+    let text: string | null = null
+    if (envelope.contentType === 'output') {
+        text = extractClaudeText(envelope.data, { allowSummary: true })
+    } else if (envelope.contentType === 'codex') {
+        text = extractCodexText(envelope.data)
+    } else if (envelope.contentType === 'text') {
+        const record = asRecord(envelope.data)
+        const candidate = asString(record?.text)?.trim()
+        text = candidate && candidate.length > 0 ? candidate : null
+    }
+
+    if (envelope.role !== 'user' && envelope.role !== 'agent') {
+        return null
+    }
+
+    return {
+        role: envelope.role,
+        contentType: envelope.contentType,
+        text
+    }
+}
+
 function isCodexExecutionDetailText(text: string): boolean {
     const normalized = text.trim().toLowerCase()
     if (!normalized) {
@@ -286,6 +317,40 @@ function isTitleMutationNoiseText(text: string): boolean {
 
 function isCodexToolProcessEventType(type: string): boolean {
     return CODEX_TOOL_PROCESS_EVENT_TYPES.has(type)
+}
+
+function detectRuntimeSwarmEffects(text: string | null, contentType: string | null): Array<{
+    kind: 'progress' | 'file_change' | 'other'
+    summary: string
+    data?: Record<string, unknown>
+}> {
+    const normalized = text?.trim()
+    if (!normalized) {
+        return []
+    }
+    const effects: Array<{ kind: 'progress' | 'file_change' | 'other'; summary: string; data?: Record<string, unknown> }> = []
+    if (/^diff --git\b/m.test(normalized) || (/^\+\+\+ .+/m.test(normalized) && /^--- .+/m.test(normalized))) {
+        effects.push({
+            kind: 'file_change',
+            summary: truncateText(normalized.split('\n').slice(0, 6).join('\n'), 500),
+            data: { contentType, detected: 'unified_diff' }
+        })
+    }
+    if (/\b(typecheck|test|tests|lint|build)\b.*\b(pass|passed|success|ok|fail|failed|error)\b/i.test(normalized)) {
+        effects.push({
+            kind: 'other',
+            summary: truncateText(normalized.replace(/\s+/g, ' '), 500),
+            data: { contentType, detected: 'verification_result' }
+        })
+    }
+    if (effects.length === 0 && normalized.length > 0) {
+        effects.push({
+            kind: 'progress',
+            summary: truncateText(normalized.replace(/\s+/g, ' '), 280),
+            data: { contentType }
+        })
+    }
+    return effects
 }
 
 function extractCodexMirrorPayload(data: unknown): {
@@ -486,6 +551,9 @@ export class SyncEngine {
         if ('groupId' in event) {
             return this.store.groups.getGroup(event.groupId)?.namespace
         }
+        if ('swarmId' in event) {
+            return event.namespace
+        }
         return undefined
     }
 
@@ -543,6 +611,169 @@ export class SyncEngine {
 
     getOnlineMachinesByNamespace(namespace: string): Machine[] {
         return this.machineCache.getOnlineMachinesByNamespace(namespace)
+    }
+
+    getMachineMappingsByNamespace(machineId: string, namespace: string): MachineMapping[] {
+        const machine = this.getMachineByNamespace(machineId, namespace)
+        if (!machine) {
+            throw new Error('Machine not found')
+        }
+        return Array.isArray(machine.metadata?.mappings) ? machine.metadata.mappings : []
+    }
+
+    updateMachineMappings(machineId: string, namespace: string, mappings: MachineMapping[]): MachineMapping[] {
+        const machine = this.getMachineByNamespace(machineId, namespace)
+        if (!machine) {
+            throw new Error('Machine not found')
+        }
+
+        const parsed = MachineMappingsSchema.safeParse(mappings)
+        if (!parsed.success) {
+            throw new Error('Invalid mappings payload')
+        }
+
+        let expectedVersion = machine.metadataVersion
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            const currentMachine = this.getMachineByNamespace(machineId, namespace)
+            if (!currentMachine) {
+                throw new Error('Machine not found')
+            }
+
+            const nextMetadata = {
+                ...(currentMachine.metadata ?? {
+                    host: 'unknown',
+                    platform: 'unknown',
+                    happyCliVersion: 'unknown'
+                }),
+                mappings: parsed.data
+            }
+
+            const result = this.store.machines.updateMachineMetadata(
+                machineId,
+                nextMetadata,
+                expectedVersion,
+                namespace
+            )
+
+            if (result.result === 'success') {
+                this.machineCache.refreshMachine(machineId)
+                return parsed.data
+            }
+
+            if (result.result === 'version-mismatch') {
+                expectedVersion = result.version
+                continue
+            }
+
+            throw new Error('Failed to update machine mappings')
+        }
+
+        throw new Error('Failed to update machine mappings due to concurrent updates')
+    }
+
+    async importNgrokMappings(machineId: string, namespace: string): Promise<{ mappings: MachineMapping[]; imported: number }> {
+        const imported = await this.rpcGateway.getNgrokMappings(machineId)
+        const existing = this.getMachineMappingsByNamespace(machineId, namespace)
+        const preserved = existing.filter((mapping) => !(mapping.provider === 'ngrok' && mapping.source === 'imported'))
+        const mappings = this.updateMachineMappings(machineId, namespace, [...preserved, ...imported])
+        return { mappings, imported: imported.length }
+    }
+
+    async createManagedMachineMapping(input: {
+        machineId: string
+        namespace: string
+        provider: MachineMapping['provider']
+        name: string
+        kind: MachineMapping['kind']
+        localUrl: string
+        auth?: MachineMapping['auth']
+    }): Promise<MachineMapping[]> {
+        const created = await this.rpcGateway.createManagedMapping(input.machineId, {
+            provider: input.provider,
+            name: input.name,
+            kind: input.kind,
+            localUrl: input.localUrl,
+            auth: input.auth
+        })
+
+        const existing = this.getMachineMappingsByNamespace(input.machineId, input.namespace)
+        const next = [...existing.filter((item) => item.id !== created.id), created]
+        return this.updateMachineMappings(input.machineId, input.namespace, next)
+    }
+
+    async deleteManagedMachineMapping(input: {
+        machineId: string
+        namespace: string
+        provider: MachineMapping['provider']
+        mappingId: string
+    }): Promise<MachineMapping[]> {
+        const existing = this.getMachineMappingsByNamespace(input.machineId, input.namespace)
+        const target = existing.find((item) => item.id === input.mappingId)
+        if (!target) {
+            return existing
+        }
+
+        if (target.provider === input.provider && target.source === 'managed') {
+            await this.rpcGateway.deleteManagedMapping(input.machineId, {
+                provider: input.provider,
+                mapping: target
+            })
+        }
+
+        return this.updateMachineMappings(
+            input.machineId,
+            input.namespace,
+            existing.filter((item) => item.id !== input.mappingId)
+        )
+    }
+
+    async refreshMachineMappings(machineId: string, namespace: string, provider: MachineMapping['provider'] = 'ngrok'): Promise<MachineMapping[]> {
+        const existing = this.getMachineMappingsByNamespace(machineId, namespace)
+        if (provider !== 'ngrok') {
+            return existing
+        }
+
+        const live = await this.rpcGateway.getNgrokMappings(machineId)
+        const liveByPublicUrl = new Map(live.map((item) => [item.publicUrl ?? item.id, item]))
+        const next: MachineMapping[] = []
+        const seen = new Set<string>()
+
+        for (const item of existing) {
+            if (item.provider !== provider) {
+                next.push(item)
+                continue
+            }
+
+            const key = item.publicUrl ?? item.id
+            const liveItem = liveByPublicUrl.get(key)
+            if (liveItem) {
+                next.push({
+                    ...item,
+                    ...liveItem,
+                    source: item.source,
+                    auth: item.auth,
+                    status: 'online',
+                    updatedAt: Date.now()
+                })
+                seen.add(key)
+            } else {
+                next.push({
+                    ...item,
+                    status: 'offline',
+                    updatedAt: Date.now()
+                })
+            }
+        }
+
+        for (const item of live) {
+            const key = item.publicUrl ?? item.id
+            if (seen.has(key)) {
+                continue
+            }
+            next.push(item)
+        }
+
+        return this.updateMachineMappings(machineId, namespace, next)
     }
 
     getGroupsByNamespace(namespace: string): GroupWithDetails[] {
@@ -757,6 +988,7 @@ export class SyncEngine {
             const session = this.getSession(event.sessionId) ?? this.sessionCache.refreshSession(event.sessionId)
             if (session) {
                 this.handleGroupRoutedMessage(event.sessionId, session.namespace, event.message)
+                this.handleSwarmParticipantMessage(event.sessionId, session.namespace, event.message)
             }
         }
 
@@ -799,6 +1031,7 @@ export class SyncEngine {
     private expireInactive(): void {
         this.sessionCache.expireInactive()
         this.machineCache.expireInactive()
+        void this.reassignExpiredSwarmLeases()
     }
 
     private syncGroupNoteMarkdownFiles(): void {
@@ -812,6 +1045,1185 @@ export class SyncEngine {
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error)
             console.warn(`[SyncEngine] Failed to run group note markdown sync: ${message}`)
+        }
+    }
+
+    private handleSwarmParticipantMessage(
+        sessionId: string,
+        namespace: string,
+        message: DecryptedMessage
+    ): void {
+        const envelope = parseMessageEnvelope(message.content)
+        if (!envelope) {
+            return
+        }
+
+        const projection = extractSwarmProjection(envelope)
+        if (!projection) {
+            return
+        }
+
+        const metaSwarmId = asString(envelope.meta?.swarmId)?.trim() ?? null
+        const metaWorkItemId = asString(envelope.meta?.swarmWorkItemId)?.trim() ?? null
+        const swarms = metaSwarmId
+            ? [this.store.swarms.getSwarmByNamespace(metaSwarmId, namespace)].filter((item): item is NonNullable<typeof item> => Boolean(item))
+            : this.store.swarms.getSwarmsByParticipantRef(namespace, sessionId)
+        if (swarms.length === 0) {
+            return
+        }
+
+        for (const swarm of swarms) {
+            const participant = this.store.swarms.getSwarmParticipantByRef(swarm.id, namespace, sessionId)
+            this.store.swarms.addSwarmActivity({
+                swarmId: swarm.id,
+                namespace,
+                subjectId: this.store.swarms.getSwarmSubject(swarm.id, namespace)?.id ?? null,
+                workItemId: metaWorkItemId,
+                kind: projection.role === 'agent' ? 'implement' : 'coordinate',
+                status: projection.role === 'agent' ? 'running' : 'open',
+                participantId: participant?.id ?? null,
+                content: {
+                    sessionId,
+                    messageId: message.id,
+                    text: projection.text ? truncateText(projection.text, 1000) : null
+                }
+            })
+            const outcome = this.store.swarms.addSwarmOutcome({
+                swarmId: swarm.id,
+                namespace,
+                subjectId: this.store.swarms.getSwarmSubject(swarm.id, namespace)?.id ?? null,
+                workItemId: metaWorkItemId,
+                kind: projection.role === 'agent' ? 'session_output' : 'session_input',
+                status: 'open',
+                createdByParticipantId: participant?.id ?? null,
+                content: {
+                    sessionId,
+                    messageId: message.id,
+                    seq: message.seq,
+                    role: projection.role,
+                    contentType: projection.contentType,
+                    text: projection.text ? truncateText(projection.text, 4000) : null,
+                    createdAt: message.createdAt
+                }
+            })
+
+            const runtimeEffects = detectRuntimeSwarmEffects(projection.text, projection.contentType)
+            for (const effect of runtimeEffects) {
+                this.store.swarms.addSwarmEffect({
+                    swarmId: swarm.id,
+                    namespace,
+                    workItemId: metaWorkItemId,
+                    kind: effect.kind,
+                    summary: effect.summary,
+                    data: {
+                        ...effect.data,
+                        sessionId,
+                        messageId: message.id,
+                        role: projection.role
+                    },
+                    raw: envelope.data
+                })
+            }
+
+            this.eventPublisher.emit({
+                type: 'swarm-outcome-updated',
+                swarmId: swarm.id,
+                namespace,
+                outcome
+            })
+
+            if (metaWorkItemId) {
+                const existingWorkItem = this.store.swarms.getSwarmWorkItemById(swarm.id, namespace, metaWorkItemId)
+                const workItem = this.store.swarms.updateSwarmWorkItem({
+                    swarmId: swarm.id,
+                    namespace,
+                    workItemId: metaWorkItemId,
+                    status: projection.role === 'agent' ? 'running' : 'active',
+                    assignedParticipantId: participant?.id ?? null
+                })
+                if (workItem) {
+                    if (existingWorkItem && existingWorkItem.status !== workItem.status) {
+                        const transition = this.store.swarms.addSwarmTransition({
+                            swarmId: swarm.id,
+                            namespace,
+                            entityType: 'work_item',
+                            entityId: workItem.id,
+                            fromState: existingWorkItem.status,
+                            toState: workItem.status,
+                            reason: `session-message:${projection.role}`,
+                            byParticipantId: participant?.id ?? null
+                        })
+                        this.eventPublisher.emit({
+                            type: 'swarm-transition-created',
+                            swarmId: swarm.id,
+                            namespace,
+                            transition
+                        })
+                    }
+                    this.store.swarms.upsertSwarmParticipantLease({
+                        swarmId: swarm.id,
+                        workItemId: metaWorkItemId,
+                        participantId: participant?.id ?? sessionId,
+                        namespace,
+                        status: workItem.status === 'completed' ? 'released' : 'active',
+                        lastHeartbeatAt: message.createdAt,
+                        expiresAt: message.createdAt + 30 * 60 * 1000
+                    })
+                    this.eventPublisher.emit({
+                        type: 'swarm-work-item-updated',
+                        swarmId: swarm.id,
+                        namespace,
+                        workItem
+                    })
+                }
+            }
+
+            const latestText = projection.text?.trim()
+            if (latestText && latestText.length > 0) {
+                const eventPayload = {
+                    sessionId,
+                    participantId: participant?.id ?? null,
+                    role: projection.role,
+                    preview: truncateText(latestText.replace(/\s+/g, ' '), 280)
+                }
+                const event = this.store.swarms.addSwarmEvent({
+                    swarmId: swarm.id,
+                    namespace,
+                    type: 'participant-message',
+                    payload: eventPayload
+                })
+                this.eventPublisher.emit({
+                    type: 'swarm-event-created',
+                    swarmId: swarm.id,
+                    namespace,
+                    event
+                })
+            }
+
+            const sessionState = this.getSession(sessionId)
+            if (sessionState) {
+                const transition = this.store.swarms.addSwarmTransition({
+                    swarmId: swarm.id,
+                    namespace,
+                    entityType: 'participant',
+                    entityId: participant?.id ?? sessionId,
+                    fromState: null,
+                    toState: sessionState.active ? 'active' : 'inactive',
+                    reason: `session-message:${projection.role}`,
+                    byParticipantId: participant?.id ?? null
+                })
+                this.eventPublisher.emit({
+                    type: 'swarm-transition-created',
+                    swarmId: swarm.id,
+                    namespace,
+                    transition
+                })
+            }
+
+            this.recomputeSwarmLifecycle(swarm.id, namespace)
+        }
+    }
+
+    private recomputeSwarmLifecycle(swarmId: string, namespace: string): void {
+        this.recomputeSwarmLifecycleNow(swarmId, namespace)
+        void this.runSwarmPolicies(swarmId, namespace)
+    }
+
+    private recomputeSwarmLifecycleNow(swarmId: string, namespace: string): void {
+        const swarm = this.store.swarms.getSwarmByNamespace(swarmId, namespace)
+        if (!swarm) {
+            return
+        }
+        const workItems = this.store.swarms.getSwarmWorkItems(swarmId, namespace)
+        const outcomes = this.store.swarms.getSwarmOutcomes(swarmId, namespace)
+        let currentPhase = swarm.currentPhase
+        let status = swarm.status
+
+        if (workItems.length === 0) {
+            currentPhase = 'define'
+            status = 'active'
+        } else if (workItems.some((item) => item.status === 'running' || item.status === 'active' || item.status === 'dispatched')) {
+            currentPhase = 'execute'
+            status = 'active'
+        } else if (outcomes.some((item) => item.kind === 'decision')) {
+            currentPhase = 'decide'
+            status = 'active'
+        } else if (workItems.some((item) => item.status === 'blocked')) {
+            currentPhase = 'execute'
+            status = 'blocked'
+        } else if (workItems.every((item) => item.status === 'completed' || item.status === 'canceled')) {
+            currentPhase = 'deliver'
+            status = workItems.some((item) => item.status === 'completed') ? 'completed' : 'canceled'
+        } else {
+            currentPhase = 'explore'
+            status = 'active'
+        }
+
+        if (currentPhase !== swarm.currentPhase || status !== swarm.status) {
+            const updated = this.store.swarms.updateSwarm({
+                swarmId,
+                namespace,
+                currentPhase,
+                status
+            })
+            this.syncSwarmRoleBindings(swarmId, namespace)
+            if (updated) {
+                this.eventPublisher.emit({
+                    type: 'swarm-updated',
+                    swarmId,
+                    namespace,
+                    data: updated
+                })
+            }
+            return
+        }
+        this.syncSwarmRoleBindings(swarmId, namespace)
+    }
+
+    private syncSwarmRoleBindings(swarmId: string, namespace: string): void {
+        const swarm = this.store.swarms.getSwarmByNamespace(swarmId, namespace)
+        if (!swarm) {
+            return
+        }
+        const previousBindings = this.store.swarms.getSwarmRoleBindings(swarmId, namespace)
+        const participants = this.store.swarms.getSwarmParticipants(swarmId, namespace)
+        const workItems = this.store.swarms.getSwarmWorkItems(swarmId, namespace)
+        const reviews = this.store.swarms.getSwarmReviews(swarmId, namespace)
+        const activeAgents = participants.filter((participant) => participant.kind === 'agent' && participant.refId)
+        const assignedIds = new Set(workItems.map((item) => item.assignedParticipantId).filter((item): item is string => Boolean(item)))
+        const reviewerIds = new Set(reviews.map((item) => item.createdByParticipantId).filter((item): item is string => Boolean(item)))
+        const planner = activeAgents.find((participant) => (participant.capabilities ?? []).some((item) => item.toLowerCase() === 'planning')) ?? activeAgents[0]
+        const coordinator = activeAgents.find((participant) => participant.id !== planner?.id) ?? planner
+        const reviewer = activeAgents.find((participant) => (participant.capabilities ?? []).some((item) => item.toLowerCase() === 'review'))
+            ?? activeAgents.find((participant) => !assignedIds.has(participant.id))
+            ?? activeAgents[0]
+        const nextBindings = new Map<string, { participantId: string; role: string; phase?: string | null; status?: string }>()
+        if (planner) {
+            nextBindings.set(`${planner.id}:planner:${swarm.currentPhase}`, { participantId: planner.id, role: 'planner', phase: swarm.currentPhase, status: 'active' })
+        }
+        if (coordinator) {
+            nextBindings.set(`${coordinator.id}:coordinator:${swarm.currentPhase}`, { participantId: coordinator.id, role: 'coordinator', phase: swarm.currentPhase, status: 'active' })
+        }
+        for (const participantId of assignedIds) {
+            nextBindings.set(`${participantId}:implementer:${swarm.currentPhase}`, { participantId, role: 'implementer', phase: swarm.currentPhase, status: 'active' })
+        }
+        if (swarm.currentPhase === 'deliver' || reviewerIds.size > 0 || workItems.some((item) => item.status === 'completed')) {
+            if (reviewer) {
+                nextBindings.set(`${reviewer.id}:reviewer:${swarm.currentPhase}`, { participantId: reviewer.id, role: 'reviewer', phase: swarm.currentPhase, status: 'active' })
+            }
+        }
+        this.store.swarms.resetSwarmRoleBindings({ swarmId, namespace })
+        for (const binding of previousBindings) {
+            this.store.swarms.addSwarmRoleBindingHistory({
+                swarmId,
+                namespace,
+                participantId: binding.participantId,
+                role: binding.role,
+                phase: binding.phase,
+                action: 'unbind',
+                reason: 'runtime-rebind'
+            })
+        }
+        for (const binding of nextBindings.values()) {
+            const current = this.store.swarms.addSwarmRoleBinding({
+                swarmId,
+                namespace,
+                participantId: binding.participantId,
+                role: binding.role,
+                phase: binding.phase,
+                status: binding.status
+            })
+            this.store.swarms.addSwarmRoleBindingHistory({
+                swarmId,
+                namespace,
+                participantId: current.participantId,
+                role: current.role,
+                phase: current.phase,
+                action: 'bind',
+                reason: 'runtime-rebind'
+            })
+        }
+    }
+
+    private async runSwarmPolicies(swarmId: string, namespace: string): Promise<void> {
+        await withSwarmAutomationLock(swarmId, namespace, async () => {
+            await this.applySwarmPoliciesNow(swarmId, namespace)
+            this.recomputeSwarmLifecycleNow(swarmId, namespace)
+        })
+    }
+
+    private async applySwarmPoliciesNow(swarmId: string, namespace: string): Promise<void> {
+        const swarm = this.store.swarms.getSwarmByNamespace(swarmId, namespace)
+        if (!swarm) {
+            return
+        }
+        const subjectId = this.store.swarms.getSwarmSubject(swarmId, namespace)?.id ?? null
+        const policies = this.store.swarms.getSwarmPolicies(swarmId, namespace).filter((item) => item.status !== 'disabled')
+        if (policies.length === 0) {
+            return
+        }
+        const workItems = this.store.swarms.getSwarmWorkItems(swarmId, namespace)
+        const roleBindings = this.store.swarms.getSwarmRoleBindings(swarmId, namespace)
+        const threads = this.store.swarms.getSwarmThreads(swarmId, namespace)
+        const threadEntries = this.store.swarms.getSwarmThreadEntries(swarmId, namespace)
+        const reviews = this.store.swarms.getSwarmReviews(swarmId, namespace)
+        const participants = this.store.swarms.getSwarmParticipants(swarmId, namespace)
+        const plannerBinding = roleBindings.find((item) => item.role === 'planner')
+        const coordinatorBinding = roleBindings.find((item) => item.role === 'coordinator')
+        const reviewerBinding = roleBindings.find((item) => item.role === 'reviewer')
+        const autonomyConfig = this.getSwarmPolicyConfig<{
+            auto?: boolean
+            autoPlanOnDefine?: boolean
+            autoDispatchOnPlan?: boolean
+            autoPlanMaxItems?: number
+            maxAutoDispatches?: number
+            stopOnDeliver?: boolean
+        }>(swarmId, namespace, 'autonomy')
+        const hasPolicy = (...kinds: string[]) => {
+            const normalized = new Set(kinds.map((item) => item.toLowerCase()))
+            return policies.some((item) => normalized.has(item.kind.toLowerCase()))
+        }
+
+        const events = this.store.swarms.getSwarmEvents(swarmId, namespace)
+        const autoDispatchCount = events.filter((event) => event.type === 'auto-dispatch-requested').length
+        if (autonomyConfig.stopOnDeliver && (swarm.currentPhase === 'deliver' || swarm.status === 'completed' || swarm.status === 'canceled')) {
+            return
+        }
+        if (workItems.length === 0 && this.store.swarms.getSwarmSubject(swarmId, namespace)?.summary?.trim()) {
+            if (autonomyConfig.auto === true && autonomyConfig.autoPlanOnDefine !== false) {
+                const exceeded = typeof autonomyConfig.maxAutoDispatches === 'number' && autoDispatchCount >= autonomyConfig.maxAutoDispatches
+                if (!exceeded) {
+                    await this.createSwarmAutoPlan(swarmId, namespace, {
+                        maxItems: Math.max(1, Math.min(autonomyConfig.autoPlanMaxItems ?? 3, 8)),
+                        dispatch: autonomyConfig.autoDispatchOnPlan === true
+                    })
+                }
+            }
+        }
+
+        if (hasPolicy('escalation')) {
+            for (const workItem of workItems.filter((item) => item.status === 'blocked')) {
+                const exists = threadEntries.some((entry) => {
+                    if (entry.kind !== 'blocker') return false
+                    const content = entry.content && typeof entry.content === 'object' ? entry.content as Record<string, unknown> : null
+                    return content?.workItemId === workItem.id && content?.source === 'policy:escalation'
+                })
+                if (exists) continue
+                const blockerThread = threads.find((thread) => thread.kind === 'blocker' && thread.summary?.includes(workItem.id))
+                    ?? this.store.swarms.addSwarmThread({
+                        swarmId,
+                        namespace,
+                        title: `Blocker: ${workItem.title}`,
+                        kind: 'blocker',
+                        status: 'open',
+                        summary: `Auto escalation for work item ${workItem.id}`
+                    })
+                const blockerEntry = this.store.swarms.addSwarmThreadEntry({
+                    swarmId,
+                    threadId: blockerThread.id,
+                    namespace,
+                    kind: 'blocker',
+                    participantId: coordinatorBinding?.participantId ?? null,
+                    content: {
+                        source: 'policy:escalation',
+                        workItemId: workItem.id
+                    }
+                })
+                this.store.swarms.addSwarmOutcome({
+                    swarmId,
+                    namespace,
+                    subjectId,
+                    workItemId: workItem.id,
+                    kind: 'blocker',
+                    status: 'blocked',
+                    createdByParticipantId: coordinatorBinding?.participantId ?? null,
+                    content: {
+                        source: 'policy:escalation',
+                        threadId: blockerThread.id,
+                        threadEntryId: blockerEntry.id
+                    }
+                })
+            }
+        }
+
+        if (hasPolicy('deliberation', 'debate', 'rebuttal')) {
+            const deliberationPolicy = this.getSwarmPolicyConfig<{ maxRebuttalsPerThread?: number }>(swarmId, namespace, 'deliberation')
+            for (const blockerEntry of threadEntries.filter((entry) => entry.kind === 'blocker')) {
+                const rebuttalExists = threadEntries.some((entry) =>
+                    entry.threadId === blockerEntry.threadId
+                    && entry.kind === 'rebuttal'
+                    && (entry.replyToEntryId === blockerEntry.id || (entry.citesEntryIds ?? []).includes(blockerEntry.id))
+                )
+                if (rebuttalExists) continue
+                const content = blockerEntry.content && typeof blockerEntry.content === 'object' ? blockerEntry.content as Record<string, unknown> : null
+                this.store.swarms.addSwarmThreadEntry({
+                    swarmId,
+                    threadId: blockerEntry.threadId,
+                    namespace,
+                    kind: 'rebuttal',
+                    participantId: plannerBinding?.participantId ?? coordinatorBinding?.participantId ?? null,
+                    replyToEntryId: blockerEntry.id,
+                    citesEntryIds: [blockerEntry.id],
+                    content: {
+                        source: 'policy:auto-rebuttal',
+                        workItemId: typeof content?.workItemId === 'string' ? content.workItemId : null,
+                        suggestion: 'Split scope or reassign to a different participant.'
+                    }
+                })
+            }
+            const allThreadEntries = this.store.swarms.getSwarmThreadEntries(swarmId, namespace)
+            for (const thread of threads) {
+                const entries = allThreadEntries.filter((entry) => entry.threadId === thread.id)
+                const proposalCount = entries.filter((entry) => entry.kind === 'proposal').length
+                const rebuttalCount = entries.filter((entry) => entry.kind === 'rebuttal').length
+                const decisionExists = entries.some((entry) => entry.kind === 'decision')
+                if (decisionExists || proposalCount === 0 || rebuttalCount === 0) {
+                    continue
+                }
+                if (typeof deliberationPolicy.maxRebuttalsPerThread === 'number' && rebuttalCount < deliberationPolicy.maxRebuttalsPerThread) {
+                    continue
+                }
+                const latestProposal = [...entries].reverse().find((entry) => entry.kind === 'proposal') ?? entries[0] ?? null
+                const decisionEntry = this.store.swarms.addSwarmThreadEntry({
+                    swarmId,
+                    threadId: thread.id,
+                    namespace,
+                    kind: 'decision',
+                    participantId: plannerBinding?.participantId ?? coordinatorBinding?.participantId ?? null,
+                    replyToEntryId: latestProposal?.id ?? null,
+                    citesEntryIds: latestProposal ? [latestProposal.id] : [],
+                    content: {
+                        source: 'policy:auto-decision',
+                        proposalCount,
+                        rebuttalCount,
+                        selectedEntryId: latestProposal?.id ?? null,
+                        resolution: 'Sufficient deliberation reached; converge on current proposal.'
+                    }
+                })
+                this.store.swarms.addSwarmOutcome({
+                    swarmId,
+                    namespace,
+                    subjectId,
+                    kind: 'decision',
+                    status: 'completed',
+                    createdByParticipantId: plannerBinding?.participantId ?? coordinatorBinding?.participantId ?? null,
+                    content: {
+                        source: 'policy:auto-decision',
+                        threadId: thread.id,
+                        threadEntryId: decisionEntry.id
+                    }
+                })
+                this.store.swarms.addSwarmActivity({
+                    swarmId,
+                    namespace,
+                    subjectId,
+                    kind: 'summarize',
+                    status: 'completed',
+                    participantId: plannerBinding?.participantId ?? coordinatorBinding?.participantId ?? null,
+                    content: {
+                        source: 'policy:auto-decision',
+                        threadId: thread.id,
+                        threadEntryId: decisionEntry.id
+                    }
+                })
+            }
+        }
+
+        if (hasPolicy('review', 'verification')) {
+            for (const workItem of workItems.filter((item) => item.status === 'completed')) {
+                if (reviews.some((review) => review.workItemId === workItem.id)) {
+                    continue
+                }
+                const reviewThread = threads.find((thread) => thread.kind === 'review' && thread.summary?.includes(workItem.id))
+                    ?? this.store.swarms.addSwarmThread({
+                        swarmId,
+                        namespace,
+                        title: `Review: ${workItem.title}`,
+                        kind: 'review',
+                        status: 'open',
+                        summary: `Auto review request for work item ${workItem.id}`
+                    })
+                const existingRequest = threadEntries.some((entry) => {
+                    if (entry.threadId !== reviewThread.id || entry.kind !== 'review_request') return false
+                    const content = entry.content && typeof entry.content === 'object' ? entry.content as Record<string, unknown> : null
+                    return content?.workItemId === workItem.id
+                })
+                if (existingRequest) {
+                    continue
+                }
+                this.store.swarms.addSwarmThreadEntry({
+                    swarmId,
+                    threadId: reviewThread.id,
+                    namespace,
+                    kind: 'review_request',
+                    participantId: reviewerBinding?.participantId ?? coordinatorBinding?.participantId ?? null,
+                    content: {
+                        source: 'policy:review',
+                        workItemId: workItem.id
+                    }
+                })
+                const reviewer = reviewerBinding ? participants.find((item) => item.id === reviewerBinding.participantId) : null
+                if (reviewer?.refId) {
+                    const roleExecutionContext = this.buildSwarmRoleExecutionContext(swarmId, namespace, reviewer.id)
+                    await this.sendMessage(reviewer.refId, {
+                        text: `[SWARM_CONTEXT]\nSwarm: ${swarm.title}\nSwarm ID: ${swarmId}\nCurrent phase: ${swarm.currentPhase}\nReview requested for: ${workItem.title}\nWork item ID: ${workItem.id}\n[/SWARM_CONTEXT]${this.buildSwarmRoleExecutionBlocks(roleExecutionContext, { swarmId, workItemId: workItem.id })}\n\nPlease review this work item and produce a verdict.`,
+                        sentFrom: 'webapp',
+                        meta: {
+                            swarmId,
+                            participantId: reviewer.id,
+                            swarmWorkItemId: workItem.id,
+                            swarmRoles: roleExecutionContext.activeRoles,
+                            swarmPreferredSkillIds: roleExecutionContext.preferredSkillIds,
+                            swarmAllowedTools: roleExecutionContext.allowedTools,
+                            swarmOutputContracts: roleExecutionContext.outputContracts
+                        }
+                    })
+                }
+            }
+        }
+    }
+
+    private pickBestSwarmParticipant(
+        swarmId: string,
+        namespace: string,
+        options: {
+            text?: string | null
+            expectedArtifact?: string | null
+            doneCriteria?: string | null
+            excludeParticipantIds?: string[]
+        }
+    ) {
+        const participants = this.store.swarms.getSwarmParticipants(swarmId, namespace)
+        const assignments = this.store.swarms.getSwarmWorkItemAssignments(swarmId, namespace)
+        const leases = this.store.swarms.getSwarmParticipantLeases(swarmId, namespace)
+        const excluded = new Set(options.excludeParticipantIds ?? [])
+        const bag = `${options.text ?? ''}\n${options.expectedArtifact ?? ''}\n${options.doneCriteria ?? ''}`.toLowerCase()
+        const requiredCapabilities = new Set<string>()
+        if (/(code|implement|refactor|fix|bug|patch|typescript|javascript|react|component|api|route)/.test(bag)) requiredCapabilities.add('coding')
+        if (/(test|verify|assert|qa|coverage|vitest|unit test|integration)/.test(bag)) requiredCapabilities.add('testing')
+        if (/(research|investigate|analyze|plan|design|spec|proposal|decision)/.test(bag)) requiredCapabilities.add('planning')
+        if (/(review|audit|check|lint|inspect)/.test(bag)) requiredCapabilities.add('review')
+        if (/(report|summary|document|docs|markdown|writeup)/.test(bag)) requiredCapabilities.add('documentation')
+
+        let best: (typeof participants)[number] | null = null
+        let bestScore = Number.NEGATIVE_INFINITY
+        for (const participant of participants) {
+            if (excluded.has(participant.id) || participant.kind !== 'agent' || !participant.refId) {
+                continue
+            }
+            const session = this.getSessionByNamespace(participant.refId, namespace)
+            if (!session?.active) {
+                continue
+            }
+            const capabilities = new Set((participant.capabilities ?? []).map((item) => item.toLowerCase()))
+            const assignmentLoad = assignments.filter((item) => item.participantId === participant.id && item.status !== 'released').length
+            const leaseLoad = leases.filter((item) => item.participantId === participant.id && item.status === 'active' && (!item.expiresAt || item.expiresAt > Date.now())).length
+            let score = participant.availability === 'active' ? 2 : 0
+            for (const capability of requiredCapabilities) {
+                score += capabilities.has(capability) ? 4 : -1
+            }
+            score -= assignmentLoad * 2
+            score -= leaseLoad
+            score += participant.model ? 0.5 : 0
+            if (score > bestScore) {
+                best = participant
+                bestScore = score
+            }
+        }
+        return best
+    }
+
+    private getSwarmPolicyConfig<T extends Record<string, unknown>>(swarmId: string, namespace: string, kind: string): T {
+        const policy = this.store.swarms.getSwarmPolicies(swarmId, namespace)
+            .find((item) => item.kind.toLowerCase() === kind.toLowerCase() && item.status !== 'disabled')
+        return ((policy?.config && typeof policy.config === 'object') ? policy.config : {}) as T
+    }
+
+    private inferSwarmPlanCapabilities(text: string): string[] {
+        const bag = text.toLowerCase()
+        const requiredCapabilities = new Set<string>()
+        if (/(code|implement|refactor|fix|bug|patch|typescript|javascript|react|component|api|route)/.test(bag)) requiredCapabilities.add('coding')
+        if (/(test|verify|assert|qa|coverage|vitest|unit test|integration)/.test(bag)) requiredCapabilities.add('testing')
+        if (/(research|investigate|analyze|plan|design|spec|proposal|decision)/.test(bag)) requiredCapabilities.add('planning')
+        if (/(review|audit|check|lint|inspect)/.test(bag)) requiredCapabilities.add('review')
+        if (/(report|summary|document|docs|markdown|writeup)/.test(bag)) requiredCapabilities.add('documentation')
+        return [...requiredCapabilities]
+    }
+
+    private buildSwarmRoleExecutionContext(swarmId: string, namespace: string, participantId: string) {
+        const roleBindings = this.store.swarms.getSwarmRoleBindings(swarmId, namespace).filter((item) => item.participantId === participantId)
+        const activeRoles = roleBindings.map((item) => item.role)
+        const profiles = this.store.swarms.getSwarmRoleProfiles(swarmId, namespace).filter((profile) => activeRoles.includes(profile.role))
+        const instructionText = profiles
+            .map((profile) => profile.instructionText?.trim())
+            .filter((item): item is string => Boolean(item))
+            .join('\n\n')
+        return {
+            activeRoles,
+            preferredSkillIds: [...new Set(profiles.flatMap((profile) => profile.preferredSkillIds ?? []))],
+            allowedTools: [...new Set(profiles.flatMap((profile) => profile.allowedTools ?? []))],
+            outputContracts: [...new Set(profiles.map((profile) => profile.outputContract).filter((item): item is string => Boolean(item)))],
+            instructionText
+        }
+    }
+
+    private buildSwarmRoleExecutionBlocks(
+        context: ReturnType<SyncEngine['buildSwarmRoleExecutionContext']>,
+        refs?: { swarmId?: string | null; subjectId?: string | null; workItemId?: string | null }
+    ): string {
+        const toolCallBlock = refs?.swarmId
+            ? `\n[SWARM_TOOL_CALLS]\nUse HAQI tools only for stage effects.\n- record_outcome: proposals, blockers, decisions, summaries\n- record_artifact: diff, patch, report, document, test artifact\n- record_review: approved / changes_requested / commented verdicts\n- record_activity: stage start/completion for explore/implement/verify/coordinate\n- record_effect: fallback only when no stricter tool fits\nUse swarm_id=${refs.swarmId}${refs.subjectId ? `, subject_id=${refs.subjectId}` : ''}${refs.workItemId ? `, work_item_id=${refs.workItemId}` : ''}.\nDo not call tools for every message; only for stage effects.\n[/SWARM_TOOL_CALLS]`
+            : ''
+        return `${context.activeRoles.length > 0 ? `\n[SWARM_ROLE]\nRoles: ${context.activeRoles.join(', ')}\n[/SWARM_ROLE]` : ''}${context.instructionText ? `\n[SWARM_ROLE_INSTRUCTIONS]\n${context.instructionText}\n[/SWARM_ROLE_INSTRUCTIONS]` : ''}${context.preferredSkillIds.length > 0 ? `\n[SWARM_SKILLS]\nUse these skills if available: ${context.preferredSkillIds.map((item) => `$${item}`).join(', ')}\n[/SWARM_SKILLS]` : ''}${context.allowedTools.length > 0 ? `\n[SWARM_TOOL_POLICY]\nAllowed tools: ${context.allowedTools.join(', ')}\n[/SWARM_TOOL_POLICY]` : ''}${context.outputContracts.length > 0 ? `\n[SWARM_OUTPUT_CONTRACT]\n${context.outputContracts.join('; ')}\n[/SWARM_OUTPUT_CONTRACT]` : ''}${toolCallBlock}`
+    }
+
+    private getSwarmRoleProfilePreferredSkillIds(swarmId: string, namespace: string, role: string): string[] {
+        return [
+            ...new Set(
+                this.store.swarms.getSwarmRoleProfiles(swarmId, namespace)
+                    .filter((profile) => profile.role === role)
+                    .flatMap((profile) => profile.preferredSkillIds ?? [])
+            )
+        ]
+    }
+
+    private async pickBestSwarmParticipantWithSkills(
+        swarmId: string,
+        namespace: string,
+        options: Parameters<SyncEngine['pickBestSwarmParticipant']>[2] & { preferredSkillIds?: string[] }
+    ) {
+        const base = this.pickBestSwarmParticipant(swarmId, namespace, options)
+        const preferred = new Set((options.preferredSkillIds ?? []).map((item) => item.trim().toLowerCase()).filter(Boolean))
+        if (preferred.size === 0) {
+            return base
+        }
+        const participants = this.store.swarms.getSwarmParticipants(swarmId, namespace).filter((item) => item.kind === 'agent' && item.refId)
+        let best = base
+        let bestBonus = -1
+        for (const participant of participants) {
+            if (options.excludeParticipantIds?.includes(participant.id)) {
+                continue
+            }
+            const session = this.getSessionByNamespace(participant.refId!, namespace)
+            if (!session?.active) {
+                continue
+            }
+            const result = await this.listSkills(participant.refId!)
+            if (!result.success || !result.skills) {
+                continue
+            }
+            const skillSet = new Set(result.skills.map((item) => item.name.trim().toLowerCase()))
+            let bonus = 0
+            for (const skill of preferred) {
+                if (skillSet.has(skill)) {
+                    bonus += 3
+                }
+            }
+            bonus += this.scoreSwarmAllowedToolsBonus(swarmId, namespace, participant.id, options.expectedArtifact, options.text)
+            if (bonus > bestBonus) {
+                best = participant
+                bestBonus = bonus
+            }
+        }
+        return best
+    }
+
+    private scoreSwarmAllowedToolsBonus(swarmId: string, namespace: string, participantId: string, expectedArtifact?: string | null, text?: string | null): number {
+        const context = this.buildSwarmRoleExecutionContext(swarmId, namespace, participantId)
+        const allowed = new Set(context.allowedTools.map((item) => item.trim().toLowerCase()))
+        const bag = `${expectedArtifact ?? ''}\n${text ?? ''}`.toLowerCase()
+        let score = 0
+        if (/(test|verify|coverage|assert)/.test(bag) && allowed.has('run_tests')) score += 2
+        if (/(code|implement|patch|fix|refactor)/.test(bag) && allowed.has('edit_file')) score += 2
+        if (/(research|summary|proposal|decision|report)/.test(bag) && allowed.has('read_file')) score += 1
+        return score
+    }
+
+    private deriveSwarmPlanSteps(summary: string, maxItems: number): string[] {
+        const normalized = summary
+            .split(/\n+/)
+            .map((line) => line.replace(/^[-*]\s*/, '').trim())
+            .filter((line) => line.length > 0)
+        const candidates = normalized.length > 1
+            ? normalized
+            : summary
+                .split(/(?:[。！？!?]|\\. )+/)
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0)
+        const sliced = candidates.slice(0, maxItems)
+        if (sliced.length > 0) {
+            return sliced
+        }
+        return [summary.trim()].filter((item) => item.length > 0)
+    }
+
+    private deriveSwarmWorkItemStatusFromArtifactWithContract(status: string | undefined, outputContracts: string[]): string | null {
+        const normalized = status?.trim().toLowerCase()
+        if (outputContracts.some((item) => item.toLowerCase().includes('review verdict'))) {
+            return 'running'
+        }
+        if (!normalized) {
+            return 'running'
+        }
+        if (['completed', 'complete', 'final', 'published', 'ready'].includes(normalized)) {
+            return 'completed'
+        }
+        if (normalized === 'blocked') {
+            return 'blocked'
+        }
+        if (normalized === 'canceled') {
+            return 'canceled'
+        }
+        return 'running'
+    }
+
+    private async createSwarmAutoPlan(
+        swarmId: string,
+        namespace: string,
+        options: {
+            maxItems: number
+            dispatch: boolean
+        }
+    ): Promise<void> {
+        const swarm = this.store.swarms.getSwarmByNamespace(swarmId, namespace)
+        const subject = this.store.swarms.getSwarmSubject(swarmId, namespace)
+        if (!swarm || !subject?.summary?.trim()) {
+            return
+        }
+        if (this.store.swarms.getSwarmWorkItems(swarmId, namespace).length > 0) {
+            return
+        }
+        if (this.store.swarms.getSwarmActivities(swarmId, namespace).some((item) => item.kind === 'plan')) {
+            return
+        }
+        const summary = subject.summary.trim()
+        const threads = this.store.swarms.getSwarmThreads(swarmId, namespace)
+        const planningThread = threads.find((item) => item.kind === 'planning')
+            ?? this.store.swarms.addSwarmThread({
+                swarmId,
+                namespace,
+                title: 'Planning',
+                kind: 'planning',
+                status: 'active',
+                summary: 'Auto-generated planning thread'
+            })
+        const planner = await this.pickBestSwarmParticipantWithSkills(swarmId, namespace, {
+            text: summary,
+            expectedArtifact: 'plan',
+            preferredSkillIds: this.getSwarmRoleProfilePreferredSkillIds(swarmId, namespace, 'planner')
+        })
+        const steps = this.deriveSwarmPlanSteps(summary, options.maxItems)
+        const plannedItems = steps.map((step, index) => {
+            const requiredCapabilities = this.inferSwarmPlanCapabilities(step)
+            return {
+                index: index + 1,
+                title: step.slice(0, 120),
+                intent: step,
+                requiredCapabilities,
+                expectedArtifact: requiredCapabilities.includes('documentation')
+                    ? 'report'
+                    : requiredCapabilities.includes('testing')
+                        ? 'test-result'
+                        : requiredCapabilities.includes('planning')
+                            ? 'proposal'
+                            : 'code-change',
+                doneCriteria: requiredCapabilities.includes('testing')
+                    ? 'Evidence or tests recorded'
+                    : requiredCapabilities.includes('planning')
+                        ? 'Proposal or decision recorded'
+                        : 'Artifact or implementation result recorded'
+            }
+        })
+        const plannerActivity = this.store.swarms.addSwarmActivity({
+            swarmId,
+            namespace,
+            subjectId: subject.id,
+            kind: 'plan',
+            status: 'completed',
+            participantId: planner?.id ?? null,
+            content: {
+                source: 'policy:auto-plan',
+                plannerParticipantId: planner?.id ?? null,
+                stepCount: plannedItems.length,
+                plannedItems
+            }
+        })
+        for (const planItem of plannedItems) {
+            const candidate = await this.pickBestSwarmParticipantWithSkills(swarmId, namespace, {
+                text: planItem.intent,
+                expectedArtifact: planItem.expectedArtifact,
+                doneCriteria: planItem.doneCriteria,
+                preferredSkillIds: this.getSwarmRoleProfilePreferredSkillIds(swarmId, namespace, 'implementer')
+            })
+            const workItem = this.store.swarms.addSwarmWorkItem({
+                swarmId,
+                namespace,
+                subjectId: subject.id,
+                title: planItem.title,
+                intent: planItem.intent,
+                status: options.dispatch && candidate ? 'dispatched' : 'open',
+                assignedParticipantId: candidate?.id ?? null,
+                expectedArtifact: planItem.expectedArtifact,
+                doneCriteria: planItem.doneCriteria,
+                lastDispatchAt: options.dispatch && candidate ? Date.now() : null
+            })
+            const entry = this.store.swarms.addSwarmThreadEntry({
+                swarmId,
+                threadId: planningThread.id,
+                namespace,
+                kind: 'proposal',
+                participantId: planner?.id ?? null,
+                content: {
+                    source: 'policy:auto-plan',
+                    index: planItem.index,
+                    title: planItem.title,
+                    workItemId: workItem.id,
+                    intent: planItem.intent,
+                    requiredCapabilities: planItem.requiredCapabilities,
+                    expectedArtifact: planItem.expectedArtifact,
+                    doneCriteria: planItem.doneCriteria,
+                    assignedParticipantId: candidate?.id ?? null
+                }
+            })
+            this.store.swarms.addSwarmOutcome({
+                swarmId,
+                namespace,
+                subjectId: subject.id,
+                workItemId: workItem.id,
+                kind: 'proposal',
+                status: 'open',
+                createdByParticipantId: planner?.id ?? null,
+                content: {
+                    source: 'policy:auto-plan',
+                    threadId: planningThread.id,
+                    threadEntryId: entry.id,
+                    title: planItem.title,
+                    intent: planItem.intent,
+                    requiredCapabilities: planItem.requiredCapabilities,
+                    expectedArtifact: planItem.expectedArtifact,
+                    doneCriteria: planItem.doneCriteria
+                }
+            })
+            if (options.dispatch && candidate?.refId) {
+                const dispatchAt = Date.now()
+                this.store.swarms.releaseSwarmWorkItemAssignments({
+                    swarmId,
+                    workItemId: workItem.id,
+                    namespace,
+                    reason: 'policy:auto-plan-dispatch'
+                })
+                const assignment = this.store.swarms.addSwarmWorkItemAssignment({
+                    swarmId,
+                    workItemId: workItem.id,
+                    participantId: candidate.id,
+                    namespace,
+                    status: 'active',
+                    reason: 'policy:auto-plan-dispatch'
+                })
+                this.store.swarms.upsertSwarmParticipantLease({
+                    swarmId,
+                    workItemId: workItem.id,
+                    participantId: candidate.id,
+                    namespace,
+                    status: 'active',
+                    lastHeartbeatAt: dispatchAt,
+                    expiresAt: dispatchAt + 30 * 60 * 1000
+                })
+                const roleExecutionContext = this.buildSwarmRoleExecutionContext(swarmId, namespace, candidate.id)
+                await this.sendMessage(candidate.refId, {
+                    text: `[SWARM_CONTEXT]\nSwarm: ${swarm.title}\nSwarm ID: ${swarmId}\nSubject: ${summary}\nCurrent phase: ${swarm.currentPhase}\nWork item ID: ${workItem.id}\nExpected artifact: ${planItem.expectedArtifact}\n[/SWARM_CONTEXT]${this.buildSwarmRoleExecutionBlocks(roleExecutionContext, { swarmId, workItemId: workItem.id })}\n\n${planItem.intent}`,
+                    sentFrom: 'webapp',
+                    meta: {
+                        swarmId,
+                        participantId: candidate.id,
+                        swarmWorkItemId: workItem.id,
+                        plannerActivityId: plannerActivity.id,
+                        swarmRoles: roleExecutionContext.activeRoles,
+                        swarmPreferredSkillIds: roleExecutionContext.preferredSkillIds,
+                        swarmAllowedTools: roleExecutionContext.allowedTools,
+                        swarmOutputContracts: roleExecutionContext.outputContracts
+                    }
+                })
+                this.store.swarms.addSwarmEvent({
+                    swarmId,
+                    namespace,
+                    type: 'auto-dispatch-requested',
+                    payload: {
+                        source: 'policy:auto-plan',
+                        workItemId: workItem.id,
+                        participantId: candidate.id,
+                        sessionId: candidate.refId,
+                        assignmentId: assignment.id
+                    }
+                })
+            }
+        }
+    }
+
+    private async reassignExpiredSwarmLeases(): Promise<void> {
+        const namespaces = [...new Set(this.getSessions().map((session) => session.namespace))]
+        const now = Date.now()
+        for (const namespace of namespaces) {
+            const swarms = this.store.swarms.getSwarmsByNamespace(namespace)
+            for (const swarm of swarms) {
+                await withSwarmAutomationLock(swarm.id, namespace, async () => {
+                    let swarmChanged = false
+                    const currentSwarm = this.store.swarms.getSwarmByNamespace(swarm.id, namespace)
+                    if (!currentSwarm) {
+                        return
+                    }
+                    const autonomyConfig = this.getSwarmPolicyConfig<{
+                        maxAutoReassignments?: number
+                        stopOnDeliver?: boolean
+                    }>(swarm.id, namespace, 'autonomy')
+                    if (autonomyConfig.stopOnDeliver && (currentSwarm.currentPhase === 'deliver' || currentSwarm.status === 'completed' || currentSwarm.status === 'canceled')) {
+                        return
+                    }
+                    const reassignCount = this.store.swarms.getSwarmEvents(swarm.id, namespace)
+                        .filter((event) => event.type === 'work-item-reassigned').length
+                    const reassignBudgetExceeded = typeof autonomyConfig.maxAutoReassignments === 'number'
+                        && reassignCount >= autonomyConfig.maxAutoReassignments
+                    const leases = this.store.swarms.getSwarmParticipantLeases(swarm.id, namespace)
+                    for (const lease of leases) {
+                        if (lease.status !== 'active' || !lease.expiresAt || lease.expiresAt > now) {
+                            continue
+                        }
+                        const workItem = this.store.swarms.getSwarmWorkItemById(swarm.id, namespace, lease.workItemId)
+                        if (!workItem || workItem.status === 'completed' || workItem.status === 'canceled') {
+                            this.store.swarms.upsertSwarmParticipantLease({
+                                swarmId: swarm.id,
+                                workItemId: lease.workItemId,
+                                participantId: lease.participantId,
+                                namespace,
+                                status: 'released',
+                                releasedAt: now,
+                                expiresAt: lease.expiresAt,
+                                lastHeartbeatAt: lease.lastHeartbeatAt
+                            })
+                            swarmChanged = true
+                            continue
+                        }
+
+                        this.store.swarms.upsertSwarmParticipantLease({
+                            swarmId: swarm.id,
+                            workItemId: lease.workItemId,
+                            participantId: lease.participantId,
+                            namespace,
+                            status: 'expired',
+                            releasedAt: now,
+                            expiresAt: lease.expiresAt,
+                            lastHeartbeatAt: lease.lastHeartbeatAt
+                        })
+                        this.store.swarms.releaseSwarmWorkItemAssignments({
+                            swarmId: swarm.id,
+                            workItemId: lease.workItemId,
+                            participantId: lease.participantId,
+                            namespace,
+                            reason: 'lease-expired'
+                        })
+                        swarmChanged = true
+
+                        const expiredEvent = this.store.swarms.addSwarmEvent({
+                            swarmId: swarm.id,
+                            namespace,
+                            type: 'lease-expired',
+                            payload: {
+                                workItemId: lease.workItemId,
+                                participantId: lease.participantId,
+                                expiresAt: lease.expiresAt
+                            }
+                        })
+                        this.eventPublisher.emit({
+                            type: 'swarm-event-created',
+                            swarmId: swarm.id,
+                            namespace,
+                            event: expiredEvent
+                        })
+
+                        const expiredTransition = this.store.swarms.addSwarmTransition({
+                            swarmId: swarm.id,
+                            namespace,
+                            entityType: 'work_item',
+                            entityId: lease.workItemId,
+                            fromState: workItem.status,
+                            toState: 'blocked',
+                            reason: 'lease-expired',
+                            byParticipantId: lease.participantId
+                        })
+                        this.eventPublisher.emit({
+                            type: 'swarm-transition-created',
+                            swarmId: swarm.id,
+                            namespace,
+                            transition: expiredTransition
+                        })
+
+                        if (reassignBudgetExceeded) {
+                            const paused = this.store.swarms.addSwarmEvent({
+                                swarmId: swarm.id,
+                                namespace,
+                                type: 'autonomy-paused',
+                                payload: {
+                                    reason: 'max-auto-reassignments',
+                                    workItemId: workItem.id
+                                }
+                            })
+                            this.eventPublisher.emit({
+                                type: 'swarm-event-created',
+                                swarmId: swarm.id,
+                                namespace,
+                                event: paused
+                            })
+                            const blocked = this.store.swarms.updateSwarmWorkItem({
+                                swarmId: swarm.id,
+                                namespace,
+                                workItemId: workItem.id,
+                                status: 'blocked'
+                            })
+                            if (blocked) {
+                                this.eventPublisher.emit({
+                                    type: 'swarm-work-item-updated',
+                                    swarmId: swarm.id,
+                                    namespace,
+                                    workItem: blocked
+                                })
+                            }
+                            this.recomputeSwarmLifecycleNow(swarm.id, namespace)
+                            continue
+                        }
+
+                        const candidate = await this.pickBestSwarmParticipantWithSkills(swarm.id, namespace, {
+                            text: workItem.intent,
+                            expectedArtifact: workItem.expectedArtifact,
+                            doneCriteria: workItem.doneCriteria,
+                            excludeParticipantIds: [lease.participantId],
+                            preferredSkillIds: this.getSwarmRoleProfilePreferredSkillIds(swarm.id, namespace, 'implementer')
+                        })
+                        if (!candidate?.refId) {
+                            const blocked = this.store.swarms.updateSwarmWorkItem({
+                                swarmId: swarm.id,
+                                namespace,
+                                workItemId: workItem.id,
+                                status: 'blocked'
+                            })
+                            if (blocked) {
+                                this.eventPublisher.emit({
+                                    type: 'swarm-work-item-updated',
+                                    swarmId: swarm.id,
+                                    namespace,
+                                    workItem: blocked
+                                })
+                            }
+                            this.recomputeSwarmLifecycleNow(swarm.id, namespace)
+                            continue
+                        }
+
+                        try {
+                            const dispatchAt = Date.now()
+                            const reassigned = this.store.swarms.updateSwarmWorkItem({
+                                swarmId: swarm.id,
+                                namespace,
+                                workItemId: workItem.id,
+                                status: 'dispatched',
+                                assignedParticipantId: candidate.id,
+                                lastDispatchAt: dispatchAt
+                            })
+                            const assignment = this.store.swarms.addSwarmWorkItemAssignment({
+                                swarmId: swarm.id,
+                                workItemId: workItem.id,
+                                participantId: candidate.id,
+                                namespace,
+                                status: 'active',
+                                reason: 'lease-expired-reassign'
+                            })
+                            this.store.swarms.upsertSwarmParticipantLease({
+                                swarmId: swarm.id,
+                                workItemId: workItem.id,
+                                participantId: candidate.id,
+                                namespace,
+                                status: 'active',
+                                lastHeartbeatAt: dispatchAt,
+                                expiresAt: dispatchAt + 30 * 60 * 1000,
+                                releasedAt: null
+                            })
+                            const roleExecutionContext = this.buildSwarmRoleExecutionContext(swarm.id, namespace, candidate.id)
+                            await this.sendMessage(candidate.refId, {
+                                text: `[SWARM_CONTEXT]\nSwarm: ${currentSwarm.title}\nSwarm ID: ${currentSwarm.id}\nCurrent phase: ${currentSwarm.currentPhase}\nReassigned work item: ${workItem.title}\nWork item ID: ${workItem.id}\n[/SWARM_CONTEXT]${this.buildSwarmRoleExecutionBlocks(roleExecutionContext, { swarmId: currentSwarm.id, workItemId: workItem.id })}\n\n${workItem.intent?.trim() || workItem.title}`,
+                                sentFrom: 'webapp',
+                                meta: {
+                                    swarmId: currentSwarm.id,
+                                    participantId: candidate.id,
+                                    swarmWorkItemId: workItem.id,
+                                    reassignedFromParticipantId: lease.participantId,
+                                    swarmRoles: roleExecutionContext.activeRoles,
+                                    swarmPreferredSkillIds: roleExecutionContext.preferredSkillIds,
+                                    swarmAllowedTools: roleExecutionContext.allowedTools,
+                                    swarmOutputContracts: roleExecutionContext.outputContracts
+                                }
+                            })
+                            this.store.swarms.addSwarmActivity({
+                                swarmId: swarm.id,
+                                namespace,
+                                subjectId: this.store.swarms.getSwarmSubject(swarm.id, namespace)?.id ?? null,
+                                workItemId: workItem.id,
+                                kind: 'coordinate',
+                                status: 'dispatched',
+                                participantId: candidate.id,
+                                content: {
+                                    reason: 'lease-expired-reassign',
+                                    fromParticipantId: lease.participantId,
+                                    assignmentId: assignment.id
+                                }
+                            })
+                            if (reassigned) {
+                                this.eventPublisher.emit({
+                                    type: 'swarm-work-item-updated',
+                                    swarmId: swarm.id,
+                                    namespace,
+                                    workItem: reassigned
+                                })
+                            }
+                            const reassignEvent = this.store.swarms.addSwarmEvent({
+                                swarmId: swarm.id,
+                                namespace,
+                                type: 'work-item-reassigned',
+                                payload: {
+                                    workItemId: workItem.id,
+                                    fromParticipantId: lease.participantId,
+                                    toParticipantId: candidate.id,
+                                    assignmentId: assignment.id
+                                }
+                            })
+                            this.eventPublisher.emit({
+                                type: 'swarm-event-created',
+                                swarmId: swarm.id,
+                                namespace,
+                                event: reassignEvent
+                            })
+                        } catch {
+                            const blocked = this.store.swarms.updateSwarmWorkItem({
+                                swarmId: swarm.id,
+                                namespace,
+                                workItemId: workItem.id,
+                                status: 'blocked'
+                            })
+                            if (blocked) {
+                                this.eventPublisher.emit({
+                                    type: 'swarm-work-item-updated',
+                                    swarmId: swarm.id,
+                                    namespace,
+                                    workItem: blocked
+                                })
+                            }
+                        }
+
+                        this.recomputeSwarmLifecycleNow(swarm.id, namespace)
+                    }
+                    if (swarmChanged) {
+                        await this.applySwarmPoliciesNow(swarm.id, namespace)
+                        this.recomputeSwarmLifecycleNow(swarm.id, namespace)
+                    }
+                })
+            }
         }
     }
 

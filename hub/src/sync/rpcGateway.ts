@@ -1,4 +1,5 @@
 import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
+import type { MachineMapping } from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
 import type { RpcRegistry } from '../socket/rpcRegistry'
 
@@ -44,6 +45,14 @@ export type RpcListDirectoryResponse = {
 
 export type RpcPathExistsResponse = {
     exists: Record<string, boolean>
+}
+
+export type RpcMachineMappingsResponse = {
+    mappings: MachineMapping[]
+}
+
+export type RpcMachineMappingResponse = {
+    mapping: MachineMapping
 }
 
 export type RpcCodexStatusResponse = {
@@ -223,6 +232,43 @@ export class RpcGateway {
             exists[key] = value === true
         }
         return exists
+    }
+
+    async getNgrokMappings(machineId: string): Promise<MachineMapping[]> {
+        const result = await this.machineRpc(machineId, 'provider-list-mappings', { provider: 'ngrok' }) as RpcMachineMappingsResponse | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected ngrok-endpoints result')
+        }
+        const mappingsValue = (result as RpcMachineMappingsResponse).mappings
+        if (!Array.isArray(mappingsValue)) {
+            throw new Error('Unexpected ngrok-endpoints result')
+        }
+        return mappingsValue
+    }
+
+    async createManagedMapping(machineId: string, input: {
+        provider: MachineMapping['provider']
+        name: string
+        kind: MachineMapping['kind']
+        localUrl: string
+        auth?: MachineMapping['auth']
+    }): Promise<MachineMapping> {
+        const result = await this.machineRpc(machineId, 'provider-create-mapping', input) as RpcMachineMappingResponse | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected provider-create-mapping result')
+        }
+        const mapping = (result as RpcMachineMappingResponse).mapping
+        if (!mapping || typeof mapping !== 'object') {
+            throw new Error('Unexpected provider-create-mapping result')
+        }
+        return mapping
+    }
+
+    async deleteManagedMapping(machineId: string, input: {
+        provider: MachineMapping['provider']
+        mapping: MachineMapping
+    }): Promise<void> {
+        await this.machineRpc(machineId, 'provider-delete-mapping', input)
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {

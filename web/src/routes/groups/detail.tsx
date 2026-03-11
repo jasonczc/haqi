@@ -45,6 +45,7 @@ import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { useBriefModeCardSettings } from '@/hooks/useBriefModeCardSettings'
+import { MachineMappingsPanel } from '@/components/MachineMappingsPanel'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -2236,6 +2237,7 @@ export default function GroupDetailPage() {
         }
         return true
     })
+    const [mappingsOpen, setMappingsOpen] = useState(false)
     const timelineRef = useRef<VirtuosoHandle | null>(null)
     const composerRef = useRef<HTMLTextAreaElement>(null)
     const composerAttachmentInputRef = useRef<HTMLInputElement>(null)
@@ -2318,6 +2320,19 @@ export default function GroupDetailPage() {
         for (const s of sessions) m.set(s.id, s)
         return m
     }, [sessions])
+    const machineSessionMap = useMemo(() => {
+        const map = new Map<string, string>()
+        for (const member of members) {
+            if (!member.sessionId) continue
+            const session = sessionMap.get(member.sessionId)
+            const machineId = session?.metadata?.machineId?.trim()
+            if (machineId && !map.has(machineId)) {
+                map.set(machineId, member.sessionId)
+            }
+        }
+        return map
+    }, [members, sessionMap])
+    const groupMachineIds = useMemo(() => Array.from(machineSessionMap.keys()), [machineSessionMap])
     const memberActionTarget = useMemo(() => {
         if (!memberActionSessionId) {
             return null
@@ -3090,6 +3105,39 @@ export default function GroupDetailPage() {
                                 </div>
                             )
                         })}
+                    </div>
+                ) : null}
+            </div>
+
+            <div className="border-b border-[var(--app-divider)]">
+                <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--app-hint)]">
+                    <button
+                        type="button"
+                        onClick={() => setMappingsOpen((value) => !value)}
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--app-fg)] transition-colors"
+                    >
+                        {mappingsOpen ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
+                        <span className="font-medium uppercase tracking-wide">Mappings</span>
+                        <span className="text-[10px]">{groupMachineIds.length} machines</span>
+                    </button>
+                </div>
+                {mappingsOpen ? (
+                    <div className="space-y-2 px-3 pb-3">
+                        {groupMachineIds.length === 0 ? (
+                            <div className="rounded-md border border-dashed border-[var(--app-border)] p-3 text-sm text-[var(--app-hint)]">
+                                No machine mappings available in this group.
+                            </div>
+                        ) : (
+                            groupMachineIds.map((machineId) => (
+                                <MachineMappingsPanel
+                                    key={machineId}
+                                    api={api}
+                                    machineId={machineId}
+                                    sessionIdForInvalidation={machineSessionMap.get(machineId)}
+                                    compact
+                                />
+                            ))
+                        )}
                     </div>
                 ) : null}
             </div>

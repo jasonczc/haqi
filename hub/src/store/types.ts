@@ -158,6 +158,254 @@ export type StoredGroupNote = {
     updatedAt: number
 }
 
+export type StoredSwarm = {
+    id: string
+    namespace: string
+    title: string
+    status: string
+    currentPhase: string
+    createdBy: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmSubject = {
+    id: string
+    swarmId: string
+    namespace: string
+    kind: string
+    summary: string
+    successCriteria: string | null
+    constraints: unknown | null
+    status: string
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmParticipant = {
+    id: string
+    swarmId: string
+    namespace: string
+    kind: 'human' | 'agent' | 'service'
+    refId: string | null
+    provider: string | null
+    model: string | null
+    capabilities: string[] | null
+    availability: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmOutcome = {
+    id: string
+    swarmId: string
+    subjectId: string | null
+    workItemId: string | null
+    namespace: string
+    kind: string
+    status: string
+    createdByParticipantId: string | null
+    content: unknown | null
+    artifactRefs: string[] | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmWorkItem = {
+    id: string
+    swarmId: string
+    subjectId: string | null
+    namespace: string
+    title: string
+    intent: string | null
+    status: string
+    assignedParticipantId: string | null
+    expectedArtifact: string | null
+    doneCriteria: string | null
+    lastDispatchAt: number | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmArtifact = {
+    id: string
+    swarmId: string
+    workItemId: string | null
+    namespace: string
+    kind: string
+    title: string
+    content: unknown | null
+    url: string | null
+    status: string
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmTransition = {
+    id: string
+    swarmId: string
+    namespace: string
+    entityType: string
+    entityId: string
+    fromState: string | null
+    toState: string
+    reason: string | null
+    byParticipantId: string | null
+    createdAt: number
+}
+
+export type StoredSwarmEvent = {
+    id: string
+    swarmId: string
+    namespace: string
+    type: string
+    payload: unknown | null
+    createdAt: number
+}
+
+export type StoredSwarmEffect = {
+    id: string
+    swarmId: string
+    workItemId: string | null
+    namespace: string
+    kind: string
+    summary: string | null
+    data: unknown | null
+    raw: unknown | null
+    createdAt: number
+}
+
+export type StoredSwarmActivity = {
+    id: string
+    swarmId: string
+    subjectId: string | null
+    workItemId: string | null
+    namespace: string
+    kind: string
+    status: string
+    participantId: string | null
+    content: unknown | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmRoleBinding = {
+    id: string
+    swarmId: string
+    namespace: string
+    participantId: string
+    role: string
+    phase: string | null
+    status: string
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmRoleBindingHistory = {
+    id: string
+    swarmId: string
+    namespace: string
+    participantId: string
+    role: string
+    phase: string | null
+    action: string
+    reason: string | null
+    createdAt: number
+}
+
+export type StoredSwarmRoleProfile = {
+    id: string
+    swarmId: string
+    namespace: string
+    role: string
+    instructionText: string | null
+    preferredSkillIds: string[] | null
+    allowedTools: string[] | null
+    outputContract: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmThread = {
+    id: string
+    swarmId: string
+    namespace: string
+    title: string
+    kind: string
+    status: string
+    summary: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmPolicy = {
+    id: string
+    swarmId: string
+    namespace: string
+    kind: string
+    status: string
+    config: unknown | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmReview = {
+    id: string
+    swarmId: string
+    workItemId: string | null
+    artifactId: string | null
+    namespace: string
+    status: string
+    verdict: string | null
+    summary: string | null
+    createdByParticipantId: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmThreadEntry = {
+    id: string
+    swarmId: string
+    threadId: string
+    namespace: string
+    kind: string
+    participantId: string | null
+    replyToEntryId: string | null
+    citesEntryIds: string[] | null
+    content: unknown | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmWorkItemAssignment = {
+    id: string
+    swarmId: string
+    workItemId: string
+    participantId: string
+    namespace: string
+    status: string
+    assignedAt: number
+    unassignedAt: number | null
+    reason: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredSwarmParticipantLease = {
+    id: string
+    swarmId: string
+    workItemId: string
+    participantId: string
+    namespace: string
+    status: string
+    assignedAt: number
+    lastHeartbeatAt: number | null
+    expiresAt: number | null
+    releasedAt: number | null
+    createdAt: number
+    updatedAt: number
+}
+
 export type StoredReport = {
     id: string
     namespace: string

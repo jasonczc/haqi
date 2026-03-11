@@ -22,6 +22,7 @@ export default defineConfig({
       { text: 'Installation', link: '/guide/installation' },
       { text: 'PWA', link: '/guide/pwa' },
       { text: 'How it Works', link: '/guide/how-it-works' },
+      { text: 'Swarm PRD', link: '/guide/swarm-prd' },
       { text: 'Voice Assistant', link: '/guide/voice-assistant' },
       { text: 'Why HAQI', link: '/guide/why-hapi' },
       { text: 'FAQ', link: '/guide/faq' }

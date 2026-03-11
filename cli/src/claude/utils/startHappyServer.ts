@@ -20,7 +20,12 @@ import {
     reportCreateShareInputSchema,
     reportGetInputSchema,
     reportListInputSchema,
-    reportUpdateInputSchema
+    reportUpdateInputSchema,
+    swarmRecordActivityInputSchema,
+    swarmRecordArtifactInputSchema,
+    swarmRecordEffectInputSchema,
+    swarmRecordOutcomeInputSchema,
+    swarmRecordReviewInputSchema
 } from "@/mcp/hapiMcpTools";
 
 type JsonObject = Record<string, unknown>;
@@ -359,6 +364,155 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+
+    mcp.registerTool<any, any>('record_activity', {
+        description: 'Record a structured Swarm activity for the current mission/work item',
+        title: 'Record Swarm Activity',
+        inputSchema: swarmRecordActivityInputSchema
+    }, async (args: {
+        swarm_id: string
+        work_item_id?: string
+        kind: 'explore' | 'propose' | 'implement' | 'verify' | 'summarize' | 'coordinate'
+        status?: 'open' | 'completed' | 'failed'
+        summary?: string
+        content?: unknown
+    }) => {
+        try {
+            const payload = await requestHubJson(`/api/swarms/${encodeURIComponent(args.swarm_id)}/activities`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    workItemId: args.work_item_id,
+                    kind: args.kind,
+                    status: args.status ?? 'open',
+                    content: args.content ?? args.summary
+                })
+            });
+            return buildToolResult(payload, `Swarm activity recorded: ${args.kind}`);
+        } catch (error) {
+            return buildToolError(`Failed to record swarm activity for ${args.swarm_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('record_outcome', {
+        description: 'Record a structured Swarm outcome such as proposal, blocker, decision, or summary',
+        title: 'Record Swarm Outcome',
+        inputSchema: swarmRecordOutcomeInputSchema
+    }, async (args: {
+        swarm_id: string
+        subject_id?: string
+        work_item_id?: string
+        kind: 'proposal' | 'decision' | 'diff' | 'report' | 'test_result' | 'question' | 'blocker' | 'summary'
+        status?: string
+        content: unknown
+        artifact_refs?: string[]
+    }) => {
+        try {
+            const payload = await requestHubJson(`/api/swarms/${encodeURIComponent(args.swarm_id)}/outcomes`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    subjectId: args.subject_id,
+                    workItemId: args.work_item_id,
+                    kind: args.kind,
+                    status: args.status ?? 'open',
+                    content: args.content,
+                    artifactRefs: args.artifact_refs
+                })
+            });
+            return buildToolResult(payload, `Swarm outcome recorded: ${args.kind}`);
+        } catch (error) {
+            return buildToolError(`Failed to record swarm outcome for ${args.swarm_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('record_artifact', {
+        description: 'Record a structured Swarm artifact such as diff, patch, report, or document',
+        title: 'Record Swarm Artifact',
+        inputSchema: swarmRecordArtifactInputSchema
+    }, async (args: {
+        swarm_id: string
+        work_item_id?: string
+        kind: 'report' | 'diff' | 'patch' | 'document' | 'test_result' | 'link' | 'file_bundle'
+        title: string
+        url?: string
+        content?: unknown
+        status?: string
+    }) => {
+        try {
+            const payload = await requestHubJson(`/api/swarms/${encodeURIComponent(args.swarm_id)}/artifacts`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    workItemId: args.work_item_id,
+                    kind: args.kind,
+                    title: args.title,
+                    url: args.url,
+                    content: args.content,
+                    status: args.status ?? 'draft'
+                })
+            });
+            return buildToolResult(payload, `Swarm artifact recorded: ${args.title}`);
+        } catch (error) {
+            return buildToolError(`Failed to record swarm artifact for ${args.swarm_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('record_review', {
+        description: 'Record a Swarm review verdict for a work item or artifact',
+        title: 'Record Swarm Review',
+        inputSchema: swarmRecordReviewInputSchema
+    }, async (args: {
+        swarm_id: string
+        work_item_id?: string
+        artifact_id?: string
+        verdict: 'approved' | 'changes_requested' | 'commented'
+        summary?: string
+        evidence?: string
+    }) => {
+        try {
+            const payload = await requestHubJson(`/api/swarms/${encodeURIComponent(args.swarm_id)}/reviews`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    workItemId: args.work_item_id,
+                    artifactId: args.artifact_id,
+                    status: 'completed',
+                    verdict: args.verdict,
+                    summary: [args.summary, args.evidence].filter(Boolean).join('\n\n') || undefined
+                })
+            });
+            return buildToolResult(payload, `Swarm review recorded: ${args.verdict}`);
+        } catch (error) {
+            return buildToolError(`Failed to record swarm review for ${args.swarm_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('record_effect', {
+        description: 'Record a fallback Swarm effect or native side effect when no stricter tool fits',
+        title: 'Record Swarm Effect',
+        inputSchema: swarmRecordEffectInputSchema
+    }, async (args: {
+        swarm_id: string
+        work_item_id?: string
+        kind: 'native' | 'progress' | 'file_change' | 'permission' | 'delegation' | 'other'
+        summary?: string
+        data?: unknown
+        raw?: unknown
+    }) => {
+        try {
+            const payload = await requestHubJson(`/api/swarms/${encodeURIComponent(args.swarm_id)}/effects`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    workItemId: args.work_item_id,
+                    kind: args.kind,
+                    summary: args.summary,
+                    data: args.data,
+                    raw: args.raw
+                })
+            });
+            return buildToolResult(payload, `Swarm effect recorded: ${args.kind}`);
+        } catch (error) {
+            return buildToolError(`Failed to record swarm effect for ${args.swarm_id}`, error);
+        }
+    });
+
     const transport = new StreamableHTTPServerTransport({
         // NOTE: Returning session id here will result in claude
         // sdk spawn to fail with `Invalid Request: Server already initialized`
@@ -397,7 +551,12 @@ export async function startHappyServer(client: ApiSessionClient) {
             'report_get',
             'report_list',
             'report_add_asset',
-            'report_create_share'
+            'report_create_share',
+            'record_activity',
+            'record_outcome',
+            'record_artifact',
+            'record_review',
+            'record_effect'
         ],
         stop: () => {
             logger.debug('[hapiMCP] Stopping server');

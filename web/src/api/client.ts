@@ -9,8 +9,11 @@ import type {
     FileReadResponse,
     FileSearchResponse,
     GitCommandResponse,
+    MachineMapping,
     MachinePathsExistsResponse,
+    MachineMappingsResponse,
     MachinesResponse,
+    ImportMachineMappingsResponse,
     ConversationTurnMessagesResponse,
     ConversationTurnsResponse,
     MessagesResponse,
@@ -24,14 +27,32 @@ import type {
     GroupTaskActionResponse,
     GroupsResponse,
     GroupResponse,
+    SwarmsResponse,
+    SwarmResponse,
+    SwarmSubjectResponse,
+    SwarmParticipantsResponse,
+    SwarmParticipantResponse,
+    SwarmOutcomesResponse,
+    SwarmOutcomeResponse,
+    SwarmWorkItemResponse,
+    SwarmWorkItemsResponse,
+    SwarmArtifactsResponse,
+    SwarmArtifactResponse,
+    SwarmTransitionsResponse,
+    SwarmTransitionResponse,
+    SwarmEventsResponse,
+    RefreshMachineMappingsResponse,
     MemoryResponse,
+    ProviderSettingsResponse,
     ReportDomainResponse,
+    ReportsResponse,
     ProjectOfflineSettingsResponse,
     UpdateMemoryResponse,
     CreateGroupResponse,
     AddGroupMemberResponse,
     RemoveGroupMemberResponse,
     UpdateGroupResponse,
+    UpdateProviderResponse,
     PostGroupMessageResponse,
     ModelMode,
     PermissionMode,
@@ -42,6 +63,7 @@ import type {
     SlashCommandsResponse,
     McpServersResponse,
     SkillsResponse,
+    SwarmSkillsResponse,
     SpawnResponse,
     UsageOverviewResponse,
     UploadFileResponse,
@@ -190,6 +212,383 @@ export class ApiClient {
 
     async getGroups(): Promise<GroupsResponse> {
         return await this.request<GroupsResponse>('/api/groups')
+    }
+
+    async getSwarms(): Promise<SwarmsResponse> {
+        return await this.request<SwarmsResponse>('/api/swarms')
+    }
+
+    async getSwarm(swarmId: string): Promise<SwarmResponse> {
+        return await this.request<SwarmResponse>(`/api/swarms/${encodeURIComponent(swarmId)}`)
+    }
+
+    async createSwarm(payload: {
+        title: string
+        createdBy?: string
+        status?: string
+        currentPhase?: string
+        subject?: {
+            kind?: string
+            summary: string
+            successCriteria?: string | null
+            constraints?: unknown
+            status?: string
+        }
+    }): Promise<SwarmResponse> {
+        return await this.request<SwarmResponse>('/api/swarms', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async updateSwarm(swarmId: string, payload: {
+        title?: string
+        status?: string
+        currentPhase?: string
+    }): Promise<SwarmResponse> {
+        return await this.request<SwarmResponse>(`/api/swarms/${encodeURIComponent(swarmId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async getSwarmSubject(swarmId: string): Promise<SwarmSubjectResponse> {
+        return await this.request<SwarmSubjectResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/subject`)
+    }
+
+    async updateSwarmSubject(swarmId: string, payload: {
+        kind?: string
+        summary?: string
+        successCriteria?: string | null
+        constraints?: unknown
+        status?: string
+    }): Promise<SwarmSubjectResponse> {
+        return await this.request<SwarmSubjectResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/subject`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async getSwarmParticipants(swarmId: string): Promise<SwarmParticipantsResponse> {
+        return await this.request<SwarmParticipantsResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/participants`)
+    }
+
+    async addSwarmParticipant(swarmId: string, payload: {
+        kind: 'human' | 'agent' | 'service'
+        refId?: string
+        provider?: string
+        model?: string
+        capabilities?: string[]
+        availability?: string
+    }): Promise<SwarmParticipantResponse> {
+        return await this.request<SwarmParticipantResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/participants`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async removeSwarmParticipant(swarmId: string, participantId: string): Promise<void> {
+        await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/participants/${encodeURIComponent(participantId)}`, {
+            method: 'DELETE'
+        })
+    }
+
+    async getSwarmOutcomes(swarmId: string): Promise<SwarmOutcomesResponse> {
+        return await this.request<SwarmOutcomesResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/outcomes`)
+    }
+
+    async addSwarmOutcome(swarmId: string, payload: {
+        subjectId?: string
+        workItemId?: string
+        kind: string
+        status?: string
+        createdByParticipantId?: string
+        content?: unknown
+        artifactRefs?: string[]
+    }): Promise<SwarmOutcomeResponse> {
+        return await this.request<SwarmOutcomeResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/outcomes`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async updateSwarmOutcome(swarmId: string, outcomeId: string, payload: {
+        workItemId?: string | null
+        status?: string
+        content?: unknown
+        artifactRefs?: string[]
+    }): Promise<SwarmOutcomeResponse> {
+        return await this.request<SwarmOutcomeResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/outcomes/${encodeURIComponent(outcomeId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async getSwarmWorkItems(swarmId: string): Promise<SwarmWorkItemsResponse> {
+        return await this.request<SwarmWorkItemsResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/work-items`)
+    }
+
+    async addSwarmWorkItem(swarmId: string, payload: {
+        subjectId?: string
+        title: string
+        intent?: string
+        status?: string
+        assignedParticipantId?: string
+        expectedArtifact?: string
+        doneCriteria?: string
+    }): Promise<SwarmWorkItemResponse> {
+        return await this.request<SwarmWorkItemResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/work-items`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async addSwarmActivity(swarmId: string, payload: {
+        subjectId?: string
+        workItemId?: string
+        kind: string
+        status?: string
+        participantId?: string
+        content?: unknown
+    }): Promise<{ activity: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/activities`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async addSwarmRoleBinding(swarmId: string, payload: {
+        participantId: string
+        role: string
+        phase?: string
+        status?: string
+    }): Promise<{ roleBinding: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/role-bindings`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async addSwarmThread(swarmId: string, payload: {
+        title: string
+        kind?: string
+        status?: string
+        summary?: string
+    }): Promise<{ thread: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/threads`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async addSwarmThreadEntry(swarmId: string, payload: {
+        threadId: string
+        kind: string
+        participantId?: string
+        replyToEntryId?: string
+        citesEntryIds?: string[]
+        content?: unknown
+    }): Promise<{ threadEntry: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/thread-entries`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async addSwarmPolicy(swarmId: string, payload: {
+        kind: string
+        status?: string
+        config?: unknown
+    }): Promise<{ policy: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/policies`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async updateSwarmPolicy(swarmId: string, policyId: string, payload: {
+        status?: string
+        config?: unknown
+    }): Promise<{ policy: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/policies/${encodeURIComponent(policyId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async runSwarmPolicies(swarmId: string, payload?: {
+        force?: boolean
+    }): Promise<{ ok: true; forced: boolean }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/policies/run`, {
+            method: 'POST',
+            body: JSON.stringify(payload ?? {})
+        })
+    }
+
+    async addSwarmRoleProfile(swarmId: string, payload: {
+        role: string
+        instructionText?: string | null
+        preferredSkillIds?: string[] | null
+        allowedTools?: string[] | null
+        outputContract?: string | null
+    }): Promise<{ roleProfile: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/role-profiles`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async updateSwarmRoleProfile(swarmId: string, roleProfileId: string, payload: {
+        instructionText?: string | null
+        preferredSkillIds?: string[] | null
+        allowedTools?: string[] | null
+        outputContract?: string | null
+    }): Promise<{ roleProfile: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/role-profiles/${encodeURIComponent(roleProfileId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async addSwarmReview(swarmId: string, payload: {
+        workItemId?: string
+        artifactId?: string
+        status?: string
+        verdict?: string | null
+        summary?: string | null
+        createdByParticipantId?: string
+    }): Promise<{ review: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/reviews`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async updateSwarmReview(swarmId: string, reviewId: string, payload: {
+        status?: string
+        verdict?: string | null
+        summary?: string | null
+    }): Promise<{ review: unknown }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/reviews/${encodeURIComponent(reviewId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async updateSwarmWorkItem(swarmId: string, workItemId: string, payload: {
+        title?: string
+        intent?: string | null
+        status?: string
+        assignedParticipantId?: string | null
+        expectedArtifact?: string | null
+        doneCriteria?: string | null
+        lastDispatchAt?: number | null
+    }): Promise<SwarmWorkItemResponse> {
+        return await this.request<SwarmWorkItemResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/work-items/${encodeURIComponent(workItemId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async getSwarmArtifacts(swarmId: string): Promise<SwarmArtifactsResponse> {
+        return await this.request<SwarmArtifactsResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/artifacts`)
+    }
+
+    async addSwarmArtifact(swarmId: string, payload: {
+        workItemId?: string
+        kind: string
+        title: string
+        content?: unknown
+        url?: string
+        status?: string
+    }): Promise<SwarmArtifactResponse> {
+        return await this.request<SwarmArtifactResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/artifacts`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async addSwarmArtifactFromReport(swarmId: string, payload: {
+        reportId: string
+        workItemId?: string
+        title?: string
+    }): Promise<SwarmArtifactResponse> {
+        return await this.request<SwarmArtifactResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/artifacts/from-report`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async getSwarmTransitions(swarmId: string): Promise<SwarmTransitionsResponse> {
+        return await this.request<SwarmTransitionsResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/transitions`)
+    }
+
+    async addSwarmTransition(swarmId: string, payload: {
+        entityType: string
+        entityId: string
+        fromState?: string | null
+        toState: string
+        reason?: string | null
+        byParticipantId?: string
+    }): Promise<SwarmTransitionResponse> {
+        return await this.request<SwarmTransitionResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/transitions`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async getSwarmEvents(swarmId: string): Promise<SwarmEventsResponse> {
+        return await this.request<SwarmEventsResponse>(`/api/swarms/${encodeURIComponent(swarmId)}/events`)
+    }
+
+    async dispatchSwarmWork(swarmId: string, payload: {
+        participantId?: string
+        sessionId?: string
+        workItemId?: string
+        title?: string
+        expectedArtifact?: string
+        doneCriteria?: string
+        text: string
+    }): Promise<{
+        ok: true
+        workItem: unknown
+        outcome: unknown
+        event: unknown
+        transition: unknown
+    }> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/dispatch`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async broadcastSwarm(swarmId: string, payload: {
+        groupId: string
+        text?: string
+    }): Promise<unknown> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/broadcast`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async autoPlanSwarm(swarmId: string, payload?: {
+        dispatch?: boolean
+        maxItems?: number
+    }): Promise<unknown> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/plan`, {
+            method: 'POST',
+            body: JSON.stringify(payload ?? {})
+        })
+    }
+
+    async synthesizeSwarmThread(swarmId: string, threadId: string, payload?: {
+        asDecision?: boolean
+    }): Promise<unknown> {
+        return await this.request(`/api/swarms/${encodeURIComponent(swarmId)}/threads/${encodeURIComponent(threadId)}/synthesize`, {
+            method: 'POST',
+            body: JSON.stringify(payload ?? {})
+        })
     }
 
     async getGroup(groupId: string): Promise<GroupResponse> {
@@ -392,6 +791,10 @@ export class ApiClient {
 
     async getReportDomainSettings(): Promise<ReportDomainResponse> {
         return await this.request<ReportDomainResponse>('/api/reports/domain')
+    }
+
+    async getReports(): Promise<ReportsResponse> {
+        return await this.request<ReportsResponse>('/api/reports')
     }
 
     async updateReportDomainSettings(payload: { domain: string | null }): Promise<ReportDomainResponse> {
@@ -815,6 +1218,92 @@ export class ApiClient {
         )
     }
 
+    async getMachineMappings(machineId: string): Promise<MachineMappingsResponse> {
+        return await this.request<MachineMappingsResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/mappings`
+        )
+    }
+
+    async updateMachineMappings(machineId: string, mappings: MachineMappingsResponse['mappings']): Promise<MachineMappingsResponse> {
+        return await this.request<MachineMappingsResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/mappings`,
+            {
+                method: 'PUT',
+                body: JSON.stringify({ mappings })
+            }
+        )
+    }
+
+    async importMachineMappingsFromNgrok(machineId: string): Promise<ImportMachineMappingsResponse> {
+        return await this.request<ImportMachineMappingsResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/mappings/import-ngrok`,
+            {
+                method: 'POST'
+            }
+        )
+    }
+
+    async createManagedMachineMapping(
+        machineId: string,
+        payload: {
+            provider: 'ngrok' | 'manual' | 'cloudflared' | 'relay'
+            name: string
+            kind: 'vscode' | 'web' | 'jupyter' | 'ssh' | 'custom'
+            localUrl: string
+            auth?: { type: 'none' | 'basic-auth' | 'oauth' | 'oidc' | 'ip-restriction'; summary?: string }
+        }
+    ): Promise<MachineMappingsResponse> {
+        return await this.request<MachineMappingsResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/mappings/create`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            }
+        )
+    }
+
+    async refreshMachineMappings(machineId: string): Promise<RefreshMachineMappingsResponse> {
+        return await this.request<RefreshMachineMappingsResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/mappings/refresh`,
+            {
+                method: 'POST'
+            }
+        )
+    }
+
+    async deleteManagedMachineMapping(
+        machineId: string,
+        payload: {
+            provider: 'ngrok' | 'manual' | 'cloudflared' | 'relay'
+            mapping: MachineMapping
+        }
+    ): Promise<MachineMappingsResponse> {
+        return await this.request<MachineMappingsResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/mappings`,
+            {
+                method: 'DELETE',
+                body: JSON.stringify(payload)
+            }
+        )
+    }
+
+    async getProviderSettings(): Promise<ProviderSettingsResponse> {
+        return await this.request<ProviderSettingsResponse>('/api/settings/providers')
+    }
+
+    async updateNgrokProviderSettings(payload: {
+        enabled?: boolean
+        managed?: boolean
+        authToken?: string | null
+        region?: string | null
+        apiBaseUrl?: string | null
+    }): Promise<UpdateProviderResponse> {
+        return await this.request<UpdateProviderResponse>('/api/settings/providers/ngrok', {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        })
+    }
+
     async spawnSession(
         machineId: string,
         directory: string,
@@ -842,6 +1331,12 @@ export class ApiClient {
     async getSkills(sessionId: string): Promise<SkillsResponse> {
         return await this.request<SkillsResponse>(
             `/api/sessions/${encodeURIComponent(sessionId)}/skills`
+        )
+    }
+
+    async getSwarmSkills(swarmId: string): Promise<SwarmSkillsResponse> {
+        return await this.request<SwarmSkillsResponse>(
+            `/api/swarms/${encodeURIComponent(swarmId)}/skills`
         )
     }
 

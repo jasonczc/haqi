@@ -25,6 +25,7 @@ import { BriefTurnList } from '@/components/AssistantChat/BriefTurnList'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
+import { MachineMappingsPanel } from '@/components/MachineMappingsPanel'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useQueueInlinePanel } from '@/hooks/useQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
@@ -393,6 +394,7 @@ export function SessionChat(props: {
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
+    const [showMappingsPanel, setShowMappingsPanel] = useState(false)
     const [isCodexStatusDialogOpen, setIsCodexStatusDialogOpen] = useState(false)
     const [isCodexStatusLoading, setIsCodexStatusLoading] = useState(false)
     const [codexStatusMessage, setCodexStatusMessage] = useState('')
@@ -746,6 +748,13 @@ export function SessionChat(props: {
     const handleViewPreview = useCallback(() => {
         navigate({
             to: '/sessions/$sessionId/preview',
+            params: { sessionId: props.session.id }
+        })
+    }, [navigate, props.session.id])
+
+    const handleViewMappings = useCallback(() => {
+        navigate({
+            to: '/sessions/$sessionId/mappings',
             params: { sessionId: props.session.id }
         })
     }, [navigate, props.session.id])
@@ -1244,11 +1253,26 @@ export function SessionChat(props: {
                 onToggleSidebar={props.onToggleSidebar}
                 sidebarVisible={props.sidebarVisible}
                 onViewPreview={handleViewPreview}
+                onViewMappings={props.session.metadata?.machineId ? () => setShowMappingsPanel((value) => !value) : undefined}
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 onViewMcpStatus={handleMcpStatus}
                 api={props.api}
                 onSessionDeleted={props.onBack}
             />
+
+            {showMappingsPanel && props.session.metadata?.machineId ? (
+                <div className="px-3 pt-3">
+                    <div className="mx-auto w-full max-w-content">
+                        <MachineMappingsPanel
+                            api={props.api}
+                            machineId={props.session.metadata.machineId}
+                            sessionIdForInvalidation={props.session.id}
+                            compact
+                            onOpenFullPage={handleViewMappings}
+                        />
+                    </div>
+                </div>
+            ) : null}
 
             {sessionInactive ? (
                 <div className="px-3 pt-3">
