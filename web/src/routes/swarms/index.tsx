@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAppContext } from '@/lib/app-context'
 import { useSwarms } from '@/hooks/queries/useSwarms'
 import { useNavigate } from '@tanstack/react-router'
+import { useToast } from '@/lib/toast-context'
 
 function getStatusClass(status: string): string {
     if (status === 'completed') return 'bg-emerald-50 text-emerald-700'
@@ -108,6 +109,7 @@ function SwarmSection({
 export default function SwarmsIndexPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
+    const { addToast } = useToast()
     const { swarms, isLoading, error, refetch } = useSwarms(api)
     const [draftTitle, setDraftTitle] = useState('')
     const [draftSummary, setDraftSummary] = useState('')
@@ -202,20 +204,13 @@ export default function SwarmsIndexPage() {
         return <div className="p-4 text-sm text-red-600">{error}</div>
     }
 
-    if (swarms.length === 0) {
-        return (
-            <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
-                No swarms yet.
-            </div>
-        )
-    }
-
     const sortedByUpdated = [...swarms].sort((a, b) => b.updatedAt - a.updatedAt)
     const blocked = sortedByUpdated.filter((item) => item.status === 'blocked')
     const active = sortedByUpdated.filter((item) => ['active', 'in_progress'].includes(item.status) || ['execute', 'review'].includes(item.currentPhase))
     const recent = sortedByUpdated.slice(0, 6)
     const completed = sortedByUpdated.filter((item) => item.status === 'completed')
     const openCount = sortedByUpdated.length - completed.length
+    const hasSwarms = swarms.length > 0
 
     const openSwarm = (swarmId: string) => {
         void navigate({ to: '/swarms/$swarmId', params: { swarmId } })
@@ -260,7 +255,20 @@ export default function SwarmsIndexPage() {
             if (typeof window !== 'undefined') {
                 window.localStorage.setItem('haqi:onboarding-swarm', response.swarm.swarm.id)
             }
+            addToast({
+                title: 'Swarm created',
+                body: 'Your mission is ready. Review the starter tasks and begin with Plan.',
+                sessionId: response.swarm.swarm.id,
+                url: `/swarms/${response.swarm.swarm.id}`
+            })
             void navigate({ to: '/swarms/$swarmId', params: { swarmId: response.swarm.swarm.id } })
+        } catch (createError) {
+            addToast({
+                title: 'Create swarm failed',
+                body: createError instanceof Error ? createError.message : 'Unable to create swarm.',
+                sessionId: '',
+                url: ''
+            })
         } finally {
             setIsCreating(false)
         }
@@ -277,203 +285,217 @@ export default function SwarmsIndexPage() {
                     </p>
                 </section>
 
-                <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <div className="text-sm font-semibold text-[var(--app-fg)]">Create A New Swarm</div>
-                                <div className="mt-1 text-xs text-[var(--app-hint)]">Start with one clear mission. You can refine the plan after creation.</div>
+                {!hasSwarms ? (
+                    <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+                        <div className="rounded-3xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-5 shadow-sm">
+                            <div className="text-sm font-semibold text-[var(--app-fg)]">Create your first mission</div>
+                            <div className="mt-2 max-w-2xl text-sm leading-6 text-[var(--app-hint)]">
+                                Swarms work best for multi-step work: feature delivery, bug investigation, or research. Start from a template, then refine the generated starter tasks.
                             </div>
-                            <span className="rounded-full bg-[var(--app-secondary-bg)] px-3 py-1 text-xs text-[var(--app-hint)]">Best for first-time users</span>
-                        </div>
-                        <div className="mt-4 grid gap-3 md:grid-cols-3">
-                            {templates.map((template) => (
-                                <button
-                                    key={template.id}
-                                    type="button"
-                                    onClick={() => {
-                                        setDraftTitle(template.title)
-                                        setDraftSummary(template.summary)
-                                    }}
-                                    className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
-                                >
-                                    <div className="text-sm font-medium text-[var(--app-fg)]">{template.title}</div>
-                                    <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">{template.summary}</div>
-                                </button>
-                            ))}
-                        </div>
-                        <div className="mt-4 grid gap-3">
-                            <input
-                                value={draftTitle}
-                                onChange={(event) => setDraftTitle(event.target.value)}
-                                placeholder="Mission title"
-                                className={inputClass}
-                            />
-                            <textarea
-                                value={draftSummary}
-                                onChange={(event) => setDraftSummary(event.target.value)}
-                                placeholder="What is this swarm trying to achieve?"
-                                className={`min-h-24 ${inputClass}`}
-                            />
-                            <div className="flex flex-wrap gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const matchedTemplate = templates.find((item) => item.title === draftTitle && item.summary === draftSummary) ?? null
-                                        void handleCreateSwarm(draftTitle, draftSummary, matchedTemplate?.phase ?? 'plan', matchedTemplate)
-                                    }}
-                                    disabled={isCreating || !draftTitle.trim() || !draftSummary.trim()}
-                                    className={primaryButtonClass}
-                                >
-                                    Create Swarm
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setDraftTitle('Feature delivery')
-                                        setDraftSummary('Ship a feature from plan to implementation to review.')
-                                    }}
-                                    className={subtleButtonClass}
-                                >
-                                    Use Example
-                                </button>
+                            <div className="mt-4 grid gap-3 md:grid-cols-3">
                                 {templates.map((template) => (
                                     <button
-                                        key={`starter:${template.id}`}
+                                        key={`empty:${template.id}`}
                                         type="button"
                                         onClick={() => { void handleCreateSwarm(template.title, template.summary, template.phase, template) }}
                                         disabled={isCreating}
-                                        className={subtleButtonClass}
+                                        className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-4 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
                                     >
-                                        Start {template.title}
+                                        <div className="text-sm font-medium text-[var(--app-fg)]">{template.title}</div>
+                                        <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">{template.summary}</div>
                                     </button>
                                 ))}
                             </div>
-                        </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="text-sm font-semibold text-[var(--app-fg)]">How Swarms Work</div>
-                        <div className="mt-1 text-xs text-[var(--app-hint)]">The UI should teach the workflow directly.</div>
-                        <div className="mt-4 grid gap-3 md:grid-cols-4">
-                            {[
-                                ['1. Create', 'Start one swarm per goal or project.'],
-                                ['2. Plan', 'Break the mission into small work items.'],
-                                ['3. Execute', 'Assign tasks, track progress, and coordinate.'],
-                                ['4. Decide', 'Review outcomes, approve work, and resolve blockers.']
-                            ].map(([title, copy]) => (
-                                <div key={title} className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3">
-                                    <div className="text-sm font-medium text-[var(--app-fg)]">{title}</div>
-                                    <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">{copy}</div>
+                            <div className="mt-4 rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/45 p-4">
+                                <div className="text-sm font-medium text-[var(--app-fg)]">Or create one manually</div>
+                                <div className="mt-3 grid gap-3">
+                                    <label className="grid gap-1 text-sm text-[var(--app-fg)]">
+                                        <span className="text-xs text-[var(--app-hint)]">Mission title</span>
+                                        <input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} placeholder="e.g. Ship session draft persistence" className={inputClass} />
+                                    </label>
+                                    <label className="grid gap-1 text-sm text-[var(--app-fg)]">
+                                        <span className="text-xs text-[var(--app-hint)]">Mission goal</span>
+                                        <textarea value={draftSummary} onChange={(event) => setDraftSummary(event.target.value)} placeholder="What are you trying to achieve, and what outcome would count as success?" className={`min-h-24 ${inputClass}`} />
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button type="button" onClick={() => { void handleCreateSwarm(draftTitle, draftSummary) }} disabled={isCreating || !draftTitle.trim() || !draftSummary.trim()} className={primaryButtonClass}>
+                                            Create First Swarm
+                                        </button>
+                                    </div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="text-sm font-semibold text-[var(--app-fg)]">New Here?</div>
-                        <div className="mt-4 space-y-3 text-sm">
-                            <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">
-                                Open any active swarm to continue work.
-                            </div>
-                            <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">
-                                Start with “Needs attention” if something is blocked.
-                            </div>
-                            <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">
-                                Use completed swarms as reference, not as the default working set.
                             </div>
                         </div>
-                    </div>
-                </section>
+                        <div className="rounded-3xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-5 shadow-sm">
+                            <div className="text-sm font-semibold text-[var(--app-fg)]">How it works</div>
+                            <div className="mt-4 space-y-3">
+                                {[
+                                    '1. Create one swarm for one goal.',
+                                    '2. Review the starter tasks in Plan.',
+                                    '3. Add participants in Execute.',
+                                    '4. Review outputs in Decide.'
+                                ].map((line) => (
+                                    <div key={line} className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-sm text-[var(--app-hint)]">
+                                        {line}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                ) : null}
 
-                <section className="grid gap-4 md:grid-cols-4">
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Needs attention</div>
-                        <div className="mt-2 text-3xl font-semibold text-rose-600">{blocked.length}</div>
-                        <div className="mt-1 text-xs text-[var(--app-hint)]">Blocked swarms that likely need human intervention</div>
-                    </div>
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">In motion</div>
-                        <div className="mt-2 text-3xl font-semibold text-sky-600">{active.length}</div>
-                        <div className="mt-1 text-xs text-[var(--app-hint)]">Swarms currently planning, executing, or reviewing</div>
-                    </div>
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Open missions</div>
-                        <div className="mt-2 text-3xl font-semibold text-[var(--app-fg)]">{openCount}</div>
-                        <div className="mt-1 text-xs text-[var(--app-hint)]">Everything not yet complete</div>
-                    </div>
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Completed</div>
-                        <div className="mt-2 text-3xl font-semibold text-emerald-600">{completed.length}</div>
-                        <div className="mt-1 text-xs text-[var(--app-hint)]">Finished swarms kept for traceability</div>
-                    </div>
-                </section>
-
-                <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="text-sm font-semibold text-[var(--app-fg)]">What do you want to do?</div>
-                        <div className="mt-1 text-xs text-[var(--app-hint)]">Choose the lane that matches the user story.</div>
-                        <div className="mt-4 grid gap-3 md:grid-cols-3">
-                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3">
-                                <div className="text-sm font-medium text-[var(--app-fg)]">Fix blockers</div>
-                                <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">Start with swarms that are blocked or paused before they stall longer.</div>
-                            </div>
-                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3">
-                                <div className="text-sm font-medium text-[var(--app-fg)]">Continue work</div>
-                                <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">Open the active swarm and move its plan, execution, or decision queue forward.</div>
-                            </div>
-                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3">
-                                <div className="text-sm font-medium text-[var(--app-fg)]">Catch up</div>
-                                <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">Scan recently updated swarms to see what changed and what needs a response.</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
-                        <div className="text-sm font-semibold text-[var(--app-fg)]">Suggested default flow</div>
-                        <div className="mt-4 space-y-3 text-sm">
-                            {[
-                                '1. Open a blocked swarm first if any exist.',
-                                '2. Otherwise continue the most recently updated active swarm.',
-                                '3. Use completed swarms only for reference and audit.'
-                            ].map((line) => (
-                                <div key={line} className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">
-                                    {line}
+                {hasSwarms ? (
+                    <>
+                        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div className="text-sm font-semibold text-[var(--app-fg)]">Create A New Swarm</div>
+                                        <div className="mt-1 text-xs text-[var(--app-hint)]">Start with one clear mission. You can refine the plan after creation.</div>
+                                    </div>
+                                    <span className="rounded-full bg-[var(--app-secondary-bg)] px-3 py-1 text-xs text-[var(--app-hint)]">Best for first-time users</span>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
+                                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                    {templates.map((template) => (
+                                        <button
+                                            key={template.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setDraftTitle(template.title)
+                                                setDraftSummary(template.summary)
+                                            }}
+                                            className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
+                                        >
+                                            <div className="text-sm font-medium text-[var(--app-fg)]">{template.title}</div>
+                                            <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">{template.summary}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="mt-4 grid gap-3">
+                                    <label className="grid gap-1 text-sm text-[var(--app-fg)]">
+                                        <span className="text-xs text-[var(--app-hint)]">Mission title</span>
+                                        <input value={draftTitle} onChange={(event) => setDraftTitle(event.target.value)} placeholder="Mission title" className={inputClass} />
+                                    </label>
+                                    <label className="grid gap-1 text-sm text-[var(--app-fg)]">
+                                        <span className="text-xs text-[var(--app-hint)]">Mission goal</span>
+                                        <textarea value={draftSummary} onChange={(event) => setDraftSummary(event.target.value)} placeholder="What is this swarm trying to achieve?" className={`min-h-24 ${inputClass}`} />
+                                    </label>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const matchedTemplate = templates.find((item) => item.title === draftTitle && item.summary === draftSummary) ?? null
+                                                void handleCreateSwarm(draftTitle, draftSummary, matchedTemplate?.phase ?? 'plan', matchedTemplate)
+                                            }}
+                                            disabled={isCreating || !draftTitle.trim() || !draftSummary.trim()}
+                                            className={primaryButtonClass}
+                                        >
+                                            Create Swarm
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setDraftTitle('Feature delivery')
+                                                setDraftSummary('Ship a feature from plan to implementation to review.')
+                                            }}
+                                            className={subtleButtonClass}
+                                        >
+                                            Use Example
+                                        </button>
+                                        {templates.map((template) => (
+                                            <button
+                                                key={`starter:${template.id}`}
+                                                type="button"
+                                                onClick={() => { void handleCreateSwarm(template.title, template.summary, template.phase, template) }}
+                                                disabled={isCreating}
+                                                className={subtleButtonClass}
+                                            >
+                                                Start {template.title}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
 
-                <SwarmSection
-                    title="Needs attention"
-                    hint="Blockers, stuck missions, and swarms that should be reviewed first."
-                    items={blocked}
-                    empty="No blocked swarms right now."
-                    onOpen={openSwarm}
-                />
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="text-sm font-semibold text-[var(--app-fg)]">How Swarms Work</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">The UI should teach the workflow directly.</div>
+                                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                                    {[
+                                        ['1. Create', 'Start one swarm per goal or project.'],
+                                        ['2. Plan', 'Break the mission into small work items.'],
+                                        ['3. Execute', 'Assign tasks, track progress, and coordinate.'],
+                                        ['4. Decide', 'Review outcomes, approve work, and resolve blockers.']
+                                    ].map(([title, copy]) => (
+                                        <div key={title} className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3">
+                                            <div className="text-sm font-medium text-[var(--app-fg)]">{title}</div>
+                                            <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">{copy}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="text-sm font-semibold text-[var(--app-fg)]">New Here?</div>
+                                <div className="mt-4 space-y-3 text-sm">
+                                    <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">Open any active swarm to continue work.</div>
+                                    <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">Start with “Needs attention” if something is blocked.</div>
+                                    <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">Use completed swarms as reference, not as the default working set.</div>
+                                </div>
+                            </div>
+                        </section>
 
-                <SwarmSection
-                    title="Continue active work"
-                    hint="The main working set: swarms in planning, execution, or review."
-                    items={active}
-                    empty="No active swarms right now."
-                    onOpen={openSwarm}
-                />
+                        <section className="grid gap-4 md:grid-cols-4">
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Needs attention</div>
+                                <div className="mt-2 text-3xl font-semibold text-rose-600">{blocked.length}</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">Blocked swarms that likely need human intervention</div>
+                            </div>
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">In motion</div>
+                                <div className="mt-2 text-3xl font-semibold text-sky-600">{active.length}</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">Swarms currently planning, executing, or reviewing</div>
+                            </div>
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Open missions</div>
+                                <div className="mt-2 text-3xl font-semibold text-[var(--app-fg)]">{openCount}</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">Everything not yet complete</div>
+                            </div>
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Completed</div>
+                                <div className="mt-2 text-3xl font-semibold text-emerald-600">{completed.length}</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">Finished swarms kept for traceability</div>
+                            </div>
+                        </section>
 
-                <SwarmSection
-                    title="Recently updated"
-                    hint="Best place to catch up when you are not sure what changed last."
-                    items={recent}
-                    empty="No recent updates yet."
-                    onOpen={openSwarm}
-                />
+                        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="text-sm font-semibold text-[var(--app-fg)]">What do you want to do?</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">Choose the lane that matches the user story.</div>
+                                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3"><div className="text-sm font-medium text-[var(--app-fg)]">Fix blockers</div><div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">Start with swarms that are blocked or paused before they stall longer.</div></div>
+                                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3"><div className="text-sm font-medium text-[var(--app-fg)]">Continue work</div><div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">Open the active swarm and move its plan, execution, or decision queue forward.</div></div>
+                                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3"><div className="text-sm font-medium text-[var(--app-fg)]">Catch up</div><div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">Scan recently updated swarms to see what changed and what needs a response.</div></div>
+                                </div>
+                            </div>
+                            <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                                <div className="text-sm font-semibold text-[var(--app-fg)]">Suggested default flow</div>
+                                <div className="mt-4 space-y-3 text-sm">
+                                    {[
+                                        '1. Open a blocked swarm first if any exist.',
+                                        '2. Otherwise continue the most recently updated active swarm.',
+                                        '3. Use completed swarms only for reference and audit.'
+                                    ].map((line) => (
+                                        <div key={line} className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">{line}</div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
 
-                <SwarmSection
-                    title="Completed reference"
-                    hint="Historical missions kept for outcomes, artifacts, and audit trails."
-                    items={completed.slice(0, 6)}
-                    empty="No completed swarms yet."
-                    onOpen={openSwarm}
-                />
+                        <SwarmSection title="Needs attention" hint="Blockers, stuck missions, and swarms that should be reviewed first." items={blocked} empty="No blocked swarms right now." onOpen={openSwarm} />
+                        <SwarmSection title="Continue active work" hint="The main working set: swarms in planning, execution, or review." items={active} empty="No active swarms right now." onOpen={openSwarm} />
+                        <SwarmSection title="Recently updated" hint="Best place to catch up when you are not sure what changed last." items={recent} empty="No recent updates yet." onOpen={openSwarm} />
+                        <SwarmSection title="Completed reference" hint="Historical missions kept for outcomes, artifacts, and audit trails." items={completed.slice(0, 6)} empty="No completed swarms yet." onOpen={openSwarm} />
+                    </>
+                ) : null}
             </div>
         </div>
     )

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from '@tanstack/react-router'
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import { useAppContext } from '@/lib/app-context'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReports } from '@/hooks/queries/useReports'
@@ -9,6 +9,7 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { SwarmHeaderPanel } from '@/components/swarms/SwarmHeaderPanel'
 import { SwarmPoliciesPanel } from '@/components/swarms/SwarmPoliciesPanel'
 import { SwarmRoleProfilesPanel } from '@/components/swarms/SwarmRoleProfilesPanel'
+import { useToast } from '@/lib/toast-context'
 
 function formatTime(value: number): string {
     try {
@@ -60,13 +61,16 @@ function getStateBadgeClass(value: string): string {
 
 export default function SwarmDetailPage() {
     const { swarmId } = useParams({ from: '/swarms/$swarmId' })
+    const search = useSearch({ from: '/swarms/$swarmId' })
+    const navigate = useNavigate({ from: '/swarms/$swarmId' })
     const { api } = useAppContext()
+    const { addToast } = useToast()
     const { swarm, isLoading, error, refetch } = useSwarm(api, swarmId)
     const { sessions } = useSessions(api)
     const { groups } = useGroups(api)
     const { reports } = useReports(api)
     const { skills: swarmSkills } = useSwarmSkills(api, swarmId)
-    const [activeTab, setActiveTab] = useState<SwarmTab>('overview')
+    const [activeTab, setActiveTab] = useState<SwarmTab>(search.tab ?? 'overview')
     const [selectedSessionId, setSelectedSessionId] = useState('')
     const [showFirstRunGuide, setShowFirstRunGuide] = useState(false)
     const [subjectSummary, setSubjectSummary] = useState('')
@@ -82,7 +86,7 @@ export default function SwarmDetailPage() {
     const [roleParticipantId, setRoleParticipantId] = useState('')
     const [roleName, setRoleName] = useState('leader')
     const [threadTitle, setThreadTitle] = useState('')
-    const [selectedThreadId, setSelectedThreadId] = useState('')
+    const [selectedThreadId, setSelectedThreadId] = useState(search.thread ?? '')
     const [threadEntryKind, setThreadEntryKind] = useState('proposal')
     const [threadEntryContent, setThreadEntryContent] = useState('')
     const [policyKind, setPolicyKind] = useState('escalation')
@@ -104,7 +108,7 @@ export default function SwarmDetailPage() {
     const [dispatchText, setDispatchText] = useState('')
     const [broadcastGroupId, setBroadcastGroupId] = useState('')
     const [broadcastText, setBroadcastText] = useState('')
-    const [selectedWorkItemId, setSelectedWorkItemId] = useState('')
+    const [selectedWorkItemId, setSelectedWorkItemId] = useState(search.workItem ?? '')
     const [policyDrafts, setPolicyDrafts] = useState<Record<string, string>>({})
     const [roleProfileDrafts, setRoleProfileDrafts] = useState<Record<string, {
         instructionText: string
@@ -254,11 +258,56 @@ export default function SwarmDetailPage() {
         setShowFirstRunGuide(onboardingSwarmId === swarmId)
     }, [swarmId])
 
+    useEffect(() => {
+        if (search.tab && search.tab !== activeTab) {
+            setActiveTab(search.tab)
+        }
+    }, [search.tab, activeTab])
+
+    useEffect(() => {
+        if ((search.workItem ?? '') !== selectedWorkItemId) {
+            setSelectedWorkItemId(search.workItem ?? '')
+        }
+    }, [search.workItem, selectedWorkItemId])
+
+    useEffect(() => {
+        if ((search.thread ?? '') !== selectedThreadId) {
+            setSelectedThreadId(search.thread ?? '')
+        }
+    }, [search.thread, selectedThreadId])
+
     const dismissFirstRunGuide = () => {
         if (typeof window !== 'undefined') {
             window.localStorage.removeItem('haqi:onboarding-swarm')
         }
         setShowFirstRunGuide(false)
+    }
+
+    const updateSearch = (updates: { tab?: SwarmTab, workItem?: string, thread?: string }) => {
+        void navigate({
+            search: (prev) => ({
+                ...prev,
+                ...(updates.tab !== undefined ? { tab: updates.tab } : {}),
+                ...(updates.workItem !== undefined ? { workItem: updates.workItem || undefined } : {}),
+                ...(updates.thread !== undefined ? { thread: updates.thread || undefined } : {}),
+            }),
+            replace: true,
+        })
+    }
+
+    const openTab = (tab: SwarmTab) => {
+        setActiveTab(tab)
+        updateSearch({ tab })
+    }
+
+    const selectWorkItem = (workItemId: string) => {
+        setSelectedWorkItemId(workItemId)
+        updateSearch({ workItem: workItemId })
+    }
+
+    const selectThread = (threadId: string) => {
+        setSelectedThreadId(threadId)
+        updateSearch({ thread: threadId })
     }
 
     const navItems: Array<{ id: SwarmTab, label: string, hint: string }> = [
@@ -281,6 +330,19 @@ export default function SwarmDetailPage() {
             })
             setSelectedSessionId('')
             await refetch()
+            addToast({
+                title: 'Participant added',
+                body: 'You can now assign work from Execute.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
+        } catch (participantError) {
+            addToast({
+                title: 'Add participant failed',
+                body: participantError instanceof Error ? participantError.message : 'Unable to add participant.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -386,6 +448,19 @@ export default function SwarmDetailPage() {
             setWorkItemExpectedArtifact('')
             setWorkItemDoneCriteria('')
             await refetch()
+            addToast({
+                title: 'Task created',
+                body: 'Review the new task in Plan or assign it in Execute.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
+        } catch (workItemError) {
+            addToast({
+                title: 'Create task failed',
+                body: workItemError instanceof Error ? workItemError.message : 'Unable to create task.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -673,6 +748,19 @@ export default function SwarmDetailPage() {
             setReviewArtifactId('')
             setReviewSummary('')
             await refetch()
+            addToast({
+                title: 'Review saved',
+                body: 'Your decision has been recorded.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
+        } catch (reviewError) {
+            addToast({
+                title: 'Save review failed',
+                body: reviewError instanceof Error ? reviewError.message : 'Unable to save review.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -693,6 +781,19 @@ export default function SwarmDetailPage() {
             setDispatchWorkItemId('')
             setDispatchText('')
             await refetch()
+            addToast({
+                title: 'Task assigned',
+                body: 'The selected task was dispatched successfully.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
+        } catch (dispatchError) {
+            addToast({
+                title: 'Assign task failed',
+                body: dispatchError instanceof Error ? dispatchError.message : 'Unable to assign task.',
+                sessionId: swarmId,
+                url: `/swarms/${swarmId}`
+            })
         } finally {
             setIsSubmitting(false)
         }
@@ -748,7 +849,7 @@ export default function SwarmDetailPage() {
                         <div className="mt-4 grid gap-3 md:grid-cols-3">
                             <button
                                 type="button"
-                                onClick={() => setActiveTab('plan')}
+                                onClick={() => openTab('plan')}
                                 className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
                             >
                                 <div className="text-sm font-medium text-[var(--app-fg)]">Step 1: Review starter tasks</div>
@@ -756,7 +857,7 @@ export default function SwarmDetailPage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setActiveTab('execute')}
+                                onClick={() => openTab('execute')}
                                 className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
                             >
                                 <div className="text-sm font-medium text-[var(--app-fg)]">Step 2: Add participants</div>
@@ -764,7 +865,7 @@ export default function SwarmDetailPage() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setActiveTab('decide')}
+                                onClick={() => openTab('decide')}
                                 className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 text-left transition-colors hover:border-[var(--app-link)]/35 hover:bg-[var(--app-subtle-bg)]"
                             >
                                 <div className="text-sm font-medium text-[var(--app-fg)]">Step 3: Review the result</div>
@@ -808,7 +909,7 @@ export default function SwarmDetailPage() {
                             <button
                                 key={item.id}
                                 type="button"
-                                onClick={() => setActiveTab(item.id)}
+                                onClick={() => openTab(item.id)}
                                 className={`flex min-w-[132px] flex-col rounded-xl px-3 py-2 text-left transition-colors ${activeTab === item.id ? 'bg-[var(--app-link)] text-white shadow-sm' : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'}`}
                             >
                                 <span className="text-sm font-medium">{item.label}</span>
@@ -878,7 +979,7 @@ export default function SwarmDetailPage() {
                                     <div className="mt-2 text-sm leading-6 text-[var(--app-hint)]">{nextRecommendedAction.body}</div>
                                     <button
                                         type="button"
-                                        onClick={() => setActiveTab(nextRecommendedAction.tab)}
+                                        onClick={() => openTab(nextRecommendedAction.tab)}
                                         className="mt-4 rounded-xl bg-[var(--app-link)] px-3 py-2 text-sm font-medium text-white shadow-sm"
                                     >
                                         Open {nextRecommendedAction.tab[0].toUpperCase() + nextRecommendedAction.tab.slice(1)}
@@ -924,9 +1025,9 @@ export default function SwarmDetailPage() {
                                     <div className="mt-1 text-xs text-[var(--app-hint)]">Drive from goal → plan → execution → review.</div>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                    <button type="button" onClick={() => setActiveTab('plan')} className={subtleButtonClass}>Open plan</button>
-                                    <button type="button" onClick={() => setActiveTab('execute')} className={subtleButtonClass}>Assign work</button>
-                                    <button type="button" onClick={() => setActiveTab('decide')} className={subtleButtonClass}>Review outcomes</button>
+                                    <button type="button" onClick={() => openTab('plan')} className={subtleButtonClass}>Open plan</button>
+                                    <button type="button" onClick={() => openTab('execute')} className={subtleButtonClass}>Assign work</button>
+                                    <button type="button" onClick={() => openTab('decide')} className={subtleButtonClass}>Review outcomes</button>
                                 </div>
                             </div>
                             <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -979,7 +1080,7 @@ export default function SwarmDetailPage() {
                                                 ))}
                                             </div>
                                         ) : <div className="text-sm text-[var(--app-hint)]">No participants yet.</div>}
-                                        <button type="button" onClick={() => setActiveTab('execute')} className="mt-3 text-sm text-[var(--app-link)] underline">Manage participants and dispatch</button>
+                                        <button type="button" onClick={() => openTab('execute')} className="mt-3 text-sm text-[var(--app-link)] underline">Manage participants and dispatch</button>
                                     </div>
                                 </div>
                             </div>
@@ -1024,7 +1125,7 @@ export default function SwarmDetailPage() {
                                             <button
                                                 key={workItem.id}
                                                 type="button"
-                                                onClick={() => setSelectedWorkItemId(workItem.id)}
+                                                onClick={() => selectWorkItem(workItem.id)}
                                                 className={`block w-full rounded-2xl border p-3 text-left transition-all ${selectedWorkItem?.id === workItem.id ? 'border-[var(--app-link)] bg-[var(--app-subtle-bg)] shadow-sm' : 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/60 hover:border-[var(--app-link)]/30 hover:bg-[var(--app-subtle-bg)]'}`}
                                             >
                                                 <div className="flex items-center justify-between gap-2">
@@ -1148,11 +1249,11 @@ export default function SwarmDetailPage() {
                                     <div className="text-xs text-[var(--app-hint)]">Quick queue navigation</div>
                                 </div>
                                 <div className="grid gap-3 md:grid-cols-2">
-                                    <button type="button" disabled={!previousWorkItem} onClick={() => previousWorkItem ? setSelectedWorkItemId(previousWorkItem.id) : null} className={`rounded-2xl border p-3 text-left ${previousWorkItem ? 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/60 hover:border-[var(--app-link)]/30' : 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/30 opacity-50'}`}>
+                                    <button type="button" disabled={!previousWorkItem} onClick={() => previousWorkItem ? selectWorkItem(previousWorkItem.id) : null} className={`rounded-2xl border p-3 text-left ${previousWorkItem ? 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/60 hover:border-[var(--app-link)]/30' : 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/30 opacity-50'}`}>
                                         <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Previous</div>
                                         <div className="mt-1 text-sm font-medium text-[var(--app-fg)]">{previousWorkItem?.title ?? 'None'}</div>
                                     </button>
-                                    <button type="button" disabled={!nextWorkItem} onClick={() => nextWorkItem ? setSelectedWorkItemId(nextWorkItem.id) : null} className={`rounded-2xl border p-3 text-left ${nextWorkItem ? 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/60 hover:border-[var(--app-link)]/30' : 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/30 opacity-50'}`}>
+                                    <button type="button" disabled={!nextWorkItem} onClick={() => nextWorkItem ? selectWorkItem(nextWorkItem.id) : null} className={`rounded-2xl border p-3 text-left ${nextWorkItem ? 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/60 hover:border-[var(--app-link)]/30' : 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/30 opacity-50'}`}>
                                         <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Next</div>
                                         <div className="mt-1 text-sm font-medium text-[var(--app-fg)]">{nextWorkItem?.title ?? 'None'}</div>
                                     </button>
@@ -1402,7 +1503,7 @@ export default function SwarmDetailPage() {
                                             <button
                                                 key={item.id}
                                                 type="button"
-                                                onClick={() => setSelectedWorkItemId(item.id)}
+                                                onClick={() => selectWorkItem(item.id)}
                                                 className={`block w-full rounded-xl border px-3 py-2.5 text-left text-sm ${selectedWorkItem?.id === item.id ? 'border-[var(--app-link)] bg-[var(--app-subtle-bg)]' : 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/60'}`}
                                             >
                                                 <div className="font-medium text-[var(--app-fg)]">{item.title}</div>
@@ -1469,7 +1570,7 @@ export default function SwarmDetailPage() {
                                             <button
                                                 key={item.id}
                                                 type="button"
-                                                onClick={() => setSelectedThreadId(item.id)}
+                                                onClick={() => selectThread(item.id)}
                                                 className={`block w-full rounded-xl border px-3 py-2.5 text-left text-sm ${selectedThread?.id === item.id ? 'border-[var(--app-link)] bg-[var(--app-subtle-bg)]' : 'border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/60'}`}
                                             >
                                                 <div className="font-medium text-[var(--app-fg)]">{item.title}</div>

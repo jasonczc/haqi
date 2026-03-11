@@ -1856,6 +1856,19 @@ const swarmsIndexRoute = createRoute({
 const swarmDetailRoute = createRoute({
     getParentRoute: () => swarmsRoute,
     path: '$swarmId',
+    validateSearch: (search: Record<string, unknown>): { tab?: 'overview' | 'plan' | 'execute' | 'decide' | 'history', workItem?: string, thread?: string } => {
+        const tabValue = typeof search.tab === 'string' ? search.tab : undefined
+        const tab = ['overview', 'plan', 'execute', 'decide', 'history'].includes(tabValue ?? '')
+            ? tabValue as 'overview' | 'plan' | 'execute' | 'decide' | 'history'
+            : undefined
+        const workItem = typeof search.workItem === 'string' && search.workItem.trim().length > 0 ? search.workItem : undefined
+        const thread = typeof search.thread === 'string' && search.thread.trim().length > 0 ? search.thread : undefined
+        return {
+            ...(tab ? { tab } : {}),
+            ...(workItem ? { workItem } : {}),
+            ...(thread ? { thread } : {}),
+        }
+    },
     component: SwarmDetailPage,
 })
 
