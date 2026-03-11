@@ -744,6 +744,31 @@ export default function SwarmDetailPage() {
 
                 {activeTab === 'overview' ? (
                     <div className="grid gap-4">
+                        <section className={pageCardClass}>
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <div className={sectionTitleClass}>Quick guide</div>
+                                    <div className="mt-1 text-xs text-[var(--app-hint)]">Use the tabs in order when you are not sure where to start.</div>
+                                </div>
+                                <div className="rounded-full bg-[var(--app-secondary-bg)] px-3 py-1 text-xs text-[var(--app-hint)]">
+                                    Overview → Plan → Execute → Decide → History
+                                </div>
+                            </div>
+                            <div className="mt-4 grid gap-3 md:grid-cols-4">
+                                {[
+                                    ['Overview', 'Understand mission health and the next recommended step.'],
+                                    ['Plan', 'Break the mission into small, assignable work items.'],
+                                    ['Execute', 'Assign work, report progress, and coordinate participants.'],
+                                    ['Decide', 'Review outputs, approve work, and resolve blockers.']
+                                ].map(([title, copy]) => (
+                                    <div key={title} className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3">
+                                        <div className="text-sm font-medium text-[var(--app-fg)]">{title}</div>
+                                        <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">{copy}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+
                         <section className="grid gap-4 md:grid-cols-4">
                             <div className={`${pageCardClass} md:col-span-2`}>
                                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--app-hint)]">Mission summary</div>
@@ -888,11 +913,22 @@ export default function SwarmDetailPage() {
                                             </button>
                                         ))}
                                     </div>
-                                ) : <div className="rounded-2xl border border-dashed border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/40 p-4 text-sm text-[var(--app-hint)]">No work items yet. Create one on the right.</div>}
+                                ) : (
+                                    <div className="rounded-2xl border border-dashed border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/40 p-4 text-sm text-[var(--app-hint)]">
+                                        <div className="font-medium text-[var(--app-fg)]">No work items yet.</div>
+                                        <div className="mt-1">Start by creating 3–5 small tasks, or auto-plan from the mission goal.</div>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            <button type="button" onClick={() => { void handleAutoPlan(false) }} disabled={isSubmitting} className={subtleButtonClass}>
+                                                Auto plan
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                             </section>
 
                             <section className={pageCardClass}>
                                 <div className="text-sm font-semibold text-[var(--app-fg)]">Create work item</div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">Define what should be done, what output should come back, and how you will know it is done.</div>
                                 <div className={`${softPanelClass} mt-3 space-y-2`}>
                                     <input value={workItemTitle} onChange={(event) => setWorkItemTitle(event.target.value)} placeholder="Title" className={inputClass} />
                                     <textarea value={workItemIntent} onChange={(event) => setWorkItemIntent(event.target.value)} placeholder="Intent / task body" className={`min-h-24 ${inputClass}`} />
@@ -1078,6 +1114,11 @@ export default function SwarmDetailPage() {
                                     </div>
                                     {selectedWorkItem ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${getStateBadgeClass(selectedWorkItem.status)}`}>{selectedWorkItem.status}</span> : null}
                                 </div>
+                                {!selectedWorkItem ? (
+                                    <div className={`${softPanelClass} mb-4 text-sm text-[var(--app-hint)]`}>
+                                        Select a work item in Plan first, then come here to assign and coordinate execution.
+                                    </div>
+                                ) : null}
                                 {selectedWorkItem ? (
                                     <div className={`${softPanelClass} mb-4 space-y-2`}>
                                         <div className="text-sm font-medium text-[var(--app-fg)]">{selectedWorkItem.title}</div>
@@ -1216,7 +1257,11 @@ export default function SwarmDetailPage() {
                                         </div>
                                     ))}
                                 </div>
-                            ) : <div className="text-sm text-[var(--app-hint)]">No proposals / decisions / blockers yet.</div>}
+                            ) : (
+                                <div className="rounded-2xl border border-dashed border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/40 p-4 text-sm text-[var(--app-hint)]">
+                                    No proposals, decisions, or blockers yet. Outcomes and review items will appear here after execution starts.
+                                </div>
+                            )}
                         </section>
 
                         <section className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
@@ -1241,7 +1286,11 @@ export default function SwarmDetailPage() {
                                                 <div className="text-xs text-[var(--app-hint)]">{item.status} · {item.assignedParticipantId ?? 'unassigned'}</div>
                                             </button>
                                         ))}
-                                        {reviewQueue.length === 0 ? <div className="text-sm text-[var(--app-hint)]">No review queue items right now.</div> : null}
+                                        {reviewQueue.length === 0 ? (
+                                            <div className="rounded-2xl border border-dashed border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/40 p-4 text-sm text-[var(--app-hint)]">
+                                                No review queue items right now. Dispatch work first, then come back when artifacts or outcomes need review.
+                                            </div>
+                                        ) : null}
                                     </div>
                                     {selectedWorkItem ? (
                                         <div className={`mt-3 space-y-3 ${softPanelClass}`}>

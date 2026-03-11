@@ -130,6 +130,40 @@ export default function SwarmsIndexPage() {
                     </p>
                 </section>
 
+                <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                        <div className="text-sm font-semibold text-[var(--app-fg)]">How Swarms Work</div>
+                        <div className="mt-1 text-xs text-[var(--app-hint)]">The UI should teach the workflow directly.</div>
+                        <div className="mt-4 grid gap-3 md:grid-cols-4">
+                            {[
+                                ['1. Create', 'Start one swarm per goal or project.'],
+                                ['2. Plan', 'Break the mission into small work items.'],
+                                ['3. Execute', 'Assign tasks, track progress, and coordinate.'],
+                                ['4. Decide', 'Review outcomes, approve work, and resolve blockers.']
+                            ].map(([title, copy]) => (
+                                <div key={title} className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 p-3">
+                                    <div className="text-sm font-medium text-[var(--app-fg)]">{title}</div>
+                                    <div className="mt-1 text-xs leading-5 text-[var(--app-hint)]">{copy}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
+                        <div className="text-sm font-semibold text-[var(--app-fg)]">New Here?</div>
+                        <div className="mt-4 space-y-3 text-sm">
+                            <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">
+                                Open any active swarm to continue work.
+                            </div>
+                            <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">
+                                Start with “Needs attention” if something is blocked.
+                            </div>
+                            <div className="rounded-xl border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]/55 px-3 py-2 text-[var(--app-hint)]">
+                                Use completed swarms as reference, not as the default working set.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <section className="grid gap-4 md:grid-cols-4">
                     <div className="rounded-2xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-sm">
                         <div className="text-xs uppercase tracking-wide text-[var(--app-hint)]">Needs attention</div>
