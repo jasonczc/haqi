@@ -10,6 +10,7 @@ import { RequestUserInputView } from '@/components/ToolCard/views/RequestUserInp
 import { ExitPlanModeView } from '@/components/ToolCard/views/ExitPlanModeView'
 import { MultiEditFullView, MultiEditView } from '@/components/ToolCard/views/MultiEditView'
 import { TodoWriteView } from '@/components/ToolCard/views/TodoWriteView'
+import { UpdatePlanView } from '@/components/ToolCard/views/UpdatePlanView'
 import { WriteView } from '@/components/ToolCard/views/WriteView'
 
 export type ToolViewProps = {
@@ -24,6 +25,7 @@ export const toolViewRegistry: Record<string, ToolViewComponent> = {
     MultiEdit: MultiEditView,
     Write: WriteView,
     TodoWrite: TodoWriteView,
+    update_plan: UpdatePlanView,
     CodexDiff: CodexDiffCompactView,
     CodexTurnChanges: CodexTurnChangesView,
     AskUserQuestion: AskUserQuestionView,

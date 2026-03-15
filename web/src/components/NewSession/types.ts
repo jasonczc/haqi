@@ -1,4 +1,4 @@
-export type AgentType = 'claude' | 'codex' | 'gemini' | 'opencode'
+export type AgentType = 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
 export type SessionType = 'simple' | 'worktree'
 export type ThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
 export type ModelOption = { value: string; label: string }
@@ -46,9 +46,9 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
         { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
     ],
     codex: [
+        { value: 'auto', label: 'Auto' },
         { value: 'gpt-5.4', label: 'GPT-5.4' },
         { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
-        { value: 'auto', label: 'Auto' },
         { value: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
         { value: 'gpt-5.2', label: 'GPT-5.2' },
         { value: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max' },
@@ -59,10 +59,38 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
         { value: 'gpt-5-codex-mini', label: 'GPT-5 Codex Mini' },
         { value: 'gpt-5', label: 'GPT-5' },
     ],
+    cursor: [],
     gemini: [
         { value: 'auto-gemini-3', label: 'Auto (Gemini 3)' },
         { value: 'auto-gemini-2.5', label: 'Auto (Gemini 2.5)' },
         { value: 'manual', label: 'Manual' },
     ],
     opencode: [],
+}
+
+function isModelOptionAllowedForAgent(agent: AgentType, value: string): boolean {
+    if (agent === 'claude') {
+        return value === 'auto' || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.')
+    }
+    if (agent === 'codex') {
+        return value === 'auto' || value.startsWith('gpt-')
+    }
+    if (agent === 'gemini') {
+        return value === 'manual' || value.startsWith('auto-gemini-')
+    }
+    return true
+}
+
+export function getModelOptionsForAgent(agent: AgentType): ModelOption[] {
+    const options = MODEL_OPTIONS[agent] ?? []
+    const deduped = new Map<string, ModelOption>()
+    for (const option of options) {
+        if (!isModelOptionAllowedForAgent(agent, option.value)) {
+            continue
+        }
+        if (!deduped.has(option.value)) {
+            deduped.set(option.value, option)
+        }
+    }
+    return [...deduped.values()]
 }

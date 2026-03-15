@@ -10,6 +10,7 @@ import {
     getSessions,
     getSessionsByNamespace,
     setSessionPreviewUrl,
+    setSessionTeamState,
     setSessionTodos,
     updateSessionAgentState,
     updateSessionMetadata
@@ -55,6 +56,10 @@ export class SessionStore {
 
     getPreviewUrlHistory(namespace: string, limit?: number): PreviewUrlHistoryEntry[] {
         return getPreviewUrlHistory(this.db, namespace, limit)
+    }
+
+    setSessionTeamState(id: string, teamState: unknown, updatedAt: number, namespace: string): boolean {
+        return setSessionTeamState(this.db, id, teamState, updatedAt, namespace)
     }
 
     getSession(id: string): StoredSession | null {

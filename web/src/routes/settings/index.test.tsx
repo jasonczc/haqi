@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nContext, I18nProvider } from '@/lib/i18n-context'
 import { en } from '@/lib/locales'
@@ -114,6 +114,18 @@ const updateMemoryMock = vi.fn(async (payload: {
     }
 }))
 
+const getExperimentalSettingsMock = vi.fn(async () => ({
+    settings: {
+        claudeLoginShell: false
+    }
+}))
+
+const updateExperimentalSettingsMock = vi.fn(async (payload: { claudeLoginShell: boolean }) => ({
+    settings: {
+        claudeLoginShell: payload.claudeLoginShell
+    }
+}))
+
 const getReportDomainSettingsMock = vi.fn(async () => ({
     settings: {
         value: 'http://localhost:3006',
@@ -129,6 +141,16 @@ const updateReportDomainSettingsMock = vi.fn(async (payload: { domain: string | 
         envOverride: false
     }
 }))
+
+const mockApi = {
+    getUsageOverview: getUsageOverviewMock,
+    getMemory: getMemoryMock,
+    updateMemory: updateMemoryMock,
+    getExperimentalSettings: getExperimentalSettingsMock,
+    updateExperimentalSettings: updateExperimentalSettingsMock,
+    getReportDomainSettings: getReportDomainSettingsMock,
+    updateReportDomainSettings: updateReportDomainSettingsMock
+}
 
 // Mock the router hooks
 vi.mock('@tanstack/react-router', () => ({
@@ -162,13 +184,7 @@ vi.mock('@/lib/languages', () => ({
 
 vi.mock('@/lib/app-context', () => ({
     useAppContext: () => ({
-        api: {
-            getUsageOverview: getUsageOverviewMock,
-            getMemory: getMemoryMock,
-            updateMemory: updateMemoryMock,
-            getReportDomainSettings: getReportDomainSettingsMock,
-            updateReportDomainSettings: updateReportDomainSettingsMock
-        }
+        api: mockApi
     })
 }))
 
@@ -324,11 +340,32 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.memory.injection.title')
         expect(calledKeys).toContain('settings.memory.pureContextMode.title')
         expect(calledKeys).toContain('settings.memory.pureContextMode.description')
+        expect(calledKeys).toContain('settings.experimental.title')
+        expect(calledKeys).toContain('settings.experimental.claudeLoginShell.title')
+        expect(calledKeys).toContain('settings.experimental.claudeLoginShell.description')
         expect(calledKeys).toContain('settings.reportDomain.title')
         expect(calledKeys).toContain('settings.memory.actions.save')
         expect(calledKeys).toContain('settings.about.website')
         expect(calledKeys).toContain('settings.about.appVersion')
         expect(calledKeys).toContain('settings.about.protocolVersion')
+    })
+
+    it('updates Claude login shell experimental setting', async () => {
+        renderWithProviders(<SettingsPage />)
+
+        await waitFor(() => {
+            expect(getExperimentalSettingsMock).toHaveBeenCalled()
+        })
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'Claude login shell' })).not.toBeDisabled()
+        })
+
+        fireEvent.click(screen.getByRole('switch', { name: 'Claude login shell' }))
+
+        await waitFor(() => {
+            expect(updateExperimentalSettingsMock).toHaveBeenCalledWith({ claudeLoginShell: true })
+        })
     })
 
 })

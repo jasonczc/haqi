@@ -7,6 +7,10 @@ export type {
     Metadata,
     Session,
     SyncEvent,
+    TeamMember,
+    TeamMessage,
+    TeamState,
+    TeamTask,
     TodoItem,
     WorktreeMetadata
 } from './schemas'
@@ -17,6 +21,7 @@ export type {
     AgentFlavor,
     ClaudePermissionMode,
     CodexPermissionMode,
+    CursorPermissionMode,
     GeminiPermissionMode,
     OpencodePermissionMode,
     ModelMode,

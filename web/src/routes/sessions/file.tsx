@@ -24,6 +24,7 @@ const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
     ico: 'image/x-icon'
 }
 
+
 function decodePath(value: string): string {
     if (!value) return ''
     const decoded = decodeBase64(value)

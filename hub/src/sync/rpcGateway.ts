@@ -171,7 +171,7 @@ export class RpcGateway {
     async spawnSession(
         machineId: string,
         directory: string,
-        agent: 'claude' | 'codex' | 'gemini' | 'opencode' = 'claude',
+        agent: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode' = 'claude',
         model?: string,
         thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
         serviceTier?: 'fast' | 'flex',
@@ -200,8 +200,20 @@ export class RpcGateway {
                 if (typeof obj.error === 'string') {
                     return { type: 'error', message: obj.error }
                 }
+                if (obj.type !== 'success' && typeof obj.message === 'string') {
+                    return { type: 'error', message: obj.message }
+                }
             }
-            return { type: 'error', message: 'Unexpected spawn result' }
+            const details = typeof result === 'string'
+                ? result
+                : (() => {
+                    try {
+                        return JSON.stringify(result)
+                    } catch {
+                        return String(result)
+                    }
+                })()
+            return { type: 'error', message: `Unexpected spawn result: ${details}` }
         } catch (error) {
             return { type: 'error', message: error instanceof Error ? error.message : String(error) }
         }
@@ -467,12 +479,12 @@ export class RpcGateway {
 
     async listSlashCommands(sessionId: string, agent: string): Promise<{
         success: boolean
-        commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' }>
+        commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' | 'plugin' | 'project' }>
         error?: string
     }> {
         return await this.sessionRpc(sessionId, 'listSlashCommands', { agent }) as {
             success: boolean
-            commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' }>
+            commands?: Array<{ name: string; description?: string; source: 'builtin' | 'user' | 'plugin' | 'project' }>
             error?: string
         }
     }

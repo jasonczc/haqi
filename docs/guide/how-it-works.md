@@ -47,7 +47,7 @@ HAQI consists of three interconnected components that work together to provide r
 
 ### HAQI CLI
 
-The CLI is a wrapper around AI coding agents (Claude Code, Codex, Gemini, OpenCode). It:
+The CLI is a wrapper around AI coding agents (Claude Code, Codex, Cursor Agent, Gemini, OpenCode). It:
 
 - Starts and manages coding sessions
 - Registers sessions with the HAQI hub
@@ -58,6 +58,7 @@ The CLI is a wrapper around AI coding agents (Claude Code, Codex, Gemini, OpenCo
 ```bash
 haqi              # Start Claude Code session
 haqi codex        # Start OpenAI Codex session
+haqi cursor       # Start Cursor Agent session
 haqi gemini       # Start Google Gemini session
 haqi opencode     # Start OpenCode session
 haqi runner start # Run background service for remote session spawning

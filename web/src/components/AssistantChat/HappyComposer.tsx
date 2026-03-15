@@ -29,7 +29,7 @@ import { useActiveSuggestions } from '@/hooks/useActiveSuggestions'
 import { applySuggestion } from '@/utils/applySuggestion'
 import { usePlatform } from '@/hooks/usePlatform'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
-import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
+import { isClaudeFlavor, supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import { markSkillUsed } from '@/lib/recent-skills'
 import { preserveUploadPathsForQueue } from '@/lib/attachmentAdapter'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
@@ -857,6 +857,15 @@ export function HappyComposer(props: {
             return
         }
 
+        // Shift+Enter sends the message (works on all platforms including iPadOS with keyboard)
+        if (key === 'Enter' && e.shiftKey) {
+            e.preventDefault()
+            if (!canSend) return
+            api.composer().send()
+            setShowContinueHint(false)
+            return
+        }
+
         if (suggestions.length > 0) {
             if (key === 'ArrowUp') {
                 e.preventDefault()
@@ -915,18 +924,14 @@ export function HappyComposer(props: {
         onPermissionModeChange,
         permissionMode,
         permissionModes,
+        canSend,
+        api,
         haptic
     ])
 
     useEffect(() => {
         const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
-            if (
-                e.key === 'm'
-                && (e.metaKey || e.ctrlKey)
-                && onModelChange
-                && agentFlavor === 'claude'
-                && modelValues.length > 0
-            ) {
+            if (e.key === 'm' && (e.metaKey || e.ctrlKey) && onModelChange && isClaudeFlavor(agentFlavor) && modelValues.length > 0) {
                 e.preventDefault()
                 const currentIndex = modelValues.indexOf(currentModelValue)
                 const nextIndex = (currentIndex + 1) % modelValues.length
@@ -1021,7 +1026,7 @@ export function HappyComposer(props: {
     }, [onServiceTierChange, controlsDisabled, haptic])
 
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
-    const showModelSettings = Boolean(onModelChange && agentFlavor === 'claude' && modelOptions.length > 0)
+    const showModelSettings = Boolean(onModelChange && isClaudeFlavor(agentFlavor) && modelOptions.length > 0)
     const showThinkEffortSettings = Boolean(onThinkEffortChange && thinkEffortOptions.length > 0)
     const showServiceTierSettings = Boolean(onServiceTierChange && serviceTierOptions.length > 0)
     const showSettingsButton = Boolean(showPermissionSettings || showModelSettings || showThinkEffortSettings || showServiceTierSettings)

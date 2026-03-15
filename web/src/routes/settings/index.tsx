@@ -242,6 +242,9 @@ export default function SettingsPage() {
     const [memoryDraft, setMemoryDraft] = useState('')
     const [memorySavedContent, setMemorySavedContent] = useState('')
     const [memoryStatusMessage, setMemoryStatusMessage] = useState<string | null>(null)
+    const [experimentalClaudeLoginShellEnabled, setExperimentalClaudeLoginShellEnabled] = useState(false)
+    const [experimentalSettingsLoading, setExperimentalSettingsLoading] = useState(false)
+    const [experimentalStatusMessage, setExperimentalStatusMessage] = useState<string | null>(null)
     const isMemoryDirty = memoryDraft !== memorySavedContent
     const [reportDomainDraft, setReportDomainDraft] = useState('')
     const [reportDomainSaved, setReportDomainSaved] = useState('')
@@ -325,6 +328,21 @@ export default function SettingsPage() {
         }
     }, [api, t])
 
+    const loadExperimentalSettings = useCallback(async () => {
+        setExperimentalSettingsLoading(true)
+        setExperimentalStatusMessage(null)
+        try {
+            const result = await api.getExperimentalSettings()
+            setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
+        } catch (error) {
+            setExperimentalStatusMessage(
+                error instanceof Error ? error.message : t('settings.experimental.status.loadFailed')
+            )
+        } finally {
+            setExperimentalSettingsLoading(false)
+        }
+    }, [api, t])
+
     useEffect(() => {
         void loadUsageOverview(false)
     }, [loadUsageOverview])
@@ -332,6 +350,10 @@ export default function SettingsPage() {
     useEffect(() => {
         void loadReportDomainSettings()
     }, [loadReportDomainSettings])
+
+    useEffect(() => {
+        void loadExperimentalSettings()
+    }, [loadExperimentalSettings])
 
     useEffect(() => {
         if (!memory) {
@@ -413,6 +435,25 @@ export default function SettingsPage() {
         },
         onError: (error) => {
             setMemoryStatusMessage(error instanceof Error ? error.message : t('settings.memory.status.toggleFailed'))
+        }
+    })
+
+    const toggleExperimentalClaudeLoginShellMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            return await api.updateExperimentalSettings({ claudeLoginShell: enabled })
+        },
+        onSuccess: (result, enabled) => {
+            setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
+            setExperimentalStatusMessage(
+                enabled
+                    ? t('settings.experimental.status.claudeLoginShellEnabled')
+                    : t('settings.experimental.status.claudeLoginShellDisabled')
+            )
+        },
+        onError: (error) => {
+            setExperimentalStatusMessage(
+                error instanceof Error ? error.message : t('settings.experimental.status.saveFailed')
+            )
         }
     })
 
@@ -1284,6 +1325,35 @@ export default function SettingsPage() {
                                     })}
                                 </div>
                             )}
+                        </div>
+                        <div className="border-b border-[var(--app-divider)]">
+                            <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                                {t('settings.experimental.title')}
+                            </div>
+                            <div className="flex items-start justify-between gap-3 px-3 py-3">
+                                <div className="flex flex-col">
+                                    <span className="text-[var(--app-fg)]">
+                                        {t('settings.experimental.claudeLoginShell.title')}
+                                    </span>
+                                    <span className="text-xs text-[var(--app-hint)]">
+                                        {t('settings.experimental.claudeLoginShell.description')}
+                                    </span>
+                                    {experimentalStatusMessage && (
+                                        <span className="mt-1 text-xs text-[var(--app-hint)]">
+                                            {experimentalStatusMessage}
+                                        </span>
+                                    )}
+                                </div>
+                                <Switch
+                                    checked={experimentalClaudeLoginShellEnabled}
+                                    onCheckedChange={(enabled) => {
+                                        setExperimentalStatusMessage(null)
+                                        void toggleExperimentalClaudeLoginShellMutation.mutateAsync(enabled)
+                                    }}
+                                    disabled={experimentalSettingsLoading || toggleExperimentalClaudeLoginShellMutation.isPending}
+                                    ariaLabel={t('settings.experimental.claudeLoginShell.title')}
+                                />
+                            </div>
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3">
                             <div className="flex flex-col">

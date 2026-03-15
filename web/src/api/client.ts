@@ -25,6 +25,7 @@ import type {
     GroupsResponse,
     GroupResponse,
     MemoryResponse,
+    ExperimentalSettingsResponse,
     ReportDomainResponse,
     ProjectOfflineSettingsResponse,
     UpdateMemoryResponse,
@@ -385,6 +386,17 @@ export class ApiClient {
         updatedBy?: string
     }): Promise<UpdateMemoryResponse> {
         return await this.request<UpdateMemoryResponse>('/api/memory', {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async getExperimentalSettings(): Promise<ExperimentalSettingsResponse> {
+        return await this.request<ExperimentalSettingsResponse>('/api/settings/experimental')
+    }
+
+    async updateExperimentalSettings(payload: { claudeLoginShell: boolean }): Promise<ExperimentalSettingsResponse> {
+        return await this.request<ExperimentalSettingsResponse>('/api/settings/experimental', {
             method: 'PATCH',
             body: JSON.stringify(payload)
         })
@@ -818,7 +830,7 @@ export class ApiClient {
     async spawnSession(
         machineId: string,
         directory: string,
-        agent?: 'claude' | 'codex' | 'gemini' | 'opencode',
+        agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
         model?: string,
         thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
         serviceTier?: 'fast' | 'flex',

@@ -1,5 +1,5 @@
 import type { AgentType, ModelOption } from './types'
-import { MODEL_OPTIONS } from './types'
+import { getModelOptionsForAgent } from './types'
 import { useTranslation } from '@/lib/use-translation'
 
 export function ModelSelector(props: {
@@ -11,7 +11,7 @@ export function ModelSelector(props: {
     onCustomModelChange: (value: string) => void
 }) {
     const { t } = useTranslation()
-    const options: ModelOption[] = MODEL_OPTIONS[props.agent]
+    const options: ModelOption[] = getModelOptionsForAgent(props.agent)
     if (options.length === 0) {
         return null
     }

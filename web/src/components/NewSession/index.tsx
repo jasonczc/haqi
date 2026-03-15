@@ -14,6 +14,7 @@ import {
     CLAUDE_THINK_EFFORT_OPTIONS,
     CODEX_THINK_EFFORT_OPTIONS,
     MODEL_OPTIONS,
+    getModelOptionsForAgent,
     getThinkEffortOptions,
     type AgentType,
     type ThinkEffort,
@@ -47,6 +48,7 @@ import {
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
+import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -76,9 +78,9 @@ export function NewSession(props: {
     const lastSessionConfig = loadLastSessionConfig()
     const initialAgent = lastSessionConfig?.agent ?? loadPreferredAgent()
     const initialModel = (
-        lastSessionConfig?.model && MODEL_OPTIONS[initialAgent].some((option) => option.value === lastSessionConfig.model)
+        lastSessionConfig?.model && getModelOptionsForAgent(initialAgent).some((option) => option.value === lastSessionConfig.model)
             ? lastSessionConfig.model
-            : (loadPreferredModel(initialAgent) ?? (MODEL_OPTIONS[initialAgent][0]?.value ?? 'auto'))
+            : (loadPreferredModel(initialAgent) ?? (getModelOptionsForAgent(initialAgent)[0]?.value ?? 'auto'))
     )
     const initialThinkEffort = (
         lastSessionConfig?.thinkEffort && getThinkEffortOptions(initialAgent).some((option) => option.value === lastSessionConfig.thinkEffort)
@@ -123,7 +125,7 @@ export function NewSession(props: {
     }, [sessionType])
 
     useEffect(() => {
-        setModel(loadPreferredModel(agent) ?? (MODEL_OPTIONS[agent][0]?.value ?? 'auto'))
+        setModel(loadPreferredModel(agent) ?? (getModelOptionsForAgent(agent)[0]?.value ?? 'auto'))
         setCustomModel(loadPreferredCustomModel(agent))
         setThinkEffort(loadPreferredThinkEffort(agent) ?? getDefaultThinkEffort(agent))
         setServiceTier(loadPreferredServiceTier(agent) ?? 'auto')
@@ -147,13 +149,22 @@ export function NewSession(props: {
         }
     }, [props.machines, machineId, getLastUsedMachineId, getRecentPaths, hasPresetDirectory])
 
+    const selectedMachine = useMemo(
+        () => (machineId ? props.machines.find((machine) => machine.id === machineId) ?? null : null),
+        [machineId, props.machines]
+    )
+    const runnerSpawnError = useMemo(
+        () => formatRunnerSpawnError(selectedMachine),
+        [selectedMachine]
+    )
+
     const recentPaths = useMemo(
         () => getRecentPaths(machineId),
         [getRecentPaths, machineId]
     )
 
     const modelOptions = useMemo(() => {
-        return MODEL_OPTIONS[agent]
+        return getModelOptionsForAgent(agent)
     }, [agent])
     const defaultModelValue = modelOptions[0]?.value ?? 'auto'
 
@@ -401,6 +412,11 @@ export function NewSession(props: {
                 isDisabled={isFormDisabled}
                 onChange={handleMachineChange}
             />
+            {runnerSpawnError ? (
+                <div className="px-3 py-2 text-xs text-red-600">
+                    Runner last spawn error: {runnerSpawnError}
+                </div>
+            ) : null}
             <DirectorySection
                 directory={directory}
                 suggestions={suggestions}

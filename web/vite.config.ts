@@ -6,6 +6,31 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const base = process.env.VITE_BASE_URL || '/'
+const hubTarget = process.env.VITE_HUB_PROXY || 'http://127.0.0.1:3006'
+
+function getVendorChunkName(id: string): string | undefined {
+    if (!id.includes('/node_modules/')) {
+        return undefined
+    }
+
+    if (id.includes('/node_modules/@xterm/')) {
+        return 'vendor-terminal'
+    }
+
+    if (
+        id.includes('/node_modules/@assistant-ui/')
+        || id.includes('/node_modules/remark-gfm/')
+        || id.includes('/node_modules/hast-util-to-jsx-runtime/')
+    ) {
+        return 'vendor-assistant'
+    }
+
+    if (id.includes('/node_modules/@elevenlabs/react/')) {
+        return 'vendor-voice'
+    }
+
+    return undefined
+}
 
 export default defineConfig({
     define: {
@@ -16,11 +41,11 @@ export default defineConfig({
         allowedHosts: ['hapidev.weishu.me'],
         proxy: {
             '/api': {
-                target: 'http://127.0.0.1:3006',
+                target: hubTarget,
                 changeOrigin: true
             },
             '/socket.io': {
-                target: 'http://127.0.0.1:3006',
+                target: hubTarget,
                 ws: true
             }
         }
@@ -68,8 +93,7 @@ export default defineConfig({
                 ]
             },
             injectManifest: {
-                globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-                maximumFileSizeToCacheInBytes: 3 * 1024 * 1024
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}']
             },
             devOptions: {
                 enabled: true,
@@ -88,9 +112,12 @@ export default defineConfig({
         emptyOutDir: true,
         rollupOptions: {
             output: {
-                manualChunks: {
-                    'vendor-virtuoso': ['react-virtuoso'],
-                    'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities']
+                manualChunks(id) {
+                    const upstreamChunk = getVendorChunkName(id)
+                    if (upstreamChunk) return upstreamChunk
+                    if (id.includes('/node_modules/react-virtuoso/')) return 'vendor-virtuoso'
+                    if (id.includes('/node_modules/@dnd-kit/')) return 'vendor-dnd'
+                    return undefined
                 }
             }
         }
