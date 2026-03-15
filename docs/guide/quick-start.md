@@ -7,11 +7,7 @@
 ::: code-group
 
 ```bash [npm]
-<<<<<<< HEAD
-npm install -g @jasonczc/haqi
-=======
-npm install -g @twsxtd/hapi --registry=https://registry.npmjs.org
->>>>>>> 91d03e4 (docs: add npm registry recommendation for installation)
+npm install -g @jasonczc/haqi --registry=https://registry.npmjs.org
 ```
 
 ```bash [Homebrew]

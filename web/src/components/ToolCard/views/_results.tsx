@@ -576,7 +576,6 @@ const CodexDiffResultView: ToolViewComponent = (props: ToolViewProps) => {
     )
 }
 
-<<<<<<< HEAD
 type CollabAgentStateEntry = {
     agentId: string
     status: string | null
@@ -754,8 +753,6 @@ function todoIcon(todo: TodoItem): string {
     return '☐'
 }
 
-=======
->>>>>>> 4f06cdf (Support codex plan tool)
 const TodoWriteResultView: ToolViewComponent = (props: ToolViewProps) => {
     const todos = extractTodoChecklist(props.block.tool.input, props.block.tool.result)
     if (todos.length === 0) {
