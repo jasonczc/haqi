@@ -94,13 +94,22 @@ export function buildThreadStartParams(args: {
     const config = buildMcpServerConfig(args.mcpServers);
     const defaultBaseInstructions = isPureContextModeEnabled() ? '' : codexSystemPrompt;
     const baseInstructions = args.baseInstructions ?? defaultBaseInstructions;
+    const resolvedDeveloperInstructions = args.developerInstructions
+        ? `${baseInstructions}
+
+${args.developerInstructions}`
+        : baseInstructions;
+    const configWithInstructions = {
+        ...config,
+        ...(resolvedDeveloperInstructions.trim() ? { developer_instructions: resolvedDeveloperInstructions } : {})
+    };
 
     const params: ThreadStartParams = {
         approvalPolicy: resolvedApprovalPolicy,
         sandbox: resolvedSandbox,
         ...(baseInstructions.trim() ? { baseInstructions } : {}),
-        ...(args.developerInstructions ? { developerInstructions: args.developerInstructions } : {}),
-        ...(Object.keys(config).length > 0 ? { config } : {})
+        ...(resolvedDeveloperInstructions.trim() ? { developerInstructions: resolvedDeveloperInstructions } : {}),
+        ...(Object.keys(configWithInstructions).length > 0 ? { config: configWithInstructions } : {})
     };
 
     const cwd = typeof args.cwd === 'string' ? args.cwd.trim() : '';
