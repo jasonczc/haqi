@@ -370,17 +370,10 @@ export default {
   'settings.language.title': '语言',
   'settings.language.label': '语言',
   'settings.display.title': '显示',
-<<<<<<< HEAD
   'settings.display.theme': '主题',
   'settings.display.theme.light': '浅色',
   'settings.display.theme.dark': '深色',
   'settings.display.theme.system': '跟随系统',
-=======
-  'settings.display.appearance': '外观',
-  'settings.display.appearance.system': '跟随系统',
-  'settings.display.appearance.dark': '深色',
-  'settings.display.appearance.light': '浅色',
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
   'settings.display.fontSize': '字体大小',
   'settings.behavior.title': '行为',
   'settings.behavior.defaultSendMode': '默认发送模式',

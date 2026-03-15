@@ -3,75 +3,14 @@ import { getTelegramWebApp } from './useTelegram'
 
 type ColorScheme = 'light' | 'dark'
 export type ThemePreference = 'system' | 'light' | 'dark'
+export type AppearancePreference = ThemePreference
 
-<<<<<<< HEAD
 const THEME_PREFERENCE_STORAGE_KEY = 'hapi-theme'
+const APPEARANCE_KEY = THEME_PREFERENCE_STORAGE_KEY
 
 export function normalizeThemePreference(value: string | null): ThemePreference {
     if (value === 'light' || value === 'dark' || value === 'system') {
         return value
-=======
-export type AppearancePreference = 'system' | 'dark' | 'light'
-
-const APPEARANCE_KEY = 'hapi-appearance'
-
-function isBrowser(): boolean {
-    return typeof window !== 'undefined' && typeof document !== 'undefined'
-}
-
-function safeGetItem(key: string): string | null {
-    if (!isBrowser()) return null
-    try {
-        return localStorage.getItem(key)
-    } catch {
-        return null
-    }
-}
-
-function safeSetItem(key: string, value: string): void {
-    if (!isBrowser()) return
-    try {
-        localStorage.setItem(key, value)
-    } catch {
-        // Ignore storage errors
-    }
-}
-
-function safeRemoveItem(key: string): void {
-    if (!isBrowser()) return
-    try {
-        localStorage.removeItem(key)
-    } catch {
-        // Ignore storage errors
-    }
-}
-
-function parseAppearance(raw: string | null): AppearancePreference {
-    if (raw === 'dark' || raw === 'light') return raw
-    return 'system'
-}
-
-function getStoredAppearance(): AppearancePreference {
-    return parseAppearance(safeGetItem(APPEARANCE_KEY))
-}
-
-export function getAppearanceOptions(): ReadonlyArray<{ value: AppearancePreference; labelKey: string }> {
-    return [
-        { value: 'system', labelKey: 'settings.display.appearance.system' },
-        { value: 'dark', labelKey: 'settings.display.appearance.dark' },
-        { value: 'light', labelKey: 'settings.display.appearance.light' },
-    ]
-}
-
-function getColorScheme(): ColorScheme {
-    const pref = getStoredAppearance()
-    if (pref === 'dark' || pref === 'light') return pref
-
-    // 'system': use Telegram → system preference → light
-    const tg = getTelegramWebApp()
-    if (tg?.colorScheme) {
-        return tg.colorScheme === 'dark' ? 'dark' : 'light'
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
     }
     return 'system'
 }
@@ -84,6 +23,14 @@ function getStoredThemePreference(): ThemePreference {
 function saveThemePreference(preference: ThemePreference): void {
     if (typeof window === 'undefined') return
     window.localStorage.setItem(THEME_PREFERENCE_STORAGE_KEY, preference)
+}
+
+export function getAppearanceOptions(): ReadonlyArray<{ value: AppearancePreference; labelKey: string }> {
+    return [
+        { value: 'system', labelKey: 'settings.display.appearance.system' },
+        { value: 'dark', labelKey: 'settings.display.appearance.dark' },
+        { value: 'light', labelKey: 'settings.display.appearance.light' },
+    ]
 }
 
 function getSystemColorScheme(): ColorScheme {
@@ -125,12 +72,10 @@ function applyPlatform(): void {
     }
 }
 
-// External store for theme state
 let currentPreference: ThemePreference = getStoredThemePreference()
 let currentScheme: ColorScheme = resolveColorScheme(currentPreference)
 const listeners = new Set<() => void>()
 
-// Apply theme immediately at module load (before React renders)
 applyTheme(currentScheme)
 
 function subscribe(callback: () => void): () => void {
@@ -180,7 +125,6 @@ export function setThemePreference(preference: ThemePreference): void {
     }
 }
 
-// Track if theme listeners have been set up
 let listenersInitialized = false
 
 export function useTheme(): { colorScheme: ColorScheme; isDark: boolean } {
@@ -192,7 +136,6 @@ export function useTheme(): { colorScheme: ColorScheme; isDark: boolean } {
     }
 }
 
-<<<<<<< HEAD
 export function useThemePreference(): {
     themePreference: ThemePreference
     setThemePreference: (preference: ThemePreference) => void
@@ -203,56 +146,38 @@ export function useThemePreference(): {
         themePreference,
         setThemePreference,
     }
-=======
+}
+
 export function useAppearance(): { appearance: AppearancePreference; setAppearance: (pref: AppearancePreference) => void } {
-    const [appearance, setAppearanceState] = useState<AppearancePreference>(getStoredAppearance)
+    const { themePreference, setThemePreference } = useThemePreference()
+    const [appearance, setAppearanceState] = useState<AppearancePreference>(themePreference)
 
     useEffect(() => {
-        if (!isBrowser()) return
-
-        const onStorage = (event: StorageEvent) => {
-            if (event.key !== APPEARANCE_KEY) return
-            setAppearanceState(parseAppearance(event.newValue))
-        }
-
-        window.addEventListener('storage', onStorage)
-        return () => window.removeEventListener('storage', onStorage)
-    }, [])
+        setAppearanceState(themePreference)
+    }, [themePreference])
 
     const setAppearance = useCallback((pref: AppearancePreference) => {
         setAppearanceState(pref)
-
-        if (pref === 'system') {
-            safeRemoveItem(APPEARANCE_KEY)
-        } else {
-            safeSetItem(APPEARANCE_KEY, pref)
-        }
-
-        updateScheme()
-    }, [])
+        setThemePreference(pref)
+    }, [setThemePreference])
 
     return { appearance, setAppearance }
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
 }
 
-// Call this once at app startup to ensure theme is applied and listeners attached
 export function initializeTheme(): void {
     currentPreference = getStoredThemePreference()
     currentScheme = resolveColorScheme(currentPreference)
     applyTheme(currentScheme)
     applyPlatform()
 
-    // Set up listeners only once (after SDK may have loaded)
     if (!listenersInitialized) {
         listenersInitialized = true
         const tg = typeof window !== 'undefined' ? getTelegramWebApp() : null
         if (tg?.onEvent) {
-            // Telegram theme changes
             tg.onEvent('themeChanged', updateSchemeFromSystem)
         }
 
         if (typeof window !== 'undefined' && window.matchMedia) {
-            // Browser system preference changes
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
             if (typeof mediaQuery.addEventListener === 'function') {
                 mediaQuery.addEventListener('change', updateSchemeFromSystem)
@@ -261,10 +186,13 @@ export function initializeTheme(): void {
             }
         }
 
-        // Cross-tab appearance sync: update theme when another tab changes localStorage
         if (typeof window !== 'undefined') {
             window.addEventListener('storage', (event: StorageEvent) => {
-                if (event.key === APPEARANCE_KEY) updateScheme()
+                if (event.key === APPEARANCE_KEY) {
+                    currentPreference = getStoredThemePreference()
+                    updateScheme(resolveColorScheme(currentPreference))
+                    notifyListeners()
+                }
             })
         }
     }

@@ -4,7 +4,6 @@ import { useTranslation, type Locale } from '@/lib/use-translation'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
-<<<<<<< HEAD
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useCodexSendModePreference } from '@/hooks/useCodexSendModePreference'
@@ -23,9 +22,6 @@ import { useThemePreference, type ThemePreference } from '@/hooks/useTheme'
 import { useAppContext } from '@/lib/app-context'
 import { useMemory } from '@/hooks/queries/useMemory'
 import { queryKeys } from '@/lib/query-keys'
-=======
-import { useAppearance, getAppearanceOptions, type AppearancePreference } from '@/hooks/useTheme'
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 import { Switch } from '@/components/ui/Switch'
 
@@ -191,11 +187,7 @@ export default function SettingsPage() {
     const queryClient = useQueryClient()
     const goBack = useAppGoBack()
     const [isOpen, setIsOpen] = useState(false)
-<<<<<<< HEAD
     const [isThemeOpen, setIsThemeOpen] = useState(false)
-=======
-    const [isAppearanceOpen, setIsAppearanceOpen] = useState(false)
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
     const [isFontOpen, setIsFontOpen] = useState(false)
     const [isVoiceOpen, setIsVoiceOpen] = useState(false)
     const [isQueuePanelOpen, setIsQueuePanelOpen] = useState(false)
@@ -208,11 +200,7 @@ export default function SettingsPage() {
     const isDataDiagnosticsGroupExpanded = groupExpandedState.dataDiagnostics
     const isAboutGroupExpanded = groupExpandedState.about
     const containerRef = useRef<HTMLDivElement>(null)
-<<<<<<< HEAD
     const themeContainerRef = useRef<HTMLDivElement>(null)
-=======
-    const appearanceContainerRef = useRef<HTMLDivElement>(null)
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
     const fontContainerRef = useRef<HTMLDivElement>(null)
     const voiceContainerRef = useRef<HTMLDivElement>(null)
     const queuePanelContainerRef = useRef<HTMLDivElement>(null)
@@ -220,7 +208,6 @@ export default function SettingsPage() {
     const imageCompressionLevelContainerRef = useRef<HTMLDivElement>(null)
     const imageCompressionTargetSizeContainerRef = useRef<HTMLDivElement>(null)
     const { fontScale, setFontScale } = useFontScale()
-<<<<<<< HEAD
     const { themePreference, setThemePreference } = useThemePreference()
     const { queueInlinePanelMode, setQueueInlinePanelMode } = useQueueInlinePanel()
     const { codexSendModeDefault, setCodexSendModeDefault } = useCodexSendModePreference()
@@ -240,9 +227,6 @@ export default function SettingsPage() {
         setImageUploadCompressionLevel,
         setImageUploadCompressionTargetSize
     } = useImageUploadCompression()
-=======
-    const { appearance, setAppearance } = useAppearance()
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
 
     // Voice language state - read from localStorage
     const [voiceLanguage, setVoiceLanguage] = useState<string | null>(() => {
@@ -270,13 +254,8 @@ export default function SettingsPage() {
     const pureContextModeEnabled = memory?.pureContextMode ?? false
 
     const fontScaleOptions = getFontScaleOptions()
-    const appearanceOptions = getAppearanceOptions()
     const currentLocale = locales.find((loc) => loc.value === locale)
-<<<<<<< HEAD
     const currentThemeLabel = t(`settings.display.theme.${themePreference}`)
-=======
-    const currentAppearanceLabel = appearanceOptions.find((opt) => opt.value === appearance)?.labelKey ?? 'settings.display.appearance.system'
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
     const currentFontScaleLabel = fontScaleOptions.find((opt) => opt.value === fontScale)?.label ?? '100%'
     const currentVoiceLanguage = voiceLanguages.find((lang) => lang.code === voiceLanguage)
     const currentQueuePanelLabel = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}`)
@@ -442,11 +421,6 @@ export default function SettingsPage() {
         setIsOpen(false)
     }
 
-    const handleAppearanceChange = (pref: AppearancePreference) => {
-        setAppearance(pref)
-        setIsAppearanceOpen(false)
-    }
-
     const handleFontScaleChange = (newScale: FontScale) => {
         setFontScale(newScale)
         setIsFontOpen(false)
@@ -609,7 +583,6 @@ export default function SettingsPage() {
 
     // Close dropdown when clicking outside
     useEffect(() => {
-<<<<<<< HEAD
         if (
             !isOpen &&
             !isThemeOpen &&
@@ -620,21 +593,13 @@ export default function SettingsPage() {
             !isImageCompressionLevelOpen &&
             !isImageCompressionTargetSizeOpen
         ) return
-=======
-        if (!isOpen && !isAppearanceOpen && !isFontOpen && !isVoiceOpen) return
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
 
         const handleClickOutside = (event: MouseEvent) => {
             if (isOpen && containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false)
             }
-<<<<<<< HEAD
             if (isThemeOpen && themeContainerRef.current && !themeContainerRef.current.contains(event.target as Node)) {
                 setIsThemeOpen(false)
-=======
-            if (isAppearanceOpen && appearanceContainerRef.current && !appearanceContainerRef.current.contains(event.target as Node)) {
-                setIsAppearanceOpen(false)
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
             }
             if (isFontOpen && fontContainerRef.current && !fontContainerRef.current.contains(event.target as Node)) {
                 setIsFontOpen(false)
@@ -666,7 +631,6 @@ export default function SettingsPage() {
 
         document.addEventListener('mousedown', handleClickOutside)
         return () => document.removeEventListener('mousedown', handleClickOutside)
-<<<<<<< HEAD
     }, [
         isOpen,
         isThemeOpen,
@@ -690,22 +654,11 @@ export default function SettingsPage() {
             !isImageCompressionLevelOpen &&
             !isImageCompressionTargetSizeOpen
         ) return
-=======
-    }, [isOpen, isAppearanceOpen, isFontOpen, isVoiceOpen])
-
-    // Close on escape key
-    useEffect(() => {
-        if (!isOpen && !isAppearanceOpen && !isFontOpen && !isVoiceOpen) return
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
 
         const handleEscape = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 setIsOpen(false)
-<<<<<<< HEAD
                 setIsThemeOpen(false)
-=======
-                setIsAppearanceOpen(false)
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
                 setIsFontOpen(false)
                 setIsVoiceOpen(false)
                 setIsQueuePanelOpen(false)
@@ -717,7 +670,6 @@ export default function SettingsPage() {
 
         document.addEventListener('keydown', handleEscape)
         return () => document.removeEventListener('keydown', handleEscape)
-<<<<<<< HEAD
     }, [
         isOpen,
         isThemeOpen,
@@ -728,9 +680,6 @@ export default function SettingsPage() {
         isImageCompressionLevelOpen,
         isImageCompressionTargetSizeOpen
     ])
-=======
-    }, [isOpen, isAppearanceOpen, isFontOpen, isVoiceOpen])
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
 
     return (
         <div className="flex h-full flex-col">
@@ -815,7 +764,6 @@ export default function SettingsPage() {
                         <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
                             {t('settings.display.title')}
                         </div>
-<<<<<<< HEAD
                         <div ref={themeContainerRef} className="relative">
                             <button
                                 type="button"
@@ -846,49 +794,13 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleThemePreferenceChange(preference)}
-=======
-                        <div ref={appearanceContainerRef} className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setIsAppearanceOpen(!isAppearanceOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                aria-expanded={isAppearanceOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <span className="text-[var(--app-fg)]">{t('settings.display.appearance')}</span>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{t(currentAppearanceLabel)}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isAppearanceOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
-
-                            {isAppearanceOpen && (
-                                <div
-                                    className="absolute right-3 top-full mt-1 min-w-[160px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
-                                    role="listbox"
-                                    aria-label={t('settings.display.appearance')}
-                                >
-                                    {appearanceOptions.map((opt) => {
-                                        const isSelected = appearance === opt.value
-                                        return (
-                                            <button
-                                                key={opt.value}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleAppearanceChange(opt.value)}
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
                                                 className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
                                                     isSelected
                                                         ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
                                                         : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
                                                 }`}
                                             >
-<<<<<<< HEAD
                                                 <span>{t(`settings.display.theme.${preference}`)}</span>
-=======
-                                                <span>{t(opt.labelKey)}</span>
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
                                                 {isSelected && (
                                                     <span className="ml-2 text-[var(--app-link)]">
                                                         <CheckIcon />

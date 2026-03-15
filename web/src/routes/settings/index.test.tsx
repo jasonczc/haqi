@@ -147,19 +147,8 @@ vi.mock('@/hooks/useFontScale', () => ({
     ],
 }))
 
-<<<<<<< HEAD
 vi.mock('@/hooks/useTheme', () => ({
     useThemePreference: () => ({ themePreference: 'system', setThemePreference: vi.fn() }),
-=======
-// Mock useTheme hook
-vi.mock('@/hooks/useTheme', () => ({
-    useAppearance: () => ({ appearance: 'system', setAppearance: vi.fn() }),
-    getAppearanceOptions: () => [
-        { value: 'system', labelKey: 'settings.display.appearance.system' },
-        { value: 'dark', labelKey: 'settings.display.appearance.dark' },
-        { value: 'light', labelKey: 'settings.display.appearance.light' },
-    ],
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
 }))
 
 // Mock languages
@@ -342,19 +331,4 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.about.protocolVersion')
     })
 
-<<<<<<< HEAD
-=======
-    it('renders the Appearance setting', () => {
-        renderWithProviders(<SettingsPage />)
-        expect(screen.getAllByText('Appearance').length).toBeGreaterThanOrEqual(1)
-        expect(screen.getAllByText('Follow System').length).toBeGreaterThanOrEqual(1)
-    })
-
-    it('uses correct i18n keys for Appearance setting', () => {
-        const spyT = renderWithSpyT(<SettingsPage />)
-        const calledKeys = spyT.mock.calls.map((call) => call[0])
-        expect(calledKeys).toContain('settings.display.appearance')
-        expect(calledKeys).toContain('settings.display.appearance.system')
-    })
->>>>>>> a0c35bc (feat(web): add appearance setting (follow system / dark / light) (#253))
 })
