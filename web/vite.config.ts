@@ -7,7 +7,6 @@ import { createRequire } from 'node:module'
 const require = createRequire(import.meta.url)
 const base = process.env.VITE_BASE_URL || '/'
 const hubTarget = process.env.VITE_HUB_PROXY || 'http://127.0.0.1:3006'
-<<<<<<< HEAD
 
 function getVendorChunkName(id: string): string | undefined {
     if (!id.includes('/node_modules/')) {
@@ -32,8 +31,6 @@ function getVendorChunkName(id: string): string | undefined {
 
     return undefined
 }
-=======
->>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
 
 export default defineConfig({
     define: {

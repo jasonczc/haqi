@@ -386,10 +386,10 @@ export class SessionCache {
             )
         }
 
-<<<<<<< HEAD
         if (oldStored.previewUrl && !newStored.previewUrl) {
             this.store.sessions.setSessionPreviewUrl(newSessionId, oldStored.previewUrl, namespace)
-=======
+        }
+
         if (oldStored.teamState !== null && oldStored.teamStateUpdatedAt !== null) {
             this.store.sessions.setSessionTeamState(
                 newSessionId,
@@ -397,7 +397,6 @@ export class SessionCache {
                 oldStored.teamStateUpdatedAt,
                 namespace
             )
->>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
         }
 
         const deleted = this.store.sessions.deleteSession(oldSessionId, namespace)

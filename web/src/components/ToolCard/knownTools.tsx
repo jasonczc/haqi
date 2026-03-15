@@ -2,11 +2,8 @@ import type { ReactNode } from 'react'
 import type { SessionMetadataSummary } from '@/types/api'
 import { isObject } from '@hapi/protocol'
 import { BulbIcon, ClipboardIcon, EyeIcon, FileDiffIcon, GlobeIcon, MessageSquareIcon, PuzzleIcon, QuestionIcon, RocketIcon, SearchIcon, TerminalIcon, UsersIcon, WrenchIcon } from '@/components/ToolCard/icons'
-<<<<<<< HEAD
 import type { ChecklistItem } from '@/components/ToolCard/checklist'
 import { extractTodoChecklist, extractUpdatePlanChecklist } from '@/components/ToolCard/checklist'
-=======
->>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
 import { basename, resolveDisplayPath } from '@/utils/path'
 import { getInputStringAny, truncate } from '@/lib/toolInputUtils'
 

@@ -9,11 +9,8 @@ import {
     getSessionByNamespace,
     getSessions,
     getSessionsByNamespace,
-<<<<<<< HEAD
     setSessionPreviewUrl,
-=======
     setSessionTeamState,
->>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
     setSessionTodos,
     updateSessionAgentState,
     updateSessionMetadata
@@ -53,17 +50,16 @@ export class SessionStore {
         return setSessionTodos(this.db, id, todos, todosUpdatedAt, namespace)
     }
 
-<<<<<<< HEAD
     setSessionPreviewUrl(id: string, previewUrl: string | null, namespace: string): boolean {
         return setSessionPreviewUrl(this.db, id, previewUrl, namespace)
     }
 
     getPreviewUrlHistory(namespace: string, limit?: number): PreviewUrlHistoryEntry[] {
         return getPreviewUrlHistory(this.db, namespace, limit)
-=======
+    }
+
     setSessionTeamState(id: string, teamState: unknown, updatedAt: number, namespace: string): boolean {
         return setSessionTeamState(this.db, id, teamState, updatedAt, namespace)
->>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
     }
 
     getSession(id: string): StoredSession | null {

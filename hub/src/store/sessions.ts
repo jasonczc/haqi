@@ -195,7 +195,6 @@ export function setSessionTodos(
     }
 }
 
-<<<<<<< HEAD
 export function setSessionPreviewUrl(
     db: Database,
     id: string,
@@ -224,7 +223,11 @@ export function setSessionPreviewUrl(
         }
 
         return true
-=======
+    } catch {
+        return false
+    }
+}
+
 export function setSessionTeamState(
     db: Database,
     id: string,
@@ -252,13 +255,11 @@ export function setSessionTeamState(
         })
 
         return result.changes === 1
->>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
     } catch {
         return false
     }
 }
 
-<<<<<<< HEAD
 export function savePreviewUrlHistory(db: Database, namespace: string, url: string): boolean {
     const trimmed = url.trim()
     if (!trimmed) {
@@ -311,8 +312,6 @@ export function getPreviewUrlHistory(
     }))
 }
 
-=======
->>>>>>> 06b71db (feat: Add Claude Code Agent Teams support (#258))
 export function getSession(db: Database, id: string): StoredSession | null {
     const row = db.prepare('SELECT * FROM sessions WHERE id = ?').get(id) as DbSessionRow | undefined
     return row ? toStoredSession(row) : null
