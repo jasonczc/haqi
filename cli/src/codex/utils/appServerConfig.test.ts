@@ -101,7 +101,6 @@ Only respond in Chinese.`);
 Only respond in Chinese.`
         });
     });
-    });
 
     it('builds turn params with mode defaults', () => {
         const params = buildTurnStartParams({

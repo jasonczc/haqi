@@ -947,11 +947,6 @@ export class Store {
         return new Set(rows.map((row) => row.name))
     }
 
-    private getSessionColumnNames(): Set<string> {
-        const rows = this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>
-        return new Set(rows.map((row) => row.name))
-    }
-
     private getGroupMessageColumnNames(): Set<string> {
         const rows = this.db.prepare('PRAGMA table_info(group_messages)').all() as Array<{ name: string }>
         return new Set(rows.map((row) => row.name))

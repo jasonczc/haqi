@@ -54,7 +54,8 @@
     "dev": "bun src/index.ts",
     "dev:local-server": "bun --env-file .env.dev-local-server src/index.ts",
     "dev:integration-test-env": "bun --env-file .env.integration-test src/index.ts",
-    "release-all": "bun run scripts/release-all.ts"
+    "release-all": "bun run scripts/release-all.ts",
+    "build": "tsc --noEmit"
   },
   "dependencies": {
     "@hapi/protocol": "workspace:*",

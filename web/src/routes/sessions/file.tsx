@@ -24,7 +24,6 @@ const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
     ico: 'image/x-icon'
 }
 
-const MAX_COPYABLE_FILE_BYTES = 1_000_000
 
 function decodePath(value: string): string {
     if (!value) return ''

@@ -51,7 +51,7 @@ describe('listSkills', () => {
         if (originalCodexHome === undefined) {
             delete process.env.CODEX_HOME;
         } else {
-            process.env.HOME = originalHome
+            process.env.CODEX_HOME = originalCodexHome;
         }
 
         await rm(sandboxDir, { recursive: true, force: true });

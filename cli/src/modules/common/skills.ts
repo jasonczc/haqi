@@ -116,7 +116,18 @@ async function listTopLevelSkillDirs(skillsRoot: string): Promise<string[]> {
         const result: string[] = [];
 
         for (const entry of entries) {
-            if (!entry.isDirectory() || entry.name.startsWith('.')) {
+            if (!entry.isDirectory()) {
+                continue;
+            }
+
+            if (entry.name === '.system') {
+                const systemRoot = join(skillsRoot, entry.name);
+                const systemEntries = await readdir(systemRoot, { withFileTypes: true });
+                for (const systemEntry of systemEntries) {
+                    if (systemEntry.isDirectory()) {
+                        result.push(join(systemRoot, systemEntry.name));
+                    }
+                }
                 continue;
             }
 
@@ -133,15 +144,43 @@ async function listTopLevelSkillDirs(skillsRoot: string): Promise<string[]> {
     }
 }
 
+async function readSkillSummaryFromDir(skillDir: string): Promise<SkillSummary | null> {
+    const directFilePath = join(skillDir, 'SKILL.md');
+    try {
+        const directFileContent = await readFile(directFilePath, 'utf-8');
+        return extractSkillSummary(skillDir, directFileContent);
+    } catch {
+        // ignore
+    }
+
+    try {
+        const entries = await readdir(skillDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isDirectory() || entry.name.startsWith('.')) {
+                continue;
+            }
+            const nestedSkillDir = join(skillDir, entry.name);
+            const nestedFilePath = join(nestedSkillDir, 'SKILL.md');
+            try {
+                await access(nestedFilePath);
+                return {
+                    name: basename(skillDir),
+                    description: undefined,
+                };
+            } catch {
+                // ignore
+            }
+        }
+    } catch {
+        // ignore
+    }
+
+    return null;
+}
+
 async function readSkillsFromDirs(skillDirs: string[]): Promise<SkillSummary[]> {
     const skills = await Promise.all(skillDirs.map(async (dir): Promise<SkillSummary | null> => {
-        const filePath = join(dir, 'SKILL.md');
-        try {
-            const fileContent = await readFile(filePath, 'utf-8');
-            return extractSkillSummary(dir, fileContent);
-        } catch {
-            return null;
-        }
+        return await readSkillSummaryFromDir(dir);
     }));
 
     return skills.filter((skill): skill is SkillSummary => skill !== null);

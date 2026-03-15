@@ -300,7 +300,7 @@ describe('AppServerEventConverter', () => {
         const converter = new AppServerEventConverter();
 
         expect(converter.handleNotification('item/reasoning/textDelta', { itemId: 'r1', delta: 'Hello ' }))
-            .toEqual([{ type: 'agent_reasoning_delta', delta: 'Hello ' }]);
+            .toEqual([{ type: 'agent_reasoning_delta', item_id: 'r1', delta: 'Hello ' }]);
         expect(converter.handleNotification('item/reasoning/textDelta', { itemId: 'r1', delta: 'Hello ' }))
             .toEqual([]);
         converter.handleNotification('item/reasoning/textDelta', { itemId: 'r1', delta: 'world' });
@@ -316,7 +316,7 @@ describe('AppServerEventConverter', () => {
         const converter = new AppServerEventConverter();
 
         const events = converter.handleNotification('item/reasoning/summaryTextDelta', { itemId: 'r1', delta: 'step' });
-        expect(events).toEqual([{ type: 'agent_reasoning_delta', delta: 'step' }]);
+        expect(events).toEqual([{ type: 'agent_reasoning_delta', item_id: 'r1', delta: 'step' }]);
     });
 
     it('deduplicates repeated reasoning completions for the same item', () => {
@@ -415,7 +415,7 @@ describe('AppServerEventConverter', () => {
             msg: { type: 'agent_reasoning', item_id: 'r1', text: 'Plan' }
         });
 
-        expect(section).toEqual([{ type: 'agent_reasoning_section_break' }]);
+        expect(section).toEqual([{ type: 'agent_reasoning_section_break', item_id: 'r1' }]);
         expect(delta).toEqual([]);
         expect(reasoning).toEqual([]);
     });
@@ -431,7 +431,7 @@ describe('AppServerEventConverter', () => {
             summaryIndex: 0
         });
 
-        expect(wrapped).toEqual([{ type: 'agent_reasoning_section_break' }]);
+        expect(wrapped).toEqual([{ type: 'agent_reasoning_section_break', item_id: 'r1', summary_index: 0 }]);
         expect(direct).toEqual([]);
     });
 

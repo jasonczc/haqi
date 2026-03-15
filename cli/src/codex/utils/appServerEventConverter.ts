@@ -646,16 +646,14 @@ export class AppServerEventConverter {
                     if (this.completedReasoningItems.has(itemId)) {
                         return events;
                     }
-                    const summary = joinStringParts(item.summary) ?? this.reasoningSummaryBuffers.get(itemId);
+                    const summary = joinStringParts(item.summary)
+                        ?? joinStringParts(item.summary_text ?? item.summaryText)
+                        ?? this.reasoningSummaryBuffers.get(itemId);
                     const content = joinStringParts(item.content)
-                        ?? extractReasoningText(item)
+                        ?? asString(item.text ?? item.message)
                         ?? this.reasoningContentBuffers.get(itemId);
 
-                    const text = summary && content && summary !== content
-                        ? `${summary}
-
-${content}`
-                        : (summary ?? content);
+                    const text = summary ?? content;
 
                     if (text) {
                         events.push({ type: 'agent_reasoning', text });
