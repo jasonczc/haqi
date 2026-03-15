@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CLAUDE_THINK_EFFORT_OPTIONS, CODEX_SERVICE_TIER_OPTIONS, CODEX_THINK_EFFORT_OPTIONS, MODEL_OPTIONS } from './types'
+import { CLAUDE_THINK_EFFORT_OPTIONS, CODEX_SERVICE_TIER_OPTIONS, CODEX_THINK_EFFORT_OPTIONS, MODEL_OPTIONS, getModelOptionsForAgent } from './types'
 
 describe('NewSession model options', () => {
     it('uses fixed Claude model presets', () => {
@@ -39,4 +39,14 @@ describe('NewSession model options', () => {
         const serviceTiers = CODEX_SERVICE_TIER_OPTIONS.map((option) => option.value)
         expect(serviceTiers).toEqual(['auto', 'fast', 'flex'])
     })
+})
+
+
+it('filters model options by agent flavor', () => {
+    const claudeValues = getModelOptionsForAgent('claude').map((option) => option.value)
+    const codexValues = getModelOptionsForAgent('codex').map((option) => option.value)
+
+    expect(claudeValues.every((value) => value === 'auto' || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.'))).toBe(true)
+    expect(claudeValues).not.toContain('gpt-5.4')
+    expect(codexValues.filter((value) => value === 'gpt-5.4')).toHaveLength(1)
 })

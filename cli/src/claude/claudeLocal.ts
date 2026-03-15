@@ -10,6 +10,32 @@ import { spawnWithAbort } from "@/utils/spawnWithAbort";
 import { getHapiBlobsDir } from "@/constants/uploadPaths";
 import { stripNewlinesForWindowsShellArg } from "@/utils/shellEscape";
 import { getDefaultClaudeCodePath } from "./sdk/utils";
+import { readSettings } from "@/persistence";
+
+function shellQuote(value: string): string {
+    if (value.length === 0) {
+        return '""';
+    }
+
+    if (/^[A-Za-z0-9_\/:.,=@%+-]+$/.test(value)) {
+        return value;
+    }
+
+    return '"' + value.replace(/(["\\$`])/g, '\\$1') + '"';
+}
+
+function shellJoin(parts: string[]): string {
+    return parts.map(shellQuote).join(' ');
+}
+
+async function isExperimentalClaudeLoginShellEnabled(): Promise<boolean> {
+    try {
+        const settings = await readSettings();
+        return settings.experimentalClaudeLoginShell === true;
+    } catch {
+        return false;
+    }
+}
 
 export async function claudeLocal(opts: {
     abort: AbortSignal,
@@ -88,16 +114,24 @@ export async function claudeLocal(opts: {
 
     logger.debug(`[ClaudeLocal] Spawning claude with args: ${JSON.stringify(args)}`);
 
-    // Get Claude executable path (absolute path on Windows for shell: false)
+    const useExperimentalLoginShell = process.platform !== 'win32' && await isExperimentalClaudeLoginShellEnabled();
+
+    // Get Claude executable path
     const claudeCommand = getDefaultClaudeCodePath();
+    const shellClaudeCommand = process.env.HAPI_CLAUDE_PATH || 'claude';
     logger.debug(`[ClaudeLocal] Using claude executable: ${claudeCommand}`);
+    logger.debug(`[ClaudeLocal] Experimental login shell enabled: ${useExperimentalLoginShell}`);
 
     // Spawn the process
     try {
         process.stdin.pause();
+        const spawnCommand = useExperimentalLoginShell ? '/bin/zsh' : claudeCommand;
+        const spawnArgs = useExperimentalLoginShell
+            ? ['-lc', shellJoin([shellClaudeCommand, ...args])]
+            : args;
         await spawnWithAbort({
-            command: claudeCommand,
-            args,
+            command: spawnCommand,
+            args: spawnArgs,
             cwd: opts.path,
             env: withBunRuntimeEnv(env, { allowBunBeBun: false }),
             signal: opts.abort,
@@ -106,7 +140,7 @@ export async function claudeLocal(opts: {
             installHint: 'Claude CLI',
             includeCause: true,
             logExit: true,
-            shell: false  // Use absolute path, no shell needed
+            shell: false
         });
     } finally {
         cleanupMcpConfig?.();

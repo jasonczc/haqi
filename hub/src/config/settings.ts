@@ -9,6 +9,7 @@ export interface Settings {
     cliApiToken?: string
     memoryInjectionEnabled?: boolean
     pureContextMode?: boolean
+    experimentalClaudeLoginShell?: boolean
     vapidKeys?: {
         publicKey: string
         privateKey: string

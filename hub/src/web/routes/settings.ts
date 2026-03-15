@@ -1,12 +1,27 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 
+import { configuration } from '../../configuration'
+import { readSettingsOrThrow, writeSettings } from '../../config/settings'
 import type { Store } from '../../store'
 import type { WebAppEnv } from '../middleware/auth'
 
 const updateProjectOfflineSchema = z.object({
     directories: z.array(z.string()).max(500)
 })
+
+const updateExperimentalSettingsSchema = z.object({
+    claudeLoginShell: z.boolean().optional()
+}).superRefine((value, ctx) => {
+    if (value.claudeLoginShell === undefined) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'claudeLoginShell must be provided'
+        })
+    }
+})
+
+const DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL = false
 
 function normalizeDirectories(directories: string[]): string[] {
     const seen = new Set<string>()
@@ -24,6 +39,44 @@ function normalizeDirectories(directories: string[]): string[] {
 
 export function createSettingsRoutes(store: Store): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
+
+    app.get('/settings/experimental', async (c) => {
+        try {
+            const settings = await readSettingsOrThrow(configuration.settingsFile)
+            return c.json({
+                settings: {
+                    claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL
+                }
+            })
+        } catch (error) {
+            return c.json({
+                error: error instanceof Error ? error.message : 'Failed to load experimental settings'
+            }, 500)
+        }
+    })
+
+    app.patch('/settings/experimental', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        const parsed = updateExperimentalSettingsSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        try {
+            const settings = await readSettingsOrThrow(configuration.settingsFile)
+            settings.experimentalClaudeLoginShell = parsed.data.claudeLoginShell
+            await writeSettings(configuration.settingsFile, settings)
+            return c.json({
+                settings: {
+                    claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL
+                }
+            })
+        } catch (error) {
+            return c.json({
+                error: error instanceof Error ? error.message : 'Failed to update experimental settings'
+            }, 500)
+        }
+    })
 
     app.get('/settings/project-offline', (c) => {
         try {

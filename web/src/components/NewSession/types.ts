@@ -46,8 +46,6 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
         { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
     ],
     codex: [
-        { value: 'gpt-5.4', label: 'GPT-5.4' },
-        { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
         { value: 'auto', label: 'Auto' },
         { value: 'gpt-5.4', label: 'GPT-5.4' },
         { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
@@ -68,4 +66,31 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
         { value: 'manual', label: 'Manual' },
     ],
     opencode: [],
+}
+
+function isModelOptionAllowedForAgent(agent: AgentType, value: string): boolean {
+    if (agent === 'claude') {
+        return value === 'auto' || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.')
+    }
+    if (agent === 'codex') {
+        return value === 'auto' || value.startsWith('gpt-')
+    }
+    if (agent === 'gemini') {
+        return value === 'manual' || value.startsWith('auto-gemini-')
+    }
+    return true
+}
+
+export function getModelOptionsForAgent(agent: AgentType): ModelOption[] {
+    const options = MODEL_OPTIONS[agent] ?? []
+    const deduped = new Map<string, ModelOption>()
+    for (const option of options) {
+        if (!isModelOptionAllowedForAgent(agent, option.value)) {
+            continue
+        }
+        if (!deduped.has(option.value)) {
+            deduped.set(option.value, option)
+        }
+    }
+    return [...deduped.values()]
 }

@@ -358,6 +358,14 @@ export type UpdateMemoryResponse = {
     memory: GlobalMemory
 }
 
+export type ExperimentalSettings = {
+    claudeLoginShell: boolean
+}
+
+export type ExperimentalSettingsResponse = {
+    settings: ExperimentalSettings
+}
+
 export type ReportDomainSettings = {
     value: string
     source: 'env' | 'file' | 'default'

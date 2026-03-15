@@ -14,6 +14,7 @@ import {
     CLAUDE_THINK_EFFORT_OPTIONS,
     CODEX_THINK_EFFORT_OPTIONS,
     MODEL_OPTIONS,
+    getModelOptionsForAgent,
     getThinkEffortOptions,
     type AgentType,
     type ThinkEffort,
@@ -77,9 +78,9 @@ export function NewSession(props: {
     const lastSessionConfig = loadLastSessionConfig()
     const initialAgent = lastSessionConfig?.agent ?? loadPreferredAgent()
     const initialModel = (
-        lastSessionConfig?.model && MODEL_OPTIONS[initialAgent].some((option) => option.value === lastSessionConfig.model)
+        lastSessionConfig?.model && getModelOptionsForAgent(initialAgent).some((option) => option.value === lastSessionConfig.model)
             ? lastSessionConfig.model
-            : (loadPreferredModel(initialAgent) ?? (MODEL_OPTIONS[initialAgent][0]?.value ?? 'auto'))
+            : (loadPreferredModel(initialAgent) ?? (getModelOptionsForAgent(initialAgent)[0]?.value ?? 'auto'))
     )
     const initialThinkEffort = (
         lastSessionConfig?.thinkEffort && getThinkEffortOptions(initialAgent).some((option) => option.value === lastSessionConfig.thinkEffort)
@@ -124,7 +125,7 @@ export function NewSession(props: {
     }, [sessionType])
 
     useEffect(() => {
-        setModel(loadPreferredModel(agent) ?? (MODEL_OPTIONS[agent][0]?.value ?? 'auto'))
+        setModel(loadPreferredModel(agent) ?? (getModelOptionsForAgent(agent)[0]?.value ?? 'auto'))
         setCustomModel(loadPreferredCustomModel(agent))
         setThinkEffort(loadPreferredThinkEffort(agent) ?? getDefaultThinkEffort(agent))
         setServiceTier(loadPreferredServiceTier(agent) ?? 'auto')
@@ -163,7 +164,7 @@ export function NewSession(props: {
     )
 
     const modelOptions = useMemo(() => {
-        return MODEL_OPTIONS[agent]
+        return getModelOptionsForAgent(agent)
     }, [agent])
     const defaultModelValue = modelOptions[0]?.value ?? 'auto'
 
