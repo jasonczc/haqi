@@ -251,6 +251,7 @@ export class SDKToLogConverter {
         this.sidechainLastUUID.set(toolUseId, uuid);
         return {
             parentUuid: null,
+            sidechainToolUseId: toolUseId,
             isSidechain: true,
             userType: 'external' as const,
             cwd: this.context.cwd,

@@ -47,6 +47,14 @@ export class ApiSessionClient extends EventEmitter {
     private backfillInFlight: Promise<void> | null = null
     private needsBackfill = false
     private hasConnectedOnce = false
+    private lastKeepAliveState: {
+        thinking: boolean
+        mode: 'local' | 'remote'
+        runtime?: { permissionMode?: SessionPermissionMode; modelMode?: SessionModelMode }
+    } = {
+        thinking: false,
+        mode: 'local'
+    }
     readonly rpcHandlerManager: RpcHandlerManager
     private readonly terminalManager: TerminalManager
     private agentStateLock = new AsyncLock()
@@ -107,7 +115,9 @@ export class ApiSessionClient extends EventEmitter {
             this.socket.emit('session-alive', {
                 sid: this.sessionId,
                 time: Date.now(),
-                thinking: false
+                thinking: this.lastKeepAliveState.thinking,
+                mode: this.lastKeepAliveState.mode,
+                ...(this.lastKeepAliveState.runtime ?? {})
             })
         })
 
@@ -449,6 +459,11 @@ export class ApiSessionClient extends EventEmitter {
         mode: 'local' | 'remote',
         runtime?: { permissionMode?: SessionPermissionMode; modelMode?: SessionModelMode }
     ): void {
+        this.lastKeepAliveState = {
+            thinking,
+            mode,
+            runtime
+        }
         this.socket.volatile.emit('session-alive', {
             sid: this.sessionId,
             time: Date.now(),
@@ -461,6 +476,13 @@ export class ApiSessionClient extends EventEmitter {
     sendSessionDeath(): void {
         void cleanupUploadDir(this.sessionId)
         this.socket.emit('session-end', { sid: this.sessionId, time: Date.now() })
+    }
+
+    updateTeamState(teamState: unknown | null): void {
+        this.socket.emit('update-team-state', {
+            sid: this.sessionId,
+            teamState
+        })
     }
 
     getCurrentSummaryText(): string | null {

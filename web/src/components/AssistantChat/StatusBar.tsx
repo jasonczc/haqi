@@ -40,6 +40,8 @@ function getConnectionStatus(
     t: (key: string) => string
 ): { text: string; color: string; dotColor: string; isPulsing: boolean } {
     const hasPermissions = agentState?.requests && Object.keys(agentState.requests).length > 0
+    const runningAgents = agentState?.runningAgents ?? (agentState?.runningAgent ? [agentState.runningAgent] : [])
+    const runningAgent = runningAgents[runningAgents.length - 1] ?? null
 
     // Voice connecting takes priority
     if (voiceStatus === 'connecting') {
@@ -70,7 +72,12 @@ function getConnectionStatus(
     }
 
     if (thinking) {
-        const vibingMessage = VIBING_MESSAGES[Math.floor(Math.random() * VIBING_MESSAGES.length)].toLowerCase() + '…'
+        const agentName = typeof runningAgent?.name === 'string' ? runningAgent.name.trim() : ''
+        const vibingMessage = runningAgents.length > 1
+            ? `Running ${runningAgents.length} agents…`
+            : agentName.length > 0
+                ? `Running ${agentName}…`
+                : VIBING_MESSAGES[Math.floor(Math.random() * VIBING_MESSAGES.length)].toLowerCase() + '…'
         return {
             text: vibingMessage,
             color: 'text-[#007AFF]',
@@ -134,6 +141,7 @@ export function StatusBar(props: {
     )
 
     const permissionMode = props.permissionMode
+    const runningAgents = props.agentState?.runningAgents ?? (props.agentState?.runningAgent ? [props.agentState.runningAgent] : [])
     const displayPermissionMode = permissionMode
         && permissionMode !== 'default'
         && isPermissionModeAllowedForFlavor(permissionMode, props.agentFlavor)
@@ -152,8 +160,8 @@ export function StatusBar(props: {
         : null
 
     return (
-        <div className="flex items-center justify-between px-2 pb-1">
-            <div className="flex items-baseline gap-3">
+        <div className="flex items-start justify-between gap-3 px-2 pb-1">
+            <div className="flex min-w-0 flex-col gap-1">
                 <div className="flex items-center gap-1.5">
                     <span
                         className={`h-2 w-2 rounded-full ${connectionStatus.dotColor} ${connectionStatus.isPulsing ? 'animate-pulse' : ''}`}
@@ -167,9 +175,25 @@ export function StatusBar(props: {
                         </span>
                     ) : null}
                 </div>
+                {runningAgents.length > 1 ? (
+                    <div className="flex flex-wrap gap-1 pl-3.5">
+                        {runningAgents.map((agent, index) => {
+                            const label = agent.task ? `${agent.name}: ${agent.task}` : agent.name
+                            return (
+                                <span
+                                    key={`${agent.name}:${agent.startedAt ?? index}`}
+                                    className="max-w-[220px] truncate rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                    title={label}
+                                >
+                                    {label}
+                                </span>
+                            )
+                        })}
+                    </div>
+                ) : null}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
                 {contextWarning ? (
                     <span className={`text-[10px] ${contextWarning.color}`}>
                         {contextWarning.text}

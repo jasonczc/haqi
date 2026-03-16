@@ -1,8 +1,7 @@
 /**
- * Dedicated HTTP server for receiving Claude session hooks.
+ * Dedicated HTTP server for receiving Claude hooks.
  *
- * This server receives notifications from Claude when sessions change
- * (new session, resume, compact, fork, etc.) via the SessionStart hook.
+ * Receives lifecycle notifications for session, subagent, and team-task events.
  */
 
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
@@ -18,13 +17,23 @@ export interface SessionHookData {
     transcript_path?: string;
     cwd?: string;
     hook_event_name?: string;
+    agent_id?: string;
+    agent_type?: string;
+    agent_name?: string;
+    task_id?: string;
+    task_status?: string;
+    task_title?: string;
+    task_subject?: string;
+    team_name?: string;
+    teammate_name?: string;
+    agent_transcript_path?: string;
     source?: string;
     [key: string]: unknown;
 }
 
 export interface HookServerOptions {
-    /** Called when a session hook is received with a valid session ID. */
-    onSessionHook: (sessionId: string, data: SessionHookData) => void;
+    /** Called when a Claude hook is received with a valid session ID. */
+    onClaudeHook: (sessionId: string, data: SessionHookData) => void;
     /** Optional token to require for hook requests. */
     token?: string;
 }
@@ -50,13 +59,13 @@ function readHookToken(req: IncomingMessage): string | null {
  * Start a dedicated HTTP server for receiving Claude session hooks.
  */
 export async function startHookServer(options: HookServerOptions): Promise<HookServer> {
-    const { onSessionHook } = options;
+    const { onClaudeHook } = options;
     const hookToken = options.token || randomBytes(16).toString('hex');
 
     return new Promise((resolve, reject) => {
         const server: Server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
             const requestPath = req.url?.split('?')[0];
-            if (req.method === 'POST' && requestPath === '/hook/session-start') {
+            if (req.method === 'POST' && (requestPath === '/hook/session-start' || requestPath === '/hook/claude')) {
                 const providedToken = readHookToken(req);
                 if (providedToken !== hookToken) {
                     logger.debug('[hookServer] Unauthorized hook request');
@@ -106,8 +115,8 @@ export async function startHookServer(options: HookServerOptions): Promise<HookS
 
                     const sessionId = data.session_id || data.sessionId;
                     if (sessionId) {
-                        logger.debug(`[hookServer] Session hook received session ID: ${sessionId}`);
-                        onSessionHook(sessionId, data);
+                        logger.debug(`[hookServer] Claude hook received session ID: ${sessionId}`);
+                        onClaudeHook(sessionId, data);
                     } else {
                         logger.debug('[hookServer] Session hook received but no session_id found in data');
                         res.writeHead(422, { 'Content-Type': 'text/plain' }).end('missing session_id');

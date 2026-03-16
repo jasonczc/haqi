@@ -12,6 +12,7 @@ import { PLAN_FAKE_REJECT } from "./sdk/prompts";
 import { EnhancedMode } from "./loop";
 import { OutgoingMessageQueue } from "./utils/OutgoingMessageQueue";
 import { parseTodoWritePlanUpdate } from "./utils/todoPlan";
+import { extractRunningAgentFromTaskInput } from "./utils/runningAgentState";
 import type { ClaudePermissionMode } from "@hapi/protocol/types";
 import {
     RemoteLauncherBase,
@@ -116,7 +117,10 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
         session.addSessionFoundCallback(handleSessionFound);
 
         let planModeToolCalls = new Set<string>();
-        let ongoingToolCalls = new Map<string, { parentToolCallId: string | null }>();
+        let ongoingToolCalls = new Map<string, {
+            parentToolCallId: string | null;
+            name: string | null;
+        }>();
 
         function onMessage(message: SDKMessage) {
             formatClaudeMessageForInk(message, messageBuffer);
@@ -140,9 +144,19 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                     for (let c of umessage.message.content) {
                         if (c.type === 'tool_use') {
                             logger.debug('[remote]: detected tool use ' + c.id! + ' parent: ' + umessage.parent_tool_use_id);
-                            ongoingToolCalls.set(c.id!, { parentToolCallId: umessage.parent_tool_use_id ?? null });
+                            const rawToolName = typeof c.name === 'string' ? c.name.trim() : '';
+                            ongoingToolCalls.set(c.id!, {
+                                parentToolCallId: umessage.parent_tool_use_id ?? null,
+                                name: rawToolName || null
+                            });
 
-                            const toolName = typeof c.name === 'string' ? c.name.trim().toLowerCase() : '';
+                            const toolName = rawToolName.toLowerCase();
+                            if (toolName === 'task') {
+                                const runningAgent = extractRunningAgentFromTaskInput((c as { input?: unknown }).input, c.id!);
+                                if (runningAgent) {
+                                    session.setRunningAgent(c.id!, runningAgent);
+                                }
+                            }
                             if (toolName === 'todowrite') {
                                 const planUpdate = parseTodoWritePlanUpdate((c as { input?: unknown }).input);
                                 if (planUpdate) {
@@ -161,7 +175,14 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                 if (umessage.message.content && Array.isArray(umessage.message.content)) {
                     for (let c of umessage.message.content) {
                         if (c.type === 'tool_result' && c.tool_use_id) {
+                            const ongoing = ongoingToolCalls.get(c.tool_use_id);
                             ongoingToolCalls.delete(c.tool_use_id);
+                            if (ongoing?.name?.trim().toLowerCase() === 'task') {
+                                session.setRunningAgent(c.tool_use_id, null);
+                                if (!session.getRunningAgent() && !session.thinking && session.queue.size() === 0) {
+                                    session.client.sendSessionEvent({ type: 'ready' });
+                                }
+                            }
                             messageQueue.releaseToolCall(c.tool_use_id);
                         }
                     }
@@ -377,7 +398,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                             session.clearSessionId();
                         },
                         onReady: () => {
-                            if (!pending && session.queue.size() === 0) {
+                            if (!pending && session.queue.size() === 0 && !session.getRunningAgent()) {
                                 session.client.sendSessionEvent({ type: 'ready' });
                             }
                         },
@@ -406,6 +427,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                         }
                     }
                     ongoingToolCalls.clear();
+                    session.clearRunningAgents();
 
                     logger.debug('[remote]: flushing message queue');
                     await messageQueue.flush();

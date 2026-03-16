@@ -464,4 +464,111 @@ describe('AppServerEventConverter', () => {
 
         expect(events).toEqual([{ type: 'task_failed', error: 'fatal' }]);
     });
+
+    it('uses item.text over buffered delta in plan completed event', () => {
+        const converter = new AppServerEventConverter();
+
+        converter.handleNotification('item/plan/delta', { itemId: 'plan-1', delta: 'buffered text' });
+
+        const completed = converter.handleNotification('item/completed', {
+            item: { id: 'plan-1', type: 'plan', text: 'final text from item' }
+        });
+
+        expect(completed).toEqual([{
+            type: 'tool_call_end',
+            call_id: 'plan-1',
+            name: 'ExitPlanMode',
+            output: { text: 'final text from item' }
+        }]);
+    });
+
+    it('propagates status field in plan item started and completed events', () => {
+        const converter = new AppServerEventConverter();
+
+        const started = converter.handleNotification('item/started', {
+            item: { id: 'plan-2', type: 'plan', status: 'approved' }
+        });
+
+        expect(started).toEqual([{
+            type: 'tool_call_begin',
+            call_id: 'plan-2',
+            name: 'ExitPlanMode',
+            input: { status: 'approved' }
+        }]);
+
+        const completed = converter.handleNotification('item/completed', {
+            item: { id: 'plan-2', type: 'plan', status: 'approved' }
+        });
+
+        expect(completed).toEqual([{
+            type: 'tool_call_end',
+            call_id: 'plan-2',
+            name: 'ExitPlanMode',
+            output: { status: 'approved' }
+        }]);
+    });
+
+    it('does not cross-contaminate buffers between different plan items', () => {
+        const converter = new AppServerEventConverter();
+
+        converter.handleNotification('item/plan/delta', { itemId: 'plan-a', delta: 'alpha' });
+        converter.handleNotification('item/plan/delta', { itemId: 'plan-b', delta: 'beta' });
+
+        const startedA = converter.handleNotification('item/started', {
+            item: { id: 'plan-a', type: 'plan' }
+        });
+        const startedB = converter.handleNotification('item/started', {
+            item: { id: 'plan-b', type: 'plan' }
+        });
+
+        expect(startedA).toEqual([{
+            type: 'tool_call_begin',
+            call_id: 'plan-a',
+            name: 'ExitPlanMode',
+            input: { text: 'alpha' }
+        }]);
+
+        expect(startedB).toEqual([{
+            type: 'tool_call_begin',
+            call_id: 'plan-b',
+            name: 'ExitPlanMode',
+            input: { text: 'beta' }
+        }]);
+    });
+
+    it('handles plan delta without prior started event', () => {
+        const converter = new AppServerEventConverter();
+
+        const delta = converter.handleNotification('item/plan/delta', { itemId: 'plan-3', delta: 'early' });
+        expect(delta).toEqual([{ type: 'plan_delta', item_id: 'plan-3', delta: 'early' }]);
+
+        const completed = converter.handleNotification('item/completed', {
+            item: { id: 'plan-3', type: 'plan' }
+        });
+
+        expect(completed).toEqual([{
+            type: 'tool_call_end',
+            call_id: 'plan-3',
+            name: 'ExitPlanMode',
+            output: { text: 'early' }
+        }]);
+    });
+
+    it('clears plan buffers on reset', () => {
+        const converter = new AppServerEventConverter();
+
+        converter.handleNotification('item/plan/delta', { itemId: 'plan-4', delta: 'old data' });
+        converter.reset();
+
+        const started = converter.handleNotification('item/started', {
+            item: { id: 'plan-4', type: 'plan' }
+        });
+
+        expect(started).toEqual([{
+            type: 'tool_call_begin',
+            call_id: 'plan-4',
+            name: 'ExitPlanMode',
+            input: {}
+        }]);
+    });
 });

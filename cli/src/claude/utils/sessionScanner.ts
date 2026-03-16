@@ -20,11 +20,13 @@ export async function createSessionScanner(opts: {
     sessionId: string | null;
     workingDirectory: string;
     onMessage: (message: RawJSONLines) => void;
+    onSeedMessages?: (messages: RawJSONLines[]) => void;
 }) {
     const scanner = new ClaudeSessionScanner({
         sessionId: opts.sessionId,
         workingDirectory: opts.workingDirectory,
-        onMessage: opts.onMessage
+        onMessage: opts.onMessage,
+        onSeedMessages: opts.onSeedMessages
     });
 
     await scanner.start();
@@ -45,15 +47,22 @@ export type SessionScanner = ReturnType<typeof createSessionScanner>;
 class ClaudeSessionScanner extends BaseSessionScanner<RawJSONLines> {
     private readonly projectDir: string;
     private readonly onMessage: (message: RawJSONLines) => void;
+    private readonly onSeedMessages?: (messages: RawJSONLines[]) => void;
     private readonly finishedSessions = new Set<string>();
     private readonly pendingSessions = new Set<string>();
     private currentSessionId: string | null;
     private readonly scannedSessions = new Set<string>();
 
-    constructor(opts: { sessionId: string | null; workingDirectory: string; onMessage: (message: RawJSONLines) => void }) {
+    constructor(opts: {
+        sessionId: string | null;
+        workingDirectory: string;
+        onMessage: (message: RawJSONLines) => void;
+        onSeedMessages?: (messages: RawJSONLines[]) => void;
+    }) {
         super({ intervalMs: 3000 });
         this.projectDir = getProjectPath(opts.workingDirectory);
         this.onMessage = opts.onMessage;
+        this.onSeedMessages = opts.onSeedMessages;
         this.currentSessionId = opts.sessionId;
     }
 
@@ -84,6 +93,7 @@ class ClaudeSessionScanner extends BaseSessionScanner<RawJSONLines> {
         }
         const sessionFile = this.sessionFilePath(this.currentSessionId);
         const { events, totalLines } = await readSessionLog(sessionFile, 0);
+        this.onSeedMessages?.(events.map((entry) => entry.event));
         logger.debug(`[SESSION_SCANNER] Marking ${events.length} existing messages as processed from session ${this.currentSessionId}`);
         const keys = events.map((entry) => messageKey(entry.event));
         this.seedProcessedKeys(keys);

@@ -7,6 +7,7 @@ export type TracedMessage = NormalizedMessage & {
 
 type TracerState = {
     promptToTaskId: Map<string, string>
+    toolUseIdToTaskId: Map<string, string>
     uuidToSidechainId: Map<string, string>
     orphanMessages: Map<string, NormalizedMessage[]>
 }
@@ -52,6 +53,7 @@ function processOrphans(state: TracerState, parentUuid: string, sidechainId: str
 export function traceMessages(messages: NormalizedMessage[]): TracedMessage[] {
     const state: TracerState = {
         promptToTaskId: new Map(),
+        toolUseIdToTaskId: new Map(),
         uuidToSidechainId: new Map(),
         orphanMessages: new Map()
     }
@@ -63,6 +65,7 @@ export function traceMessages(messages: NormalizedMessage[]): TracedMessage[] {
         if (message.role !== 'agent') continue
         for (const content of message.content) {
             if (content.type !== 'tool-call' || content.name !== 'Task') continue
+            state.toolUseIdToTaskId.set(content.id, message.id)
             const input = content.input
             if (!isObject(input) || typeof input.prompt !== 'string') continue
             state.promptToTaskId.set(input.prompt, message.id)
@@ -83,6 +86,13 @@ export function traceMessages(messages: NormalizedMessage[]): TracedMessage[] {
         if (message.role === 'agent') {
             for (const content of message.content) {
                 if (content.type !== 'sidechain') continue
+                const taskIdByToolUseId = typeof content.toolUseId === 'string'
+                    ? state.toolUseIdToTaskId.get(content.toolUseId)
+                    : undefined
+                if (taskIdByToolUseId) {
+                    sidechainId = taskIdByToolUseId
+                    break
+                }
                 const taskId = state.promptToTaskId.get(content.prompt)
                 if (taskId) {
                     sidechainId = taskId

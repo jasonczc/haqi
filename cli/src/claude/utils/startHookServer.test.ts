@@ -15,7 +15,7 @@ const sendHookRequest = async (port: number, body: string, token?: string): Prom
         const req = request({
             host: '127.0.0.1',
             port,
-            path: '/hook/session-start',
+            path: '/hook/claude',
             method: 'POST',
             headers
         }, (res) => {
@@ -39,7 +39,7 @@ describe('startHookServer', () => {
     it('forwards session hook payload to callback', async () => {
         let received: { sessionId?: string; data?: SessionHookData } = {}
         const server = await startHookServer({
-            onSessionHook: (sessionId, data) => {
+            onClaudeHook: (sessionId, data) => {
                 received = { sessionId, data }
             }
         })
@@ -59,7 +59,7 @@ describe('startHookServer', () => {
     it('returns 400 for invalid JSON payloads', async () => {
         let hookCalled = false
         const server = await startHookServer({
-            onSessionHook: () => {
+            onClaudeHook: () => {
                 hookCalled = true
             }
         })
@@ -78,7 +78,7 @@ describe('startHookServer', () => {
     it('returns 422 when session_id is missing', async () => {
         let hookCalled = false
         const server = await startHookServer({
-            onSessionHook: () => {
+            onClaudeHook: () => {
                 hookCalled = true
             }
         })
@@ -98,7 +98,7 @@ describe('startHookServer', () => {
     it('returns 401 when hook token is missing', async () => {
         let hookCalled = false
         const server = await startHookServer({
-            onSessionHook: () => {
+            onClaudeHook: () => {
                 hookCalled = true
             }
         })

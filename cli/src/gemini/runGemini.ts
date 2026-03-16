@@ -57,7 +57,7 @@ export async function runGemini(opts: {
     const resolvedModel = resolveGeminiRuntimeConfig({ model: opts.model }).model;
 
     const hookServer = await startHookServer({
-        onSessionHook: (sessionId, data) => {
+        onClaudeHook: (sessionId, data) => {
             logger.debug(`[gemini] Session hook received: ${sessionId}`);
             const currentSession = sessionWrapperRef.current;
             if (!currentSession) {

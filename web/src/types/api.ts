@@ -8,6 +8,7 @@ import type {
 
 export type {
     AgentState,
+    AgentStateRunningAgent,
     AttachmentMetadata,
     ModelMode,
     PermissionMode,

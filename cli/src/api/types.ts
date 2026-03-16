@@ -14,11 +14,15 @@ export type Usage = z.infer<typeof UsageSchema>
 
 export type {
     AgentState,
+    AgentStateRunningAgent,
     AttachmentMetadata,
     ClaudePermissionMode,
     CodexPermissionMode,
     Metadata,
-    Session
+    Session,
+    TeamMember,
+    TeamState,
+    TeamTask
 } from '@hapi/protocol/types'
 export type SessionPermissionMode = PermissionMode
 export type SessionModelMode = ModelMode

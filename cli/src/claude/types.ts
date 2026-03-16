@@ -23,6 +23,7 @@ const RawMessageSchema = z.object({
 const RawJSONLinesBaseSchema = z.object({
   uuid: z.string().optional(),
   parentUuid: z.string().nullable().optional(),
+  sidechainToolUseId: z.string().optional(),
   isSidechain: z.boolean().optional(),
   isMeta: z.boolean().optional(),
   isCompactSummary: z.boolean().optional(),

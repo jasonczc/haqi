@@ -2,6 +2,7 @@ export type {
     AgentState,
     AgentStateCompletedRequest,
     AgentStateRequest,
+    AgentStateRunningAgent,
     AttachmentMetadata,
     DecryptedMessage,
     Metadata,

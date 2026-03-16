@@ -176,16 +176,15 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     // Start Hook server for receiving Claude session notifications
     const hookServer = await startHookServer({
-        onSessionHook: (sessionId, data) => {
+        onClaudeHook: (sessionId, data) => {
             logger.debug(`[START] Session hook received: ${sessionId}`, data);
 
             const currentSession = currentSessionRef.current;
             if (currentSession) {
-                const previousSessionId = currentSession.sessionId;
-                if (previousSessionId !== sessionId) {
-                    logger.debug(`[START] Claude session ID changed: ${previousSessionId} -> ${sessionId}`);
-                    currentSession.onSessionFound(sessionId);
-                }
+                currentSession.applyClaudeHookEvent({
+                    ...data,
+                    session_id: typeof data.session_id === 'string' ? data.session_id : sessionId
+                });
             }
         }
     });
@@ -207,6 +206,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         logTag: 'claude',
         stopKeepAlive: () => currentSessionRef.current?.stopKeepAlive(),
         onAfterClose: () => {
+            currentSessionRef.current?.stopClaudeTeamSnapshotPolling();
             happyServer.stop();
             hookServer.stop();
             cleanupHookSettingsFile(hookSettingsPath, 'generateHookSettings');

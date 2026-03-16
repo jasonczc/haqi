@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { TeamState } from '@hapi/protocol/types'
+import { useMemo, useState } from 'react'
+import type { AgentState, TeamState } from '@hapi/protocol/types'
 
 function memberStatusDot(status?: string): string {
     if (status === 'active') return 'bg-emerald-500'
@@ -21,15 +21,34 @@ function taskStatusIcon(status?: string): string {
     return '\u2610'
 }
 
-export function TeamPanel(props: { teamState: TeamState }) {
+export function TeamPanel(props: { teamState?: TeamState; agentState?: AgentState | null }) {
     const [expanded, setExpanded] = useState(false)
-    const { teamState } = props
-    const members = teamState.members ?? []
-    const tasks = teamState.tasks ?? []
-    const messages = teamState.messages ?? []
+    const { teamState, agentState } = props
+    const members = teamState?.members ?? []
+    const tasks = teamState?.tasks ?? []
+    const messages = teamState?.messages ?? []
+    const runningAgents = agentState?.runningAgents ?? (agentState?.runningAgent ? [agentState.runningAgent] : [])
 
     const completedTasks = tasks.filter(t => t.status === 'completed').length
-    const activeMembers = members.filter(m => m.status === 'active').length
+    const title = teamState?.teamName ?? 'Running Agents'
+
+    const runningAgentMembers = useMemo(() => {
+        const existing = new Set(members.map((member) => member.name))
+        return runningAgents
+            .filter((agent) => !existing.has(agent.name))
+            .map((agent) => ({
+                name: agent.name,
+                agentType: undefined,
+                status: 'active' as const
+            }))
+    }, [members, runningAgents])
+
+    const visibleMembers = [...members, ...runningAgentMembers]
+    const activeMembers = visibleMembers.filter((member) => member.status === 'active').length
+
+    if (!teamState && runningAgents.length === 0) {
+        return null
+    }
 
     return (
         <div className="mx-3 mt-3">
@@ -45,12 +64,13 @@ export function TeamPanel(props: { teamState: TeamState }) {
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
                 <span className="font-medium text-[var(--app-fg)]">
-                    Team: {teamState.teamName}
+                    {teamState ? `Team: ${title}` : title}
                 </span>
                 <span className="text-xs text-[var(--app-hint)]">
-                    {members.length} member{members.length !== 1 ? 's' : ''}
+                    {visibleMembers.length} member{visibleMembers.length !== 1 ? 's' : ''}
                     {activeMembers > 0 ? ` (${activeMembers} active)` : ''}
-                    {tasks.length > 0 ? ` \u00b7 ${completedTasks}/{tasks.length} tasks` : ''}
+                    {runningAgents.length > 0 ? ` · ${runningAgents.length} running` : ''}
+                    {tasks.length > 0 ? ` · ${completedTasks}/${tasks.length} tasks` : ''}
                 </span>
                 <svg
                     className={`ml-auto h-3 w-3 shrink-0 text-[var(--app-hint)] transition-transform ${expanded ? 'rotate-180' : ''}`}
@@ -67,16 +87,34 @@ export function TeamPanel(props: { teamState: TeamState }) {
 
             {expanded && (
                 <div className="mt-1 rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2">
-                    {teamState.description && (
+                    {teamState?.description && (
                         <p className="mb-2 text-xs text-[var(--app-hint)]">{teamState.description}</p>
                     )}
 
-                    {/* Members */}
-                    {members.length > 0 && (
+                    {runningAgents.length > 0 && (
+                        <div className="mb-2">
+                            <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">Running Now</div>
+                            <div className="flex flex-col gap-1">
+                                {runningAgents.map((agent, index) => (
+                                    <div
+                                        key={`${agent.name}:${agent.startedAt ?? index}`}
+                                        className="rounded-md bg-[var(--app-subtle-bg)] px-2 py-1 text-xs"
+                                    >
+                                        <div className="font-medium text-[var(--app-fg)]">{agent.name}</div>
+                                        {agent.task ? (
+                                            <div className="mt-0.5 text-[var(--app-hint)]">{agent.task}</div>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {visibleMembers.length > 0 && (
                         <div className="mb-2">
                             <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">Members</div>
                             <div className="flex flex-wrap gap-2">
-                                {members.map((member) => (
+                                {visibleMembers.map((member) => (
                                     <div
                                         key={member.name}
                                         className="flex items-center gap-1.5 rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-xs"
@@ -92,15 +130,13 @@ export function TeamPanel(props: { teamState: TeamState }) {
                         </div>
                     )}
 
-                    {/* Tasks */}
                     {tasks.length > 0 && (
                         <div className="mb-2">
                             <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">Tasks</div>
                             <div className="flex flex-col gap-0.5">
                                 {tasks.map((task, idx) => (
                                     <div key={task.id ?? String(idx)} className={`text-xs ${taskStatusColor(task.status)}`}>
-                                        <span>{taskStatusIcon(task.status)}</span>
-                                        {' '}
+                                        <span>{taskStatusIcon(task.status)}</span>{' '}
                                         <span>{task.title}</span>
                                         {task.owner && (
                                             <span className="ml-1 text-[var(--app-hint)]">[{task.owner}]</span>
@@ -111,15 +147,13 @@ export function TeamPanel(props: { teamState: TeamState }) {
                         </div>
                     )}
 
-                    {/* Recent Messages */}
                     {messages.length > 0 && (
                         <div>
                             <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">Recent Messages</div>
                             <div className="flex flex-col gap-0.5">
                                 {messages.slice(-5).map((msg, idx) => (
                                     <div key={idx} className="text-xs text-[var(--app-hint)]">
-                                        <span className="text-[var(--app-fg)]">{msg.from}</span>
-                                        {' \u2192 '}
+                                        <span className="text-[var(--app-fg)]">{msg.from}</span>{' → '}
                                         <span className="text-[var(--app-fg)]">{msg.to}</span>
                                         {': '}
                                         <span>{msg.summary}</span>

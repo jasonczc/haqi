@@ -66,7 +66,7 @@ export type NormalizedAgentContent =
     | ToolUse
     | ToolResult
     | { type: 'summary'; summary: string }
-    | { type: 'sidechain'; uuid: string; prompt: string }
+    | { type: 'sidechain'; uuid: string; prompt: string; toolUseId?: string }
 
 export type NormalizedMessage = ({
     role: 'user'

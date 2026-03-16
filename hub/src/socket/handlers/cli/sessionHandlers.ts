@@ -48,6 +48,11 @@ const updateStateSchema = z.object({
     agentState: z.unknown().nullable()
 })
 
+const updateTeamStateSchema = z.object({
+    sid: z.string(),
+    teamState: z.unknown().nullable()
+})
+
 export type SessionHandlersDeps = {
     store: Store
     resolveSessionAccess: ResolveSessionAccess
@@ -231,6 +236,31 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
     }
 
     socket.on('update-state', handleUpdateState)
+
+    socket.on('update-team-state', (data: unknown) => {
+        const parsed = updateTeamStateSchema.safeParse(data)
+        if (!parsed.success) {
+            return
+        }
+
+        const { sid, teamState } = parsed.data
+        const sessionAccess = resolveSessionAccess(sid)
+        if (!sessionAccess.ok) {
+            emitAccessError('session', sid, sessionAccess.reason)
+            return
+        }
+
+        const updated = store.sessions.setSessionTeamState(
+            sid,
+            teamState,
+            Date.now(),
+            sessionAccess.value.namespace
+        )
+
+        if (updated) {
+            onWebappEvent?.({ type: 'session-updated', sessionId: sid, data: { sid } })
+        }
+    })
 
     socket.on('session-alive', (data: SessionAlivePayload) => {
         if (!data || typeof data.sid !== 'string' || typeof data.time !== 'number') {

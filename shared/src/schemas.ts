@@ -84,10 +84,21 @@ export const AgentStateCompletedRequestSchema = z.object({
 
 export type AgentStateCompletedRequest = z.infer<typeof AgentStateCompletedRequestSchema>
 
+export const AgentStateRunningAgentSchema = z.object({
+    name: z.string(),
+    task: z.string().optional(),
+    toolUseId: z.string().optional(),
+    startedAt: z.number().nullish()
+})
+
+export type AgentStateRunningAgent = z.infer<typeof AgentStateRunningAgentSchema>
+
 export const AgentStateSchema = z.object({
     controlledByUser: z.boolean().nullish(),
     requests: z.record(z.string(), AgentStateRequestSchema).nullish(),
-    completedRequests: z.record(z.string(), AgentStateCompletedRequestSchema).nullish()
+    completedRequests: z.record(z.string(), AgentStateCompletedRequestSchema).nullish(),
+    runningAgent: AgentStateRunningAgentSchema.nullish(),
+    runningAgents: z.array(AgentStateRunningAgentSchema).nullish()
 })
 
 export type AgentState = z.infer<typeof AgentStateSchema>

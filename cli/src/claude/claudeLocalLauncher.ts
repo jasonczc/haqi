@@ -1,19 +1,41 @@
 import { claudeLocal } from "./claudeLocal";
 import { Session } from "./session";
 import { createSessionScanner } from "./utils/sessionScanner";
+import {
+    applyRunningAgentStateFromLogMessage,
+    reconstructRunningAgentsFromLogMessages
+} from "./utils/runningAgentState";
 import { BaseLocalLauncher } from "@/modules/common/launcher/BaseLocalLauncher";
+import type { AgentStateRunningAgent } from '@/api/types';
 
 export async function claudeLocalLauncher(session: Session): Promise<'switch' | 'exit'> {
 
     // Create scanner
+    const runningAgents = new Map<string, AgentStateRunningAgent>();
+
+    const syncRunningAgents = () => {
+        session.replaceRunningAgents(runningAgents);
+    };
+
     const scanner = await createSessionScanner({
         sessionId: session.sessionId,
         workingDirectory: session.path,
-        onMessage: (message) => { 
+        onMessage: (message) => {
+            if (applyRunningAgentStateFromLogMessage(runningAgents, message)) {
+                syncRunningAgents();
+            }
             // Block SDK summary messages - we generate our own
             if (message.type !== 'summary') {
                 session.client.sendClaudeSessionMessage(message)
             }
+        },
+        onSeedMessages: (messages) => {
+            const seededRunningAgents = reconstructRunningAgentsFromLogMessages(messages);
+            runningAgents.clear();
+            for (const [id, agent] of seededRunningAgents) {
+                runningAgents.set(id, agent);
+            }
+            syncRunningAgents();
         }
     });
 

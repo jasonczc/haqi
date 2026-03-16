@@ -31,11 +31,14 @@ export class AgentSessionBase<Mode> {
     mode: 'local' | 'remote' = 'local';
     thinking: boolean = false;
 
+    private baseThinking = false;
+    private readonly auxiliaryActivityKeys = new Set<string>();
+
     private sessionFoundCallbacks: ((sessionId: string) => void)[] = [];
     private readonly applySessionIdToMetadata: (metadata: Metadata, sessionId: string) => Metadata;
     private readonly sessionLabel: string;
     private readonly sessionIdLabel: string;
-    private keepAliveInterval: NodeJS.Timeout | null = null;
+    protected keepAliveInterval: NodeJS.Timeout | null = null;
     protected permissionMode?: SessionPermissionMode;
     protected modelMode?: SessionModelMode;
 
@@ -62,8 +65,26 @@ export class AgentSessionBase<Mode> {
     }
 
     onThinkingChange = (thinking: boolean) => {
-        this.thinking = thinking;
-        this.client.keepAlive(thinking, this.mode, this.getKeepAliveRuntime());
+        this.baseThinking = thinking;
+        this.refreshThinkingState();
+    };
+
+    setAuxiliaryActivity = (key: string, active: boolean): void => {
+        if (!key) return;
+        if (active) {
+            this.auxiliaryActivityKeys.add(key);
+        } else {
+            this.auxiliaryActivityKeys.delete(key);
+        }
+        this.refreshThinkingState();
+    };
+
+    clearAuxiliaryActivity = (): void => {
+        if (this.auxiliaryActivityKeys.size === 0) {
+            return;
+        }
+        this.auxiliaryActivityKeys.clear();
+        this.refreshThinkingState();
     };
 
     onModeChange = (mode: 'local' | 'remote') => {
@@ -102,6 +123,12 @@ export class AgentSessionBase<Mode> {
             this.keepAliveInterval = null;
         }
     };
+
+    private refreshThinkingState(): void {
+        const nextThinking = this.baseThinking || this.auxiliaryActivityKeys.size > 0;
+        this.thinking = nextThinking;
+        this.client.keepAlive(nextThinking, this.mode, this.getKeepAliveRuntime());
+    }
 
     protected getKeepAliveRuntime(): { permissionMode?: SessionPermissionMode; modelMode?: SessionModelMode } | undefined {
         if (this.permissionMode === undefined && this.modelMode === undefined) {

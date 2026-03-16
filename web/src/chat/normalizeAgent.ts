@@ -202,6 +202,7 @@ function normalizeUserOutput(
 ): NormalizedMessage | null {
     const uuid = asString(data.uuid) ?? messageId
     const parentUUID = asString(data.parentUuid) ?? null
+    const sidechainToolUseId = asString(data.sidechainToolUseId) ?? undefined
     const isSidechain = Boolean(data.isSidechain)
 
     const message = isObject(data.message) ? data.message : null
@@ -216,7 +217,7 @@ function normalizeUserOutput(
             createdAt,
             role: 'agent',
             isSidechain: true,
-            content: [{ type: 'sidechain', uuid, prompt: messageContent }]
+            content: [{ type: 'sidechain', uuid, prompt: messageContent, ...(sidechainToolUseId ? { toolUseId: sidechainToolUseId } : {}) }]
         }
     }
 

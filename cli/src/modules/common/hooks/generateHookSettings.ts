@@ -18,6 +18,10 @@ type HookSettings = {
     };
     hooks: {
         SessionStart: HookCommandConfig[];
+        SubagentStart: HookCommandConfig[];
+        SubagentStop: HookCommandConfig[];
+        TeammateIdle: HookCommandConfig[];
+        TaskCompleted: HookCommandConfig[];
     };
 };
 
@@ -44,18 +48,24 @@ function shellJoin(parts: string[]): string {
 }
 
 function buildHookSettings(command: string, hooksEnabled?: boolean): HookSettings {
+    const hookConfig: HookCommandConfig[] = [
+        {
+            matcher: '*',
+            hooks: [
+                {
+                    type: 'command',
+                    command
+                }
+            ]
+        }
+    ];
+
     const hooks: HookSettings['hooks'] = {
-        SessionStart: [
-            {
-                matcher: '*',
-                hooks: [
-                    {
-                        type: 'command',
-                        command
-                    }
-                ]
-            }
-        ]
+        SessionStart: hookConfig,
+        SubagentStart: hookConfig,
+        SubagentStop: hookConfig,
+        TeammateIdle: hookConfig,
+        TaskCompleted: hookConfig
     };
 
     const settings: HookSettings = { hooks };

@@ -16,9 +16,11 @@ import { isRequestUserInputToolName } from '@/components/ToolCard/requestUserInp
 import { getToolPresentation } from '@/components/ToolCard/knownTools'
 import { getToolFullViewComponent, getToolViewComponent } from '@/components/ToolCard/views/_all'
 import { getToolResultViewComponent } from '@/components/ToolCard/views/_results'
+import { useHappyChatContext } from '@/components/AssistantChat/context'
 import { usePointerFocusRing } from '@/hooks/usePointerFocusRing'
 import { getInputString, getInputStringAny, truncate } from '@/lib/toolInputUtils'
 import { cn } from '@/lib/utils'
+import { formatRunningAgentNames, formatTaskChildStateSummary, getRunningAgentsForTaskBlock, getTaskChildStateSummary } from '@/components/ToolCard/taskSummary'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 
@@ -173,6 +175,27 @@ function renderTaskSummary(block: ToolCallBlock, metadata: SessionMetadataSummar
                     </div>
                 ) : null}
             </div>
+        </div>
+    )
+}
+
+function renderTaskStateBadge(taskStateSummaryText: string | null, runningAgentNames: string | null, toolName: string): ReactNode | null {
+    if (toolName !== 'Task' || (!taskStateSummaryText && !runningAgentNames)) {
+        return null
+    }
+
+    return (
+        <div className="flex flex-wrap gap-1">
+            {taskStateSummaryText ? (
+                <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                    {taskStateSummaryText}
+                </span>
+            ) : null}
+            {runningAgentNames ? (
+                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-600">
+                    {runningAgentNames}
+                </span>
+            ) : null}
         </div>
     )
 }
@@ -387,6 +410,7 @@ type ToolCardProps = {
 
 function ToolCardInner(props: ToolCardProps) {
     const { t } = useTranslation()
+    const chatContext = useHappyChatContext()
     const presentation = useMemo(() => getToolPresentation({
         toolName: props.block.tool.name,
         input: props.block.tool.input,
@@ -409,6 +433,10 @@ function ToolCardInner(props: ToolCardProps) {
     const isDiffTool = toolName === 'CodexDiff'
     const toolTitle = presentation.title
     const subtitle = presentation.subtitle ?? props.block.tool.description
+    const taskChildStateSummary = getTaskChildStateSummary(props.block)
+    const taskStateSummaryText = formatTaskChildStateSummary(taskChildStateSummary)
+    const taskRunningAgents = getRunningAgentsForTaskBlock(props.block, chatContext.agentState?.runningAgents ?? null)
+    const runningAgentNames = formatRunningAgentNames(taskRunningAgents)
     const taskSummary = renderTaskSummary(props.block, props.metadata)
     const runningFrom = props.block.tool.startedAt ?? props.block.tool.createdAt
     const showInline = !presentation.minimal && toolName !== 'Task' && !isTurnChangesTool
@@ -723,7 +751,21 @@ function ToolCardInner(props: ToolCardProps) {
         )
     }
 
-    const compactSummary = subtitle ? truncate(subtitle, 96) : null
+    const compactSummary = (() => {
+        if (toolName === 'Task' && taskStateSummaryText && runningAgentNames && subtitle) {
+            return truncate(`${taskStateSummaryText} — ${runningAgentNames} — ${subtitle}`, 96)
+        }
+        if (toolName === 'Task' && taskStateSummaryText && runningAgentNames) {
+            return truncate(`${taskStateSummaryText} — ${runningAgentNames}`, 96)
+        }
+        if (toolName === 'Task' && taskStateSummaryText && subtitle) {
+            return truncate(`${taskStateSummaryText} — ${subtitle}`, 96)
+        }
+        if (toolName === 'Task' && taskStateSummaryText) {
+            return truncate(taskStateSummaryText, 96)
+        }
+        return subtitle ? truncate(subtitle, 96) : null
+    })()
 
     return (
         <Card className="overflow-hidden shadow-sm">
@@ -888,6 +930,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         {truncate(subtitle, 160)}
                                     </CardDescription>
                                 ) : null}
+                                {renderTaskStateBadge(taskStateSummaryText, runningAgentNames, toolName)}
                             </div>
                         </button>
                         {renderTurnChangesDetailLayer()}
@@ -932,6 +975,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         {truncate(subtitle, 160)}
                                     </CardDescription>
                                 ) : null}
+                                {renderTaskStateBadge(taskStateSummaryText, runningAgentNames, toolName)}
                             </div>
                         </button>
                         {renderDiffDetailLayer()}
@@ -975,6 +1019,13 @@ function ToolCardInner(props: ToolCardProps) {
                                         <CardDescription className="font-mono text-xs break-all opacity-80">
                                             {truncate(subtitle, 160)}
                                         </CardDescription>
+                                    ) : null}
+                                    {toolName === 'Task' && taskStateSummaryText ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                                                {taskStateSummaryText}
+                                            </span>
+                                        </div>
                                     ) : null}
                                 </div>
                             </button>

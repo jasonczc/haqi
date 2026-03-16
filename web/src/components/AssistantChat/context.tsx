@@ -1,13 +1,14 @@
 import type { ReactNode } from 'react'
 import { createContext, useContext } from 'react'
 import type { ApiClient } from '@/api/client'
-import type { PermissionMode, SessionMetadataSummary } from '@/types/api'
+import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types/api'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 
 export type HappyChatContextValue = {
     api: ApiClient
     sessionId: string
     metadata: SessionMetadataSummary | null
+    agentState?: AgentState | null
     permissionMode?: PermissionMode
     disabled: boolean
     density: SessionListDensity

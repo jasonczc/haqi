@@ -97,7 +97,7 @@ export async function runSessionHookForwarder(args: string[]): Promise<void> {
                 host: '127.0.0.1',
                 port,
                 method: 'POST',
-                path: '/hook/session-start',
+                path: '/hook/claude',
                 headers: {
                     'Content-Type': 'application/json',
                     'Content-Length': body.length,

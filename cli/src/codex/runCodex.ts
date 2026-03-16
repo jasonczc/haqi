@@ -109,7 +109,15 @@ export async function runCodex(opts: {
         : undefined;
 
     const getCurrentCollaborationMode = (): EnhancedMode['collaborationMode'] => {
-        return sessionWrapperRef.current?.getCollaborationMode() ?? currentCollaborationMode;
+        // When the session wrapper exists, always use its value (even if undefined).
+        // Only fall back to the startup-time currentCollaborationMode when the
+        // session hasn't been created yet.  Using ?? here would re-introduce a
+        // stale 'plan' value after the auto-execute flow clears the collaboration
+        // mode via session.setCollaborationMode(undefined).
+        if (sessionWrapperRef.current) {
+            return sessionWrapperRef.current.getCollaborationMode();
+        }
+        return currentCollaborationMode;
     };
 
     const syncRuntimeMetadata = (): void => {

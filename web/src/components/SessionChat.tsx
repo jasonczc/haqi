@@ -1251,8 +1251,8 @@ export function SessionChat(props: {
                 onSessionDeleted={props.onBack}
             />
 
-            {props.session.teamState && (
-                <TeamPanel teamState={props.session.teamState} />
+            {(props.session.teamState || (props.session.agentState?.runningAgents?.length ?? 0) > 0 || props.session.agentState?.runningAgent) && (
+                <TeamPanel teamState={props.session.teamState} agentState={props.session.agentState} />
             )}
 
             {sessionInactive ? (
@@ -1371,6 +1371,7 @@ export function SessionChat(props: {
                             api={props.api}
                             sessionId={props.session.id}
                             metadata={props.session.metadata}
+                            agentState={props.session.agentState}
                             permissionMode={props.session.permissionMode}
                             disabled={sessionInactive}
                             onRefresh={props.onRefresh}

@@ -166,6 +166,7 @@ export interface ClientToServerEvents {
         version: number
         agentState: unknown | null
     }) => void) => void
+    'update-team-state': (data: { sid: string; teamState: unknown | null }) => void
     'machine-alive': (data: { machineId: string; time: number }) => void
     'machine-update-metadata': (data: { machineId: string; expectedVersion: number; metadata: unknown }, cb: (answer: {
         result: 'error'

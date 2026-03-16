@@ -209,4 +209,49 @@ Only respond in Chinese.`
         expect(params.effort).toBe('low');
         expect(params.serviceTier).toBe('flex');
     });
+
+    describe('collaboration mode resolution in auto-execute flow', () => {
+        it('sets code collaboration mode without model via overrides', () => {
+            const params = buildTurnStartParams({
+                threadId: 'thread-1',
+                message: 'execute approved plan',
+                mode: { permissionMode: 'default' },
+                overrides: { collaborationMode: 'code' }
+            });
+
+            expect(params.collaborationMode).toEqual({ mode: 'code' });
+            expect(params.model).toBeUndefined();
+        });
+
+        it('throws when plan collaboration mode is set via overrides without model', () => {
+            expect(() => buildTurnStartParams({
+                threadId: 'thread-1',
+                message: 'execute approved plan',
+                mode: { permissionMode: 'default' },
+                overrides: { collaborationMode: 'plan' }
+            })).toThrowError('Collaboration mode requires model');
+        });
+    });
+
+    it('omits collaborationMode when neither mode nor overrides set it', () => {
+        const params = buildTurnStartParams({
+            threadId: 'thread-1',
+            message: 'hello',
+            mode: { permissionMode: 'default' }
+        });
+
+        expect(params.collaborationMode).toBeUndefined();
+    });
+
+    it('turn overrides collaborationMode takes precedence over mode collaborationMode', () => {
+        const params = buildTurnStartParams({
+            threadId: 'thread-1',
+            message: 'hello',
+            mode: { permissionMode: 'default', collaborationMode: 'plan', model: 'o3' },
+            overrides: { collaborationMode: 'code' }
+        });
+
+        expect(params.collaborationMode).toEqual({ mode: 'code', settings: { model: 'o3' } });
+        expect(params.model).toBeUndefined();
+    });
 });
