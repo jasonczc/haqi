@@ -89,6 +89,15 @@ function validateFilePath(filePath: string, workingDirectory: string): string | 
     return null
 }
 
+function toGitPath(filePath: string, cwd: string): string {
+    const absolutePath = isAbsolute(filePath) ? resolve(filePath) : resolve(cwd, filePath)
+    const relativePath = relative(cwd, absolutePath)
+    if (!relativePath || relativePath.startsWith('..') || isAbsolute(relativePath)) {
+        return toPosixPath(filePath)
+    }
+    return toPosixPath(relativePath)
+}
+
 async function runGitCommand(
     args: string[],
     cwd: string,
@@ -457,7 +466,8 @@ export function registerGitHandlers(rpcHandlerManager: RpcHandlerManager, workin
             return rpcError(fileError)
         }
 
-        const revision = data.source === 'head' ? `HEAD:${toPosixPath(data.filePath)}` : `:${toPosixPath(data.filePath)}`
+        const gitPath = toGitPath(data.filePath, resolved.cwd)
+        const revision = data.source === 'head' ? `HEAD:${gitPath}` : `:${gitPath}`
         const result = await runGitCommand(['show', '--no-textconv', revision], resolved.cwd, data.timeout)
         const snapshotResult = result.success
             ? result

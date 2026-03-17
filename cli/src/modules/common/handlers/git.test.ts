@@ -122,6 +122,14 @@ describe('git RPC handlers', () => {
         })
         expect(headSnapshot.success).toBe(true)
         expect(Buffer.from(headSnapshot.stdout ?? headSnapshot.content ?? '', 'base64').toString('utf8')).not.toContain('line2')
+
+        const absoluteSnapshot = await callGitHandler(rpc, 'git-read-snapshot', {
+            cwd: rootDir,
+            filePath: join(repoPath, 'tracked.txt'),
+            source: 'index'
+        })
+        expect(absoluteSnapshot.success).toBe(true)
+        expect(Buffer.from(absoluteSnapshot.stdout ?? absoluteSnapshot.content ?? '', 'base64').toString('utf8')).toContain('line2')
     })
 
     it('returns a clear error when no nested git repository exists', async () => {

@@ -7,11 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CodeBlock } from '@/components/CodeBlock'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { DiffView } from '@/components/DiffView'
+import { parseUnifiedDiff } from '@/lib/gitDiff'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { PermissionFooter } from '@/components/ToolCard/PermissionFooter'
-import { AskUserQuestionFooter } from '@/components/ToolCard/AskUserQuestionFooter'
-import { RequestUserInputFooter } from '@/components/ToolCard/RequestUserInputFooter'
 import { isAskUserQuestionToolName } from '@/components/ToolCard/askUserQuestion'
+import { getExitPlanText, isExitPlanToolName } from '@/components/ToolCard/exitPlanMode'
 import { isRequestUserInputToolName } from '@/components/ToolCard/requestUserInput'
 import { getToolPresentation } from '@/components/ToolCard/knownTools'
 import { getToolFullViewComponent, getToolViewComponent } from '@/components/ToolCard/views/_all'
@@ -217,8 +217,7 @@ function renderEditInput(input: unknown): ReactNode | null {
 }
 
 function renderExitPlanModeInput(input: unknown): ReactNode | null {
-    if (!isObject(input)) return null
-    const plan = getInputString(input, 'plan')
+    const plan = getExitPlanText(input)
     if (!plan) return null
     return <MarkdownRenderer content={plan} />
 }
@@ -286,10 +285,18 @@ function renderToolInput(block: ToolCallBlock): ReactNode {
     }
 
     if (toolName === 'CodexDiff' && isObject(input) && typeof input.unified_diff === 'string') {
-        return <CodeBlock code={input.unified_diff} language="diff" />
+        const parsed = parseUnifiedDiff(input.unified_diff)
+        return (
+            <DiffView
+                oldString={parsed.oldText}
+                newString={parsed.newText}
+                filePath={parsed.fileName}
+                variant="inline"
+            />
+        )
     }
 
-    if (toolName === 'ExitPlanMode' || toolName === 'exit_plan_mode') {
+    if (isExitPlanToolName(toolName)) {
         const plan = renderExitPlanModeInput(input)
         if (plan) return plan
     }
@@ -1062,22 +1069,15 @@ function ToolCardInner(props: ToolCardProps) {
                         )
                     ) : null}
 
-                    {isAskUserQuestion && permission?.status === 'pending' ? (
-                        <AskUserQuestionFooter
-                            api={props.api}
-                            sessionId={props.sessionId}
-                            tool={props.block.tool}
-                            disabled={props.disabled}
-                            onDone={props.onDone}
-                        />
-                    ) : isRequestUserInput && permission?.status === 'pending' ? (
-                        <RequestUserInputFooter
-                            api={props.api}
-                            sessionId={props.sessionId}
-                            tool={props.block.tool}
-                            disabled={props.disabled}
-                            onDone={props.onDone}
-                        />
+                    {isQuestionTool && permission?.status === 'pending' ? (
+                        <div className="mt-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
+                            <div className="text-xs font-medium text-[var(--app-hint)]">
+                                {t('tool.questionOverlay.inlineTitle')}
+                            </div>
+                            <div className="mt-1 text-sm text-[var(--app-fg)]">
+                                {t('tool.questionOverlay.inlineDescription')}
+                            </div>
+                        </div>
                     ) : (
                         <PermissionFooter
                             api={props.api}

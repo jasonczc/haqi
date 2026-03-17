@@ -60,6 +60,7 @@ import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
 import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
+import DebugDiffPage from '@/routes/debug/diff'
 import GroupDetailPage from '@/routes/groups/detail'
 import { useGroups } from '@/hooks/queries/useGroups'
 
@@ -1573,6 +1574,12 @@ const settingsRoute = createRoute({
     component: SettingsPage,
 })
 
+const debugDiffRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/debug/diff',
+    component: DebugDiffPage,
+})
+
 const groupsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/groups',
@@ -1593,6 +1600,7 @@ const groupDetailRoute = createRoute({
 
 export const routeTree = rootRoute.addChildren([
     indexRoute,
+    debugDiffRoute,
     sessionsRoute.addChildren([
         sessionsIndexRoute,
         newSessionRoute,

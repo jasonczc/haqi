@@ -2,9 +2,11 @@ import type { ToolViewComponent, ToolViewProps } from '@/components/ToolCard/vie
 import { isObject, safeStringify } from '@hapi/protocol'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CodeBlock } from '@/components/CodeBlock'
+import { DiffView } from '@/components/DiffView'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { PathActionLink } from '@/components/assistant-ui/path-action-link'
 import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
+import { parseUnifiedDiff } from '@/lib/gitDiff'
 import { ChecklistList, extractTodoChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
 
@@ -560,9 +562,15 @@ const CodexDiffResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     const text = extractTextFromResult(result)
     if (text) {
+        const parsed = parseUnifiedDiff(text)
         return (
             <>
-                {renderText(text, { mode: 'code', language: 'diff' })}
+                <DiffView
+                    oldString={parsed.oldText}
+                    newString={parsed.newText}
+                    filePath={parsed.fileName}
+                    variant="inline"
+                />
                 <RawJsonDevOnly value={result} />
             </>
         )

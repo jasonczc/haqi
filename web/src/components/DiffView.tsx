@@ -1,63 +1,12 @@
-import { diffLines } from 'diff'
-import { useMemo } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { usePointerFocusRing } from '@/hooks/usePointerFocusRing'
+import { useTheme } from '@/hooks/useTheme'
+import { buildSyntheticUnifiedDiff, inferGitDiffLanguage, normalizeGitDiffLanguage } from '@/lib/gitDiff'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/use-translation'
-import { langAlias, useShikiHighlighter } from '@/lib/shiki'
 
-const SUPPORTED_SHIKI_LANGUAGES = new Set([
-    'shellscript',
-    'powershell',
-    'json',
-    'yaml',
-    'toml',
-    'xml',
-    'ini',
-    'markdown',
-    'html',
-    'css',
-    'scss',
-    'javascript',
-    'typescript',
-    'jsx',
-    'tsx',
-    'sql',
-    'graphql',
-    'c',
-    'rust',
-    'go',
-    'java',
-    'kotlin',
-    'python',
-    'php',
-    'swift',
-    'csharp',
-    'dockerfile',
-    'make',
-    'diff',
-])
-
-function inferLanguageFromFilePath(filePath: string | undefined): string | undefined {
-    if (!filePath) return undefined
-
-    const normalized = filePath.replace(/\\/g, '/')
-    const fileName = normalized.split('/').pop() ?? ''
-    const dotIndex = fileName.lastIndexOf('.')
-    if (dotIndex <= 0 || dotIndex === fileName.length - 1) {
-        return undefined
-    }
-
-    const extension = fileName.slice(dotIndex + 1).toLowerCase()
-    if (!extension) return undefined
-
-    const normalizedLanguage = langAlias[extension] ?? extension
-    if (!SUPPORTED_SHIKI_LANGUAGES.has(normalizedLanguage)) {
-        return undefined
-    }
-
-    return normalizedLanguage
-}
+const GitDiffViewer = lazy(() => import('@/components/GitDiffViewer'))
 
 export function DiffView(props: {
     oldString: string
@@ -67,32 +16,43 @@ export function DiffView(props: {
     language?: string
 }) {
     const { t } = useTranslation()
+    const { isDark } = useTheme()
     const variant = props.variant ?? 'preview'
     const { suppressFocusRing, onTriggerPointerDown, onTriggerKeyDown, onTriggerBlur } = usePointerFocusRing()
-    const language = props.language ?? inferLanguageFromFilePath(props.filePath) ?? 'diff'
+    const language = normalizeGitDiffLanguage(props.language ?? inferGitDiffLanguage(props.filePath))
 
     const stats = useMemo(() => {
         const oldChars = props.oldString.length
         const newChars = props.newString.length
         const oldLabel = `${oldChars.toLocaleString()} chars`
         const newLabel = `${newChars.toLocaleString()} chars`
-        return { oldChars, newChars, label: `old: ${oldLabel} → new: ${newLabel}` }
-    }, [props.oldString.length, props.newString.length])
+        return { label: `old: ${oldLabel} → new: ${newLabel}` }
+    }, [props.oldString, props.newString])
+
+    const diffContent = useMemo(() => buildSyntheticUnifiedDiff({
+        filePath: props.filePath,
+        oldContent: props.oldString,
+        newContent: props.newString
+    }), [props.filePath, props.oldString, props.newString])
 
     const title = props.filePath ? props.filePath : t('diff.title')
     const subtitle = props.filePath ? stats.label : `${t('diff.title')} • ${stats.label}`
 
-    const DiffInline = (
-        <DiffInlineView
-            oldString={props.oldString}
-            newString={props.newString}
-            filePath={props.filePath}
-            language={language}
-        />
+    const diffBody = (
+        <Suspense fallback={<DiffFallback />}>
+            <GitDiffViewer
+                filePath={props.filePath ?? 'untitled'}
+                language={language}
+                oldContent={props.oldString}
+                newContent={props.newString}
+                diffContent={diffContent}
+                theme={isDark ? 'dark' : 'light'}
+            />
+        </Suspense>
     )
 
     if (variant === 'inline') {
-        return DiffInline
+        return diffBody
     }
 
     return (
@@ -108,15 +68,15 @@ export function DiffView(props: {
                     onKeyDown={onTriggerKeyDown}
                     onBlur={onTriggerBlur}
                 >
-                    <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] hover:bg-[var(--app-secondary-bg)] transition-colors">
+                    <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] transition-colors hover:bg-[var(--app-secondary-bg)]">
                         {props.filePath ? (
-                            <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-hint)] truncate">
+                            <div className="truncate border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-hint)]">
                                 {props.filePath}
                             </div>
                         ) : null}
                         <div className="px-2 py-2">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0 font-mono text-xs text-[var(--app-hint)] truncate">
+                                <div className="min-w-0 truncate font-mono text-xs text-[var(--app-hint)]">
                                     {props.filePath ? stats.label : subtitle}
                                 </div>
                                 <div className="shrink-0 text-xs text-[var(--app-link)]">
@@ -127,67 +87,25 @@ export function DiffView(props: {
                     </div>
                 </button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl">
+            <DialogContent className="max-w-6xl">
                 <DialogHeader>
                     <DialogTitle className="break-all">{title}</DialogTitle>
-                    <DialogDescription className="font-mono break-all">
+                    <DialogDescription className="break-all font-mono">
                         {stats.label}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="mt-3 max-h-[75vh] overflow-auto">
-                    {DiffInline}
+                    {diffBody}
                 </div>
             </DialogContent>
         </Dialog>
     )
 }
 
-function DiffInlineView(props: {
-    oldString: string
-    newString: string
-    filePath?: string
-    language: string
-}) {
-    const diff = useMemo(() => diffLines(props.oldString, props.newString), [props.oldString, props.newString])
-
+function DiffFallback() {
     return (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]">
-            {props.filePath ? (
-                <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-hint)] truncate">
-                    {props.filePath}
-                </div>
-            ) : null}
-
-            <div className="font-mono text-xs">
-                {diff.map((part, i) => {
-                    const lines = part.value.split('\n')
-                    if (lines.length > 0 && lines[lines.length - 1] === '') {
-                        lines.pop()
-                    }
-
-                    const prefix = part.added ? '+' : part.removed ? '-' : ' '
-                    const className = cn(
-                        part.added && 'bg-[var(--app-diff-added-bg)] text-[var(--app-diff-added-text)]',
-                        part.removed && 'bg-[var(--app-diff-removed-bg)] text-[var(--app-diff-removed-text)]'
-                    )
-
-                    return (
-                        <div key={i} className={className}>
-                            {lines.map((line, j) => (
-                                <div key={j} className="whitespace-pre-wrap px-2">
-                                    <span className="inline-block w-4 text-[var(--app-hint)]">{prefix}</span>
-                                    <DiffLineHighlight text={line || ' '} language={props.language} />
-                                </div>
-                            ))}
-                        </div>
-                    )
-                })}
-            </div>
+        <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-4 text-xs text-[var(--app-hint)]">
+            Loading diff…
         </div>
     )
-}
-
-function DiffLineHighlight(props: { text: string; language: string }) {
-    const highlighted = useShikiHighlighter(props.text, props.language)
-    return <span className="inline-block min-w-0 align-top">{highlighted ?? props.text}</span>
 }
