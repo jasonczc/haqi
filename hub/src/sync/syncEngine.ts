@@ -407,6 +407,20 @@ function normalizeNoteRefreshContent(content: string): string {
     return truncateText(normalized, MAX_NOTE_REFRESH_CONTENT_LENGTH)
 }
 
+function shouldSkipAutoApproveForTool(toolName: unknown): boolean {
+    if (typeof toolName !== 'string') {
+        return false
+    }
+
+    const normalized = toolName.trim().toLowerCase()
+    return normalized === 'exitplanmode'
+        || normalized === 'exit_plan_mode'
+        || normalized === 'request_user_input'
+        || normalized === 'requestuserinput'
+        || normalized === 'askuserquestion'
+        || normalized === 'ask_user_question'
+}
+
 export class SyncEngine {
     private readonly store: Store
     private readonly eventPublisher: EventPublisher
@@ -1136,11 +1150,8 @@ export class SyncEngine {
 
         for (const requestId of Object.keys(requests)) {
             const request = requests[requestId]
-            if (request && typeof request.tool === 'string') {
-                const toolName = request.tool.trim()
-                if (toolName === 'ExitPlanMode' || toolName === 'exit_plan_mode') {
-                    continue
-                }
+            if (shouldSkipAutoApproveForTool(request?.tool)) {
+                continue
             }
 
             if (completedRequests && requestId in completedRequests) {
