@@ -196,6 +196,28 @@ Only respond in Chinese.`
         expect(params.sandboxPolicy).toEqual({ type: 'dangerFullAccess' });
     });
 
+    it('uses yolo-style approval in auto-approve plan mode for thread start', () => {
+        const params = buildThreadStartParams({
+            mode: { permissionMode: 'auto-approve', collaborationMode: 'plan', model: 'o3' },
+            mcpServers
+        });
+
+        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.sandbox).toBe('danger-full-access');
+    });
+
+    it('uses yolo-style approval in auto-approve plan mode for turns', () => {
+        const params = buildTurnStartParams({
+            threadId: 'thread-1',
+            message: 'review the plan',
+            mode: { permissionMode: 'auto-approve', collaborationMode: 'plan', model: 'o3' }
+        });
+
+        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.sandboxPolicy).toEqual({ type: 'dangerFullAccess' });
+        expect(params.collaborationMode).toEqual({ mode: 'plan', settings: { model: 'o3' } });
+    });
+
     it('prefers turn overrides', () => {
         const params = buildTurnStartParams({
             threadId: 'thread-1',

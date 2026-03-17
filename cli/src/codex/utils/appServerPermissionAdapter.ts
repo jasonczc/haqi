@@ -8,6 +8,7 @@ type PermissionDecision = 'approved' | 'approved_for_session' | 'denied' | 'abor
 type PermissionResult = {
     decision: PermissionDecision;
     reason?: string;
+    answers?: Record<string, string[]> | Record<string, { answers: string[] }>;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -37,9 +38,8 @@ function mapDecision(decision: PermissionDecision): { decision: string } {
 export function registerAppServerPermissionHandlers(args: {
     client: CodexAppServerClient;
     permissionHandler: CodexPermissionHandler;
-    onUserInputRequest?: (request: unknown) => Promise<Record<string, string[]>>;
 }): void {
-    const { client, permissionHandler, onUserInputRequest } = args;
+    const { client, permissionHandler } = args;
 
     client.registerRequestHandler('item/commandExecution/requestApproval', async (params) => {
         const record = asRecord(params) ?? {};
@@ -80,15 +80,30 @@ export function registerAppServerPermissionHandlers(args: {
     });
 
     client.registerRequestHandler('item/tool/requestUserInput', async (params) => {
-        if (!onUserInputRequest) {
-            logger.debug('[CodexAppServer] No user-input handler registered; cancelling request');
+        const record = asRecord(params) ?? {};
+        const toolCallId = asString(record.itemId) ?? randomUUID();
+        const rawInput = asRecord(record.input);
+        const input = rawInput ?? record;
+
+        const result = await permissionHandler.handleToolCall(
+            toolCallId,
+            'request_user_input',
+            input
+        ) as PermissionResult;
+
+        if (result.decision !== 'approved' && result.decision !== 'approved_for_session') {
+            logger.debug('[CodexAppServer] User-input request declined', { toolCallId, decision: result.decision });
+            return mapDecision(result.decision);
+        }
+
+        if (!result.answers || Object.keys(result.answers).length === 0) {
+            logger.debug('[CodexAppServer] User-input request approved without answers; cancelling request', { toolCallId });
             return { decision: 'cancel' };
         }
 
-        const answers = await onUserInputRequest(params);
         return {
             decision: 'accept',
-            answers
+            answers: result.answers
         };
     });
 }

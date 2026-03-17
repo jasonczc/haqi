@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
  */
 
 type CollaborationMode = 'plan' | 'code' | string | undefined;
+type PermissionMode = 'default' | 'auto-approve';
 
 /**
  * Minimal simulation of the CodexSession collaboration mode interface,
@@ -70,6 +71,38 @@ function createBuggyGetCurrentCollaborationMode(
 }
 
 describe('collaboration mode lifecycle', () => {
+    describe('auto-execute mode inheritance', () => {
+        it('clears plan collaboration mode but preserves auto-approve permission mode', () => {
+            const activeTurnMode = {
+                permissionMode: 'auto-approve' as PermissionMode,
+                collaborationMode: 'plan' as CollaborationMode,
+                routeContext: { source: 'queue' }
+            };
+
+            const executeMode = {
+                ...activeTurnMode,
+                collaborationMode: undefined,
+                routeContext: undefined
+            };
+
+            expect(executeMode.permissionMode).toBe('auto-approve');
+            expect(executeMode.collaborationMode).toBeUndefined();
+            expect(executeMode.routeContext).toBeUndefined();
+        });
+
+        it('falls back to session permission mode when active turn mode is unavailable', () => {
+            const fallbackPermissionMode: PermissionMode = 'auto-approve';
+            const executeMode = {
+                permissionMode: fallbackPermissionMode,
+                collaborationMode: undefined,
+                routeContext: undefined
+            };
+
+            expect(executeMode.permissionMode).toBe('auto-approve');
+            expect(executeMode.collaborationMode).toBeUndefined();
+        });
+    });
+
     describe('getCurrentCollaborationMode pattern', () => {
         it('returns session value when session exists and has plan mode', () => {
             const session = createSessionSimulator('plan');
@@ -168,10 +201,11 @@ describe('collaboration mode lifecycle', () => {
 
             // 6. Next message built with this mode should NOT have collaborationMode
             const enhancedMode = {
-                permissionMode: 'default' as const,
+                permissionMode: 'auto-approve' as const,
                 collaborationMode: getCurrentCollaborationMode(),
             };
             expect(enhancedMode.collaborationMode).toBeUndefined();
+            expect(enhancedMode.permissionMode).toBe('auto-approve');
         });
 
         it('buggy version would return stale plan mode after clearing', () => {

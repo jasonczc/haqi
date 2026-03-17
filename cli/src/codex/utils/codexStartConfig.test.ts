@@ -70,6 +70,19 @@ describe('buildCodexStartConfig', () => {
         expect(config['approval-policy']).toBe('never');
     });
 
+    it('uses yolo-style approval for auto-approve plan mode', () => {
+        const config = buildCodexStartConfig({
+            message: 'plan first',
+            mode: { permissionMode: 'auto-approve', collaborationMode: 'plan' },
+            first: false,
+            mcpServers
+        });
+
+        expect(config.sandbox).toBe('danger-full-access');
+        expect(config['approval-policy']).toBe('on-failure');
+        expect(config['include-plan-tool']).toBe(true);
+    });
+
     it('passes model when provided', () => {
         const config = buildCodexStartConfig({
             message: 'hello',

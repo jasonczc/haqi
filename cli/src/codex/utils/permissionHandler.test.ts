@@ -7,6 +7,7 @@ type PermissionRpcPayload = {
     approved: boolean;
     decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort';
     reason?: string;
+    answers?: Record<string, string[]> | Record<string, { answers: string[] }>;
 };
 
 function createHarness() {
@@ -84,6 +85,59 @@ describe('CodexPermissionHandler', () => {
         expect(currentState.completedRequests?.['call-2']).toMatchObject({
             status: 'approved',
             decision: 'approved'
+        });
+    });
+
+    it('does not auto-approve request_user_input in auto-approve mode', async () => {
+        const harness = createHarness();
+        const handler = new CodexPermissionHandler(harness.session, {
+            getPermissionMode: () => 'auto-approve'
+        });
+
+        let settled = false;
+        const pending = handler.handleToolCall('call-3', 'request_user_input', {
+            questions: [{ id: 'plan_action', question: 'Proceed?', options: [] }]
+        }).then((result) => {
+            settled = true;
+            return result;
+        });
+
+        await Promise.resolve();
+        expect(settled).toBe(false);
+
+        await harness.respond({
+            id: 'call-3',
+            approved: true,
+            decision: 'approved',
+            answers: {
+                plan_action: { answers: ['Hold plan mode'] }
+            }
+        });
+        const result = await pending;
+
+        expect(result).toEqual({
+            decision: 'approved',
+            answers: {
+                plan_action: { answers: ['Hold plan mode'] }
+            }
+        });
+
+        const currentState = harness.getState() as {
+            requests?: Record<string, unknown>;
+            completedRequests?: Record<string, {
+                status: string;
+                decision: string;
+                mode?: string;
+                answers?: Record<string, { answers: string[] }>;
+            }>;
+        };
+        expect(currentState.requests?.['call-3']).toBeUndefined();
+        expect(currentState.completedRequests?.['call-3']).toMatchObject({
+            status: 'approved',
+            decision: 'approved',
+            answers: {
+                plan_action: { answers: ['Hold plan mode'] }
+            }
         });
     });
 });

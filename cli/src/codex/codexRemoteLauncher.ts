@@ -3,7 +3,10 @@ import { randomUUID } from 'node:crypto';
 
 import { CodexMcpClient } from './codexMcpClient';
 import { CodexAppServerClient } from './codexAppServerClient';
-import { CodexPermissionHandler } from './utils/permissionHandler';
+import {
+    CodexPermissionHandler,
+    isQuestionToolName
+} from './utils/permissionHandler';
 import { ReasoningProcessor } from './utils/reasoningProcessor';
 import { DiffProcessor } from './utils/diffProcessor';
 import { logger } from '@/ui/logger';
@@ -323,6 +326,17 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         const permissionHandler = new CodexPermissionHandler(session.client, {
             getPermissionMode: () => session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined,
             onRequest: ({ id, toolName, input }) => {
+                if (isQuestionToolName(toolName)) {
+                    session.sendCodexMessage({
+                        type: 'tool-call',
+                        name: toolName,
+                        callId: id,
+                        input: input ?? {},
+                        id: randomUUID()
+                    });
+                    return;
+                }
+
                 const inputRecord = input && typeof input === 'object' ? input as Record<string, unknown> : {};
                 const message = typeof inputRecord.message === 'string' ? inputRecord.message : undefined;
                 const rawCommand = inputRecord.command;
@@ -347,14 +361,20 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     id: randomUUID()
                 });
             },
-            onComplete: ({ id, decision, reason, approved }) => {
+            onComplete: ({ id, decision, reason, approved, toolName, answers }) => {
                 session.sendCodexMessage({
                     type: 'tool-call-result',
                     callId: id,
-                    output: {
-                        decision,
-                        reason
-                    },
+                    output: isQuestionToolName(toolName)
+                        ? {
+                            decision,
+                            reason,
+                            answers
+                        }
+                        : {
+                            decision,
+                            reason
+                        },
                     is_error: !approved,
                     id: randomUUID()
                 });
@@ -542,7 +562,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     });
                     session.sendSessionEvent({
                         type: 'message',
-                        message: 'Plan 已确认，自动切换到默认模式并开始执行。'
+                        message: 'Plan 已确认，自动退出计划模式并继续执行。'
                     });
                     planAutoExecutePending = null;
                 } else if (planAutoExecuteMatchedTurn) {
