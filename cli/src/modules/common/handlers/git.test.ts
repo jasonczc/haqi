@@ -12,6 +12,7 @@ const execFileAsync = promisify(execFile)
 type GitResponse = {
     success: boolean
     stdout?: string
+    content?: string
     stderr?: string
     error?: string
 }
@@ -36,7 +37,7 @@ async function initRepo(repoPath: string): Promise<void> {
 
 async function callGitHandler(
     rpc: RpcHandlerManager,
-    method: 'git-status' | 'git-diff-numstat' | 'git-diff-file',
+    method: 'git-status' | 'git-diff-numstat' | 'git-diff-file' | 'git-read-snapshot',
     params: Record<string, unknown>
 ): Promise<GitResponse> {
     const response = await rpc.handleRequest({
@@ -105,6 +106,22 @@ describe('git RPC handlers', () => {
         })
         expect(stagedFileDiffResult.success).toBe(true)
         expect(stagedFileDiffResult.stdout ?? '').toContain('+line2')
+
+        const indexSnapshot = await callGitHandler(rpc, 'git-read-snapshot', {
+            cwd: rootDir,
+            filePath: 'project-a/tracked.txt',
+            source: 'index'
+        })
+        expect(indexSnapshot.success).toBe(true)
+        expect(Buffer.from(indexSnapshot.stdout ?? indexSnapshot.content ?? '', 'base64').toString('utf8')).toContain('line2')
+
+        const headSnapshot = await callGitHandler(rpc, 'git-read-snapshot', {
+            cwd: rootDir,
+            filePath: 'project-a/tracked.txt',
+            source: 'head'
+        })
+        expect(headSnapshot.success).toBe(true)
+        expect(Buffer.from(headSnapshot.stdout ?? headSnapshot.content ?? '', 'base64').toString('utf8')).not.toContain('line2')
     })
 
     it('returns a clear error when no nested git repository exists', async () => {

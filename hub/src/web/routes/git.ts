@@ -20,6 +20,10 @@ const fileReadSchema = z.object({
 })
 
 const pathOnlySchema = fileReadSchema.pick({ path: true })
+const gitSnapshotSchema = z.object({
+    path: z.string().min(1),
+    source: z.enum(['head', 'index'])
+})
 
 const YOLO_PERMISSION_MODES = new Set(['yolo', 'bypassPermissions', 'auto-approve'])
 const WINDOWS_ABSOLUTE_PATH_REGEX = /^[A-Za-z]:[\\/]/
@@ -122,6 +126,35 @@ export function createGitRoutes(getSyncEngine: () => SyncEngine | null): Hono<We
             cwd: sessionPath,
             filePath: parsed.data.path,
             staged
+        }))
+        return c.json(result)
+    })
+
+    app.get('/sessions/:id/git-read-snapshot', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const sessionPath = sessionResult.session.metadata?.path
+        if (!sessionPath) {
+            return c.json({ success: false, error: 'Session path not available' })
+        }
+
+        const parsed = gitSnapshotSchema.safeParse(c.req.query())
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid git snapshot request' }, 400)
+        }
+
+        const result = await runRpc(() => engine.readGitSnapshot(sessionResult.sessionId, {
+            cwd: sessionPath,
+            filePath: parsed.data.path,
+            source: parsed.data.source
         }))
         return c.json(result)
     })

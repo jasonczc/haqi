@@ -2206,6 +2206,13 @@ ${note.content}
         return await this.rpcGateway.getGitDiffFile(sessionId, options)
     }
 
+    async readGitSnapshot(
+        sessionId: string,
+        options: { cwd?: string; filePath: string; source: 'head' | 'index' }
+    ): Promise<RpcReadFileResponse> {
+        return await this.rpcGateway.readGitSnapshot(sessionId, options)
+    }
+
     async getCodexStatus(sessionId: string): Promise<RpcCodexStatusResponse> {
         return await this.rpcGateway.getCodexStatus(sessionId)
     }

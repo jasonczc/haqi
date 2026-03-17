@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useSearch } from '@tanstack/react-router'
 import type { GitCommandResponse } from '@/types/api'
@@ -7,12 +7,14 @@ import { CopyIcon, CheckIcon } from '@/components/icons'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
+import { useTheme } from '@/hooks/useTheme'
 import { queryKeys } from '@/lib/query-keys'
 import { langAlias, useShikiHighlighter } from '@/lib/shiki'
 import { decodeBase64 } from '@/lib/utils'
 import { isOutsideWorkspacePathCandidate } from '@/lib/pathLinks'
 
 const MAX_COPYABLE_FILE_BYTES = 1_000_000
+const GitDiffViewer = lazy(() => import('@/components/GitDiffViewer'))
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
     png: 'image/png',
     jpg: 'image/jpeg',
@@ -81,41 +83,6 @@ function BackIcon(props: { className?: string }) {
     )
 }
 
-function DiffDisplay(props: { diffContent: string }) {
-    const lines = props.diffContent.split('\n')
-
-    return (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-bg)]">
-            {lines.map((line, index) => {
-                const isAdd = line.startsWith('+') && !line.startsWith('+++')
-                const isRemove = line.startsWith('-') && !line.startsWith('---')
-                const isHunk = line.startsWith('@@')
-                const isHeader = line.startsWith('+++') || line.startsWith('---')
-
-                const className = [
-                    'whitespace-pre-wrap px-3 py-0.5 text-xs font-mono',
-                    isAdd ? 'bg-[var(--app-diff-added-bg)] text-[var(--app-diff-added-text)]' : '',
-                    isRemove ? 'bg-[var(--app-diff-removed-bg)] text-[var(--app-diff-removed-text)]' : '',
-                    isHunk ? 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)] font-semibold' : '',
-                    isHeader ? 'text-[var(--app-hint)] font-semibold' : ''
-                ].filter(Boolean).join(' ')
-
-                const style = isAdd
-                    ? { borderLeft: '2px solid var(--app-git-staged-color)' }
-                    : isRemove
-                        ? { borderLeft: '2px solid var(--app-git-deleted-color)' }
-                        : undefined
-
-                return (
-                    <div key={`${index}-${line}`} className={className} style={style}>
-                        {line || ' '}
-                    </div>
-                )
-            })}
-        </div>
-    )
-}
-
 function FileContentSkeleton() {
     const widths = ['w-full', 'w-11/12', 'w-5/6', 'w-3/4', 'w-2/3', 'w-4/5']
 
@@ -137,6 +104,25 @@ function resolveLanguage(path: string): string | undefined {
     const ext = parts[parts.length - 1]?.toLowerCase()
     if (!ext) return undefined
     return langAlias[ext] ?? ext
+}
+
+function resolveGitDiffLanguage(path: string): string {
+    const language = resolveLanguage(path)
+    if (!language) return 'plaintext'
+
+    const diffLangAlias: Record<string, string> = {
+        shellscript: 'bash',
+        make: 'makefile',
+        csharp: 'csharp'
+    }
+
+    return diffLangAlias[language] ?? language
+}
+
+function decodeFileContent(content: string | undefined): string {
+    if (!content) return ''
+    const decoded = decodeBase64(content)
+    return decoded.ok ? decoded.text : ''
 }
 
 function getUtf8ByteLength(value: string): number {
@@ -161,6 +147,7 @@ function extractCommandError(result: GitCommandResponse | undefined): string | n
 
 export default function FilePage() {
     const { api } = useAppContext()
+    const { isDark } = useTheme()
     const { copied: pathCopied, copy: copyPath } = useCopyToClipboard()
     const { copied: contentCopied, copy: copyContent } = useCopyToClipboard()
     const goBack = useAppGoBack()
@@ -213,6 +200,7 @@ export default function FilePage() {
         : false
 
     const language = useMemo(() => resolveLanguage(filePath), [filePath])
+    const diffLanguage = useMemo(() => resolveGitDiffLanguage(filePath), [filePath])
     const imageMimeType = useMemo(() => imageMimeFromPath(filePath), [filePath])
     const highlighted = useShikiHighlighter(decodedContent, language)
     const contentSizeBytes = useMemo(
@@ -223,6 +211,39 @@ export default function FilePage() {
         && !binaryFile
         && decodedContent.length > 0
         && contentSizeBytes <= MAX_COPYABLE_FILE_BYTES
+
+    const oldSnapshotQuery = useQuery({
+        queryKey: ['git-file-snapshot', sessionId, filePath, staged, 'old'],
+        queryFn: async () => {
+            if (!api || !sessionId || !filePath) {
+                throw new Error('Missing session or path')
+            }
+            return await api.readGitSnapshot(sessionId, filePath, staged ? 'head' : 'index')
+        },
+        enabled: Boolean(api && sessionId && filePath && diffContent && !outsideWorkspaceCandidate)
+    })
+
+    const stagedNewSnapshotQuery = useQuery({
+        queryKey: ['git-file-snapshot', sessionId, filePath, staged, 'new'],
+        queryFn: async () => {
+            if (!api || !sessionId || !filePath) {
+                throw new Error('Missing session or path')
+            }
+            return await api.readGitSnapshot(sessionId, filePath, 'index')
+        },
+        enabled: Boolean(api && sessionId && filePath && diffContent && staged === true && !outsideWorkspaceCandidate)
+    })
+
+    const oldDiffContent = useMemo(
+        () => decodeFileContent(oldSnapshotQuery.data?.success ? oldSnapshotQuery.data.content : undefined),
+        [oldSnapshotQuery.data]
+    )
+    const newDiffContent = useMemo(
+        () => staged
+            ? decodeFileContent(stagedNewSnapshotQuery.data?.success ? stagedNewSnapshotQuery.data.content : undefined)
+            : decodedContent,
+        [decodedContent, staged, stagedNewSnapshotQuery.data]
+    )
 
     const [displayMode, setDisplayMode] = useState<'diff' | 'file'>('diff')
     const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
@@ -278,7 +299,11 @@ export default function FilePage() {
         }
     }, [imagePreviewUrl])
 
-    const loading = diffQuery.isLoading || fileQuery.isLoading
+    const diffViewLoading = diffQuery.isLoading
+        || oldSnapshotQuery.isLoading
+        || (staged === true && stagedNewSnapshotQuery.isLoading)
+        || (staged !== true && fileQuery.isLoading)
+    const loading = diffViewLoading || (displayMode === 'file' && fileQuery.isLoading)
     const fileError = fileContentResult && !fileContentResult.success
         ? (fileContentResult.error ?? 'Failed to read file')
         : null
@@ -352,6 +377,17 @@ export default function FilePage() {
                         <div className="text-sm text-[var(--app-hint)]">No file path provided.</div>
                     ) : loading ? (
                         <FileContentSkeleton />
+                    ) : displayMode === 'diff' && diffContent ? (
+                        <Suspense fallback={<FileContentSkeleton />}>
+                            <GitDiffViewer
+                                filePath={filePath}
+                                language={diffLanguage}
+                                oldContent={oldDiffContent}
+                                newContent={newDiffContent}
+                                diffContent={diffContent}
+                                theme={isDark ? 'dark' : 'light'}
+                            />
+                        </Suspense>
                     ) : fileError ? (
                         <div className="text-sm text-[var(--app-hint)]">{fileError}</div>
                     ) : imageMimeType && (displayMode === 'file' || !diffContent) ? (
@@ -378,8 +414,6 @@ export default function FilePage() {
                         <div className="text-sm text-[var(--app-hint)]">
                             This looks like a binary file. It cannot be displayed.
                         </div>
-                    ) : displayMode === 'diff' && diffContent ? (
-                        <DiffDisplay diffContent={diffContent} />
                     ) : displayMode === 'diff' && diffError ? (
                         <div className="text-sm text-[var(--app-hint)]">{diffError}</div>
                     ) : displayMode === 'file' ? (

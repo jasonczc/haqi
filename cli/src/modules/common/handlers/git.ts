@@ -47,6 +47,13 @@ interface GitDiffFileRequest {
     timeout?: number
 }
 
+interface GitReadSnapshotRequest {
+    cwd?: string
+    filePath: string
+    source: 'head' | 'index'
+    timeout?: number
+}
+
 interface GitCommandResponse {
     success: boolean
     stdout?: string
@@ -130,6 +137,13 @@ function shouldFallbackToNestedRepos(response: GitCommandResponse): boolean {
         || details.includes('use --no-index to compare two paths outside a working tree')
         || details.includes('usage: git diff --no-index')
         || details.includes('unknown option `cached`')
+}
+
+function isMissingGitSnapshot(response: GitCommandResponse): boolean {
+    const details = `${response.error ?? ''}\n${response.stderr ?? ''}`.toLowerCase()
+    return details.includes('does not exist in')
+        || details.includes('exists on disk, but not in')
+        || details.includes('pathspec')
 }
 
 function toPosixPath(value: string): string {
@@ -343,6 +357,35 @@ export function registerGitHandlers(rpcHandlerManager: RpcHandlerManager, workin
         return await runGitCommand(args, targetRepo.absolutePath, timeout)
     }
 
+    const runNestedReadSnapshotFallback = async (
+        baseCwd: string,
+        filePath: string,
+        source: 'head' | 'index',
+        timeout?: number
+    ): Promise<GitCommandResponse> => {
+        const repos = await getNestedRepos(baseCwd)
+        if (repos.length === 0) {
+            return rpcError('Not a git repository and no nested git repositories were found')
+        }
+
+        const absoluteFilePath = resolve(baseCwd, filePath)
+        const matchingRepos = repos
+            .filter((repo) => isPathInside(absoluteFilePath, repo.absolutePath))
+            .sort((a, b) => b.absolutePath.length - a.absolutePath.length)
+        const targetRepo = matchingRepos[0]
+        if (!targetRepo) {
+            return rpcError(`File '${filePath}' is not inside a nested git repository`)
+        }
+
+        const repoRelativePath = relative(targetRepo.absolutePath, absoluteFilePath)
+        if (!repoRelativePath || repoRelativePath.startsWith('..') || isAbsolute(repoRelativePath)) {
+            return rpcError(`Invalid git file path '${filePath}'`)
+        }
+
+        const revision = source === 'head' ? `HEAD:${toPosixPath(repoRelativePath)}` : `:${toPosixPath(repoRelativePath)}`
+        return await runGitCommand(['show', '--no-textconv', revision], targetRepo.absolutePath, timeout)
+    }
+
     rpcHandlerManager.registerHandler<GitStatusRequest, GitCommandResponse>('git-status', async (data) => {
         const resolved = resolveCwd(data.cwd, workingDirectory)
         if (resolved.error) {
@@ -396,5 +439,54 @@ export function registerGitHandlers(rpcHandlerManager: RpcHandlerManager, workin
         }
 
         return await runNestedDiffFileFallback(resolved.cwd, data.filePath, data.staged, data.timeout)
+    })
+
+    rpcHandlerManager.registerHandler<GitReadSnapshotRequest, {
+        success: boolean
+        content?: string
+        size?: number
+        truncated?: boolean
+        error?: string
+    }>('git-read-snapshot', async (data) => {
+        const resolved = resolveCwd(data.cwd, workingDirectory)
+        if (resolved.error) {
+            return rpcError(resolved.error)
+        }
+        const fileError = validateFilePath(data.filePath, workingDirectory)
+        if (fileError) {
+            return rpcError(fileError)
+        }
+
+        const revision = data.source === 'head' ? `HEAD:${toPosixPath(data.filePath)}` : `:${toPosixPath(data.filePath)}`
+        const result = await runGitCommand(['show', '--no-textconv', revision], resolved.cwd, data.timeout)
+        const snapshotResult = result.success
+            ? result
+            : shouldFallbackToNestedRepos(result)
+                ? await runNestedReadSnapshotFallback(resolved.cwd, data.filePath, data.source, data.timeout)
+                : result
+
+        if (!snapshotResult.success) {
+            if (isMissingGitSnapshot(snapshotResult)) {
+                return {
+                    success: true,
+                    content: '',
+                    size: 0,
+                    truncated: false
+                }
+            }
+            return rpcError(snapshotResult.error ?? snapshotResult.stderr ?? 'Failed to read git snapshot', {
+                stderr: snapshotResult.stderr,
+                exitCode: snapshotResult.exitCode
+            })
+        }
+
+        const stdout = snapshotResult.stdout ?? ''
+        const buffer = Buffer.from(stdout, 'utf8')
+        return {
+            success: true,
+            content: buffer.toString('base64'),
+            size: buffer.byteLength,
+            truncated: false
+        }
     })
 }

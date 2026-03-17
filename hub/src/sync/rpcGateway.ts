@@ -317,6 +317,13 @@ export class RpcGateway {
         return await this.sessionRpc(sessionId, 'git-diff-file', options) as RpcCommandResponse
     }
 
+    async readGitSnapshot(
+        sessionId: string,
+        options: { cwd?: string; filePath: string; source: 'head' | 'index' }
+    ): Promise<RpcReadFileResponse> {
+        return await this.sessionRpc(sessionId, 'git-read-snapshot', options) as RpcReadFileResponse
+    }
+
     async getCodexStatus(sessionId: string): Promise<RpcCodexStatusResponse> {
         return await this.sessionRpc(sessionId, 'get-codex-status', {}) as RpcCodexStatusResponse
     }

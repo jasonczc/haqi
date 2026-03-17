@@ -537,6 +537,13 @@ export class ApiClient {
         return await this.request<GitCommandResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/git-diff-file?${params.toString()}`)
     }
 
+    async readGitSnapshot(sessionId: string, path: string, source: 'head' | 'index'): Promise<FileReadResponse> {
+        const params = new URLSearchParams()
+        params.set('path', path)
+        params.set('source', source)
+        return await this.request<FileReadResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/git-read-snapshot?${params.toString()}`)
+    }
+
     async getQueueStatus(sessionId: string): Promise<QueueStatusResponse> {
         return await this.request<QueueStatusResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue-status`)
     }
