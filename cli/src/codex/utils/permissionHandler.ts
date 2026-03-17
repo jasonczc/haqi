@@ -36,6 +36,10 @@ export function isRequestUserInputToolName(toolName: string): boolean {
     return toolName === 'request_user_input';
 }
 
+export function isPlanApprovalToolName(toolName: string): boolean {
+    return toolName === 'ExitPlanMode' || toolName === 'exit_plan_mode';
+}
+
 export function isQuestionToolName(toolName: string): boolean {
     return isAskUserQuestionToolName(toolName) || isRequestUserInputToolName(toolName);
 }
@@ -76,7 +80,7 @@ export class CodexPermissionHandler extends BasePermissionHandler<PermissionResp
         input: unknown
     ): Promise<PermissionResult> {
         const mode = this.options?.getPermissionMode?.();
-        if (mode === 'auto-approve' && !isQuestionToolName(toolName)) {
+        if (mode === 'auto-approve' && !isQuestionToolName(toolName) && !isPlanApprovalToolName(toolName)) {
             const result: PermissionResult = {
                 decision: 'approved'
             };

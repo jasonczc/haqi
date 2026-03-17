@@ -5,6 +5,7 @@ import { CodexMcpClient } from './codexMcpClient';
 import { CodexAppServerClient } from './codexAppServerClient';
 import {
     CodexPermissionHandler,
+    isPlanApprovalToolName,
     isQuestionToolName
 } from './utils/permissionHandler';
 import { ReasoningProcessor } from './utils/reasoningProcessor';
@@ -319,9 +320,12 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         };
 
         let activeTurnMode: EnhancedMode | null = null;
-        let planAutoExecutePending: {
+        const pendingPlanApprovals = new Map<string, {
             turnId: string | null;
-        } | null = null;
+            mode: EnhancedMode | null;
+            toolCompleted: boolean;
+            turnCompleted: boolean;
+        }>();
 
         const permissionHandler = new CodexPermissionHandler(session.client, {
             getPermissionMode: () => session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined,
@@ -380,6 +384,29 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 });
             }
         });
+
+        const maybeExecuteApprovedPlan = (callId: string) => {
+            const state = pendingPlanApprovals.get(callId);
+            if (!state || !state.toolCompleted || !state.turnCompleted) {
+                return;
+            }
+
+            const fallbackPermissionMode = session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined;
+            const executeMode: EnhancedMode = {
+                ...(state.mode ?? { permissionMode: fallbackPermissionMode ?? 'default' }),
+                collaborationMode: undefined,
+                routeContext: undefined
+            };
+            session.setCollaborationMode(undefined, { syncMetadata: true });
+            session.queue.unshift(AUTO_EXECUTE_PLAN_PROMPT, executeMode, {
+                deferUserMessageUntilDequeue: true
+            });
+            session.sendSessionEvent({
+                type: 'message',
+                message: 'Plan 已确认，自动退出计划模式并继续执行。'
+            });
+            pendingPlanApprovals.delete(callId);
+        };
         const reasoningProcessor = new ReasoningProcessor((message) => {
             session.sendCodexMessage(message);
         });
@@ -455,6 +482,46 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 const command = normalizeCommand(msg.command) ?? 'command';
                 messageBuffer.addMessage(`Executing: ${command}`, 'tool');
             } else if (msgType === 'tool_call_begin') {
+                const callId = asString(msg.call_id ?? msg.callId);
+                const rawToolName = asString(msg.name);
+                if (
+                    callId
+                    && rawToolName
+                    && isPlanApprovalToolName(rawToolName)
+                    && session.getCollaborationMode() === 'plan'
+                    && !pendingPlanApprovals.has(callId)
+                ) {
+                    pendingPlanApprovals.set(callId, {
+                        turnId: eventTurnId ?? this.currentTurnId,
+                        mode: activeTurnMode ? { ...activeTurnMode } : null,
+                        toolCompleted: false,
+                        turnCompleted: false
+                    });
+
+                    void permissionHandler.handleToolCall(callId, rawToolName, msg.input ?? {})
+                        .then((result) => {
+                            const state = pendingPlanApprovals.get(callId);
+                            if (!state) {
+                                return;
+                            }
+
+                            if (result.decision === 'approved' || result.decision === 'approved_for_session') {
+                                maybeExecuteApprovedPlan(callId);
+                                return;
+                            }
+
+                            pendingPlanApprovals.delete(callId);
+                            session.sendSessionEvent({
+                                type: 'message',
+                                message: 'Plan 未确认，保持计划模式。'
+                            });
+                        })
+                        .catch((error) => {
+                            pendingPlanApprovals.delete(callId);
+                            logger.debug('[Codex] Plan approval request ended without confirmation', error);
+                        });
+                }
+
                 const toolName = asString(msg.name) ?? 'Tool';
                 const input = asRecord(msg.input);
                 const query = asString(input?.query);
@@ -504,13 +571,12 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
 
             if (msgType === 'tool_call_end') {
+                const callId = asString(msg.call_id ?? msg.callId);
                 const toolName = asString(msg.name);
-                if (toolName === 'ExitPlanMode' || toolName === 'exit_plan_mode') {
-                    if (session.getCollaborationMode() === 'plan') {
-                        planAutoExecutePending = {
-                            turnId: eventTurnId ?? this.currentTurnId
-                        };
-                        messageBuffer.addMessage('Plan approved. Preparing auto-execution...', 'status');
+                if (callId && toolName && isPlanApprovalToolName(toolName)) {
+                    const state = pendingPlanApprovals.get(callId);
+                    if (state) {
+                        state.toolCompleted = true;
                     }
                 }
             }
@@ -545,28 +611,18 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     id: randomUUID()
                 });
 
-                const planAutoExecuteMatchedTurn = Boolean(
-                    planAutoExecutePending
-                    && (!planAutoExecutePending.turnId || !terminalTurnId || planAutoExecutePending.turnId === terminalTurnId)
-                );
-                if (msgType === 'task_complete' && planAutoExecuteMatchedTurn) {
-                    const fallbackPermissionMode = session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined;
-                    const executeMode: EnhancedMode = {
-                        ...(activeTurnMode ?? { permissionMode: fallbackPermissionMode ?? 'default' }),
-                        collaborationMode: undefined,
-                        routeContext: undefined
-                    };
-                    session.setCollaborationMode(undefined, { syncMetadata: true });
-                    session.queue.unshift(AUTO_EXECUTE_PLAN_PROMPT, executeMode, {
-                        deferUserMessageUntilDequeue: true
-                    });
-                    session.sendSessionEvent({
-                        type: 'message',
-                        message: 'Plan 已确认，自动退出计划模式并继续执行。'
-                    });
-                    planAutoExecutePending = null;
-                } else if (planAutoExecuteMatchedTurn) {
-                    planAutoExecutePending = null;
+                for (const [callId, state] of pendingPlanApprovals) {
+                    const matchedTurn = !state.turnId || !terminalTurnId || state.turnId === terminalTurnId;
+                    if (!matchedTurn) {
+                        continue;
+                    }
+
+                    if (msgType === 'task_complete') {
+                        state.turnCompleted = true;
+                        maybeExecuteApprovedPlan(callId);
+                    } else {
+                        pendingPlanApprovals.delete(callId);
+                    }
                 }
                 activeTurnMode = null;
 
@@ -1049,7 +1105,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 clearLiveActivity();
                 setTurnInFlight(false);
                 activeTurnMode = null;
-                planAutoExecutePending = null;
+                pendingPlanApprovals.clear();
 
                 if (isAbortError) {
                     messageBuffer.addMessage('Aborted by user', 'status');

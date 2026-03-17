@@ -140,4 +140,44 @@ describe('CodexPermissionHandler', () => {
             }
         });
     });
+
+    it('does not auto-approve ExitPlanMode in auto-approve mode', async () => {
+        const harness = createHarness();
+        const handler = new CodexPermissionHandler(harness.session, {
+            getPermissionMode: () => 'auto-approve'
+        });
+
+        let settled = false;
+        const pending = handler.handleToolCall('call-4', 'ExitPlanMode', {
+            text: 'Proposed plan'
+        }).then((result) => {
+            settled = true;
+            return result;
+        });
+
+        await Promise.resolve();
+        expect(settled).toBe(false);
+
+        const currentState = harness.getState() as {
+            requests?: Record<string, { tool: string }>;
+            completedRequests?: Record<string, unknown>;
+        };
+        expect(currentState.requests?.['call-4']).toMatchObject({
+            tool: 'ExitPlanMode'
+        });
+        expect(currentState.completedRequests?.['call-4']).toBeUndefined();
+
+        await harness.respond({
+            id: 'call-4',
+            approved: false,
+            decision: 'abort',
+            reason: 'Keep planning'
+        });
+
+        await expect(pending).resolves.toEqual({
+            decision: 'abort',
+            reason: 'Keep planning',
+            answers: undefined
+        });
+    });
 });

@@ -1135,6 +1135,14 @@ export class SyncEngine {
         const completedRequests = session.agentState?.completedRequests
 
         for (const requestId of Object.keys(requests)) {
+            const request = requests[requestId]
+            if (request && typeof request.tool === 'string') {
+                const toolName = request.tool.trim()
+                if (toolName === 'ExitPlanMode' || toolName === 'exit_plan_mode') {
+                    continue
+                }
+            }
+
             if (completedRequests && requestId in completedRequests) {
                 continue
             }
