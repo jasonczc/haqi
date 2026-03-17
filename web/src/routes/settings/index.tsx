@@ -21,9 +21,11 @@ import {
 import { useThemePreference, type ThemePreference } from '@/hooks/useTheme'
 import { useAppContext } from '@/lib/app-context'
 import { useMemory } from '@/hooks/queries/useMemory'
+import { useMachines } from '@/hooks/queries/useMachines'
 import { queryKeys } from '@/lib/query-keys'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 import { Switch } from '@/components/ui/Switch'
+import type { CodexCredentialProfile, CodexCredentialStateResponse } from '@/types/api'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
     { value: 'en', nativeLabel: 'English' },
@@ -181,6 +183,51 @@ function SettingsSection(props: SettingsSectionProps) {
     )
 }
 
+type TranslationFn = (key: string, params?: Record<string, string | number>) => string
+
+function formatCodexCredentialSummary(
+    summary: CodexCredentialStateResponse['current']['summary'],
+    t: TranslationFn
+): string[] {
+    if (!summary) {
+        return []
+    }
+
+    const rows: string[] = []
+    if (summary.authMode) {
+        rows.push(`${t('settings.codexCredentials.summary.authMode')}: ${summary.authMode}`)
+    }
+    if (summary.email) {
+        rows.push(`${t('settings.codexCredentials.summary.email')}: ${summary.email}`)
+    }
+    if (summary.organizationTitle) {
+        rows.push(`${t('settings.codexCredentials.summary.organization')}: ${summary.organizationTitle}`)
+    }
+    if (summary.planType) {
+        rows.push(`${t('settings.codexCredentials.summary.plan')}: ${summary.planType}`)
+    }
+    rows.push(`${t('settings.codexCredentials.summary.apiKey')}: ${summary.hasOpenAiApiKey ? t('settings.codexCredentials.summary.present') : t('settings.codexCredentials.summary.absent')}`)
+    rows.push(`${t('settings.codexCredentials.summary.tokens')}: ${summary.hasTokens ? t('settings.codexCredentials.summary.present') : t('settings.codexCredentials.summary.absent')}`)
+    if (summary.lastRefresh) {
+        rows.push(`${t('settings.codexCredentials.summary.lastRefresh')}: ${summary.lastRefresh}`)
+    }
+    return rows
+}
+
+function downloadTextFile(filename: string, content: string): void {
+    if (typeof document === 'undefined' || typeof URL === 'undefined') {
+        return
+    }
+
+    const blob = new Blob([content], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    anchor.click()
+    URL.revokeObjectURL(url)
+}
+
 export default function SettingsPage() {
     const { t, locale, setLocale } = useTranslation()
     const { api } = useAppContext()
@@ -255,6 +302,17 @@ export default function SettingsPage() {
     const isReportDomainDirty = reportDomainDraft.trim() !== reportDomainSaved.trim()
     const memoryInjectionEnabled = memory?.enabled ?? false
     const pureContextModeEnabled = memory?.pureContextMode ?? false
+    const { machines } = useMachines(api, true)
+    const activeMachines = useMemo(() => machines.filter((machine) => machine.active), [machines])
+    const [selectedCodexMachineId, setSelectedCodexMachineId] = useState('')
+    const [codexCredentialState, setCodexCredentialState] = useState<CodexCredentialStateResponse | null>(null)
+    const [codexCredentialLoading, setCodexCredentialLoading] = useState(false)
+    const [codexCredentialExporting, setCodexCredentialExporting] = useState(false)
+    const [codexCredentialActionPendingId, setCodexCredentialActionPendingId] = useState<string | null>(null)
+    const [codexCredentialStatusMessage, setCodexCredentialStatusMessage] = useState<string | null>(null)
+    const [codexCredentialError, setCodexCredentialError] = useState<string | null>(null)
+    const [codexCredentialNameDraft, setCodexCredentialNameDraft] = useState('')
+    const [codexCredentialImportDraft, setCodexCredentialImportDraft] = useState('')
 
     const fontScaleOptions = getFontScaleOptions()
     const currentLocale = locales.find((loc) => loc.value === locale)
@@ -272,6 +330,11 @@ export default function SettingsPage() {
     )
     const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
     const { projectQuickCreateEnabled, setProjectQuickCreateEnabled } = useProjectQuickCreate()
+    const selectedCodexMachine = activeMachines.find((machine) => machine.id === selectedCodexMachineId) ?? null
+    const codexCurrentSummaryRows = useMemo(
+        () => formatCodexCredentialSummary(codexCredentialState?.current.summary ?? null, t),
+        [codexCredentialState?.current.summary, t]
+    )
     const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
     const currencyFormatter = useMemo(() => new Intl.NumberFormat(locale, {
         style: 'currency',
@@ -343,6 +406,28 @@ export default function SettingsPage() {
         }
     }, [api, t])
 
+    const loadCodexCredentialState = useCallback(async (machineId: string) => {
+        if (!machineId) {
+            setCodexCredentialState(null)
+            setCodexCredentialError(null)
+            return
+        }
+
+        setCodexCredentialLoading(true)
+        setCodexCredentialError(null)
+        try {
+            const result = await api.getMachineCodexCredentials(machineId)
+            setCodexCredentialState(result)
+        } catch (error) {
+            setCodexCredentialState(null)
+            setCodexCredentialError(
+                error instanceof Error ? error.message : t('settings.codexCredentials.status.loadFailed')
+            )
+        } finally {
+            setCodexCredentialLoading(false)
+        }
+    }, [api, t])
+
     useEffect(() => {
         void loadUsageOverview(false)
     }, [loadUsageOverview])
@@ -354,6 +439,26 @@ export default function SettingsPage() {
     useEffect(() => {
         void loadExperimentalSettings()
     }, [loadExperimentalSettings])
+
+    useEffect(() => {
+        if (activeMachines.length === 0) {
+            setSelectedCodexMachineId('')
+            setCodexCredentialState(null)
+            return
+        }
+
+        const currentExists = activeMachines.some((machine) => machine.id === selectedCodexMachineId)
+        if (!currentExists) {
+            setSelectedCodexMachineId(activeMachines[0]!.id)
+        }
+    }, [activeMachines, selectedCodexMachineId])
+
+    useEffect(() => {
+        if (!selectedCodexMachineId) {
+            return
+        }
+        void loadCodexCredentialState(selectedCodexMachineId)
+    }, [loadCodexCredentialState, selectedCodexMachineId])
 
     useEffect(() => {
         if (!memory) {
@@ -620,6 +725,152 @@ export default function SettingsPage() {
     const handleSaveReportDomain = async () => {
         setReportDomainStatusMessage(null)
         await saveReportDomainMutation.mutateAsync(reportDomainDraft)
+    }
+
+    const handleCodexMachineChange = (machineId: string) => {
+        setSelectedCodexMachineId(machineId)
+        setCodexCredentialStatusMessage(null)
+        setCodexCredentialError(null)
+    }
+
+    const handleReloadCodexCredentials = async () => {
+        setCodexCredentialStatusMessage(null)
+        await loadCodexCredentialState(selectedCodexMachineId)
+    }
+
+    const handleExportCodexCredentials = async () => {
+        if (!selectedCodexMachineId) {
+            return
+        }
+
+        setCodexCredentialExporting(true)
+        setCodexCredentialError(null)
+        setCodexCredentialStatusMessage(null)
+        try {
+            const result = await api.exportMachineCodexCredentials(selectedCodexMachineId)
+            downloadTextFile(`codex-auth-${selectedCodexMachineId}.json`, result.content)
+            setCodexCredentialStatusMessage(t('settings.codexCredentials.status.exported'))
+        } catch (error) {
+            setCodexCredentialError(
+                error instanceof Error ? error.message : t('settings.codexCredentials.status.exportFailed')
+            )
+        } finally {
+            setCodexCredentialExporting(false)
+        }
+    }
+
+    const handleSaveCurrentCodexCredentials = async () => {
+        if (!selectedCodexMachineId) {
+            return
+        }
+
+        setCodexCredentialActionPendingId('save-current')
+        setCodexCredentialError(null)
+        setCodexCredentialStatusMessage(null)
+        try {
+            const result = await api.saveCurrentMachineCodexCredentials(selectedCodexMachineId, {
+                name: codexCredentialNameDraft.trim() || undefined
+            })
+            setCodexCredentialState(result)
+            setCodexCredentialStatusMessage(t('settings.codexCredentials.status.savedCurrent'))
+        } catch (error) {
+            setCodexCredentialError(
+                error instanceof Error ? error.message : t('settings.codexCredentials.status.actionFailed')
+            )
+        } finally {
+            setCodexCredentialActionPendingId(null)
+        }
+    }
+
+    const handleImportCodexCredentials = async () => {
+        if (!selectedCodexMachineId || !codexCredentialImportDraft.trim()) {
+            return
+        }
+
+        setCodexCredentialActionPendingId('import')
+        setCodexCredentialError(null)
+        setCodexCredentialStatusMessage(null)
+        try {
+            const result = await api.importMachineCodexCredentials(selectedCodexMachineId, {
+                content: codexCredentialImportDraft,
+                name: codexCredentialNameDraft.trim() || undefined
+            })
+            setCodexCredentialState(result)
+            setCodexCredentialImportDraft('')
+            setCodexCredentialStatusMessage(t('settings.codexCredentials.status.imported'))
+        } catch (error) {
+            setCodexCredentialError(
+                error instanceof Error ? error.message : t('settings.codexCredentials.status.actionFailed')
+            )
+        } finally {
+            setCodexCredentialActionPendingId(null)
+        }
+    }
+
+    const handleActivateCodexCredential = async (profileId: string) => {
+        if (!selectedCodexMachineId) {
+            return
+        }
+
+        setCodexCredentialActionPendingId(profileId)
+        setCodexCredentialError(null)
+        setCodexCredentialStatusMessage(null)
+        try {
+            const result = await api.activateMachineCodexCredential(selectedCodexMachineId, profileId)
+            setCodexCredentialState(result)
+            setCodexCredentialStatusMessage(t('settings.codexCredentials.status.activated'))
+        } catch (error) {
+            setCodexCredentialError(
+                error instanceof Error ? error.message : t('settings.codexCredentials.status.actionFailed')
+            )
+        } finally {
+            setCodexCredentialActionPendingId(null)
+        }
+    }
+
+    const handleDeleteCodexCredential = async (profile: CodexCredentialProfile) => {
+        if (!selectedCodexMachineId) {
+            return
+        }
+
+        const confirmed = window.confirm(t('settings.codexCredentials.confirmDelete', { name: profile.name }))
+        if (!confirmed) {
+            return
+        }
+
+        setCodexCredentialActionPendingId(profile.id)
+        setCodexCredentialError(null)
+        setCodexCredentialStatusMessage(null)
+        try {
+            const result = await api.deleteMachineCodexCredential(selectedCodexMachineId, profile.id)
+            setCodexCredentialState(result)
+            setCodexCredentialStatusMessage(t('settings.codexCredentials.status.deleted'))
+        } catch (error) {
+            setCodexCredentialError(
+                error instanceof Error ? error.message : t('settings.codexCredentials.status.actionFailed')
+            )
+        } finally {
+            setCodexCredentialActionPendingId(null)
+        }
+    }
+
+    const handleCodexCredentialFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        if (!file) {
+            return
+        }
+
+        try {
+            setCodexCredentialImportDraft(await file.text())
+            setCodexCredentialStatusMessage(t('settings.codexCredentials.status.fileLoaded'))
+            setCodexCredentialError(null)
+        } catch (error) {
+            setCodexCredentialError(
+                error instanceof Error ? error.message : t('settings.codexCredentials.status.fileReadFailed')
+            )
+        } finally {
+            event.target.value = ''
+        }
     }
 
     // Close dropdown when clicking outside
@@ -1479,6 +1730,212 @@ export default function SettingsPage() {
                                 </div>
                             </div>
                         ) : null}
+                    </div>
+
+                    <div className="border-b border-[var(--app-divider)]">
+                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                            {t('settings.codexCredentials.title')}
+                        </div>
+                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
+                            {t('settings.codexCredentials.description')}
+                        </div>
+
+                        {activeMachines.length > 0 ? (
+                            <>
+                                <div className="grid gap-2 px-3 pb-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
+                                    <select
+                                        value={selectedCodexMachineId}
+                                        onChange={(event) => handleCodexMachineChange(event.target.value)}
+                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                        aria-label={t('settings.codexCredentials.machine')}
+                                    >
+                                        {activeMachines.map((machine) => (
+                                            <option key={machine.id} value={machine.id}>
+                                                {machine.metadata?.displayName ?? machine.metadata?.host ?? machine.id}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleReloadCodexCredentials() }}
+                                        disabled={!selectedCodexMachineId || codexCredentialLoading}
+                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {t('settings.codexCredentials.actions.refresh')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { void handleExportCodexCredentials() }}
+                                        disabled={!codexCredentialState?.current.exists || codexCredentialExporting}
+                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        {t('settings.codexCredentials.actions.export')}
+                                    </button>
+                                </div>
+
+                                <div className="px-3 pb-3">
+                                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="font-medium text-[var(--app-fg)]">
+                                                {t('settings.codexCredentials.current.title')}
+                                            </div>
+                                            <div className="text-xs text-[var(--app-hint)]">
+                                                {selectedCodexMachine?.metadata?.host ?? selectedCodexMachine?.id}
+                                            </div>
+                                        </div>
+                                        {codexCredentialState?.current.exists ? (
+                                            <div className="mt-2 space-y-1 text-sm text-[var(--app-fg)]">
+                                                {codexCurrentSummaryRows.map((row) => (
+                                                    <div key={row}>{row}</div>
+                                                ))}
+                                                <div className="text-xs text-[var(--app-hint)]">
+                                                    {codexCredentialState.current.activeProfileId
+                                                        ? t('settings.codexCredentials.current.managed')
+                                                        : t('settings.codexCredentials.current.unmanaged')}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-2 text-sm text-[var(--app-hint)]">
+                                                {t('settings.codexCredentials.current.missing')}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {codexCredentialError ? (
+                                    <div className="px-3 pb-3">
+                                        <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                            {codexCredentialError}
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                {codexCredentialStatusMessage ? (
+                                    <div className="px-3 pb-3">
+                                        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+                                            {codexCredentialStatusMessage}
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                <div className="grid gap-3 px-3 pb-3 lg:grid-cols-2">
+                                    <div className="space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                        <div className="font-medium text-[var(--app-fg)]">
+                                            {t('settings.codexCredentials.actions.saveCurrent')}
+                                        </div>
+                                        <input
+                                            value={codexCredentialNameDraft}
+                                            onChange={(event) => setCodexCredentialNameDraft(event.target.value)}
+                                            placeholder={t('settings.codexCredentials.name.placeholder')}
+                                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => { void handleSaveCurrentCodexCredentials() }}
+                                            disabled={!codexCredentialState?.current.exists || codexCredentialActionPendingId !== null}
+                                            className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {t('settings.codexCredentials.actions.saveCurrent')}
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                        <div className="font-medium text-[var(--app-fg)]">
+                                            {t('settings.codexCredentials.import.title')}
+                                        </div>
+                                        <input
+                                            type="file"
+                                            accept="application/json,.json"
+                                            onChange={(event) => { void handleCodexCredentialFileChange(event) }}
+                                            className="block w-full text-sm text-[var(--app-fg)] file:mr-3 file:rounded-md file:border file:border-[var(--app-border)] file:bg-[var(--app-bg)] file:px-2.5 file:py-1.5 file:text-sm file:text-[var(--app-fg)]"
+                                        />
+                                        <textarea
+                                            value={codexCredentialImportDraft}
+                                            onChange={(event) => setCodexCredentialImportDraft(event.target.value)}
+                                            placeholder={t('settings.codexCredentials.import.placeholder')}
+                                            className="h-36 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                            spellCheck={false}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => { void handleImportCodexCredentials() }}
+                                            disabled={!codexCredentialImportDraft.trim() || codexCredentialActionPendingId !== null}
+                                            className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {t('settings.codexCredentials.actions.import')}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="px-3 pb-3">
+                                    <div className="mb-2 text-sm font-medium text-[var(--app-fg)]">
+                                        {t('settings.codexCredentials.profiles.title')}
+                                    </div>
+                                    {codexCredentialState?.profiles.length ? (
+                                        <div className="space-y-2">
+                                            {codexCredentialState.profiles.map((profile) => (
+                                                <div
+                                                    key={profile.id}
+                                                    className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                                >
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                        <div>
+                                                            <div className="font-medium text-[var(--app-fg)]">
+                                                                {profile.name}
+                                                            </div>
+                                                            <div className="text-xs text-[var(--app-hint)]">
+                                                                {profile.importSource === 'current-auth'
+                                                                    ? t('settings.codexCredentials.profile.sourceCurrent')
+                                                                    : t('settings.codexCredentials.profile.sourceImported')}
+                                                                {' · '}
+                                                                {formatDateTime(profile.updatedAt)}
+                                                                {profile.isActive ? ` · ${t('settings.codexCredentials.profile.active')}` : ''}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { void handleActivateCodexCredential(profile.id) }}
+                                                                disabled={profile.isActive || codexCredentialActionPendingId !== null}
+                                                                className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                                            >
+                                                                {profile.isActive
+                                                                    ? t('settings.codexCredentials.profile.active')
+                                                                    : t('settings.codexCredentials.actions.activate')}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => { void handleDeleteCodexCredential(profile) }}
+                                                                disabled={profile.isActive || codexCredentialActionPendingId !== null}
+                                                                className="rounded-md border border-red-500/30 px-2.5 py-1.5 text-sm text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                                                            >
+                                                                {t('settings.codexCredentials.actions.delete')}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="mt-2 space-y-1 text-sm text-[var(--app-fg)]">
+                                                        {formatCodexCredentialSummary(profile.summary, t).map((row) => (
+                                                            <div key={`${profile.id}:${row}`}>{row}</div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-md border border-dashed border-[var(--app-border)] px-3 py-4 text-sm text-[var(--app-hint)]">
+                                            {t('settings.codexCredentials.profiles.empty')}
+                                        </div>
+                                    )}
+                                    <div className="mt-2 text-xs text-[var(--app-hint)]">
+                                        {t('settings.codexCredentials.futureSessionsHint')}
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="px-3 pb-3 text-sm text-[var(--app-hint)]">
+                                {t('settings.codexCredentials.noMachines')}
+                            </div>
+                        )}
                     </div>
 
                     {/* Report domain section */}

@@ -18,6 +18,8 @@ import { GroupService, type GroupWithDetails } from './groupService'
 import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
 import {
+    type RpcCodexCredentialExportRpcResponse,
+    type RpcCodexCredentialStateResponse,
     type RpcCodexQueueState,
     type RpcCodexQueueResponse,
     type RpcCodexStatusResponse,
@@ -36,6 +38,8 @@ export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
 export type { SyncEventListener } from './eventPublisher'
 export type {
+    RpcCodexCredentialExportRpcResponse,
+    RpcCodexCredentialStateResponse,
     RpcCodexQueueResponse,
     RpcCodexStatusResponse,
     RpcCommandResponse,
@@ -2144,6 +2148,42 @@ ${note.content}
 
     async checkPathsExist(machineId: string, paths: string[]): Promise<Record<string, boolean>> {
         return await this.rpcGateway.checkPathsExist(machineId, paths)
+    }
+
+    async getMachineCodexCredentials(machineId: string): Promise<RpcCodexCredentialStateResponse> {
+        return await this.rpcGateway.getMachineCodexCredentials(machineId)
+    }
+
+    async exportMachineCodexCredentials(machineId: string): Promise<RpcCodexCredentialExportRpcResponse> {
+        return await this.rpcGateway.exportMachineCodexCredentials(machineId)
+    }
+
+    async importMachineCodexCredentials(
+        machineId: string,
+        payload: { content: string; name?: string }
+    ): Promise<RpcCodexCredentialStateResponse> {
+        return await this.rpcGateway.importMachineCodexCredentials(machineId, payload)
+    }
+
+    async saveCurrentMachineCodexCredentials(
+        machineId: string,
+        payload: { name?: string }
+    ): Promise<RpcCodexCredentialStateResponse> {
+        return await this.rpcGateway.saveCurrentMachineCodexCredentials(machineId, payload)
+    }
+
+    async activateMachineCodexCredential(
+        machineId: string,
+        profileId: string
+    ): Promise<RpcCodexCredentialStateResponse> {
+        return await this.rpcGateway.activateMachineCodexCredential(machineId, profileId)
+    }
+
+    async deleteMachineCodexCredential(
+        machineId: string,
+        profileId: string
+    ): Promise<RpcCodexCredentialStateResponse> {
+        return await this.rpcGateway.deleteMachineCodexCredential(machineId, profileId)
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {

@@ -1,6 +1,8 @@
 import type {
     AttachmentMetadata,
     AuthResponse,
+    CodexCredentialExportResponse,
+    CodexCredentialStateResponse,
     QueueResponse,
     SessionUsageResponse,
     QueueStatusResponse,
@@ -823,6 +825,69 @@ export class ApiClient {
             {
                 method: 'POST',
                 body: JSON.stringify({ paths })
+            }
+        )
+    }
+
+    async getMachineCodexCredentials(machineId: string): Promise<CodexCredentialStateResponse> {
+        return await this.request<CodexCredentialStateResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/codex-credentials`
+        )
+    }
+
+    async exportMachineCodexCredentials(machineId: string): Promise<CodexCredentialExportResponse> {
+        return await this.request<CodexCredentialExportResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/codex-credentials/export`
+        )
+    }
+
+    async importMachineCodexCredentials(
+        machineId: string,
+        payload: { content: string; name?: string }
+    ): Promise<CodexCredentialStateResponse> {
+        return await this.request<CodexCredentialStateResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/codex-credentials/import`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            }
+        )
+    }
+
+    async saveCurrentMachineCodexCredentials(
+        machineId: string,
+        payload?: { name?: string }
+    ): Promise<CodexCredentialStateResponse> {
+        return await this.request<CodexCredentialStateResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/codex-credentials/save-current`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload ?? {})
+            }
+        )
+    }
+
+    async activateMachineCodexCredential(
+        machineId: string,
+        profileId: string
+    ): Promise<CodexCredentialStateResponse> {
+        return await this.request<CodexCredentialStateResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/codex-credentials/activate`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ profileId })
+            }
+        )
+    }
+
+    async deleteMachineCodexCredential(
+        machineId: string,
+        profileId: string
+    ): Promise<CodexCredentialStateResponse> {
+        return await this.request<CodexCredentialStateResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/codex-credentials/${encodeURIComponent(profileId)}`,
+            {
+                method: 'DELETE'
             }
         )
     }

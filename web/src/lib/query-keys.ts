@@ -4,6 +4,7 @@ export const queryKeys = {
     messages: (sessionId: string) => ['messages', sessionId] as const,
     turns: (sessionId: string) => ['turns', sessionId] as const,
     machines: ['machines'] as const,
+    machineCodexCredentials: (machineId: string) => ['machine-codex-credentials', machineId] as const,
     previewUrlHistory: ['preview-url-history'] as const,
     groups: ['groups'] as const,
     group: (groupId: string) => ['group', groupId] as const,

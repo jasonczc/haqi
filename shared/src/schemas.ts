@@ -164,6 +164,67 @@ export const AttachmentMetadataSchema = z.object({
 
 export type AttachmentMetadata = z.infer<typeof AttachmentMetadataSchema>
 
+export const CodexCredentialSummarySchema = z.object({
+    authMode: z.string().optional(),
+    email: z.string().optional(),
+    organizationTitle: z.string().optional(),
+    planType: z.string().optional(),
+    lastRefresh: z.string().optional(),
+    hasOpenAiApiKey: z.boolean(),
+    hasTokens: z.boolean()
+})
+
+export type CodexCredentialSummary = z.infer<typeof CodexCredentialSummarySchema>
+
+export const CodexCredentialProfileSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    importSource: z.enum(['current-auth', 'imported-file']),
+    isActive: z.boolean(),
+    summary: CodexCredentialSummarySchema
+})
+
+export type CodexCredentialProfile = z.infer<typeof CodexCredentialProfileSchema>
+
+export const CodexCredentialStateResponseSchema = z.object({
+    current: z.object({
+        exists: z.boolean(),
+        activeProfileId: z.string().nullable(),
+        summary: CodexCredentialSummarySchema.nullable()
+    }),
+    profiles: z.array(CodexCredentialProfileSchema)
+})
+
+export type CodexCredentialStateResponse = z.infer<typeof CodexCredentialStateResponseSchema>
+
+export const CodexCredentialExportResponseSchema = z.object({
+    content: z.string(),
+    summary: CodexCredentialSummarySchema
+})
+
+export type CodexCredentialExportResponse = z.infer<typeof CodexCredentialExportResponseSchema>
+
+export const CodexCredentialImportRequestSchema = z.object({
+    content: z.string().min(1),
+    name: z.string().trim().min(1).optional()
+})
+
+export type CodexCredentialImportRequest = z.infer<typeof CodexCredentialImportRequestSchema>
+
+export const CodexCredentialSaveCurrentRequestSchema = z.object({
+    name: z.string().trim().min(1).optional()
+})
+
+export type CodexCredentialSaveCurrentRequest = z.infer<typeof CodexCredentialSaveCurrentRequestSchema>
+
+export const CodexCredentialActivateRequestSchema = z.object({
+    profileId: z.string().min(1)
+})
+
+export type CodexCredentialActivateRequest = z.infer<typeof CodexCredentialActivateRequestSchema>
+
 export const DecryptedMessageSchema = z.object({
     id: z.string(),
     seq: z.number().nullable(),

@@ -1,4 +1,9 @@
-import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
+import type {
+    CodexCredentialExportResponse,
+    CodexCredentialStateResponse,
+    ModelMode,
+    PermissionMode
+} from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
 import type { RpcRegistry } from '../socket/rpcRegistry'
 
@@ -45,6 +50,9 @@ export type RpcListDirectoryResponse = {
 export type RpcPathExistsResponse = {
     exists: Record<string, boolean>
 }
+
+export type RpcCodexCredentialStateResponse = CodexCredentialStateResponse
+export type RpcCodexCredentialExportRpcResponse = CodexCredentialExportResponse
 
 export type RpcCodexStatusResponse = {
     success: boolean
@@ -235,6 +243,66 @@ export class RpcGateway {
             exists[key] = value === true
         }
         return exists
+    }
+
+    async getMachineCodexCredentials(machineId: string): Promise<RpcCodexCredentialStateResponse> {
+        const result = await this.machineRpc(machineId, 'codex-credentials-status', {}) as RpcCodexCredentialStateResponse | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected codex-credentials-status result')
+        }
+        return result as RpcCodexCredentialStateResponse
+    }
+
+    async exportMachineCodexCredentials(machineId: string): Promise<RpcCodexCredentialExportRpcResponse> {
+        const result = await this.machineRpc(machineId, 'codex-credentials-export-current', {}) as RpcCodexCredentialExportRpcResponse | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected codex-credentials-export-current result')
+        }
+        return result as RpcCodexCredentialExportRpcResponse
+    }
+
+    async importMachineCodexCredentials(
+        machineId: string,
+        payload: { content: string; name?: string }
+    ): Promise<RpcCodexCredentialStateResponse> {
+        const result = await this.machineRpc(machineId, 'codex-credentials-import', payload) as RpcCodexCredentialStateResponse | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected codex-credentials-import result')
+        }
+        return result as RpcCodexCredentialStateResponse
+    }
+
+    async saveCurrentMachineCodexCredentials(
+        machineId: string,
+        payload: { name?: string }
+    ): Promise<RpcCodexCredentialStateResponse> {
+        const result = await this.machineRpc(machineId, 'codex-credentials-save-current', payload) as RpcCodexCredentialStateResponse | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected codex-credentials-save-current result')
+        }
+        return result as RpcCodexCredentialStateResponse
+    }
+
+    async activateMachineCodexCredential(
+        machineId: string,
+        profileId: string
+    ): Promise<RpcCodexCredentialStateResponse> {
+        const result = await this.machineRpc(machineId, 'codex-credentials-activate', { profileId }) as RpcCodexCredentialStateResponse | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected codex-credentials-activate result')
+        }
+        return result as RpcCodexCredentialStateResponse
+    }
+
+    async deleteMachineCodexCredential(
+        machineId: string,
+        profileId: string
+    ): Promise<RpcCodexCredentialStateResponse> {
+        const result = await this.machineRpc(machineId, 'codex-credentials-delete', { profileId }) as RpcCodexCredentialStateResponse | unknown
+        if (!result || typeof result !== 'object') {
+            throw new Error('Unexpected codex-credentials-delete result')
+        }
+        return result as RpcCodexCredentialStateResponse
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {

@@ -1,5 +1,10 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
+import {
+    CodexCredentialActivateRequestSchema,
+    CodexCredentialImportRequestSchema,
+    CodexCredentialSaveCurrentRequestSchema
+} from '@hapi/protocol/schemas'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireMachine } from './guards'
@@ -126,6 +131,143 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ exists })
         } catch (error) {
             return c.json({ error: error instanceof Error ? error.message : 'Failed to check paths' }, 500)
+        }
+    })
+
+    app.get('/machines/:id/codex-credentials', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        try {
+            return c.json(await engine.getMachineCodexCredentials(machineId))
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to load Codex credentials' }, 500)
+        }
+    })
+
+    app.get('/machines/:id/codex-credentials/export', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        try {
+            return c.json(await engine.exportMachineCodexCredentials(machineId))
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to export Codex credentials' }, 500)
+        }
+    })
+
+    app.post('/machines/:id/codex-credentials/import', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = CodexCredentialImportRequestSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        try {
+            return c.json(await engine.importMachineCodexCredentials(machineId, parsed.data))
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to import Codex credentials' }, 500)
+        }
+    })
+
+    app.post('/machines/:id/codex-credentials/save-current', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const body = await c.req.json().catch(() => ({}))
+        const parsed = CodexCredentialSaveCurrentRequestSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        try {
+            return c.json(await engine.saveCurrentMachineCodexCredentials(machineId, parsed.data))
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to save current Codex credentials' }, 500)
+        }
+    })
+
+    app.post('/machines/:id/codex-credentials/activate', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = CodexCredentialActivateRequestSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        try {
+            return c.json(await engine.activateMachineCodexCredential(machineId, parsed.data.profileId))
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to activate Codex credentials' }, 500)
+        }
+    })
+
+    app.delete('/machines/:id/codex-credentials/:profileId', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+
+        const profileId = c.req.param('profileId')
+        if (!profileId) {
+            return c.json({ error: 'profileId is required' }, 400)
+        }
+
+        try {
+            return c.json(await engine.deleteMachineCodexCredential(machineId, profileId))
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to delete Codex credentials' }, 500)
         }
     })
 

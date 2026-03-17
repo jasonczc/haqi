@@ -142,14 +142,82 @@ const updateReportDomainSettingsMock = vi.fn(async (payload: { domain: string | 
     }
 }))
 
+const getMachinesMock = vi.fn(async () => ({
+    machines: []
+}))
+
+const getMachineCodexCredentialsMock = vi.fn(async () => ({
+    current: {
+        exists: false,
+        activeProfileId: null,
+        summary: null
+    },
+    profiles: []
+}))
+
+const exportMachineCodexCredentialsMock = vi.fn(async () => ({
+    content: '{}',
+    summary: {
+        hasOpenAiApiKey: false,
+        hasTokens: false
+    }
+}))
+
+const importMachineCodexCredentialsMock = vi.fn(async () => ({
+    current: {
+        exists: false,
+        activeProfileId: null,
+        summary: null
+    },
+    profiles: []
+}))
+
+const saveCurrentMachineCodexCredentialsMock = vi.fn(async () => ({
+    current: {
+        exists: false,
+        activeProfileId: null,
+        summary: null
+    },
+    profiles: []
+}))
+
+const activateMachineCodexCredentialMock = vi.fn(async () => ({
+    current: {
+        exists: true,
+        activeProfileId: 'profile-1',
+        summary: {
+            authMode: 'chatgpt',
+            hasOpenAiApiKey: false,
+            hasTokens: true
+        }
+    },
+    profiles: []
+}))
+
+const deleteMachineCodexCredentialMock = vi.fn(async () => ({
+    current: {
+        exists: false,
+        activeProfileId: null,
+        summary: null
+    },
+    profiles: []
+}))
+
 const mockApi = {
     getUsageOverview: getUsageOverviewMock,
+    getMachines: getMachinesMock,
     getMemory: getMemoryMock,
     updateMemory: updateMemoryMock,
     getExperimentalSettings: getExperimentalSettingsMock,
     updateExperimentalSettings: updateExperimentalSettingsMock,
     getReportDomainSettings: getReportDomainSettingsMock,
-    updateReportDomainSettings: updateReportDomainSettingsMock
+    updateReportDomainSettings: updateReportDomainSettingsMock,
+    getMachineCodexCredentials: getMachineCodexCredentialsMock,
+    exportMachineCodexCredentials: exportMachineCodexCredentialsMock,
+    importMachineCodexCredentials: importMachineCodexCredentialsMock,
+    saveCurrentMachineCodexCredentials: saveCurrentMachineCodexCredentialsMock,
+    activateMachineCodexCredential: activateMachineCodexCredentialMock,
+    deleteMachineCodexCredential: deleteMachineCodexCredentialMock
 }
 
 // Mock the router hooks

@@ -7,6 +7,14 @@ import { stat } from 'node:fs/promises'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
 import type { Update, UpdateMachineBody } from '@hapi/protocol'
+import {
+    activateCodexCredential,
+    deleteCodexCredential,
+    exportCurrentCodexCredentials,
+    getCodexCredentialState,
+    importCodexCredentials,
+    saveCurrentCodexCredentials
+} from '@/codex/credentials'
 import type { RunnerState, Machine, MachineMetadata } from './types'
 import { RunnerStateSchema, MachineMetadataSchema } from './types'
 import { backoff } from '@/utils/time'
@@ -101,6 +109,39 @@ export class ApiMachineClient {
             }))
 
             return { exists }
+        })
+
+        this.rpcHandlerManager.registerHandler('codex-credentials-status', async () => {
+            return await getCodexCredentialState()
+        })
+
+        this.rpcHandlerManager.registerHandler('codex-credentials-export-current', async () => {
+            return await exportCurrentCodexCredentials()
+        })
+
+        this.rpcHandlerManager.registerHandler('codex-credentials-import', async (params: any) => {
+            if (typeof params?.content !== 'string' || !params.content.trim()) {
+                throw new Error('Credential content is required')
+            }
+            return await importCodexCredentials(params.content, typeof params?.name === 'string' ? params.name : undefined)
+        })
+
+        this.rpcHandlerManager.registerHandler('codex-credentials-save-current', async (params: any) => {
+            return await saveCurrentCodexCredentials(typeof params?.name === 'string' ? params.name : undefined)
+        })
+
+        this.rpcHandlerManager.registerHandler('codex-credentials-activate', async (params: any) => {
+            if (typeof params?.profileId !== 'string' || !params.profileId.trim()) {
+                throw new Error('profileId is required')
+            }
+            return await activateCodexCredential(params.profileId)
+        })
+
+        this.rpcHandlerManager.registerHandler('codex-credentials-delete', async (params: any) => {
+            if (typeof params?.profileId !== 'string' || !params.profileId.trim()) {
+                throw new Error('profileId is required')
+            }
+            return await deleteCodexCredential(params.profileId)
         })
     }
 
