@@ -525,11 +525,16 @@ export const knownTools: Record<string, {
                 ? opts.input.questions : []
             const count = questions.length
             const first = questions[0] ?? null
+            const header = isObject(first) && typeof first.header === 'string'
+                ? first.header.trim() : ''
             const id = isObject(first) && typeof first.id === 'string'
                 ? first.id.trim() : ''
 
             if (count > 1) {
                 return `${count} Questions`
+            }
+            if (header.length > 0) {
+                return header
             }
             return id.length > 0 ? id : 'Question'
         },

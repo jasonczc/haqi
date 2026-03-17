@@ -57,7 +57,7 @@ describe('buildCodexStartConfig', () => {
         expect(config['approval-policy']).toBe('on-failure');
     });
 
-    it('uses never approval for auto-approve mode', () => {
+    it('uses yolo-style approval for auto-approve mode', () => {
         const config = buildCodexStartConfig({
             message: 'hello',
             mode: { permissionMode: 'auto-approve' },
@@ -67,7 +67,7 @@ describe('buildCodexStartConfig', () => {
         });
 
         expect(config.sandbox).toBe('danger-full-access');
-        expect(config['approval-policy']).toBe('never');
+        expect(config['approval-policy']).toBe('on-failure');
     });
 
     it('uses yolo-style approval for auto-approve plan mode', () => {

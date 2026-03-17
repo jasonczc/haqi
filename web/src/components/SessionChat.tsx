@@ -30,6 +30,8 @@ import { TeamPanel } from '@/components/TeamPanel'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useQueueInlinePanel } from '@/hooks/useQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import { QuestionToolOverlay } from '@/components/ToolCard/QuestionToolOverlay'
+import { findLatestPendingQuestionTool } from '@/components/ToolCard/questionTools'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTranslation } from '@/lib/use-translation'
@@ -685,6 +687,11 @@ export function SessionChat(props: {
         () => reconcileChatBlocks(reduced.blocks, blocksByIdRef.current),
         [reduced.blocks]
     )
+    const activeQuestionTool = useMemo(
+        () => findLatestPendingQuestionTool(reconciled.blocks),
+        [reconciled.blocks]
+    )
+    const composerDisabled = props.isSending || Boolean(activeQuestionTool)
 
     useEffect(() => {
         blocksByIdRef.current = reconciled.byId
@@ -1435,7 +1442,7 @@ export function SessionChat(props: {
 
                     <HappyComposer
                         sessionId={props.session.id}
-                        disabled={props.isSending}
+                        disabled={composerDisabled}
                         permissionMode={props.session.permissionMode}
                         modelMode={props.session.modelMode}
                         model={props.session.metadata?.model}
@@ -1481,6 +1488,14 @@ export function SessionChat(props: {
                     />
                 </div>
             </AssistantRuntimeProvider>
+
+            <QuestionToolOverlay
+                api={props.api}
+                sessionId={props.session.id}
+                tool={activeQuestionTool}
+                disabled={props.isSending}
+                onDone={props.onRefresh}
+            />
 
             <Dialog open={isMcpDialogOpen} onOpenChange={setIsMcpDialogOpen}>
                 <DialogContent className="max-h-[85vh] max-w-2xl overflow-hidden">

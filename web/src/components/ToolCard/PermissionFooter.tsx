@@ -5,6 +5,7 @@ import type { ChatToolCall, ToolPermission } from '@/chat/types'
 import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
 import { isCodexFamilyFlavor } from '@/lib/agentFlavorUtils'
+import { isExitPlanToolName } from '@/components/ToolCard/exitPlanMode'
 import { getInputStringAny } from '@/lib/toolInputUtils'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -30,10 +31,26 @@ function isCodexSession(metadata: SessionMetadataSummary | null, toolName: strin
 }
 
 function formatPermissionSummary(permission: ToolPermission, toolName: string, toolInput: unknown, codex: boolean, t: (key: string) => string): string {
-    if (permission.status === 'pending') return t('tool.waitingForApproval')
-    if (permission.status === 'canceled') return permission.reason ? `${t('tool.canceled')}: ${permission.reason}` : t('tool.canceled')
+    const isPlanTool = isExitPlanToolName(toolName)
+
+    if (permission.status === 'pending') {
+        return isPlanTool ? t('tool.reviewPlan') : t('tool.waitingForApproval')
+    }
+    if (permission.status === 'canceled') {
+        const base = isPlanTool ? t('tool.stayInPlanMode') : t('tool.canceled')
+        return permission.reason ? `${base}: ${permission.reason}` : base
+    }
 
     if (codex) {
+        if (isPlanTool) {
+            if (permission.status === 'approved') return t('tool.planApproved')
+            if (permission.status === 'denied') {
+                return permission.reason
+                    ? `${t('tool.stayInPlanMode')}: ${permission.reason}`
+                    : t('tool.stayInPlanMode')
+            }
+        }
+
         if (permission.status === 'approved' && permission.decision === 'approved_for_session') return t('tool.approvedForSession')
         if (permission.status === 'approved') return t('tool.approved')
         if (permission.status === 'denied' && permission.decision === 'abort') return permission.reason ? `${t('tool.aborted')}: ${permission.reason}` : t('tool.aborted')
@@ -101,8 +118,13 @@ export function PermissionFooter(props: {
     const [loadingAllEdits, setLoadingAllEdits] = useState(false)
     const [loadingForSession, setLoadingForSession] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const toolName = props.tool.name
+    const isPlanTool = isExitPlanToolName(toolName)
 
-    const codex = useMemo(() => isCodexSession(props.metadata, props.tool.name), [props.metadata, props.tool.name])
+    const codex = useMemo(
+        () => isPlanTool || isCodexSession(props.metadata, props.tool.name),
+        [isPlanTool, props.metadata, props.tool.name]
+    )
 
     if (!permission) return null
 
@@ -122,7 +144,6 @@ export function PermissionFooter(props: {
         }
     }
 
-    const toolName = props.tool.name
     const isEditTool = toolName === 'Edit'
         || toolName === 'MultiEdit'
         || toolName === 'Write'
@@ -212,29 +233,48 @@ export function PermissionFooter(props: {
 
             <div className="mt-2 flex flex-col gap-1">
                 {codex ? (
-                    <>
-                        <PermissionRowButton
-                            label={t('tool.yes')}
-                            tone="allow"
-                            loading={loading === 'allow'}
-                            disabled={props.disabled || loading !== null || loadingForSession}
-                            onClick={() => codexApprove('approved')}
-                        />
-                        <PermissionRowButton
-                            label={t('tool.yesForSession')}
-                            tone="neutral"
-                            loading={loadingForSession}
-                            disabled={props.disabled || loading !== null || loadingForSession}
-                            onClick={() => codexApprove('approved_for_session')}
-                        />
-                        <PermissionRowButton
-                            label={t('tool.abortLabel')}
-                            tone="deny"
-                            loading={loading === 'abort'}
-                            disabled={props.disabled || loading !== null || loadingForSession}
-                            onClick={codexAbort}
-                        />
-                    </>
+                    isPlanTool ? (
+                        <>
+                            <PermissionRowButton
+                                label={t('tool.approvePlan')}
+                                tone="allow"
+                                loading={loading === 'allow'}
+                                disabled={props.disabled || loading !== null || loadingForSession}
+                                onClick={() => codexApprove('approved')}
+                            />
+                            <PermissionRowButton
+                                label={t('tool.keepPlanning')}
+                                tone="neutral"
+                                loading={loading === 'abort'}
+                                disabled={props.disabled || loading !== null || loadingForSession}
+                                onClick={codexAbort}
+                            />
+                        </>
+                    ) : (
+                        <>
+                            <PermissionRowButton
+                                label={t('tool.yes')}
+                                tone="allow"
+                                loading={loading === 'allow'}
+                                disabled={props.disabled || loading !== null || loadingForSession}
+                                onClick={() => codexApprove('approved')}
+                            />
+                            <PermissionRowButton
+                                label={t('tool.yesForSession')}
+                                tone="neutral"
+                                loading={loadingForSession}
+                                disabled={props.disabled || loading !== null || loadingForSession}
+                                onClick={() => codexApprove('approved_for_session')}
+                            />
+                            <PermissionRowButton
+                                label={t('tool.abortLabel')}
+                                tone="deny"
+                                loading={loading === 'abort'}
+                                disabled={props.disabled || loading !== null || loadingForSession}
+                                onClick={codexAbort}
+                            />
+                        </>
+                    )
                 ) : (
                     <>
                         <PermissionRowButton

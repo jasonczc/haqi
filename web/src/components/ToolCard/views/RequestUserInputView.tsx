@@ -3,6 +3,8 @@ import {
     parseRequestUserInputInput,
     parseRequestUserInputAnswers
 } from '@/components/ToolCard/requestUserInput'
+import { maskSecretValue } from '@/components/ToolCard/questionTools'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
 function getSelectionMark(isSelected: boolean): string {
@@ -22,6 +24,7 @@ function parseResultAsAnswers(result: unknown): unknown {
 }
 
 export function RequestUserInputView(props: ToolViewProps) {
+    const { t } = useTranslation()
     const parsed = parseRequestUserInputInput(props.block.tool.input)
     const questions = parsed.questions
     // Try permission.answers first (live), fall back to tool.result (history)
@@ -41,22 +44,34 @@ export function RequestUserInputView(props: ToolViewProps) {
 
                 return (
                     <div key={q.id} className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+                        {q.header ? (
+                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                                {q.header}
+                            </div>
+                        ) : null}
+
                         {q.question ? (
                             <div className="text-sm text-[var(--app-fg)] break-words">
                                 {q.question}
                             </div>
                         ) : null}
 
-                        {isPureTextQuestion ? (
+                        {answer?.isSkipped ? (
+                            <div className="mt-3 rounded-md border border-[var(--app-border)] px-2 py-2 text-sm text-[var(--app-hint)]">
+                                {t('tool.questionOverlay.skippedValue')}
+                            </div>
+                        ) : isPureTextQuestion ? (
                             // Pure text question - show the answer directly
-                            hasAnswers && answer?.userNote ? (
+                            hasAnswers && (answer?.otherAnswer || answer?.userNote) ? (
                                 <div className="mt-3">
                                     <div className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2">
                                         <div className="flex items-start gap-2">
                                             <span className="shrink-0 text-sm text-emerald-600">●</span>
                                             <div className="min-w-0 flex-1">
                                                 <div className="text-sm text-emerald-700 dark:text-emerald-300 font-medium break-words">
-                                                    {answer.userNote}
+                                                    {q.isSecret
+                                                        ? maskSecretValue(answer.otherAnswer ?? answer.userNote ?? '')
+                                                        : (answer.otherAnswer ?? answer.userNote)}
                                                 </div>
                                             </div>
                                         </div>
@@ -116,9 +131,23 @@ export function RequestUserInputView(props: ToolViewProps) {
                                         <div className="flex items-start gap-2">
                                             <span className="shrink-0 text-xs text-blue-500">📝</span>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-xs text-[var(--app-hint)]">Note:</div>
+                                                <div className="text-xs text-[var(--app-hint)]">{t('tool.questionOverlay.noteValueLabel')}</div>
                                                 <div className="text-sm text-blue-700 dark:text-blue-300 break-words">
                                                     {answer.userNote}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : null}
+
+                                {hasAnswers && answer?.otherAnswer ? (
+                                    <div className="mt-2 rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2">
+                                        <div className="flex items-start gap-2">
+                                            <span className="shrink-0 text-sm text-emerald-600">●</span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="text-xs text-[var(--app-hint)]">{t('tool.questionOverlay.otherValueLabel')}</div>
+                                                <div className="text-sm text-emerald-700 dark:text-emerald-300 font-medium break-words">
+                                                    {q.isSecret ? maskSecretValue(answer.otherAnswer) : answer.otherAnswer}
                                                 </div>
                                             </div>
                                         </div>

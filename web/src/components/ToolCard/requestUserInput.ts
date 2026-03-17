@@ -7,12 +7,16 @@ export type RequestUserInputOption = {
 
 export type RequestUserInputQuestion = {
     id: string
-    question: string
+    header: string | null
+    question: string | null
     options: RequestUserInputOption[]
+    isOther: boolean
+    isSecret: boolean
 }
 
 export type RequestUserInputQuestionInfo = {
     id: string
+    header: string | null
     question: string | null
 }
 
@@ -34,7 +38,10 @@ export function parseRequestUserInputInput(input: unknown): { questions: Request
         if (!isObject(raw)) continue
 
         const id = typeof raw.id === 'string' ? raw.id.trim() : ''
+        const header = typeof raw.header === 'string' ? raw.header.trim() : ''
         const question = typeof raw.question === 'string' ? raw.question.trim() : ''
+        const isOther = raw.isOther === true || raw.is_other === true
+        const isSecret = raw.isSecret === true || raw.is_secret === true
 
         // Skip questions without id
         if (!id) continue
@@ -51,8 +58,11 @@ export function parseRequestUserInputInput(input: unknown): { questions: Request
 
         questions.push({
             id,
-            question,
-            options
+            header: header.length > 0 ? header : null,
+            question: question.length > 0 ? question : null,
+            options,
+            isOther,
+            isSecret
         })
     }
 
@@ -68,10 +78,12 @@ export function extractRequestUserInputQuestionsInfo(input: unknown): RequestUse
     for (const q of raw) {
         if (!isObject(q)) continue
         const id = typeof q.id === 'string' ? q.id.trim() : ''
+        const header = typeof q.header === 'string' ? q.header.trim() : null
         const question = typeof q.question === 'string' ? q.question.trim() : null
         if (!id) continue
         questions.push({
             id,
+            header: header && header.length > 0 ? header : null,
             question: question && question.length > 0 ? question : null
         })
     }
@@ -110,13 +122,23 @@ export function formatRequestUserInputAnswers(
  */
 export function parseRequestUserInputAnswers(
     answers: unknown
-): Record<string, { selected: string | null; userNote: string | null }> | null {
+): Record<string, {
+    selected: string | null
+    userNote: string | null
+    otherAnswer: string | null
+    isSkipped: boolean
+}> | null {
     if (!isObject(answers)) return null
 
     // Handle nested format: { answers: { [id]: { answers: string[] } } }
     const answersObj = isObject(answers.answers) ? answers.answers : answers
 
-    const parsed: Record<string, { selected: string | null; userNote: string | null }> = {}
+    const parsed: Record<string, {
+        selected: string | null
+        userNote: string | null
+        otherAnswer: string | null
+        isSkipped: boolean
+    }> = {}
 
     for (const [id, value] of Object.entries(answersObj)) {
         let answerArray: string[] = []
@@ -129,17 +151,23 @@ export function parseRequestUserInputAnswers(
 
         let selected: string | null = null
         let userNote: string | null = null
+        let otherAnswer: string | null = null
+        let isSkipped = false
 
         for (const item of answerArray) {
             if (item.startsWith('user_note: ')) {
                 userNote = item.slice('user_note: '.length).trim()
+            } else if (item.trim() === 'skipped') {
+                isSkipped = true
             } else if (!selected) {
                 // Trim to match option labels which are also trimmed
                 selected = item.trim()
+            } else if (!otherAnswer) {
+                otherAnswer = item.trim()
             }
         }
 
-        parsed[id] = { selected, userNote }
+        parsed[id] = { selected, userNote, otherAnswer, isSkipped }
     }
 
     return parsed

@@ -5,16 +5,12 @@ import { codexSystemPrompt } from './systemPrompt';
 import { isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
 
 function resolveApprovalPolicy(mode: EnhancedMode): CodexSessionConfig['approval-policy'] {
-    const collaborationMode = typeof mode.collaborationMode === 'string'
-        ? mode.collaborationMode.trim().toLowerCase()
-        : undefined;
-
     switch (mode.permissionMode) {
         case 'default': return 'untrusted';
         case 'read-only': return 'never';
         case 'safe-yolo': return 'on-failure';
         case 'yolo': return 'on-failure';
-        case 'auto-approve': return collaborationMode === 'plan' ? 'on-failure' : 'never';
+        case 'auto-approve': return 'on-failure';
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }

@@ -4,7 +4,8 @@ import type { EnhancedMode } from './loop';
 
 const harness = vi.hoisted(() => ({
     notifications: [] as Array<{ method: string; params: unknown }>,
-    registerRequestCalls: [] as string[]
+    registerRequestCalls: [] as string[],
+    startTurnNotifications: null as Array<{ method: string; params: unknown }> | null
 }));
 
 vi.mock('./codexAppServerClient', () => {
@@ -34,13 +35,15 @@ vi.mock('./codexAppServerClient', () => {
         }
 
         async startTurn(): Promise<{ turn: Record<string, never> }> {
-            const started = { turn: {} };
-            harness.notifications.push({ method: 'turn/started', params: started });
-            this.notificationHandler?.('turn/started', started);
+            const notifications = harness.startTurnNotifications ?? [
+                { method: 'turn/started', params: { turn: {} } },
+                { method: 'turn/completed', params: { status: 'Completed', turn: {} } }
+            ];
 
-            const completed = { status: 'Completed', turn: {} };
-            harness.notifications.push({ method: 'turn/completed', params: completed });
-            this.notificationHandler?.('turn/completed', completed);
+            for (const notification of notifications) {
+                harness.notifications.push(notification);
+                this.notificationHandler?.(notification.method, notification.params);
+            }
 
             return { turn: {} };
         }
@@ -119,6 +122,8 @@ function createSessionStub() {
         codexCliOverrides: undefined,
         sessionId: null as string | null,
         thinking: false,
+        collaborationMode: undefined as string | undefined,
+        permissionMode: 'default' as EnhancedMode['permissionMode'],
         onThinkingChange(nextThinking: boolean) {
             session.thinking = nextThinking;
             thinkingChanges.push(nextThinking);
@@ -135,6 +140,15 @@ function createSessionStub() {
         },
         sendUserMessage(text: string) {
             client.sendUserMessage(text);
+        },
+        getCollaborationMode() {
+            return session.collaborationMode;
+        },
+        setCollaborationMode(mode: string | undefined) {
+            session.collaborationMode = mode;
+        },
+        getPermissionMode() {
+            return session.permissionMode;
         }
     };
 
@@ -153,6 +167,7 @@ describe('codexRemoteLauncher', () => {
     afterEach(() => {
         harness.notifications = [];
         harness.registerRequestCalls = [];
+        harness.startTurnNotifications = null;
         delete process.env.CODEX_USE_MCP_SERVER;
     });
 
@@ -173,5 +188,54 @@ describe('codexRemoteLauncher', () => {
         expect(sessionEvents.filter((event) => event.type === 'ready').length).toBeGreaterThanOrEqual(1);
         expect(thinkingChanges).toContain(true);
         expect(session.thinking).toBe(false);
+    });
+
+    it('keeps ExitPlanMode tool calls visible instead of replacing them with CodexPermission', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        harness.startTurnNotifications = [
+            { method: 'turn/started', params: { turn: { id: 'turn-1' } } },
+            {
+                method: 'item/started',
+                params: {
+                    item: {
+                        id: 'plan-1',
+                        type: 'plan',
+                        text: 'Review current implementation'
+                    },
+                    turnId: 'turn-1'
+                }
+            },
+            {
+                method: 'item/completed',
+                params: {
+                    item: {
+                        id: 'plan-1',
+                        type: 'plan',
+                        text: 'Review current implementation'
+                    },
+                    turnId: 'turn-1'
+                }
+            },
+            { method: 'turn/completed', params: { status: 'Completed', turn: { id: 'turn-1' } } }
+        ];
+
+        const { session, codexMessages } = createSessionStub();
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(codexMessages).toContainEqual(expect.objectContaining({
+            type: 'tool-call',
+            name: 'ExitPlanMode',
+            callId: 'plan-1',
+            input: {
+                text: 'Review current implementation'
+            }
+        }));
+        expect(codexMessages).not.toContainEqual(expect.objectContaining({
+            type: 'tool-call',
+            name: 'CodexPermission',
+            callId: 'plan-1'
+        }));
     });
 });

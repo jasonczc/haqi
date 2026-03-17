@@ -58,7 +58,7 @@ describe('appServerConfig', () => {
         expect(params.approvalPolicy).toBe('on-failure');
     });
 
-    it('uses never approval in auto-approve mode for thread start', () => {
+    it('uses yolo-style approval in auto-approve mode for thread start', () => {
         const params = buildThreadStartParams({
             mode: { permissionMode: 'auto-approve' },
             mcpServers,
@@ -66,7 +66,7 @@ describe('appServerConfig', () => {
         });
 
         expect(params.sandbox).toBe('danger-full-access');
-        expect(params.approvalPolicy).toBe('never');
+        expect(params.approvalPolicy).toBe('on-failure');
     });
 
     it('omits base instructions when empty', () => {
@@ -184,7 +184,7 @@ Only respond in Chinese.`
         expect(params.sandboxPolicy).toEqual({ type: 'workspaceWrite' });
     });
 
-    it('uses never approval in auto-approve mode for turns', () => {
+    it('uses yolo-style approval in auto-approve mode for turns', () => {
         const params = buildTurnStartParams({
             threadId: 'thread-1',
             message: 'hello',
@@ -192,7 +192,7 @@ Only respond in Chinese.`
             cliOverrides: { sandbox: 'read-only', approvalPolicy: 'on-request' }
         });
 
-        expect(params.approvalPolicy).toBe('never');
+        expect(params.approvalPolicy).toBe('on-failure');
         expect(params.sandboxPolicy).toEqual({ type: 'dangerFullAccess' });
     });
 

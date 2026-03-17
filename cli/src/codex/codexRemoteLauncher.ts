@@ -330,6 +330,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         const permissionHandler = new CodexPermissionHandler(session.client, {
             getPermissionMode: () => session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined,
             onRequest: ({ id, toolName, input }) => {
+                if (isPlanApprovalToolName(toolName)) {
+                    return;
+                }
+
                 if (isQuestionToolName(toolName)) {
                     session.sendCodexMessage({
                         type: 'tool-call',
@@ -366,6 +370,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 });
             },
             onComplete: ({ id, decision, reason, approved, toolName, answers }) => {
+                if (isPlanApprovalToolName(toolName)) {
+                    return;
+                }
+
                 session.sendCodexMessage({
                     type: 'tool-call-result',
                     callId: id,

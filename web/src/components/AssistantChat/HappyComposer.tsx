@@ -940,8 +940,6 @@ export function HappyComposer(props: {
         onPermissionModeChange,
         permissionMode,
         permissionModes,
-        canSend,
-        api,
         haptic,
         enterBehavior
     ])
