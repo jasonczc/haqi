@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { ChatToolCall } from '@/chat/types'
 import { Badge } from '@/components/ui/badge'
@@ -14,10 +14,55 @@ import {
     getQuestionOptionLabel,
     isOtherOptionSelected,
     isQuestionAnswered,
+    type QuestionToolModel,
     type QuestionOverlayState,
     type QuestionToolOption,
     type QuestionToolQuestion
 } from '@/components/ToolCard/questionTools'
+
+type QuestionToolDraft = {
+    step: number
+    stateByQuestion: Record<string, QuestionOverlayState>
+}
+
+const questionToolDraftByKey = new Map<string, QuestionToolDraft>()
+
+function buildInitialOverlayStateByQuestion(model: QuestionToolModel): Record<string, QuestionOverlayState> {
+    const nextState: Record<string, QuestionOverlayState> = {}
+    for (const question of model.questions) {
+        nextState[question.id] = buildInitialQuestionOverlayState(question)
+    }
+    return nextState
+}
+
+function mergeDraftStateByQuestion(
+    model: QuestionToolModel,
+    draft: QuestionToolDraft | undefined
+): Record<string, QuestionOverlayState> {
+    const nextState = buildInitialOverlayStateByQuestion(model)
+    if (!draft) {
+        return nextState
+    }
+
+    for (const question of model.questions) {
+        const saved = draft.stateByQuestion[question.id]
+        if (!saved) {
+            continue
+        }
+
+        const validOptionIds = new Set(question.options.map((option) => option.id))
+        nextState[question.id] = {
+            selectedOptionIds: saved.selectedOptionIds.filter((optionId) => validOptionIds.has(optionId)),
+            note: typeof saved.note === 'string' ? saved.note : ''
+        }
+    }
+
+    return nextState
+}
+
+export function resetQuestionToolOverlayDraftsForTest(): void {
+    questionToolDraftByKey.clear()
+}
 
 function SelectionMark(props: { checked: boolean; mode: 'single' | 'multi' }) {
     const mark = props.mode === 'multi'
@@ -79,6 +124,13 @@ export function QuestionToolOverlay(props: {
         () => (props.tool ? buildQuestionToolModel(props.tool) : null),
         [props.tool]
     )
+    const draftKey = useMemo(() => {
+        if (!permission?.id || !model) {
+            return null
+        }
+        return `${props.sessionId}:${permission.id}:${model.toolId}`
+    }, [model, permission?.id, props.sessionId])
+    const skipNextDraftPersistRef = useRef<string | null>(null)
 
     const [step, setStep] = useState(0)
     const [stateByQuestion, setStateByQuestion] = useState<Record<string, QuestionOverlayState>>({})
@@ -86,30 +138,56 @@ export function QuestionToolOverlay(props: {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        if (!model) {
+        if (!model || !permission || permission.status !== 'pending' || !draftKey) {
             setStep(0)
             setStateByQuestion({})
             setLoading(false)
             setError(null)
+            skipNextDraftPersistRef.current = null
             return
         }
 
-        const nextState: Record<string, QuestionOverlayState> = {}
-        for (const question of model.questions) {
-            nextState[question.id] = buildInitialQuestionOverlayState(question)
-        }
+        const draft = questionToolDraftByKey.get(draftKey)
+        const nextState = mergeDraftStateByQuestion(model, draft)
 
-        setStep(0)
+        skipNextDraftPersistRef.current = draftKey
+        setStep(Math.min(Math.max(draft?.step ?? 0, 0), Math.max(model.questions.length - 1, 0)))
         setStateByQuestion(nextState)
         setLoading(false)
         setError(null)
-    }, [model?.toolId])
+    }, [draftKey])
+
+    useEffect(() => {
+        if (!model || !permission || permission.status !== 'pending' || !draftKey) {
+            return
+        }
+
+        if (skipNextDraftPersistRef.current === draftKey) {
+            skipNextDraftPersistRef.current = null
+            return
+        }
+
+        questionToolDraftByKey.set(draftKey, {
+            step: Math.min(Math.max(step, 0), Math.max(model.questions.length - 1, 0)),
+            stateByQuestion
+        })
+    }, [draftKey, model?.toolId, model?.questions.length, permission?.status, stateByQuestion, step])
+
+    useEffect(() => {
+        if (!draftKey || permission?.status === 'pending') {
+            return
+        }
+        questionToolDraftByKey.delete(draftKey)
+    }, [draftKey, permission?.status])
 
     const run = async (action: () => Promise<void>, hapticType: 'success' | 'error') => {
         if (props.disabled) return
         setError(null)
         try {
             await action()
+            if (draftKey) {
+                questionToolDraftByKey.delete(draftKey)
+            }
             haptic.notification(hapticType)
             props.onDone()
         } catch (cause) {
@@ -255,10 +333,10 @@ export function QuestionToolOverlay(props: {
     const questionAnswered = isQuestionAnswered(currentQuestion, currentState ?? undefined)
 
     return (
-        <div className="fixed inset-0 z-[70]">
+        <div className="absolute inset-0 z-[70]">
             <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
-            <div className="absolute inset-0 flex flex-col justify-end sm:justify-end sm:px-3 sm:pb-3">
-                <div className="w-full rounded-t-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl sm:mx-auto sm:max-w-2xl sm:rounded-2xl">
+            <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6">
+                <div className="w-full max-w-2xl rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl">
                     <div className="border-b border-[var(--app-border)] px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">

@@ -5,7 +5,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type { ApiClient } from '@/api/client'
 import type { ChatToolCall } from '@/chat/types'
 import { I18nProvider } from '@/lib/i18n-context'
-import { QuestionToolOverlay } from '@/components/ToolCard/QuestionToolOverlay'
+import {
+    QuestionToolOverlay,
+    resetQuestionToolOverlayDraftsForTest
+} from '@/components/ToolCard/QuestionToolOverlay'
 
 function renderWithProviders(ui: React.ReactElement) {
     return render(
@@ -46,6 +49,7 @@ function makeTool(): ChatToolCall {
 
 describe('QuestionToolOverlay', () => {
     afterEach(() => {
+        resetQuestionToolOverlayDraftsForTest()
         cleanup()
     })
 
@@ -148,6 +152,49 @@ describe('QuestionToolOverlay', () => {
         await waitFor(() => {
             expect(denyPermission).toHaveBeenCalledWith('session-1', 'perm-1', {
                 decision: 'abort'
+            })
+        })
+    })
+
+    it('restores draft answers after unmount and remount', async () => {
+        const approvePermission = vi.fn(async () => undefined)
+        const api = {
+            approvePermission,
+            denyPermission: vi.fn()
+        } as unknown as ApiClient
+
+        const firstRender = renderWithProviders(
+            <QuestionToolOverlay
+                api={api}
+                sessionId="session-1"
+                tool={makeTool()}
+                disabled={false}
+                onDone={vi.fn()}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: /Hold/ }))
+        firstRender.unmount()
+
+        renderWithProviders(
+            <QuestionToolOverlay
+                api={api}
+                sessionId="session-1"
+                tool={makeTool()}
+                disabled={false}
+                onDone={vi.fn()}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+        await waitFor(() => {
+            expect(approvePermission).toHaveBeenCalledWith('session-1', 'perm-1', {
+                answers: {
+                    mode: {
+                        answers: ['Hold']
+                    }
+                }
             })
         })
     })

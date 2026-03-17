@@ -1486,16 +1486,16 @@ export function SessionChat(props: {
                         onVoiceToggle={voice ? handleVoiceToggle : undefined}
                         onVoiceMicToggle={voice ? handleVoiceMicToggle : undefined}
                     />
+
+                    <QuestionToolOverlay
+                        api={props.api}
+                        sessionId={props.session.id}
+                        tool={activeQuestionTool}
+                        disabled={props.isSending}
+                        onDone={props.onRefresh}
+                    />
                 </div>
             </AssistantRuntimeProvider>
-
-            <QuestionToolOverlay
-                api={props.api}
-                sessionId={props.session.id}
-                tool={activeQuestionTool}
-                disabled={props.isSending}
-                onDone={props.onRefresh}
-            />
 
             <Dialog open={isMcpDialogOpen} onOpenChange={setIsMcpDialogOpen}>
                 <DialogContent className="max-h-[85vh] max-w-2xl overflow-hidden">
