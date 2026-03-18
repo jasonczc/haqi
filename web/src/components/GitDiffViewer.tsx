@@ -3,6 +3,26 @@ import { DiffModeEnum, DiffView } from '@git-diff-view/react'
 import { useEffect, useState } from 'react'
 import { useDiffSoftWrap } from '@/hooks/useDiffSoftWrap'
 
+type DiffHighlighter = Awaited<ReturnType<typeof import('@git-diff-view/shiki')['getDiffViewHighlighter']>>
+
+let cachedHighlighter: DiffHighlighter | null = null
+let cachedHighlighterPromise: Promise<DiffHighlighter> | null = null
+
+async function loadDiffHighlighter(): Promise<DiffHighlighter> {
+    if (cachedHighlighter) {
+        return cachedHighlighter
+    }
+    if (!cachedHighlighterPromise) {
+        cachedHighlighterPromise = import('@git-diff-view/shiki')
+            .then(({ getDiffViewHighlighter }) => getDiffViewHighlighter())
+            .then((highlighter) => {
+                cachedHighlighter = highlighter
+                return highlighter
+            })
+    }
+    return cachedHighlighterPromise
+}
+
 export function GitDiffViewer(props: {
     filePath: string
     language: string
@@ -12,21 +32,17 @@ export function GitDiffViewer(props: {
     theme: 'light' | 'dark'
     showToolbar?: boolean
 }) {
-    const [highlighter, setHighlighter] = useState<Awaited<ReturnType<typeof import('@git-diff-view/shiki')['getDiffViewHighlighter']>> | null>(null)
+    const [highlighter, setHighlighter] = useState<DiffHighlighter | null>(() => cachedHighlighter)
     const { softWrap, toggleSoftWrap } = useDiffSoftWrap()
 
     useEffect(() => {
         let cancelled = false
 
-        async function loadHighlighter() {
-            const { getDiffViewHighlighter } = await import('@git-diff-view/shiki')
-            const next = await getDiffViewHighlighter()
+        void loadDiffHighlighter().then((next) => {
             if (!cancelled) {
                 setHighlighter(next)
             }
-        }
-
-        void loadHighlighter()
+        })
 
         return () => {
             cancelled = true
@@ -50,27 +66,33 @@ export function GitDiffViewer(props: {
                     </button>
                 </div>
             ) : null}
-            <DiffView
-                data={{
-                    oldFile: {
-                        fileName: props.filePath,
-                        fileLang: props.language,
-                        content: props.oldContent
-                    },
-                    newFile: {
-                        fileName: props.filePath,
-                        fileLang: props.language,
-                        content: props.newContent
-                    },
-                    hunks: [props.diffContent]
-                }}
-                diffViewMode={DiffModeEnum.SplitGitHub}
-                diffViewTheme={props.theme}
-                diffViewHighlight
-                diffViewWrap={softWrap}
-                diffViewFontSize={12}
-                registerHighlighter={highlighter ?? undefined}
-            />
+            {highlighter ? (
+                <DiffView
+                    data={{
+                        oldFile: {
+                            fileName: props.filePath,
+                            fileLang: props.language,
+                            content: props.oldContent
+                        },
+                        newFile: {
+                            fileName: props.filePath,
+                            fileLang: props.language,
+                            content: props.newContent
+                        },
+                        hunks: [props.diffContent]
+                    }}
+                    diffViewMode={DiffModeEnum.SplitGitHub}
+                    diffViewTheme={props.theme}
+                    diffViewHighlight
+                    diffViewWrap={softWrap}
+                    diffViewFontSize={12}
+                    registerHighlighter={highlighter}
+                />
+            ) : (
+                <div className="px-3 py-4 text-xs text-[var(--app-hint)]">
+                    Loading diff…
+                </div>
+            )}
         </div>
     )
 }
