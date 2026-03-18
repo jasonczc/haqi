@@ -10,5 +10,5 @@ export function getExitPlanText(input: unknown): string | null {
         return null
     }
 
-    return getInputStringAny(input, ['plan', 'text'])
+    return getInputStringAny(input, ['plan', 'text', 'message', 'content', 'markdown'])
 }

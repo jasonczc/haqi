@@ -66,7 +66,9 @@ describe('PermissionFooter', () => {
 
         expect(screen.getByText('Review the proposed plan below and choose whether to continue.')).toBeInTheDocument()
         expect(screen.getByRole('button', { name: 'Approve plan' })).toBeInTheDocument()
-        expect(screen.getByRole('button', { name: 'Keep planning' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Reject plan' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Skip for now' })).toBeInTheDocument()
+        expect(screen.getByLabelText('Note (optional)')).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: 'Yes for session' })).not.toBeInTheDocument()
     })
 
@@ -93,6 +95,37 @@ describe('PermissionFooter', () => {
         await waitFor(() => {
             expect(approvePermission).toHaveBeenCalledWith('session-1', 'perm-1', {
                 decision: 'approved'
+            })
+        })
+    })
+
+    it('sends note when rejecting the plan', async () => {
+        const denyPermission = vi.fn(async () => undefined)
+        const api = {
+            approvePermission: vi.fn(),
+            denyPermission
+        } as unknown as ApiClient
+
+        renderWithProviders(
+            <PermissionFooter
+                api={api}
+                sessionId="session-1"
+                metadata={metadata}
+                tool={makeTool()}
+                disabled={false}
+                onDone={vi.fn()}
+            />
+        )
+
+        fireEvent.change(screen.getByLabelText('Note (optional)'), {
+            target: { value: 'Need clearer rollout steps' }
+        })
+        fireEvent.click(screen.getByRole('button', { name: 'Reject plan' }))
+
+        await waitFor(() => {
+            expect(denyPermission).toHaveBeenCalledWith('session-1', 'perm-1', {
+                decision: 'denied',
+                reason: 'Need clearer rollout steps'
             })
         })
     })

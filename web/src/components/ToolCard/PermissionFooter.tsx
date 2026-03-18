@@ -118,6 +118,7 @@ export function PermissionFooter(props: {
     const [loadingAllEdits, setLoadingAllEdits] = useState(false)
     const [loadingForSession, setLoadingForSession] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [note, setNote] = useState('')
     const toolName = props.tool.name
     const isPlanTool = isExitPlanToolName(toolName)
 
@@ -130,6 +131,8 @@ export function PermissionFooter(props: {
 
     const summary = formatPermissionSummary(permission, props.tool.name, props.tool.input, codex, t)
     const isPending = permission.status === 'pending'
+    const trimmedNote = note.trim()
+    const reason = trimmedNote.length > 0 ? trimmedNote : undefined
 
     const run = async (action: () => Promise<void>, hapticType: 'success' | 'error') => {
         if (props.disabled) return
@@ -161,7 +164,7 @@ export function PermissionFooter(props: {
     const approve = async () => {
         if (!isPending || loading || loadingAllEdits || loadingForSession) return
         setLoading('allow')
-        await run(() => props.api.approvePermission(props.sessionId, permission.id), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { reason }), 'success')
         setLoading(null)
     }
 
@@ -184,7 +187,7 @@ export function PermissionFooter(props: {
     const deny = async () => {
         if (!isPending || loading || loadingAllEdits || loadingForSession) return
         setLoading('deny')
-        await run(() => props.api.denyPermission(props.sessionId, permission.id), 'success')
+        await run(() => props.api.denyPermission(props.sessionId, permission.id, { reason }), 'success')
         setLoading(null)
     }
 
@@ -192,19 +195,26 @@ export function PermissionFooter(props: {
         if (!isPending || loading || loadingForSession) return
         if (decision === 'approved_for_session') {
             setLoadingForSession(true)
-            await run(() => props.api.approvePermission(props.sessionId, permission.id, { decision }), 'success')
+            await run(() => props.api.approvePermission(props.sessionId, permission.id, { decision, reason }), 'success')
             setLoadingForSession(false)
             return
         }
         setLoading('allow')
-        await run(() => props.api.approvePermission(props.sessionId, permission.id, { decision }), 'success')
+        await run(() => props.api.approvePermission(props.sessionId, permission.id, { decision, reason }), 'success')
+        setLoading(null)
+    }
+
+    const codexDeny = async () => {
+        if (!isPending || loading || loadingForSession) return
+        setLoading('deny')
+        await run(() => props.api.denyPermission(props.sessionId, permission.id, { decision: 'denied', reason }), 'success')
         setLoading(null)
     }
 
     const codexAbort = async () => {
         if (!isPending || loading || loadingForSession) return
         setLoading('abort')
-        await run(() => props.api.denyPermission(props.sessionId, permission.id, { decision: 'abort' }), 'success')
+        await run(() => props.api.denyPermission(props.sessionId, permission.id, { decision: 'abort', reason }), 'success')
         setLoading(null)
     }
 
@@ -231,6 +241,22 @@ export function PermissionFooter(props: {
                 </div>
             ) : null}
 
+            {isPlanTool ? (
+                <div className="mt-2">
+                    <div className="mb-1 text-xs text-[var(--app-hint)]">
+                        {t('tool.planNoteLabel')}
+                    </div>
+                    <textarea
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        disabled={props.disabled || loading !== null || loadingForSession}
+                        placeholder={t('tool.planNotePlaceholder')}
+                        aria-label={t('tool.planNoteLabel')}
+                        className="w-full min-h-[72px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] disabled:opacity-50"
+                    />
+                </div>
+            ) : null}
+
             <div className="mt-2 flex flex-col gap-1">
                 {codex ? (
                     isPlanTool ? (
@@ -243,7 +269,14 @@ export function PermissionFooter(props: {
                                 onClick={() => codexApprove('approved')}
                             />
                             <PermissionRowButton
-                                label={t('tool.keepPlanning')}
+                                label={t('tool.rejectPlan')}
+                                tone="deny"
+                                loading={loading === 'deny'}
+                                disabled={props.disabled || loading !== null || loadingForSession}
+                                onClick={codexDeny}
+                            />
+                            <PermissionRowButton
+                                label={t('tool.skipPlan')}
                                 tone="neutral"
                                 loading={loading === 'abort'}
                                 disabled={props.disabled || loading !== null || loadingForSession}

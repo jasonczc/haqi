@@ -11,6 +11,8 @@ describe('exitPlanMode', () => {
     it('reads plan text from both legacy and app-server payloads', () => {
         expect(getExitPlanText({ plan: 'legacy plan body' })).toBe('legacy plan body')
         expect(getExitPlanText({ text: 'app-server plan body' })).toBe('app-server plan body')
+        expect(getExitPlanText({ message: 'message body' })).toBe('message body')
+        expect(getExitPlanText({ markdown: 'markdown body' })).toBe('markdown body')
         expect(getExitPlanText({})).toBeNull()
     })
 })

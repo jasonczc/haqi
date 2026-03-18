@@ -326,6 +326,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             toolCompleted: boolean;
             turnCompleted: boolean;
         }>();
+        const livePlanTexts = new Map<string, string>();
 
         const permissionHandler = new CodexPermissionHandler(session.client, {
             getPermissionMode: () => session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined,
@@ -540,6 +541,20 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 if (progress) {
                     messageBuffer.addMessage(progress, 'status');
                 }
+            } else if (msgType === 'plan_delta') {
+                const callId = asString(msg.item_id ?? msg.itemId);
+                const delta = asString(msg.delta);
+                if (callId && delta) {
+                    const nextText = `${livePlanTexts.get(callId) ?? ''}${delta}`;
+                    livePlanTexts.set(callId, nextText);
+                    session.sendCodexMessage({
+                        type: 'tool-call',
+                        name: 'ExitPlanMode',
+                        callId,
+                        input: { text: nextText },
+                        id: randomUUID()
+                    });
+                }
             } else if (msgType === 'tool_call_end') {
                 const output = msg.output ?? 'Tool completed';
                 const outputText = formatOutputPreview(output);
@@ -637,6 +652,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 diffProcessor.reset();
                 this.turnChangeTracker.reset();
                 appServerEventConverter?.reset();
+                livePlanTexts.clear();
             }
             if (msgType === 'agent_reasoning_section_break') {
                 reasoningProcessor.handleSectionBreak();
@@ -699,11 +715,21 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             if (msgType === 'tool_call_begin') {
                 const callId = asString(msg.call_id ?? msg.callId);
                 if (callId) {
+                    const toolName = asString(msg.name) ?? 'Tool';
+                    const rawInput = (msg.input && typeof msg.input === 'object') ? msg.input as Record<string, unknown> : {};
+                    const hasInlinePlanText = Boolean(asString(rawInput.text) ?? asString(rawInput.plan));
+                    const input = toolName === 'ExitPlanMode' && !hasInlinePlanText && livePlanTexts.has(callId)
+                        ? {
+                            ...rawInput,
+                            text: livePlanTexts.get(callId)
+                        }
+                        : rawInput;
+
                     session.sendCodexMessage({
                         type: 'tool-call',
-                        name: asString(msg.name) ?? 'Tool',
+                        name: toolName,
                         callId,
-                        input: msg.input ?? {},
+                        input,
                         id: randomUUID()
                     });
                 }
@@ -711,6 +737,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             if (msgType === 'tool_call_end') {
                 const callId = asString(msg.call_id ?? msg.callId);
                 if (callId) {
+                    livePlanTexts.delete(callId);
                     session.sendCodexMessage({
                         type: 'tool-call-result',
                         callId,

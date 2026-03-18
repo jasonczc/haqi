@@ -238,4 +238,69 @@ describe('codexRemoteLauncher', () => {
             callId: 'plan-1'
         }));
     });
+
+    it('streams plan deltas into the ExitPlanMode tool card before approval', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        harness.startTurnNotifications = [
+            { method: 'turn/started', params: { turn: { id: 'turn-2' } } },
+            {
+                method: 'item/started',
+                params: {
+                    item: {
+                        id: 'plan-2',
+                        type: 'plan'
+                    },
+                    turnId: 'turn-2'
+                }
+            },
+            {
+                method: 'item/plan/delta',
+                params: {
+                    itemId: 'plan-2',
+                    delta: '- Step 1\\n'
+                }
+            },
+            {
+                method: 'item/plan/delta',
+                params: {
+                    itemId: 'plan-2',
+                    delta: '- Step 2'
+                }
+            },
+            {
+                method: 'item/completed',
+                params: {
+                    item: {
+                        id: 'plan-2',
+                        type: 'plan',
+                        text: '- Step 1\\n- Step 2'
+                    },
+                    turnId: 'turn-2'
+                }
+            },
+            { method: 'turn/completed', params: { status: 'Completed', turn: { id: 'turn-2' } } }
+        ];
+
+        const { session, codexMessages } = createSessionStub();
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(codexMessages).toContainEqual(expect.objectContaining({
+            type: 'tool-call',
+            name: 'ExitPlanMode',
+            callId: 'plan-2',
+            input: {
+                text: '- Step 1\\n'
+            }
+        }));
+        expect(codexMessages).toContainEqual(expect.objectContaining({
+            type: 'tool-call',
+            name: 'ExitPlanMode',
+            callId: 'plan-2',
+            input: {
+                text: '- Step 1\\n- Step 2'
+            }
+        }));
+    });
 });
