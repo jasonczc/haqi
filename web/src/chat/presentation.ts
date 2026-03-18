@@ -66,6 +66,15 @@ export function getEventPresentation(event: AgentEvent): EventPresentation {
     if (event.type === 'compact') {
         return { icon: '📦', text: 'Conversation compacted' }
     }
+    if (event.type === 'rate-limit') {
+        const resetsAt = typeof event.resetsAt === 'number' && event.resetsAt > 0
+            ? ` until ${formatUnixTimestamp(event.resetsAt)}`
+            : ''
+        const limitType = typeof event.rateLimitType === 'string' && event.rateLimitType
+            ? ` (${event.rateLimitType})`
+            : ''
+        return { icon: '⏳', text: `Rate limited${limitType}${resetsAt}` }
+    }
     try {
         return { icon: null, text: JSON.stringify(event) }
     } catch {

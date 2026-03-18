@@ -11,7 +11,8 @@ import type {
     SessionUsageOverview,
     DecryptedMessage,
     PermissionMode,
-    Session
+    Session,
+    TeamControlRequest
 } from '@/types/api'
 import type { ChatBlock, NormalizedMessage } from '@/chat/types'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
@@ -33,6 +34,7 @@ import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTranslation } from '@/lib/use-translation'
 import { useVoiceOptional } from '@/lib/voice-context'
+import { useToast } from '@/lib/toast-context'
 import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
 import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import type { ChatViewMode } from '@/hooks/useChatViewMode'
@@ -115,6 +117,29 @@ function getBooleanValueTone(value: string): 'yes' | 'no' | 'unknown' | null {
     if (normalized === 'no') return 'no'
     if (normalized === 'unknown') return 'unknown'
     return null
+}
+
+function describeTeamControlRequest(request: TeamControlRequest): string {
+    switch (request.action) {
+        case 'message':
+            return request.memberName
+                ? `Sent a message request for ${request.memberName}.`
+                : 'Sent a teammate message request.'
+        case 'nudge_member':
+            return request.memberName
+                ? `Asked the lead to check on ${request.memberName}.`
+                : 'Asked the lead to nudge a teammate.'
+        case 'shutdown_member':
+            return request.memberName
+                ? `Asked the lead to shut down ${request.memberName} gracefully.`
+                : 'Asked the lead to shut down a teammate.'
+        case 'assign_task':
+            return request.memberName && request.taskId
+                ? `Asked the lead to assign ${request.taskId} to ${request.memberName}.`
+                : 'Asked the lead to assign a task.'
+        case 'cleanup_team':
+            return 'Asked the lead to clean up the entire team.'
+    }
 }
 
 function isQueueStatusField(label: string): boolean {
@@ -387,6 +412,7 @@ export function SessionChat(props: {
     density?: SessionListDensity
 }) {
     const { t } = useTranslation()
+    const { addToast } = useToast()
     const { haptic } = usePlatform()
     const { queueInlinePanelMode } = useQueueInlinePanel()
     const navigate = useNavigate()
@@ -1221,6 +1247,16 @@ export function SessionChat(props: {
         return createAttachmentAdapter(props.api, props.session.id)
     }, [props.api, props.session.id, props.session.active])
 
+    const handleTeamControl = useCallback(async (request: TeamControlRequest) => {
+        await props.api.controlTeam(props.session.id, request)
+        addToast({
+            title: 'Team lead notified',
+            body: describeTeamControlRequest(request),
+            sessionId: props.session.id,
+            url: `/sessions/${props.session.id}`
+        })
+    }, [addToast, props.api, props.session.id])
+
     const runtime = useHappyRuntime({
         session: props.session,
         blocks: reconciled.blocks,
@@ -1252,7 +1288,12 @@ export function SessionChat(props: {
             />
 
             {(props.session.teamState || (props.session.agentState?.runningAgents?.length ?? 0) > 0 || props.session.agentState?.runningAgent) && (
-                <TeamPanel teamState={props.session.teamState} agentState={props.session.agentState} />
+                <TeamPanel
+                    teamState={props.session.teamState}
+                    agentState={props.session.agentState}
+                    canControl={props.session.active && props.session.metadata?.flavor === 'claude' && Boolean(props.session.teamState)}
+                    onControl={handleTeamControl}
+                />
             )}
 
             {sessionInactive ? (

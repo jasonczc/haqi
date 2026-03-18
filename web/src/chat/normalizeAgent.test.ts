@@ -148,3 +148,53 @@ describe('normalizeAgentRecord codex token_count usage', () => {
         })
     })
 })
+
+describe('normalizeAgentRecord rate_limit_event', () => {
+    it('returns null for allowed rate limit events', () => {
+        const normalized = normalizeAgentRecord(
+            'msg-rl-1',
+            null,
+            1_700_000_000_000,
+            {
+                type: 'output',
+                data: {
+                    type: 'rate_limit_event',
+                    rate_limit_info: {
+                        status: 'allowed',
+                        resetsAt: 1773655200,
+                        rateLimitType: 'five_hour'
+                    }
+                }
+            }
+        )
+        expect(normalized).toBeNull()
+    })
+
+    it('returns event for non-allowed rate limit events', () => {
+        const normalized = normalizeAgentRecord(
+            'msg-rl-2',
+            null,
+            1_700_000_000_001,
+            {
+                type: 'output',
+                data: {
+                    type: 'rate_limit_event',
+                    rate_limit_info: {
+                        status: 'rate_limited',
+                        resetsAt: 1773655200,
+                        rateLimitType: 'five_hour'
+                    }
+                }
+            }
+        )
+        expect(normalized).toMatchObject({
+            role: 'event',
+            content: {
+                type: 'rate-limit',
+                status: 'rate_limited',
+                resetsAt: 1773655200,
+                rateLimitType: 'five_hour'
+            }
+        })
+    })
+})

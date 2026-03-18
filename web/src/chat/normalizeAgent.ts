@@ -381,6 +381,26 @@ export function normalizeAgentRecord(
                 meta
             }
         }
+        if (data.type === 'rate_limit_event') {
+            const info = isObject(data.rate_limit_info) ? data.rate_limit_info : null
+            const status = asString(info?.status) ?? 'unknown'
+            // Skip "allowed" events — they are informational noise
+            if (status === 'allowed') return null
+            return {
+                id: messageId,
+                localId,
+                createdAt,
+                role: 'event',
+                content: {
+                    type: 'rate-limit',
+                    status,
+                    resetsAt: asNumber(info?.resetsAt) ?? 0,
+                    rateLimitType: asString(info?.rateLimitType) ?? ''
+                },
+                isSidechain: false,
+                meta
+            }
+        }
         return null
     }
 

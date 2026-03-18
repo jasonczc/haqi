@@ -5,6 +5,7 @@ import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
+import { useEnterBehavior } from '@/hooks/useEnterBehavior'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useCodexSendModePreference } from '@/hooks/useCodexSendModePreference'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
@@ -329,6 +330,7 @@ export default function SettingsPage() {
         `settings.behavior.imageCompression.targetSize.${imageUploadCompressionTargetSize}`
     )
     const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
+    const { enterBehavior, setEnterBehavior } = useEnterBehavior()
     const { projectQuickCreateEnabled, setProjectQuickCreateEnabled } = useProjectQuickCreate()
     const selectedCodexMachine = activeMachines.find((machine) => machine.id === selectedCodexMachineId) ?? null
     const codexCurrentSummaryRows = useMemo(
@@ -1605,6 +1607,26 @@ export default function SettingsPage() {
                                     ariaLabel={t('settings.experimental.claudeLoginShell.title')}
                                 />
                             </div>
+                        </div>
+                        <div className="flex items-start justify-between gap-3 border-b border-[var(--app-border)] px-3 py-3">
+                            <div className="flex flex-col">
+                                <span className="text-[var(--app-fg)]">
+                                    {t('settings.behavior.enterBehavior')}
+                                </span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {t('settings.behavior.enterBehavior.description')}
+                                </span>
+                            </div>
+                            <Switch
+                                checked={enterBehavior === 'newline'}
+                                onCheckedChange={(checked) => setEnterBehavior(checked ? 'newline' : 'send')}
+                                ariaLabel={t('settings.behavior.enterBehavior')}
+                            />
+                            <span className="shrink-0 text-xs text-[var(--app-hint)]">
+                                {enterBehavior === 'send'
+                                    ? t('settings.behavior.enterBehavior.send')
+                                    : t('settings.behavior.enterBehavior.newline')}
+                            </span>
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3">
                             <div className="flex flex-col">

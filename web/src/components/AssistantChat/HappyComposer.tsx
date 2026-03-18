@@ -28,6 +28,7 @@ import { useActiveWord } from '@/hooks/useActiveWord'
 import { useActiveSuggestions } from '@/hooks/useActiveSuggestions'
 import { applySuggestion } from '@/utils/applySuggestion'
 import { usePlatform } from '@/hooks/usePlatform'
+import { useEnterBehavior } from '@/hooks/useEnterBehavior'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { isClaudeFlavor, supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import { markSkillUsed } from '@/lib/recent-skills'
@@ -634,6 +635,7 @@ export function HappyComposer(props: {
     }, [controlledByUser])
 
     const { haptic: platformHaptic, isTouch } = usePlatform()
+    const { enterBehavior } = useEnterBehavior()
     const { isStandalone, isIOS } = usePWAInstall()
     const isIOSPWA = isIOS && isStandalone
     const bottomPaddingClass = isIOSPWA ? 'pb-0' : 'pb-3'
@@ -857,8 +859,17 @@ export function HappyComposer(props: {
             return
         }
 
-        // Shift+Enter sends the message (works on all platforms including iPadOS with keyboard)
-        if (key === 'Enter' && e.shiftKey) {
+        // Enter behavior depends on user setting:
+        // 'send' (default): Enter sends, Shift+Enter newline
+        // 'newline': Enter newline, Shift+Enter sends
+        const enterSends = enterBehavior === 'send'
+
+        if (key === 'Enter' && e.shiftKey && enterSends) {
+            // Shift+Enter inserts newline when Enter sends (default browser behavior, no preventDefault)
+            return
+        }
+
+        if (key === 'Enter' && e.shiftKey && !enterSends) {
             e.preventDefault()
             if (!canSend) return
             api.composer().send()
@@ -896,9 +907,14 @@ export function HappyComposer(props: {
             return
         }
 
-        if (key === 'Enter' && !e.shiftKey && queueSendEnabled && canSend) {
+        if (key === 'Enter' && !e.shiftKey && enterSends && queueSendEnabled && canSend) {
             e.preventDefault()
             void sendComposerNow()
+            return
+        }
+
+        if (key === 'Enter' && !e.shiftKey && !enterSends && canSend) {
+            // In 'newline' mode, plain Enter inserts newline (default textarea behavior, no preventDefault)
             return
         }
 
@@ -926,7 +942,8 @@ export function HappyComposer(props: {
         permissionModes,
         canSend,
         api,
-        haptic
+        haptic,
+        enterBehavior
     ])
 
     useEffect(() => {
@@ -1385,7 +1402,7 @@ export function HappyComposer(props: {
                                     placeholder={showContinueHint ? t('misc.typeMessage') : t('misc.typeAMessage')}
                                     disabled={controlsDisabled}
                                     maxRows={5}
-                                    submitOnEnter={!isTouch}
+                                    submitOnEnter={!isTouch && enterBehavior === 'send'}
                                     cancelOnEscape={false}
                                     onChange={handleChange}
                                     onSelect={handleSelect}

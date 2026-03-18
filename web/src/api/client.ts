@@ -51,7 +51,9 @@ import type {
     VisibilityPayload,
     SessionPreviewUrlResponse,
     SessionResponse,
-    SessionsResponse
+    SessionsResponse,
+    TeamControlRequest,
+    TeamControlResponse
 } from '@/types/api'
 
 type ApiClientOptions = {
@@ -712,6 +714,16 @@ export class ApiClient {
                 attachments: attachments ?? undefined
             })
         })
+    }
+
+    async controlTeam(sessionId: string, payload: TeamControlRequest): Promise<TeamControlResponse> {
+        return await this.request<TeamControlResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/team/control`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            }
+        )
     }
 
     async abortSession(sessionId: string): Promise<void> {

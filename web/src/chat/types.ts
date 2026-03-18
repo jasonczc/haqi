@@ -20,6 +20,7 @@ export type AgentEvent =
     | { type: 'turn-duration'; durationMs: number }
     | { type: 'microcompact'; trigger: string; preTokens: number; tokensSaved: number }
     | { type: 'compact'; trigger: string; preTokens: number }
+    | { type: 'rate-limit'; status: string; resetsAt: number; rateLimitType: string }
     | ({ type: string } & Record<string, unknown>)
 
 export type ToolResultPermission = {

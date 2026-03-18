@@ -153,6 +153,43 @@ export const TeamStateSchema = z.object({
 
 export type TeamState = z.infer<typeof TeamStateSchema>
 
+export const TeamControlActionSchema = z.enum([
+    'message',
+    'shutdown_member',
+    'assign_task',
+    'nudge_member',
+    'cleanup_team'
+])
+
+export type TeamControlAction = z.infer<typeof TeamControlActionSchema>
+
+export const TeamControlRequestSchema = z.object({
+    action: TeamControlActionSchema,
+    memberName: z.string().min(1).optional(),
+    taskId: z.string().min(1).optional(),
+    message: z.string().min(1).optional()
+})
+
+export type TeamControlRequest = z.infer<typeof TeamControlRequestSchema>
+
+export const TeamControlResponseSchema = z.object({
+    ok: z.boolean(),
+    accepted: z.boolean().optional(),
+    mode: z.literal('lead_prompt').optional(),
+    enqueuedPrompt: z.string().optional(),
+    error: z.string().optional(),
+    code: z.enum([
+        'not_claude_session',
+        'session_not_active',
+        'team_not_found',
+        'member_not_found',
+        'task_not_found',
+        'invalid_action'
+    ]).optional()
+})
+
+export type TeamControlResponse = z.infer<typeof TeamControlResponseSchema>
+
 export const AttachmentMetadataSchema = z.object({
     id: z.string(),
     filename: z.string(),
