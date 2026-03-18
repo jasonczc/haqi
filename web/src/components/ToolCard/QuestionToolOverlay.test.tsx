@@ -156,6 +156,32 @@ describe('QuestionToolOverlay', () => {
         })
     })
 
+    it('can minimize and resume the question dialog', () => {
+        const api = {
+            approvePermission: vi.fn(),
+            denyPermission: vi.fn()
+        } as unknown as ApiClient
+
+        renderWithProviders(
+            <QuestionToolOverlay
+                api={api}
+                sessionId="session-1"
+                tool={makeTool()}
+                disabled={false}
+                onDone={vi.fn()}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: 'Minimize' }))
+
+        expect(screen.queryByText('How should we proceed?')).not.toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Resume' })).toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
+
+        expect(screen.getByText('How should we proceed?')).toBeInTheDocument()
+    })
+
     it('restores draft answers after unmount and remount', async () => {
         const approvePermission = vi.fn(async () => undefined)
         const api = {
@@ -174,6 +200,7 @@ describe('QuestionToolOverlay', () => {
         )
 
         fireEvent.click(screen.getByRole('button', { name: /Hold/ }))
+        fireEvent.click(screen.getByRole('button', { name: 'Minimize' }))
         firstRender.unmount()
 
         renderWithProviders(
@@ -186,6 +213,9 @@ describe('QuestionToolOverlay', () => {
             />
         )
 
+        expect(screen.getByRole('button', { name: 'Resume' })).toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Resume' }))
         fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
         await waitFor(() => {

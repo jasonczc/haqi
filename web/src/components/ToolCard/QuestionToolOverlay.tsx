@@ -21,6 +21,7 @@ import {
 } from '@/components/ToolCard/questionTools'
 
 type QuestionToolDraft = {
+    isMinimized?: boolean
     step: number
     stateByQuestion: Record<string, QuestionOverlayState>
 }
@@ -134,6 +135,7 @@ export function QuestionToolOverlay(props: {
 
     const [step, setStep] = useState(0)
     const [stateByQuestion, setStateByQuestion] = useState<Record<string, QuestionOverlayState>>({})
+    const [isMinimized, setIsMinimized] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -141,6 +143,7 @@ export function QuestionToolOverlay(props: {
         if (!model || !permission || permission.status !== 'pending' || !draftKey) {
             setStep(0)
             setStateByQuestion({})
+            setIsMinimized(false)
             setLoading(false)
             setError(null)
             skipNextDraftPersistRef.current = null
@@ -153,6 +156,7 @@ export function QuestionToolOverlay(props: {
         skipNextDraftPersistRef.current = draftKey
         setStep(Math.min(Math.max(draft?.step ?? 0, 0), Math.max(model.questions.length - 1, 0)))
         setStateByQuestion(nextState)
+        setIsMinimized(Boolean(draft?.isMinimized))
         setLoading(false)
         setError(null)
     }, [draftKey])
@@ -168,10 +172,11 @@ export function QuestionToolOverlay(props: {
         }
 
         questionToolDraftByKey.set(draftKey, {
+            isMinimized,
             step: Math.min(Math.max(step, 0), Math.max(model.questions.length - 1, 0)),
             stateByQuestion
         })
-    }, [draftKey, model?.toolId, model?.questions.length, permission?.status, stateByQuestion, step])
+    }, [draftKey, isMinimized, model?.toolId, model?.questions.length, permission?.status, stateByQuestion, step])
 
     useEffect(() => {
         if (!draftKey || permission?.status === 'pending') {
@@ -273,7 +278,7 @@ export function QuestionToolOverlay(props: {
     }
 
     useEffect(() => {
-        if (!model || !permission || permission.status !== 'pending') {
+        if (!model || !permission || permission.status !== 'pending' || isMinimized) {
             return
         }
 
@@ -320,7 +325,7 @@ export function QuestionToolOverlay(props: {
 
         window.addEventListener('keydown', onKeyDown)
         return () => window.removeEventListener('keydown', onKeyDown)
-    }, [cancel, clampedStep, loading, model, next, permission, prev, submit, total])
+    }, [cancel, clampedStep, isMinimized, loading, model, next, permission, prev, submit, total])
 
     if (!model || !permission || permission.status !== 'pending' || !currentQuestion) {
         return null
@@ -331,6 +336,71 @@ export function QuestionToolOverlay(props: {
         || isOtherOptionSelected(currentQuestion, currentState ?? undefined)
 
     const questionAnswered = isQuestionAnswered(currentQuestion, currentState ?? undefined)
+    const answeredCount = model.questions.reduce((count, question) => (
+        isQuestionAnswered(question, stateByQuestion[question.id]) ? count + 1 : count
+    ), 0)
+
+    if (isMinimized) {
+        return (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[70] flex justify-end p-3 sm:p-4">
+                <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl">
+                    <div className="px-4 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="default">{t('tool.questionOverlay.title')}</Badge>
+                                    <span className="font-mono text-xs text-[var(--app-hint)]">
+                                        [{clampedStep + 1}/{total}]
+                                    </span>
+                                </div>
+                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                    {t('tool.questionOverlay.minimizedDescription', {
+                                        answeredCount,
+                                        total
+                                    })}
+                                </div>
+                                {currentQuestion.header ? (
+                                    <div className="mt-2 text-sm font-medium text-[var(--app-fg)] break-words">
+                                        {currentQuestion.header}
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <Button
+                                type="button"
+                                variant="default"
+                                size="sm"
+                                disabled={loading}
+                                onClick={() => setIsMinimized(false)}
+                            >
+                                {t('tool.questionOverlay.resume')}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {error ? (
+                        <div className="border-t border-[var(--app-border)] px-4 py-3">
+                            <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                                {error}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    <div className="flex items-center justify-end gap-2 border-t border-[var(--app-border)] px-4 py-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={props.disabled || loading}
+                            onClick={() => void cancel()}
+                        >
+                            {t('tool.questionOverlay.close')}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="absolute inset-0 z-[70]">
@@ -350,15 +420,26 @@ export function QuestionToolOverlay(props: {
                                     {t('tool.questionOverlay.description')}
                                 </div>
                             </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={props.disabled || loading}
-                                onClick={() => void cancel()}
-                            >
-                                {t('tool.questionOverlay.close')}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={loading}
+                                    onClick={() => setIsMinimized(true)}
+                                >
+                                    {t('tool.questionOverlay.minimize')}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={props.disabled || loading}
+                                    onClick={() => void cancel()}
+                                >
+                                    {t('tool.questionOverlay.close')}
+                                </Button>
+                            </div>
                         </div>
                     </div>
 
