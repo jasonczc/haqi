@@ -59,6 +59,47 @@ function isQuestionToolCall(tool: ChatToolCall): boolean {
     return isAskUserQuestionToolName(tool.name) || isRequestUserInputToolName(tool.name)
 }
 
+function normalizeQuestionHint(value: string | null | undefined): string {
+    return typeof value === 'string'
+        ? value.trim().toLowerCase()
+        : ''
+}
+
+function includesPlanModeHint(value: string | null | undefined): boolean {
+    const normalized = normalizeQuestionHint(value)
+    if (!normalized) {
+        return false
+    }
+    return normalized.includes('plan mode')
+        || normalized.includes('keep planning')
+        || normalized.includes('hold plan mode')
+        || normalized.includes('exit plan mode')
+}
+
+export function isPlanModeQuestionTool(tool: ChatToolCall): boolean {
+    if (!isRequestUserInputToolName(tool.name)) {
+        return false
+    }
+
+    const { questions } = parseRequestUserInputInput(tool.input)
+    if (questions.length === 0) {
+        return false
+    }
+
+    return questions.some((question) => {
+        const normalizedId = normalizeQuestionHint(question.id)
+        if (normalizedId === 'plan_action' || normalizedId === 'plan-action' || normalizedId === 'plan_mode_action') {
+            return true
+        }
+
+        if (includesPlanModeHint(question.header) || includesPlanModeHint(question.question)) {
+            return true
+        }
+
+        return question.options.some((option) => includesPlanModeHint(option.label) || includesPlanModeHint(option.description))
+    })
+}
+
 function buildAskQuestion(question: AskUserQuestionQuestion, index: number): QuestionToolQuestion {
     const options: QuestionToolOption[] = question.options.map((option, optionIndex) => ({
         id: `option:${optionIndex}:${option.label}`,
@@ -283,6 +324,33 @@ export function findLatestPendingQuestionTool(blocks: ChatBlock[]): ChatToolCall
 
         const tool = block.tool
         if (tool.permission?.status === 'pending' && isQuestionToolCall(tool)) {
+            if (!latest || tool.createdAt >= latest.createdAt) {
+                latest = tool
+            }
+        }
+
+        for (const child of block.children) {
+            visit(child)
+        }
+    }
+
+    for (const block of blocks) {
+        visit(block)
+    }
+
+    return latest
+}
+
+export function findLatestPendingQuestionOverlayTool(blocks: ChatBlock[]): ChatToolCall | null {
+    let latest: ChatToolCall | null = null
+
+    const visit = (block: ChatBlock) => {
+        if (block.kind !== 'tool-call') {
+            return
+        }
+
+        const tool = block.tool
+        if (tool.permission?.status === 'pending' && isPlanModeQuestionTool(tool)) {
             if (!latest || tool.createdAt >= latest.createdAt) {
                 latest = tool
             }

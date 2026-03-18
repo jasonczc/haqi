@@ -4,7 +4,9 @@ import {
     buildInitialQuestionOverlayState,
     buildQuestionToolAnswerPayload,
     buildQuestionToolModel,
+    findLatestPendingQuestionOverlayTool,
     findLatestPendingQuestionTool,
+    isPlanModeQuestionTool,
     maskSecretValue
 } from '@/components/ToolCard/questionTools'
 
@@ -190,6 +192,82 @@ describe('questionTools', () => {
         ]
 
         expect(findLatestPendingQuestionTool(blocks)?.id).toBe('tool-2')
+    })
+
+    it('limits overlay questions to plan-mode request_user_input prompts', () => {
+        const planTool = makeToolCall({
+            id: 'tool-plan',
+            name: 'request_user_input',
+            input: {
+                questions: [
+                    {
+                        id: 'plan_action',
+                        question: 'How should we proceed in plan mode?',
+                        options: [
+                            { label: 'Exit plan mode' },
+                            { label: 'Hold plan mode' }
+                        ]
+                    }
+                ]
+            },
+            permission: { id: 'perm-plan', status: 'pending' }
+        })
+        const normalRequestTool = makeToolCall({
+            id: 'tool-normal',
+            name: 'request_user_input',
+            input: {
+                questions: [
+                    {
+                        id: 'mcp_input',
+                        question: 'Please provide the API key',
+                        options: []
+                    }
+                ]
+            },
+            permission: { id: 'perm-normal', status: 'pending' }
+        })
+        const askTool = makeToolCall({
+            id: 'tool-ask',
+            name: 'AskUserQuestion',
+            input: {
+                questions: [{ id: 'why', question: 'Why?', options: [] }]
+            },
+            permission: { id: 'perm-ask', status: 'pending' }
+        })
+
+        expect(isPlanModeQuestionTool(planTool)).toBe(true)
+        expect(isPlanModeQuestionTool(normalRequestTool)).toBe(false)
+        expect(isPlanModeQuestionTool(askTool)).toBe(false)
+
+        const blocks: ChatBlock[] = [
+            {
+                kind: 'tool-call',
+                id: 'block-normal',
+                localId: null,
+                createdAt: 100,
+                tool: normalRequestTool,
+                children: []
+            },
+            {
+                kind: 'tool-call',
+                id: 'block-plan',
+                localId: null,
+                createdAt: 200,
+                tool: planTool,
+                children: [
+                    {
+                        kind: 'tool-call',
+                        id: 'block-ask',
+                        localId: null,
+                        createdAt: 300,
+                        tool: askTool,
+                        children: []
+                    }
+                ]
+            }
+        ]
+
+        expect(findLatestPendingQuestionOverlayTool(blocks)?.id).toBe('tool-plan')
     })
 
     it('masks secret values without leaking length exactly', () => {
