@@ -1,6 +1,6 @@
 import '@git-diff-view/react/styles/diff-view-pure.css'
 import { DiffModeEnum, DiffView } from '@git-diff-view/react'
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useMemo, useState } from 'react'
 import { useDiffSoftWrap } from '@/hooks/useDiffSoftWrap'
 
 type DiffHighlighter = Awaited<ReturnType<typeof import('@git-diff-view/shiki')['getDiffViewHighlighter']>>
@@ -50,6 +50,19 @@ export function GitDiffViewer(props: {
     }, [])
 
     const showToolbar = props.showToolbar ?? true
+    const diffData = useMemo(() => ({
+        oldFile: {
+            fileName: props.filePath,
+            fileLang: props.language,
+            content: props.oldContent
+        },
+        newFile: {
+            fileName: props.filePath,
+            fileLang: props.language,
+            content: props.newContent
+        },
+        hunks: [props.diffContent]
+    }), [props.diffContent, props.filePath, props.language, props.newContent, props.oldContent])
 
     return (
         <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-bg)]">
@@ -68,19 +81,7 @@ export function GitDiffViewer(props: {
             ) : null}
             {highlighter ? (
                 <DiffView
-                    data={{
-                        oldFile: {
-                            fileName: props.filePath,
-                            fileLang: props.language,
-                            content: props.oldContent
-                        },
-                        newFile: {
-                            fileName: props.filePath,
-                            fileLang: props.language,
-                            content: props.newContent
-                        },
-                        hunks: [props.diffContent]
-                    }}
+                    data={diffData}
                     diffViewMode={DiffModeEnum.SplitGitHub}
                     diffViewTheme={props.theme}
                     diffViewHighlight
@@ -97,4 +98,4 @@ export function GitDiffViewer(props: {
     )
 }
 
-export default GitDiffViewer
+export default memo(GitDiffViewer)
