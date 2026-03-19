@@ -190,7 +190,7 @@ describe('codexRemoteLauncher', () => {
         expect(session.thinking).toBe(false);
     });
 
-    it('keeps ExitPlanMode tool calls visible instead of replacing them with CodexPermission', async () => {
+    it('shows completed plan proposals as assistant messages instead of ExitPlanMode tool calls', async () => {
         delete process.env.CODEX_USE_MCP_SERVER;
         harness.startTurnNotifications = [
             { method: 'turn/started', params: { turn: { id: 'turn-1' } } },
@@ -225,21 +225,17 @@ describe('codexRemoteLauncher', () => {
 
         expect(exitReason).toBe('exit');
         expect(codexMessages).toContainEqual(expect.objectContaining({
-            type: 'tool-call',
-            name: 'ExitPlanMode',
-            callId: 'plan-1',
-            input: {
-                text: 'Review current implementation'
-            }
+            type: 'message',
+            message: 'Review current implementation'
         }));
         expect(codexMessages).not.toContainEqual(expect.objectContaining({
             type: 'tool-call',
-            name: 'CodexPermission',
+            name: 'ExitPlanMode',
             callId: 'plan-1'
         }));
     });
 
-    it('streams plan deltas into the ExitPlanMode tool card before approval', async () => {
+    it('publishes the buffered plan proposal text as an assistant message on completion', async () => {
         delete process.env.CODEX_USE_MCP_SERVER;
         harness.startTurnNotifications = [
             { method: 'turn/started', params: { turn: { id: 'turn-2' } } },
@@ -287,20 +283,109 @@ describe('codexRemoteLauncher', () => {
 
         expect(exitReason).toBe('exit');
         expect(codexMessages).toContainEqual(expect.objectContaining({
-            type: 'tool-call',
-            name: 'ExitPlanMode',
-            callId: 'plan-2',
-            input: {
-                text: '- Step 1\\n'
-            }
+            type: 'message',
+            message: '- Step 1\\n- Step 2'
         }));
-        expect(codexMessages).toContainEqual(expect.objectContaining({
+        expect(codexMessages).not.toContainEqual(expect.objectContaining({
             type: 'tool-call',
             name: 'ExitPlanMode',
-            callId: 'plan-2',
-            input: {
-                text: '- Step 1\\n- Step 2'
-            }
+            callId: 'plan-2'
+        }));
+    });
+
+    it('does not auto-approve or auto-execute a visible plan without an explicit permission response', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        harness.startTurnNotifications = [
+            { method: 'turn/started', params: { turn: { id: 'turn-plan-pending' } } },
+            {
+                method: 'item/started',
+                params: {
+                    item: {
+                        id: 'plan-visible',
+                        type: 'plan',
+                        text: '1. inspect\\n2. patch\\n3. verify'
+                    },
+                    turnId: 'turn-plan-pending'
+                }
+            },
+            {
+                method: 'item/completed',
+                params: {
+                    item: {
+                        id: 'plan-visible',
+                        type: 'plan',
+                        text: '1. inspect\\n2. patch\\n3. verify'
+                    },
+                    turnId: 'turn-plan-pending'
+                }
+            },
+            { method: 'turn/completed', params: { status: 'Completed', turn: { id: 'turn-plan-pending' } } }
+        ];
+
+        const { session, sessionEvents, codexMessages, getAgentState } = createSessionStub();
+        session.collaborationMode = 'plan';
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(codexMessages).toContainEqual(expect.objectContaining({
+            type: 'message',
+            message: '1. inspect\\n2. patch\\n3. verify'
+        }));
+        expect(sessionEvents).not.toContainEqual(expect.objectContaining({
+            type: 'message',
+            message: 'Plan 已确认，自动退出计划模式并继续执行。'
+        }));
+        expect(getAgentState().completedRequests).not.toEqual(expect.objectContaining({
+            'plan-visible': expect.objectContaining({
+                status: 'approved'
+            })
+        }));
+    });
+
+    it('does not request plan approval or auto-execute when no plan text is available', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        harness.startTurnNotifications = [
+            { method: 'turn/started', params: { turn: { id: 'turn-3' } } },
+            {
+                method: 'item/started',
+                params: {
+                    item: {
+                        id: 'plan-3',
+                        type: 'plan'
+                    },
+                    turnId: 'turn-3'
+                }
+            },
+            {
+                method: 'item/completed',
+                params: {
+                    item: {
+                        id: 'plan-3',
+                        type: 'plan'
+                    },
+                    turnId: 'turn-3'
+                }
+            },
+            { method: 'turn/completed', params: { status: 'Completed', turn: { id: 'turn-3' } } }
+        ];
+
+        const { session, sessionEvents, codexMessages, getAgentState } = createSessionStub();
+        session.collaborationMode = 'plan';
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(getAgentState().requests).toEqual({});
+        expect(getAgentState().completedRequests).toEqual({});
+        expect(sessionEvents).not.toContainEqual(expect.objectContaining({
+            type: 'message',
+            message: 'Plan 已确认，自动退出计划模式并继续执行。'
+        }));
+        expect(codexMessages).not.toContainEqual(expect.objectContaining({
+            type: 'tool-call',
+            name: 'CodexPermission',
+            callId: 'plan-3'
         }));
     });
 });

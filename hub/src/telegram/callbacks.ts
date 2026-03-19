@@ -67,7 +67,7 @@ export async function handleCallback(
                     return
                 }
 
-                await syncEngine.approvePermission(session.id, requestId)
+                await syncEngine.approvePermission(session.id, requestId, undefined, undefined, undefined, undefined, undefined, 'user')
                 await ctx.answerCallback('Approved!')
 
                 // Update the notification message

@@ -86,7 +86,9 @@ describe('SyncEngine auto-approve guardrails', () => {
             'req-1',
             undefined,
             undefined,
-            'approved'
+            'approved',
+            undefined,
+            undefined
         )
     })
 
@@ -107,5 +109,57 @@ describe('SyncEngine auto-approve guardrails', () => {
         }).maybeAutoApprovePendingRequests(session.id)
 
         expect(harness.approvePermission).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        'ExitPlanMode',
+        'exit_plan_mode'
+    ])('requires explicit user approval for %s', async (toolName) => {
+        const harness = createHarness()
+        harnesses.push(harness)
+        const session = createAutoApproveSession(harness, toolName)
+
+        await expect(
+            harness.engine.approvePermission(
+                session.id,
+                'req-1',
+                undefined,
+                undefined,
+                'approved',
+                undefined,
+                undefined,
+                'auto'
+            )
+        ).rejects.toThrow('requires explicit user approval')
+
+        expect(harness.approvePermission).not.toHaveBeenCalled()
+    })
+
+    it('still allows explicit user approval for ExitPlanMode', async () => {
+        const harness = createHarness()
+        harnesses.push(harness)
+        const session = createAutoApproveSession(harness, 'ExitPlanMode')
+
+        await harness.engine.approvePermission(
+            session.id,
+            'req-1',
+            undefined,
+            undefined,
+            'approved',
+            undefined,
+            undefined,
+            'user'
+        )
+
+        expect(harness.approvePermission).toHaveBeenCalledTimes(1)
+        expect(harness.approvePermission).toHaveBeenCalledWith(
+            session.id,
+            'req-1',
+            undefined,
+            undefined,
+            'approved',
+            undefined,
+            undefined
+        )
     })
 })

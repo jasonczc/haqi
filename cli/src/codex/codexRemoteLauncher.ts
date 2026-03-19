@@ -45,6 +45,22 @@ function shouldUseAppServer(): boolean {
 
 const AUTO_EXECUTE_PLAN_PROMPT = 'Plan approved. Exit plan mode and start implementing now.';
 
+function extractPlanText(input: unknown): string | null {
+    if (!input || typeof input !== 'object') {
+        return null;
+    }
+    const record = input as Record<string, unknown>;
+    const asRawString = (value: unknown): string | null => (
+        typeof value === 'string' && value.length > 0 ? value : null
+    );
+    const text = asRawString(record.text) ?? asRawString(record.plan);
+    if (!text) {
+        return null;
+    }
+    const trimmed = text.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
 class CodexRemoteLauncher extends RemoteLauncherBase {
     private readonly session: CodexSession;
     private readonly useAppServer: boolean;
@@ -323,6 +339,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         const pendingPlanApprovals = new Map<string, {
             turnId: string | null;
             mode: EnhancedMode | null;
+            approved: boolean;
             toolCompleted: boolean;
             turnCompleted: boolean;
         }>();
@@ -396,7 +413,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
         const maybeExecuteApprovedPlan = (callId: string) => {
             const state = pendingPlanApprovals.get(callId);
-            if (!state || !state.toolCompleted || !state.turnCompleted) {
+            if (!state || !state.approved || !state.toolCompleted || !state.turnCompleted) {
                 return;
             }
 
@@ -498,11 +515,13 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     && rawToolName
                     && isPlanApprovalToolName(rawToolName)
                     && session.getCollaborationMode() === 'plan'
+                    && (extractPlanText(msg.input) || livePlanTexts.has(callId))
                     && !pendingPlanApprovals.has(callId)
                 ) {
                     pendingPlanApprovals.set(callId, {
                         turnId: eventTurnId ?? this.currentTurnId,
                         mode: activeTurnMode ? { ...activeTurnMode } : null,
+                        approved: false,
                         toolCompleted: false,
                         turnCompleted: false
                     });
@@ -515,6 +534,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             }
 
                             if (result.decision === 'approved' || result.decision === 'approved_for_session') {
+                                state.approved = true;
                                 maybeExecuteApprovedPlan(callId);
                                 return;
                             }
@@ -547,13 +567,53 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 if (callId && delta) {
                     const nextText = `${livePlanTexts.get(callId) ?? ''}${delta}`;
                     livePlanTexts.set(callId, nextText);
+                }
+            } else if (msgType === 'plan_proposal') {
+                const callId = asString(msg.item_id ?? msg.itemId) ?? randomUUID();
+                const text = extractPlanText(msg) ?? livePlanTexts.get(callId);
+                if (text) {
                     session.sendCodexMessage({
-                        type: 'tool-call',
-                        name: 'ExitPlanMode',
-                        callId,
-                        input: { text: nextText },
+                        type: 'message',
+                        message: text,
                         id: randomUUID()
                     });
+                }
+                if (
+                    session.getCollaborationMode() === 'plan'
+                    && text
+                    && !pendingPlanApprovals.has(callId)
+                ) {
+                    pendingPlanApprovals.set(callId, {
+                        turnId: eventTurnId ?? this.currentTurnId,
+                        mode: activeTurnMode ? { ...activeTurnMode } : null,
+                        approved: false,
+                        toolCompleted: true,
+                        turnCompleted: false
+                    });
+
+                    void permissionHandler.handleToolCall(callId, 'ExitPlanMode', { text })
+                        .then((result) => {
+                            const state = pendingPlanApprovals.get(callId);
+                            if (!state) {
+                                return;
+                            }
+
+                            if (result.decision === 'approved' || result.decision === 'approved_for_session') {
+                                state.approved = true;
+                                maybeExecuteApprovedPlan(callId);
+                                return;
+                            }
+
+                            pendingPlanApprovals.delete(callId);
+                            session.sendSessionEvent({
+                                type: 'message',
+                                message: 'Plan 未确认，保持计划模式。'
+                            });
+                        })
+                        .catch((error) => {
+                            pendingPlanApprovals.delete(callId);
+                            logger.debug('[Codex] Plan approval request ended without confirmation', error);
+                        });
                 }
             } else if (msgType === 'tool_call_end') {
                 const output = msg.output ?? 'Tool completed';

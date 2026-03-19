@@ -422,6 +422,17 @@ function shouldSkipAutoApproveForTool(toolName: unknown): boolean {
         || normalized === 'ask_user_question'
 }
 
+type PermissionApprovalSource = 'user' | 'auto';
+
+function isManualApprovalRequiredTool(toolName: unknown): boolean {
+    if (typeof toolName !== 'string') {
+        return false;
+    }
+
+    const normalized = toolName.trim().toLowerCase();
+    return normalized === 'exitplanmode' || normalized === 'exit_plan_mode';
+}
+
 export class SyncEngine {
     private readonly store: Store
     private readonly eventPublisher: EventPublisher
@@ -882,8 +893,14 @@ export class SyncEngine {
         allowTools?: string[],
         decision?: 'approved' | 'approved_for_session' | 'denied' | 'abort',
         reason?: string,
-        answers?: Record<string, string[]> | Record<string, { answers: string[] }>
+        answers?: Record<string, string[]> | Record<string, { answers: string[] }>,
+        source: PermissionApprovalSource = 'user'
     ): Promise<void> {
+        const session = this.getSession(sessionId) ?? this.sessionCache.refreshSession(sessionId);
+        const request = session?.agentState?.requests?.[requestId];
+        if (source !== 'user' && isManualApprovalRequiredTool(request?.tool)) {
+            throw new Error(`Permission for ${String(request?.tool)} requires explicit user approval`);
+        }
         await this.rpcGateway.approvePermission(sessionId, requestId, mode, allowTools, decision, reason, answers)
     }
 
@@ -1176,12 +1193,15 @@ export class SyncEngine {
 
             this.autoApprovalInFlight.add(lockKey)
             try {
-                await this.rpcGateway.approvePermission(
+                await this.approvePermission(
                     sessionId,
                     requestId,
                     undefined,
                     undefined,
-                    'approved'
+                    'approved',
+                    undefined,
+                    undefined,
+                    'auto'
                 )
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error)

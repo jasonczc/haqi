@@ -156,7 +156,7 @@ describe('AppServerEventConverter', () => {
         }]);
     });
 
-    it('maps plan item deltas to generic tool calls', () => {
+    it('maps plan item deltas to a plan proposal event', () => {
         const converter = new AppServerEventConverter();
 
         const delta = converter.handleNotification('item/plan/delta', { itemId: 'plan-1', delta: 'line1' });
@@ -166,22 +166,16 @@ describe('AppServerEventConverter', () => {
             item: { id: 'plan-1', type: 'plan' }
         });
 
-        expect(started).toEqual([{
-            type: 'tool_call_begin',
-            call_id: 'plan-1',
-            name: 'ExitPlanMode',
-            input: { text: 'line1' }
-        }]);
+        expect(started).toEqual([]);
 
         const completed = converter.handleNotification('item/completed', {
             item: { id: 'plan-1', type: 'plan' }
         });
 
         expect(completed).toEqual([{
-            type: 'tool_call_end',
-            call_id: 'plan-1',
-            name: 'ExitPlanMode',
-            output: { text: 'line1' }
+            type: 'plan_proposal',
+            item_id: 'plan-1',
+            text: 'line1'
         }]);
     });
 
@@ -475,36 +469,28 @@ describe('AppServerEventConverter', () => {
         });
 
         expect(completed).toEqual([{
-            type: 'tool_call_end',
-            call_id: 'plan-1',
-            name: 'ExitPlanMode',
-            output: { text: 'final text from item' }
+            type: 'plan_proposal',
+            item_id: 'plan-1',
+            text: 'final text from item'
         }]);
     });
 
-    it('propagates status field in plan item started and completed events', () => {
+    it('ignores plan status-only started events and only emits completed proposal text', () => {
         const converter = new AppServerEventConverter();
 
         const started = converter.handleNotification('item/started', {
             item: { id: 'plan-2', type: 'plan', status: 'approved' }
         });
 
-        expect(started).toEqual([{
-            type: 'tool_call_begin',
-            call_id: 'plan-2',
-            name: 'ExitPlanMode',
-            input: { status: 'approved' }
-        }]);
+        expect(started).toEqual([]);
 
         const completed = converter.handleNotification('item/completed', {
             item: { id: 'plan-2', type: 'plan', status: 'approved' }
         });
 
         expect(completed).toEqual([{
-            type: 'tool_call_end',
-            call_id: 'plan-2',
-            name: 'ExitPlanMode',
-            output: { status: 'approved' }
+            type: 'plan_proposal',
+            item_id: 'plan-2'
         }]);
     });
 
@@ -514,25 +500,23 @@ describe('AppServerEventConverter', () => {
         converter.handleNotification('item/plan/delta', { itemId: 'plan-a', delta: 'alpha' });
         converter.handleNotification('item/plan/delta', { itemId: 'plan-b', delta: 'beta' });
 
-        const startedA = converter.handleNotification('item/started', {
+        const completedA = converter.handleNotification('item/completed', {
             item: { id: 'plan-a', type: 'plan' }
         });
-        const startedB = converter.handleNotification('item/started', {
+        const completedB = converter.handleNotification('item/completed', {
             item: { id: 'plan-b', type: 'plan' }
         });
 
-        expect(startedA).toEqual([{
-            type: 'tool_call_begin',
-            call_id: 'plan-a',
-            name: 'ExitPlanMode',
-            input: { text: 'alpha' }
+        expect(completedA).toEqual([{
+            type: 'plan_proposal',
+            item_id: 'plan-a',
+            text: 'alpha'
         }]);
 
-        expect(startedB).toEqual([{
-            type: 'tool_call_begin',
-            call_id: 'plan-b',
-            name: 'ExitPlanMode',
-            input: { text: 'beta' }
+        expect(completedB).toEqual([{
+            type: 'plan_proposal',
+            item_id: 'plan-b',
+            text: 'beta'
         }]);
     });
 
@@ -547,10 +531,9 @@ describe('AppServerEventConverter', () => {
         });
 
         expect(completed).toEqual([{
-            type: 'tool_call_end',
-            call_id: 'plan-3',
-            name: 'ExitPlanMode',
-            output: { text: 'early' }
+            type: 'plan_proposal',
+            item_id: 'plan-3',
+            text: 'early'
         }]);
     });
 
@@ -560,15 +543,13 @@ describe('AppServerEventConverter', () => {
         converter.handleNotification('item/plan/delta', { itemId: 'plan-4', delta: 'old data' });
         converter.reset();
 
-        const started = converter.handleNotification('item/started', {
+        const completed = converter.handleNotification('item/completed', {
             item: { id: 'plan-4', type: 'plan' }
         });
 
-        expect(started).toEqual([{
-            type: 'tool_call_begin',
-            call_id: 'plan-4',
-            name: 'ExitPlanMode',
-            input: {}
+        expect(completed).toEqual([{
+            type: 'plan_proposal',
+            item_id: 'plan-4'
         }]);
     });
 });

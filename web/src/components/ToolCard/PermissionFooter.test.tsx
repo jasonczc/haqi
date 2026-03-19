@@ -99,6 +99,37 @@ describe('PermissionFooter', () => {
         })
     })
 
+    it('sends note when approving the plan', async () => {
+        const approvePermission = vi.fn(async () => undefined)
+        const api = {
+            approvePermission,
+            denyPermission: vi.fn()
+        } as unknown as ApiClient
+
+        renderWithProviders(
+            <PermissionFooter
+                api={api}
+                sessionId="session-1"
+                metadata={metadata}
+                tool={makeTool()}
+                disabled={false}
+                onDone={vi.fn()}
+            />
+        )
+
+        fireEvent.change(screen.getByLabelText('Note (optional)'), {
+            target: { value: 'Proceed after you keep scope tight' }
+        })
+        fireEvent.click(screen.getByRole('button', { name: 'Approve plan' }))
+
+        await waitFor(() => {
+            expect(approvePermission).toHaveBeenCalledWith('session-1', 'perm-1', {
+                decision: 'approved',
+                reason: 'Proceed after you keep scope tight'
+            })
+        })
+    })
+
     it('sends note when rejecting the plan', async () => {
         const denyPermission = vi.fn(async () => undefined)
         const api = {

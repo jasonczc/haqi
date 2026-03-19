@@ -769,19 +769,12 @@ export class AppServerEventConverter {
 
             if (itemType === 'plan') {
                 const text = asString(item.text) ?? this.planBuffers.get(itemId);
-                const status = asString(item.status);
-
-                if (method === 'item/started') {
-                    this.beginGenericToolCall(events, itemId, 'ExitPlanMode', {
-                        ...(text ? { text } : {}),
-                        ...(status ? { status } : {})
-                    });
-                }
 
                 if (method === 'item/completed') {
-                    this.completeGenericToolCall(events, itemId, 'ExitPlanMode', {
-                        ...(text ? { text } : {}),
-                        ...(status ? { status } : {})
+                    events.push({
+                        type: 'plan_proposal',
+                        item_id: itemId,
+                        ...(text ? { text } : {})
                     });
                     this.planBuffers.delete(itemId);
                 }

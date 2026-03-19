@@ -4,6 +4,24 @@ import { createCliOutputBlock, isCliOutputText, mergeCliOutputBlocks } from '@/c
 import { parseMessageAsEvent } from '@/chat/reducerEvents'
 import { ensureToolBlock, extractTitleFromChangeTitleInput, isChangeTitleToolName, type PermissionEntry } from '@/chat/reducerTools'
 
+function formatPlanUpdateText(event: { explanation?: string; plan: Array<{ step: string; status: 'pending' | 'in_progress' | 'completed' }> }): string | null {
+    const lines: string[] = []
+    const explanation = typeof event.explanation === 'string' ? event.explanation.trim() : ''
+    if (explanation) {
+        lines.push(explanation)
+    }
+
+    for (const entry of event.plan) {
+        const step = typeof entry.step === 'string' ? entry.step.trim() : ''
+        if (!step) {
+            continue
+        }
+        lines.push(`- [${entry.status}] ${step}`)
+    }
+
+    return lines.length > 0 ? lines.join('\n') : null
+}
+
 export function reduceTimeline(
     messages: TracedMessage[],
     context: {
@@ -25,6 +43,17 @@ export function reduceTimeline(
                 continue
             }
             if (msg.content.type === 'plan-update') {
+                const text = formatPlanUpdateText(msg.content)
+                if (text) {
+                    blocks.push({
+                        kind: 'agent-text',
+                        id: msg.id,
+                        localId: msg.localId,
+                        createdAt: msg.createdAt,
+                        text,
+                        meta: msg.meta
+                    })
+                }
                 continue
             }
             blocks.push({

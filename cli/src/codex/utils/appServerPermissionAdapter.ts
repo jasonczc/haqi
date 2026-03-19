@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { logger } from '@/ui/logger';
 import type { CodexPermissionHandler } from './permissionHandler';
 import type { CodexAppServerClient } from '../codexAppServerClient';
+import {
+    buildPermissionQuestionAnswers,
+    extractPermissionQuestionTarget
+} from '@/claude/utils/questionToolPrompt';
 
 type PermissionDecision = 'approved' | 'approved_for_session' | 'denied' | 'abort';
 
@@ -84,11 +88,18 @@ export function registerAppServerPermissionHandlers(args: {
         const toolCallId = asString(record.itemId) ?? randomUUID();
         const rawInput = asRecord(record.input);
         const input = rawInput ?? record;
+        const permissionQuestionTarget = extractPermissionQuestionTarget(input);
+        const toolName = permissionQuestionTarget?.toolName ?? 'request_user_input';
+        const permissionInput = permissionQuestionTarget
+            ? {
+                message: `Allow the ${permissionQuestionTarget.input.server} MCP server to run tool "${permissionQuestionTarget.input.tool}"?`
+            }
+            : input;
 
         const result = await permissionHandler.handleToolCall(
             toolCallId,
-            'request_user_input',
-            input
+            toolName,
+            permissionInput
         ) as PermissionResult;
 
         if (result.decision !== 'approved' && result.decision !== 'approved_for_session') {
@@ -96,14 +107,19 @@ export function registerAppServerPermissionHandlers(args: {
             return mapDecision(result.decision);
         }
 
-        if (!result.answers || Object.keys(result.answers).length === 0) {
+        const answers = result.answers
+            ?? (permissionQuestionTarget
+                ? buildPermissionQuestionAnswers('request_user_input', input, true)
+                : undefined);
+
+        if (!answers || Object.keys(answers).length === 0) {
             logger.debug('[CodexAppServer] User-input request approved without answers; cancelling request', { toolCallId });
             return { decision: 'cancel' };
         }
 
         return {
             decision: 'accept',
-            answers: result.answers
+            answers
         };
     });
 }

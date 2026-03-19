@@ -67,7 +67,7 @@ export function createPermissionsRoutes(getSyncEngine: () => SyncEngine | null):
         const decision = parsed.data.decision
         const reason = parsed.data.reason
         const answers = parsed.data.answers
-        await engine.approvePermission(sessionId, requestId, mode, allowTools, decision, reason, answers)
+        await engine.approvePermission(sessionId, requestId, mode, allowTools, decision, reason, answers, 'user')
         return c.json({ ok: true })
     })
 
