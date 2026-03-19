@@ -14,6 +14,7 @@ import type {
 } from '@/claude/sdk'
 import type { RawJSONLines } from '@/claude/types'
 import type { ClaudePermissionMode } from '@hapi/protocol/types'
+import { extractPermissionQuestionTarget } from './questionToolPrompt'
 
 /**
  * Context for converting SDK messages to log format
@@ -30,6 +31,36 @@ type PermissionResponse = {
     approved: boolean
     mode?: ClaudePermissionMode
     reason?: string
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object') {
+        return null
+    }
+    return value as Record<string, unknown>
+}
+
+function rewriteAssistantToolUseForLog(block: unknown): unknown {
+    const toolUse = asRecord(block)
+    if (toolUse?.type !== 'tool_use') {
+        return block
+    }
+
+    const toolName = typeof toolUse.name === 'string' ? toolUse.name : ''
+    if (toolName !== 'AskUserQuestion' && toolName !== 'ask_user_question' && toolName !== 'request_user_input') {
+        return block
+    }
+
+    const target = extractPermissionQuestionTarget(toolUse.input)
+    if (!target) {
+        return block
+    }
+
+    return {
+        ...toolUse,
+        name: target.toolName,
+        input: target.input
+    }
 }
 
 /**
@@ -140,10 +171,16 @@ export class SDKToLogConverter {
 
             case 'assistant': {
                 const assistantMsg = sdkMessage as SDKAssistantMessage
+                const content = Array.isArray(assistantMsg.message.content)
+                    ? assistantMsg.message.content.map((block) => rewriteAssistantToolUseForLog(block))
+                    : assistantMsg.message.content
                 logMessage = {
                     ...baseFields,
                     type: 'assistant',
-                    message: assistantMsg.message,
+                    message: {
+                        ...assistantMsg.message,
+                        content
+                    },
                     // Assistant messages often have additional fields
                     requestId: (assistantMsg as any).requestId
                 }

@@ -113,6 +113,177 @@ describe('SDKToLogConverter', () => {
 
             expect((logMessage as any).requestId).toBe('req_123')
         })
+
+        it('rewrites MCP permission questions into synthetic MCP tool cards', () => {
+            const sdkMessage: SDKAssistantMessage = {
+                type: 'assistant',
+                message: {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool_use',
+                            id: 'tool-mcp-permission',
+                            name: 'AskUserQuestion',
+                            input: {
+                                questions: [
+                                    {
+                                        id: '0',
+                                        question: 'Allow the playwright MCP server to run tool "browser_navigate"?',
+                                        options: [
+                                            { label: 'Yes' },
+                                            { label: 'No' }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+
+            const logMessage = converter.convert(sdkMessage)
+            const toolUse = Array.isArray((logMessage as any)?.message?.content)
+                ? (logMessage as any).message.content[0]
+                : null
+
+            expect(toolUse).toMatchObject({
+                type: 'tool_use',
+                id: 'tool-mcp-permission',
+                name: 'mcp__playwright__browser_navigate',
+                input: {
+                    server: 'playwright',
+                    tool: 'browser_navigate'
+                }
+            })
+        })
+
+        it('rewrites MCP permission questions from request_user_input too', () => {
+            const sdkMessage: SDKAssistantMessage = {
+                type: 'assistant',
+                message: {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool_use',
+                            id: 'tool-mcp-permission-2',
+                            name: 'request_user_input',
+                            input: {
+                                questions: [
+                                    {
+                                        id: 'confirm',
+                                        question: 'Allow the playwright MCP server to run tool "browser_click"?',
+                                        options: [
+                                            { label: 'Allow' },
+                                            { label: 'Deny' }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+
+            const logMessage = converter.convert(sdkMessage)
+            const toolUse = Array.isArray((logMessage as any)?.message?.content)
+                ? (logMessage as any).message.content[0]
+                : null
+
+            expect(toolUse).toMatchObject({
+                type: 'tool_use',
+                id: 'tool-mcp-permission-2',
+                name: 'mcp__playwright__browser_click',
+                input: {
+                    server: 'playwright',
+                    tool: 'browser_click'
+                }
+            })
+        })
+
+        it('keeps real AskUserQuestion tool calls unchanged', () => {
+            const sdkMessage: SDKAssistantMessage = {
+                type: 'assistant',
+                message: {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool_use',
+                            id: 'tool-real-question',
+                            name: 'AskUserQuestion',
+                            input: {
+                                questions: [
+                                    {
+                                        id: '0',
+                                        question: 'Which branch should I edit?',
+                                        options: [
+                                            { label: 'main' },
+                                            { label: 'feature/test' }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+
+            const logMessage = converter.convert(sdkMessage)
+            const toolUse = Array.isArray((logMessage as any)?.message?.content)
+                ? (logMessage as any).message.content[0]
+                : null
+
+            expect(toolUse).toMatchObject({
+                type: 'tool_use',
+                id: 'tool-real-question',
+                name: 'AskUserQuestion'
+            })
+            expect((toolUse as any)?.input).toMatchObject({
+                questions: [
+                    {
+                        question: 'Which branch should I edit?'
+                    }
+                ]
+            })
+        })
+
+        it('does not rewrite near-match question text', () => {
+            const sdkMessage: SDKAssistantMessage = {
+                type: 'assistant',
+                message: {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool_use',
+                            id: 'tool-near-match',
+                            name: 'AskUserQuestion',
+                            input: {
+                                questions: [
+                                    {
+                                        id: '0',
+                                        question: 'Should I allow the playwright MCP server to run tool "browser_navigate"?',
+                                        options: [
+                                            { label: 'Yes' },
+                                            { label: 'No' }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+
+            const logMessage = converter.convert(sdkMessage)
+            const toolUse = Array.isArray((logMessage as any)?.message?.content)
+                ? (logMessage as any).message.content[0]
+                : null
+
+            expect(toolUse).toMatchObject({
+                type: 'tool_use',
+                id: 'tool-near-match',
+                name: 'AskUserQuestion'
+            })
+        })
     })
 
     describe('System messages', () => {

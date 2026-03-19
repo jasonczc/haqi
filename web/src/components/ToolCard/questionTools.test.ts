@@ -270,6 +270,86 @@ describe('questionTools', () => {
         expect(findLatestPendingQuestionOverlayTool(blocks)?.id).toBe('tool-plan')
     })
 
+    it('keeps genuine non-plan questions available through the general question finder', () => {
+        const requestTool = makeToolCall({
+            id: 'tool-request',
+            name: 'request_user_input',
+            createdAt: 100,
+            input: {
+                questions: [
+                    {
+                        id: 'api_key',
+                        question: 'Please provide the API key',
+                        options: []
+                    }
+                ]
+            },
+            permission: { id: 'perm-request', status: 'pending' }
+        })
+        const askTool = makeToolCall({
+            id: 'tool-ask',
+            name: 'AskUserQuestion',
+            createdAt: 200,
+            input: {
+                questions: [
+                    {
+                        id: 'branch',
+                        question: 'Which branch should I edit?',
+                        options: [
+                            { label: 'main' },
+                            { label: 'feature/test' }
+                        ]
+                    }
+                ]
+            },
+            permission: { id: 'perm-ask', status: 'pending' }
+        })
+
+        const blocks: ChatBlock[] = [
+            {
+                kind: 'tool-call',
+                id: 'block-request',
+                localId: null,
+                createdAt: 100,
+                tool: requestTool,
+                children: []
+            },
+            {
+                kind: 'tool-call',
+                id: 'block-ask',
+                localId: null,
+                createdAt: 200,
+                tool: askTool,
+                children: []
+            }
+        ]
+
+        expect(findLatestPendingQuestionTool(blocks)?.id).toBe('tool-ask')
+        expect(findLatestPendingQuestionOverlayTool(blocks)).toBeNull()
+    })
+
+    it('does not treat generic request_user_input options as plan mode', () => {
+        const genericTool = makeToolCall({
+            id: 'tool-generic',
+            name: 'request_user_input',
+            input: {
+                questions: [
+                    {
+                        id: 'approval',
+                        header: 'Confirm action',
+                        question: 'Should I continue?',
+                        options: [
+                            { label: 'Yes' },
+                            { label: 'No' }
+                        ]
+                    }
+                ]
+            }
+        })
+
+        expect(isPlanModeQuestionTool(genericTool)).toBe(false)
+    })
+
     it('masks secret values without leaking length exactly', () => {
         expect(maskSecretValue('abc')).toBe('••••••')
         expect(maskSecretValue('12345678901234567890')).toBe('••••••••••••••••••')

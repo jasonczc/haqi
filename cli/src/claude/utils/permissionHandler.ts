@@ -16,6 +16,7 @@ import { EnhancedMode, PermissionMode } from "../loop";
 import { getToolDescriptor } from "./getToolDescriptor";
 import { delay } from "@/utils/time";
 import { isObject } from "@hapi/protocol";
+import { buildPermissionQuestionAnswers, extractPermissionQuestionTarget } from "./questionToolPrompt";
 import {
     BasePermissionHandler,
     type PendingPermissionRequest,
@@ -200,7 +201,9 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
         // Handle ask_user_question
         if (isAskUserQuestionToolName(pending.toolName)) {
-            const answers = response.answers ?? {};
+            const answers = response.answers
+                ?? buildPermissionQuestionAnswers(pending.toolName, pending.input, response.approved)
+                ?? {};
             if (Object.keys(answers).length === 0) {
                 pending.resolve({ behavior: 'deny', message: 'No answers were provided.' });
                 completion.status = 'denied';
@@ -216,7 +219,9 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
 
         // Handle request_user_input
         if (isRequestUserInputToolName(pending.toolName)) {
-            const answers = response.answers ?? {};
+            const answers = response.answers
+                ?? buildPermissionQuestionAnswers(pending.toolName, pending.input, response.approved)
+                ?? {};
             if (Object.keys(answers).length === 0) {
                 pending.resolve({ behavior: 'deny', message: 'No answers were provided.' });
                 completion.status = 'denied';
@@ -262,6 +267,9 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
      */
     handleToolCall = async (toolName: string, input: unknown, mode: EnhancedMode, options: { signal: AbortSignal }): Promise<PermissionResult> => {
         const isQuestionTool = isQuestionToolName(toolName);
+        const permissionQuestionTarget = this.permissionMode !== 'plan'
+            ? extractPermissionQuestionTarget(input)
+            : null;
 
         // Check if tool is explicitly allowed
         if (!isQuestionTool && toolName === 'Bash') {
@@ -309,7 +317,18 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
                 throw new Error(`Could not resolve tool call ID for ${toolName}`);
             }
         }
-        return this.handlePermissionRequest(toolCallId, toolName, input, options.signal);
+        return this.handlePermissionRequest(
+            toolCallId,
+            toolName,
+            input,
+            options.signal,
+            permissionQuestionTarget
+                ? {
+                    displayToolName: permissionQuestionTarget.toolName,
+                    displayInput: permissionQuestionTarget.input
+                }
+                : undefined
+        );
     }
 
     /**
@@ -319,7 +338,11 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         id: string,
         toolName: string,
         input: unknown,
-        signal: AbortSignal
+        signal: AbortSignal,
+        displayOverride?: {
+            displayToolName: string;
+            displayInput: unknown;
+        }
     ): Promise<PermissionResult> {
         return new Promise<PermissionResult>((resolve, reject) => {
             // Set up abort signal handling
@@ -340,6 +363,27 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
                     reject(error);
                 }
             });
+
+            if (displayOverride) {
+                this.client.updateAgentState((currentState) => {
+                    const request = currentState.requests?.[id];
+                    if (!request) {
+                        return currentState;
+                    }
+
+                    return {
+                        ...currentState,
+                        requests: {
+                            ...currentState.requests,
+                            [id]: {
+                                ...request,
+                                tool: displayOverride.displayToolName,
+                                arguments: displayOverride.displayInput
+                            }
+                        }
+                    };
+                });
+            }
 
             logger.debug(`Permission request sent for tool call ${id}: ${toolName}`);
         });

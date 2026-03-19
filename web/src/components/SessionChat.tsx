@@ -33,7 +33,7 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useQueueInlinePanel } from '@/hooks/useQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { QuestionToolOverlay } from '@/components/ToolCard/QuestionToolOverlay'
-import { findLatestPendingQuestionOverlayTool } from '@/components/ToolCard/questionTools'
+import { findLatestPendingQuestionTool } from '@/components/ToolCard/questionTools'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTranslation } from '@/lib/use-translation'
@@ -690,7 +690,7 @@ export function SessionChat(props: {
         [reduced.blocks]
     )
     const activeQuestionTool = useMemo(
-        () => findLatestPendingQuestionOverlayTool(reconciled.blocks),
+        () => findLatestPendingQuestionTool(reconciled.blocks),
         [reconciled.blocks]
     )
     const composerDisabled = props.isSending || Boolean(activeQuestionTool)
