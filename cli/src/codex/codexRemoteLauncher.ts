@@ -344,6 +344,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             turnCompleted: boolean;
         }>();
         const livePlanTexts = new Map<string, string>();
+        const surfacedPlanTexts = new Map<string, string>();
+        const planInterruptedTurns = new Set<string>();
 
         const permissionHandler = new CodexPermissionHandler(session.client, {
             getPermissionMode: () => session.getPermissionMode() as EnhancedMode['permissionMode'] | undefined,
@@ -432,6 +434,44 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 message: 'Plan 已确认，自动退出计划模式并继续执行。'
             });
             pendingPlanApprovals.delete(callId);
+            surfacedPlanTexts.delete(callId);
+        };
+
+        const publishPlanText = (callId: string, text: string | null) => {
+            if (!text) {
+                return;
+            }
+
+            const normalized = text.trim();
+            if (normalized.length === 0) {
+                return;
+            }
+
+            if (surfacedPlanTexts.get(callId) === normalized) {
+                return;
+            }
+
+            surfacedPlanTexts.set(callId, normalized);
+            session.sendCodexMessage({
+                type: 'message',
+                message: normalized,
+                id: randomUUID()
+            });
+        };
+
+        const interruptTurnForPlanApproval = (turnId: string | null) => {
+            if (!useAppServer || !appServerClient || !this.currentThreadId || !turnId || planInterruptedTurns.has(turnId)) {
+                return;
+            }
+
+            planInterruptedTurns.add(turnId);
+            void appServerClient.interruptTurn({
+                threadId: this.currentThreadId,
+                turnId
+            }).catch((error) => {
+                planInterruptedTurns.delete(turnId);
+                logger.debug('[Codex] Failed to interrupt turn after plan proposal', error);
+            });
         };
         const reasoningProcessor = new ReasoningProcessor((message) => {
             session.sendCodexMessage(message);
@@ -510,23 +550,34 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             } else if (msgType === 'tool_call_begin') {
                 const callId = asString(msg.call_id ?? msg.callId);
                 const rawToolName = asString(msg.name);
+                const turnIdForPlan = eventTurnId ?? this.currentTurnId;
+                const planText = callId && rawToolName && isPlanApprovalToolName(rawToolName)
+                    ? extractPlanText(msg.input) ?? livePlanTexts.get(callId) ?? null
+                    : null;
+
+                if (callId && planText) {
+                    publishPlanText(callId, planText);
+                }
+
                 if (
                     callId
                     && rawToolName
                     && isPlanApprovalToolName(rawToolName)
                     && session.getCollaborationMode() === 'plan'
-                    && (extractPlanText(msg.input) || livePlanTexts.has(callId))
+                    && planText
                     && !pendingPlanApprovals.has(callId)
                 ) {
                     pendingPlanApprovals.set(callId, {
-                        turnId: eventTurnId ?? this.currentTurnId,
+                        turnId: turnIdForPlan,
                         mode: activeTurnMode ? { ...activeTurnMode } : null,
                         approved: false,
                         toolCompleted: false,
                         turnCompleted: false
                     });
 
-                    void permissionHandler.handleToolCall(callId, rawToolName, msg.input ?? {})
+                    interruptTurnForPlanApproval(turnIdForPlan);
+
+                    void permissionHandler.handleToolCall(callId, rawToolName, { text: planText })
                         .then((result) => {
                             const state = pendingPlanApprovals.get(callId);
                             if (!state) {
@@ -540,6 +591,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                             }
 
                             pendingPlanApprovals.delete(callId);
+                            surfacedPlanTexts.delete(callId);
                             session.sendSessionEvent({
                                 type: 'message',
                                 message: 'Plan 未确认，保持计划模式。'
@@ -547,6 +599,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         })
                         .catch((error) => {
                             pendingPlanApprovals.delete(callId);
+                            surfacedPlanTexts.delete(callId);
                             logger.debug('[Codex] Plan approval request ended without confirmation', error);
                         });
                 }
@@ -570,26 +623,23 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 }
             } else if (msgType === 'plan_proposal') {
                 const callId = asString(msg.item_id ?? msg.itemId) ?? randomUUID();
-                const text = extractPlanText(msg) ?? livePlanTexts.get(callId);
-                if (text) {
-                    session.sendCodexMessage({
-                        type: 'message',
-                        message: text,
-                        id: randomUUID()
-                    });
-                }
+                const turnIdForPlan = eventTurnId ?? this.currentTurnId;
+                const text = extractPlanText(msg) ?? livePlanTexts.get(callId) ?? null;
+                publishPlanText(callId, text);
                 if (
                     session.getCollaborationMode() === 'plan'
                     && text
                     && !pendingPlanApprovals.has(callId)
                 ) {
                     pendingPlanApprovals.set(callId, {
-                        turnId: eventTurnId ?? this.currentTurnId,
+                        turnId: turnIdForPlan,
                         mode: activeTurnMode ? { ...activeTurnMode } : null,
                         approved: false,
                         toolCompleted: true,
                         turnCompleted: false
                     });
+
+                    interruptTurnForPlanApproval(turnIdForPlan);
 
                     void permissionHandler.handleToolCall(callId, 'ExitPlanMode', { text })
                         .then((result) => {
@@ -694,18 +744,24 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     id: randomUUID()
                 });
 
+                const interruptedForPlan = terminalTurnId ? planInterruptedTurns.has(terminalTurnId) : false;
+
                 for (const [callId, state] of pendingPlanApprovals) {
                     const matchedTurn = !state.turnId || !terminalTurnId || state.turnId === terminalTurnId;
                     if (!matchedTurn) {
                         continue;
                     }
 
-                    if (msgType === 'task_complete') {
+                    if (msgType === 'task_complete' || interruptedForPlan) {
                         state.turnCompleted = true;
                         maybeExecuteApprovedPlan(callId);
                     } else {
                         pendingPlanApprovals.delete(callId);
+                        surfacedPlanTexts.delete(callId);
                     }
+                }
+                if (terminalTurnId) {
+                    planInterruptedTurns.delete(terminalTurnId);
                 }
                 activeTurnMode = null;
 
@@ -778,12 +834,25 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     const toolName = asString(msg.name) ?? 'Tool';
                     const rawInput = (msg.input && typeof msg.input === 'object') ? msg.input as Record<string, unknown> : {};
                     const hasInlinePlanText = Boolean(asString(rawInput.text) ?? asString(rawInput.plan));
-                    const input = toolName === 'ExitPlanMode' && !hasInlinePlanText && livePlanTexts.has(callId)
-                        ? {
-                            ...rawInput,
-                            text: livePlanTexts.get(callId)
+                    const input = (() => {
+                        if (toolName !== 'ExitPlanMode') {
+                            return rawInput;
                         }
-                        : rawInput;
+
+                        const derivedText = hasInlinePlanText
+                            ? undefined
+                            : livePlanTexts.get(callId);
+                        const source = derivedText ? { ...rawInput, text: derivedText } : rawInput;
+
+                        if (session.getCollaborationMode() !== 'plan') {
+                            return source;
+                        }
+
+                        const sanitized = { ...source };
+                        delete sanitized.text;
+                        delete sanitized.plan;
+                        return sanitized;
+                    })();
 
                     session.sendCodexMessage({
                         type: 'tool-call',
@@ -798,6 +867,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 const callId = asString(msg.call_id ?? msg.callId);
                 if (callId) {
                     livePlanTexts.delete(callId);
+                    if (!pendingPlanApprovals.has(callId)) {
+                        surfacedPlanTexts.delete(callId);
+                    }
                     session.sendCodexMessage({
                         type: 'tool-call-result',
                         callId,
@@ -964,7 +1036,24 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
         };
 
-        if (useAppServer && appServerClient) {
+        let appServerRequestUserInputEnabled: boolean | null = null;
+        const shouldEnableRequestUserInput = (collaborationMode: EnhancedMode['collaborationMode'] | undefined): boolean => collaborationMode === 'plan';
+        const ensureAppServerCapabilities = async (collaborationMode: EnhancedMode['collaborationMode'] | undefined): Promise<void> => {
+            if (!useAppServer || !appServerClient) {
+                return;
+            }
+
+            const enableRequestUserInput = shouldEnableRequestUserInput(collaborationMode);
+            if (appServerRequestUserInputEnabled === enableRequestUserInput) {
+                return;
+            }
+
+            if (appServerRequestUserInputEnabled !== null) {
+                await appServerClient.disconnect();
+                this.currentThreadId = null;
+                this.currentTurnId = null;
+            }
+
             await appServerClient.connect();
             await appServerClient.initialize({
                 clientInfo: {
@@ -972,9 +1061,17 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     version: '1.0.0'
                 },
                 capabilities: {
-                    experimentalApi: true
+                    experimentalApi: true,
+                    ...(enableRequestUserInput
+                        ? {}
+                        : { optOutRequestMethods: ['item/tool/requestUserInput'] })
                 }
             });
+            appServerRequestUserInputEnabled = enableRequestUserInput;
+        };
+
+        if (useAppServer && appServerClient) {
+            await ensureAppServerCapabilities(session.getCollaborationMode());
         } else if (mcpClient) {
             await mcpClient.connect();
         }
@@ -1066,6 +1163,10 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 clearLiveActivity();
                 setTurnInFlight(false);
                 continue;
+            }
+
+            if (useAppServer && appServerClient) {
+                await ensureAppServerCapabilities(message.mode.collaborationMode);
             }
 
             messageBuffer.addMessage(message.message, 'user');
@@ -1201,6 +1302,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 setTurnInFlight(false);
                 activeTurnMode = null;
                 pendingPlanApprovals.clear();
+                surfacedPlanTexts.clear();
+                planInterruptedTurns.clear();
 
                 if (isAbortError) {
                     messageBuffer.addMessage('Aborted by user', 'status');
@@ -1220,7 +1323,8 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                     }
                 }
             } finally {
-                permissionHandler.reset();
+                // Keep pending permission requests alive across turn boundaries.
+                // Plan approvals in particular must survive until the user responds.
                 reasoningProcessor.abort();
                 diffProcessor.reset();
                 appServerEventConverter?.reset();

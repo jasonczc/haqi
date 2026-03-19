@@ -33,7 +33,9 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useQueueInlinePanel } from '@/hooks/useQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { QuestionToolOverlay } from '@/components/ToolCard/QuestionToolOverlay'
+import { PlanApprovalOverlay } from '@/components/ToolCard/PlanApprovalOverlay'
 import { findLatestPendingQuestionTool } from '@/components/ToolCard/questionTools'
+import { findLatestPendingPlanApprovalTool } from '@/components/ToolCard/exitPlanMode'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTranslation } from '@/lib/use-translation'
@@ -693,7 +695,11 @@ export function SessionChat(props: {
         () => findLatestPendingQuestionTool(reconciled.blocks),
         [reconciled.blocks]
     )
-    const composerDisabled = props.isSending || Boolean(activeQuestionTool)
+    const activePlanApprovalTool = useMemo(
+        () => findLatestPendingPlanApprovalTool(reconciled.blocks),
+        [reconciled.blocks]
+    )
+    const composerDisabled = props.isSending || Boolean(activeQuestionTool) || Boolean(activePlanApprovalTool)
 
     useEffect(() => {
         blocksByIdRef.current = reconciled.byId
@@ -1529,6 +1535,15 @@ export function SessionChat(props: {
                         api={props.api}
                         sessionId={props.session.id}
                         tool={activeQuestionTool}
+                        disabled={props.isSending}
+                        onDone={props.onRefresh}
+                    />
+
+                    <PlanApprovalOverlay
+                        api={props.api}
+                        sessionId={props.session.id}
+                        metadata={props.session.metadata ?? null}
+                        tool={activePlanApprovalTool}
                         disabled={props.isSending}
                         onDone={props.onRefresh}
                     />

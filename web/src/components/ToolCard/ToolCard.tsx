@@ -459,13 +459,14 @@ function ToolCardInner(props: ToolCardProps) {
         || ((permission.status === 'denied' || permission.status === 'canceled') && Boolean(permission.reason))
     ))
     const hasBody = showInline || taskSummary !== null || showsPermissionFooter
+    const compactRowOpensDetail = isCompact && props.disabled && !isTurnChangesTool && !isDiffTool
     const requiresInteraction = permission?.status === 'pending'
     const hideResultSection = toolName === 'CodexTurnChanges'
     const statusLabel = getToolStatusLabel(props.block.tool.state, permission?.status)
     const statusBadgeToneClass = statusBadgeClass(props.block.tool.state, permission?.status)
     const [isExpanded, setIsExpanded] = useState(() => (isCompact ? requiresInteraction : true))
     const [hasUserToggledExpand, setHasUserToggledExpand] = useState(false)
-    const showCardBody = hasBody && (!isCompact || isExpanded)
+    const showCardBody = hasBody && (!isCompact || isExpanded) && !compactRowOpensDetail
     const { suppressFocusRing, onTriggerPointerDown, onTriggerKeyDown, onTriggerBlur } = usePointerFocusRing()
     const [isMobileViewport, setIsMobileViewport] = useState(() => (
         typeof window !== 'undefined' && window.matchMedia(MOBILE_DETAIL_BREAKPOINT_QUERY).matches
@@ -820,82 +821,126 @@ function ToolCardInner(props: ToolCardProps) {
                             {renderTurnChangesDetailLayer()}
                         </>
                     ) : (
-                        <div className="flex items-start gap-2">
-                            <button
-                                type="button"
-                                className={cn(
-                                    'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
-                                    suppressFocusRing && 'focus-visible:ring-0'
-                                )}
-                                onClick={() => {
-                                    if (!hasBody) return
-                                    setHasUserToggledExpand(true)
-                                    setIsExpanded((prev) => !prev)
-                                }}
-                                onPointerDown={onTriggerPointerDown}
-                                onKeyDown={onTriggerKeyDown}
-                                onBlur={onTriggerBlur}
-                            >
-                                <div className="flex items-center gap-2">
-                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
-                                        {presentation.icon}
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="truncate text-xs font-medium leading-tight">
-                                            {toolTitle}
-                                            {compactSummary ? (
-                                                <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
-                                                    - {compactSummary}
-                                                </span>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                    <span className={cn(
-                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
-                                        statusBadgeToneClass
-                                    )}>
-                                        <StatusIcon state={props.block.tool.state} />
-                                        {statusLabel}
-                                    </span>
-                                    {hasBody ? (
-                                        <span className={cn(
-                                            'shrink-0 text-[var(--app-hint)] transition-transform',
-                                            isExpanded ? 'rotate-90' : 'rotate-0'
-                                        )}>
-                                            <DetailsIcon className="h-3.5 w-3.5" />
-                                        </span>
-                                    ) : null}
-                                </div>
-                            </button>
-                            {isDiffTool ? (
-                                <>
+                        compactRowOpensDetail ? (
+                            <Dialog>
+                                <DialogTrigger asChild>
                                     <button
                                         type="button"
-                                        className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
-                                        title={t('session.more')}
-                                        aria-label={t('session.more')}
-                                        onClick={openDiffDetail}
+                                        className={cn(
+                                            'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                            suppressFocusRing && 'focus-visible:ring-0'
+                                        )}
+                                        onPointerDown={onTriggerPointerDown}
+                                        onKeyDown={onTriggerKeyDown}
+                                        onBlur={onTriggerBlur}
                                     >
-                                        <DetailsIcon className="h-4 w-4" />
+                                        <div className="flex items-center gap-2">
+                                            <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                                {presentation.icon}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="truncate text-xs font-medium leading-tight">
+                                                    {toolTitle}
+                                                    {compactSummary ? (
+                                                        <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                            - {compactSummary}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                            <span className={cn(
+                                                'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                                statusBadgeToneClass
+                                            )}>
+                                                <StatusIcon state={props.block.tool.state} />
+                                                {statusLabel}
+                                            </span>
+                                            <span className="shrink-0 text-[var(--app-hint)]">
+                                                <DetailsIcon className="h-3.5 w-3.5" />
+                                            </span>
+                                        </div>
                                     </button>
-                                    {renderDiffDetailLayer()}
-                                </>
-                            ) : (
-                                <Dialog>
-                                    <DialogTrigger asChild>
+                                </DialogTrigger>
+                                {renderDialogContent()}
+                            </Dialog>
+                        ) : (
+                            <div className="flex items-start gap-2">
+                                <button
+                                    type="button"
+                                    className={cn(
+                                        'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                        suppressFocusRing && 'focus-visible:ring-0'
+                                    )}
+                                    onClick={() => {
+                                        if (!hasBody) return
+                                        setHasUserToggledExpand(true)
+                                        setIsExpanded((prev) => !prev)
+                                    }}
+                                    onPointerDown={onTriggerPointerDown}
+                                    onKeyDown={onTriggerKeyDown}
+                                    onBlur={onTriggerBlur}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                            {presentation.icon}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-xs font-medium leading-tight">
+                                                {toolTitle}
+                                                {compactSummary ? (
+                                                    <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                        - {compactSummary}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        <span className={cn(
+                                            'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                            statusBadgeToneClass
+                                        )}>
+                                            <StatusIcon state={props.block.tool.state} />
+                                            {statusLabel}
+                                        </span>
+                                        {hasBody ? (
+                                            <span className={cn(
+                                                'shrink-0 text-[var(--app-hint)] transition-transform',
+                                                isExpanded ? 'rotate-90' : 'rotate-0'
+                                            )}>
+                                                <DetailsIcon className="h-3.5 w-3.5" />
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                </button>
+                                {isDiffTool ? (
+                                    <>
                                         <button
                                             type="button"
                                             className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
                                             title={t('session.more')}
                                             aria-label={t('session.more')}
+                                            onClick={openDiffDetail}
                                         >
                                             <DetailsIcon className="h-4 w-4" />
                                         </button>
-                                    </DialogTrigger>
-                                    {renderDialogContent()}
-                                </Dialog>
-                            )}
-                        </div>
+                                        {renderDiffDetailLayer()}
+                                    </>
+                                ) : (
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <button
+                                                type="button"
+                                                className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
+                                                title={t('session.more')}
+                                                aria-label={t('session.more')}
+                                            >
+                                                <DetailsIcon className="h-4 w-4" />
+                                            </button>
+                                        </DialogTrigger>
+                                        {renderDialogContent()}
+                                    </Dialog>
+                                )}
+                            </div>
+                        )
                     )
                 ) : isTurnChangesTool ? (
                     <>

@@ -11,6 +11,7 @@ export interface InitializeParams {
     capabilities?: {
         experimentalApi?: boolean;
         optOutNotificationMethods?: string[] | null;
+        optOutRequestMethods?: string[] | null;
     } | null;
 }
 

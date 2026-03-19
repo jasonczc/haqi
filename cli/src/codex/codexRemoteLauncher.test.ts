@@ -5,7 +5,10 @@ import type { EnhancedMode } from './loop';
 const harness = vi.hoisted(() => ({
     notifications: [] as Array<{ method: string; params: unknown }>,
     registerRequestCalls: [] as string[],
-    startTurnNotifications: null as Array<{ method: string; params: unknown }> | null
+    initializeCalls: [] as Array<{ capabilities?: { experimentalApi?: boolean; optOutRequestMethods?: string[] | null } }>,
+    disconnectCalls: 0,
+    startTurnNotifications: null as Array<{ method: string; params: unknown }> | null,
+    interruptTurnCalls: [] as Array<{ threadId?: string; turnId?: string }>
 }));
 
 vi.mock('./codexAppServerClient', () => {
@@ -14,7 +17,8 @@ vi.mock('./codexAppServerClient', () => {
 
         async connect(): Promise<void> {}
 
-        async initialize(): Promise<{ protocolVersion: number }> {
+        async initialize(params?: { capabilities?: { experimentalApi?: boolean; optOutRequestMethods?: string[] | null } }): Promise<{ protocolVersion: number }> {
+            harness.initializeCalls.push(params ?? {});
             return { protocolVersion: 1 };
         }
 
@@ -48,11 +52,14 @@ vi.mock('./codexAppServerClient', () => {
             return { turn: {} };
         }
 
-        async interruptTurn(): Promise<Record<string, never>> {
+        async interruptTurn(params?: { threadId?: string; turnId?: string }): Promise<Record<string, never>> {
+            harness.interruptTurnCalls.push(params ?? {});
             return {};
         }
 
-        async disconnect(): Promise<void> {}
+        async disconnect(): Promise<void> {
+            harness.disconnectCalls += 1;
+        }
     }
 
     return { CodexAppServerClient: MockCodexAppServerClient };
@@ -74,9 +81,10 @@ type FakeAgentState = {
     completedRequests: Record<string, unknown>;
 };
 
-function createMode(): EnhancedMode {
+function createMode(overrides: Partial<EnhancedMode> = {}): EnhancedMode {
     return {
-        permissionMode: 'default'
+        permissionMode: 'default',
+        ...overrides
     };
 }
 
@@ -167,7 +175,10 @@ describe('codexRemoteLauncher', () => {
     afterEach(() => {
         harness.notifications = [];
         harness.registerRequestCalls = [];
+        harness.initializeCalls = [];
+        harness.disconnectCalls = 0;
         harness.startTurnNotifications = null;
+        harness.interruptTurnCalls = [];
         delete process.env.CODEX_USE_MCP_SERVER;
     });
 
@@ -188,6 +199,26 @@ describe('codexRemoteLauncher', () => {
         expect(sessionEvents.filter((event) => event.type === 'ready').length).toBeGreaterThanOrEqual(1);
         expect(thinkingChanges).toContain(true);
         expect(session.thinking).toBe(false);
+    });
+
+
+    it('opts out request_user_input outside plan mode and re-enables it for plan mode', async () => {
+        process.env.CODEX_USE_MCP_SERVER = '0';
+
+        const { session } = createSessionStub();
+        session.queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify(mode));
+        session.queue.push('default turn', createMode());
+        session.queue.push('plan turn', createMode({ collaborationMode: 'plan', model: 'o3' }));
+        session.queue.close();
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(harness.initializeCalls.map((call) => call.capabilities)).toEqual([
+            { experimentalApi: true, optOutRequestMethods: ['item/tool/requestUserInput'] },
+            { experimentalApi: true }
+        ]);
+        expect(harness.disconnectCalls).toBeGreaterThanOrEqual(1);
     });
 
     it('shows completed plan proposals as assistant messages instead of ExitPlanMode tool calls', async () => {
@@ -341,6 +372,94 @@ describe('codexRemoteLauncher', () => {
                 status: 'approved'
             })
         }));
+    });
+
+
+    it('surfaces ExitPlanMode text inline, strips it from the tool card input, and interrupts the turn until approval', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        harness.startTurnNotifications = [
+            { method: 'turn/started', params: { turn: { id: 'turn-plan-tool' } } },
+            {
+                method: 'codex/event/msg',
+                params: {
+                    msg: {
+                        type: 'tool_call_begin',
+                        call_id: 'plan-tool-1',
+                        name: 'ExitPlanMode',
+                        input: {
+                            text: '1. inspect\n2. patch\n3. verify'
+                        },
+                        turn_id: 'turn-plan-tool'
+                    }
+                }
+            },
+            { method: 'turn/completed', params: { status: 'Interrupted', turn: { id: 'turn-plan-tool' } } }
+        ];
+
+        const { session, codexMessages } = createSessionStub();
+        session.collaborationMode = 'plan';
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(codexMessages).toContainEqual(expect.objectContaining({
+            type: 'message',
+            message: '1. inspect\n2. patch\n3. verify'
+        }));
+        expect(codexMessages).toContainEqual(expect.objectContaining({
+            type: 'tool-call',
+            name: 'ExitPlanMode',
+            callId: 'plan-tool-1',
+            input: {}
+        }));
+        expect(harness.interruptTurnCalls).toEqual([
+            { threadId: 'thread-anonymous', turnId: 'turn-plan-tool' }
+        ]);
+    });
+
+    it('does not duplicate the plan text when both ExitPlanMode and plan_proposal events arrive for the same call', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        harness.startTurnNotifications = [
+            { method: 'turn/started', params: { turn: { id: 'turn-plan-dupe' } } },
+            {
+                method: 'codex/event/msg',
+                params: {
+                    msg: {
+                        type: 'tool_call_begin',
+                        call_id: 'plan-tool-2',
+                        name: 'ExitPlanMode',
+                        input: {
+                            text: 'same plan'
+                        },
+                        turn_id: 'turn-plan-dupe'
+                    }
+                }
+            },
+            {
+                method: 'item/completed',
+                params: {
+                    item: {
+                        id: 'plan-tool-2',
+                        type: 'plan',
+                        text: 'same plan'
+                    },
+                    turnId: 'turn-plan-dupe'
+                }
+            },
+            { method: 'turn/completed', params: { status: 'Interrupted', turn: { id: 'turn-plan-dupe' } } }
+        ];
+
+        const { session, codexMessages } = createSessionStub();
+        session.collaborationMode = 'plan';
+
+        await codexRemoteLauncher(session as never);
+
+        expect(codexMessages.filter((message) => (
+            typeof message === 'object'
+            && message !== null
+            && (message as { type?: string }).type === 'message'
+            && (message as { message?: string }).message === 'same plan'
+        ))).toHaveLength(1);
     });
 
     it('does not request plan approval or auto-execute when no plan text is available', async () => {
