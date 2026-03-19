@@ -342,6 +342,120 @@ export const GroupTimelineMessageSchema = z.object({
     createdAt: z.number()
 })
 
+// ---- ReviewLoop schemas ----
+
+export const ReviewLoopStatusSchema = z.enum([
+    'executing',
+    'reviewing',
+    'waiting_user',
+    'accepted',
+    'aborted',
+    'canceled'
+])
+
+export type ReviewLoopStatus = z.infer<typeof ReviewLoopStatusSchema>
+
+export const ReviewLoopUserPreferenceSchema = z.enum([
+    'auto',
+    'verbose',
+    'silent'
+])
+
+export type ReviewLoopUserPreference = z.infer<typeof ReviewLoopUserPreferenceSchema>
+
+export const CriteriaItemSchema = z.object({
+    criteria: z.string(),
+    status: z.enum(['met', 'not_met', 'unclear']),
+    note: z.string().optional()
+})
+
+export type CriteriaItem = z.infer<typeof CriteriaItemSchema>
+
+export const ReviewVerdictActionSchema = z.enum([
+    'continue',
+    'pass',
+    'abort',
+    'notify_user'
+])
+
+export type ReviewVerdictAction = z.infer<typeof ReviewVerdictActionSchema>
+
+export const ReviewVerdictSchema = z.object({
+    action: ReviewVerdictActionSchema,
+    feedback: z.string(),
+    userMessage: z.string().optional(),
+    progress: z.number().min(0).max(100),
+    criteriaStatus: z.array(CriteriaItemSchema)
+})
+
+export type ReviewVerdict = z.infer<typeof ReviewVerdictSchema>
+
+export const CommandResultSchema = z.object({
+    command: z.string(),
+    exitCode: z.number(),
+    stdout: z.string(),
+    stderr: z.string()
+})
+
+export type CommandResult = z.infer<typeof CommandResultSchema>
+
+export const WorkerOutputSchema = z.object({
+    rawResponse: z.string(),
+    summary: z.string().optional(),
+    diff: z.string(),
+    filesChanged: z.array(z.string()),
+    commands: z.array(CommandResultSchema),
+    exitStatus: z.enum(['success', 'error'])
+})
+
+export type WorkerOutput = z.infer<typeof WorkerOutputSchema>
+
+export const ReviewRoundStatusSchema = z.enum([
+    'instructed',
+    'executing',
+    'executed',
+    'reviewed',
+    'user_pending'
+])
+
+export type ReviewRoundStatus = z.infer<typeof ReviewRoundStatusSchema>
+
+export const ReviewLoopSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    workerSessionId: z.string(),
+    reviewerSessionId: z.string(),
+    requirement: z.string(),
+    acceptanceCriteria: z.string(),
+    status: ReviewLoopStatusSchema,
+    userPreference: ReviewLoopUserPreferenceSchema,
+    currentRound: z.number().int().nonnegative(),
+    maxRounds: z.number().int().positive(),
+    createdAt: z.number(),
+    updatedAt: z.number()
+})
+
+export type ReviewLoop = z.infer<typeof ReviewLoopSchema>
+
+export const ReviewRoundSchema = z.object({
+    id: z.string(),
+    loopId: z.string(),
+    namespace: z.string(),
+    round: z.number().int().positive(),
+    instruction: z.string(),
+    workerOutput: WorkerOutputSchema.nullable(),
+    verdict: ReviewVerdictSchema.nullable(),
+    status: ReviewRoundStatusSchema,
+    startedAt: z.number(),
+    completedAt: z.number().nullable()
+})
+
+export type ReviewRound = z.infer<typeof ReviewRoundSchema>
+
+const ReviewLoopChangedSchema = SessionEventBaseSchema.extend({
+    loopId: z.string()
+})
+
 export const SyncEventSchema = z.discriminatedUnion('type', [
     SessionChangedSchema.extend({
         type: z.literal('session-added'),
@@ -407,6 +521,21 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
             status: z.string(),
             subscriptionId: z.string().optional()
         }).optional()
+    }),
+    ReviewLoopChangedSchema.extend({
+        type: z.literal('review-loop-added'),
+        data: z.unknown().optional()
+    }),
+    ReviewLoopChangedSchema.extend({
+        type: z.literal('review-loop-updated'),
+        data: z.unknown().optional()
+    }),
+    ReviewLoopChangedSchema.extend({
+        type: z.literal('review-loop-removed')
+    }),
+    ReviewLoopChangedSchema.extend({
+        type: z.literal('review-loop-round-updated'),
+        round: z.unknown()
     })
 ])
 

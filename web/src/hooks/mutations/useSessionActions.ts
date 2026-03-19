@@ -6,7 +6,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { clearMessageWindow } from '@/lib/message-window-store'
 import { isKnownFlavor } from '@/lib/agentFlavorUtils'
 
-type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 type SessionServiceTier = 'auto' | 'fast' | 'flex'
 
 export function useSessionActions(

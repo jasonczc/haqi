@@ -19,7 +19,8 @@ describe('resolveSpawnModel', () => {
     })
 
     it('keeps explicit model for supported agents', () => {
-        expect(resolveSpawnModel('claude', 'global.anthropic.claude-opus-4-6-v1', '')).toBe('global.anthropic.claude-opus-4-6-v1')
+        expect(resolveSpawnModel('claude', 'opus', '')).toBe('opus')
+        expect(resolveSpawnModel('claude', 'claude-opus-4-6', '')).toBe('claude-opus-4-6')
     })
 })
 
@@ -28,6 +29,7 @@ describe('resolveSpawnThinkEffort', () => {
         expect(resolveSpawnThinkEffort('codex', 'high')).toBe('high')
         expect(resolveSpawnThinkEffort('codex', 'auto')).toBeUndefined()
         expect(resolveSpawnThinkEffort('claude', 'medium')).toBe('medium')
+        expect(resolveSpawnThinkEffort('claude', 'max')).toBe('max')
         expect(resolveSpawnThinkEffort('claude', 'xhigh')).toBeUndefined()
         expect(resolveSpawnThinkEffort('gemini', 'high')).toBeUndefined()
     })

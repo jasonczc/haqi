@@ -39,7 +39,7 @@ export function resolveSpawnThinkEffort(
     }
 
     if (agent === 'claude' && thinkEffort !== 'auto' && thinkEffort !== 'xhigh') {
-        return thinkEffort
+        return thinkEffort  // supports low, medium, high, max
     }
 
     return undefined

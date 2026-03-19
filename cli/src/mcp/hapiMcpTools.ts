@@ -77,6 +77,36 @@ export const reportCreateShareInputSchema: z.ZodTypeAny = z.object({
     created_by: z.string().min(1).max(255).optional()
 })
 
+export const reviewLoopWorkerSubmitInputSchema: z.ZodTypeAny = z.object({
+    loop_id: z.string().min(1).describe('The review loop ID'),
+    round_id: z.string().min(1).describe('The current round ID'),
+    raw_response: z.string().describe('Your complete response/output'),
+    summary: z.string().optional().describe('Brief summary of what you did'),
+    diff: z.string().describe('Git diff of changes made'),
+    files_changed: z.array(z.string()).describe('List of files changed'),
+    commands: z.array(z.object({
+        command: z.string(),
+        exit_code: z.number(),
+        stdout: z.string(),
+        stderr: z.string()
+    })).describe('Commands executed and their results'),
+    exit_status: z.enum(['success', 'error']).describe('Overall execution status')
+})
+
+export const reviewLoopReviewerSubmitInputSchema: z.ZodTypeAny = z.object({
+    loop_id: z.string().min(1).describe('The review loop ID'),
+    round_id: z.string().min(1).describe('The current round ID'),
+    action: z.enum(['continue', 'pass', 'abort', 'notify_user']).describe('Verdict action'),
+    feedback: z.string().describe('Feedback or next instruction for worker'),
+    user_message: z.string().optional().describe('Message for user (required for notify_user)'),
+    progress: z.number().min(0).max(100).describe('Estimated progress percentage'),
+    criteria_status: z.array(z.object({
+        criteria: z.string(),
+        status: z.enum(['met', 'not_met', 'unclear']),
+        note: z.string().optional()
+    })).describe('Status of each acceptance criterion')
+})
+
 export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     {
         name: 'change_title',
@@ -119,6 +149,18 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         title: 'Create Report Share',
         description: 'Create a public share link for a report',
         inputSchema: reportCreateShareInputSchema
+    },
+    {
+        name: 'review_loop_worker_submit',
+        title: 'Submit Review Loop Worker Output',
+        description: 'Submit your execution results for the current ReviewLoop round. Call this when you have completed the instruction.',
+        inputSchema: reviewLoopWorkerSubmitInputSchema
+    },
+    {
+        name: 'review_loop_reviewer_submit',
+        title: 'Submit Review Loop Verdict',
+        description: 'Submit your review verdict for the current ReviewLoop round. Use action "continue" with feedback as next instruction, "pass" if all criteria met, "abort" if task is impossible, or "notify_user" if human input needed.',
+        inputSchema: reviewLoopReviewerSubmitInputSchema
     }
 ]
 

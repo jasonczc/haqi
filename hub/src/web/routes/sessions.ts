@@ -16,7 +16,7 @@ const modelUpdateSchema = z.object({
 })
 
 const thinkEffortUpdateSchema = z.object({
-    thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'xhigh'])
+    thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'max', 'xhigh'])
 })
 const serviceTierUpdateSchema = z.object({
     serviceTier: z.enum(['auto', 'fast', 'flex'])

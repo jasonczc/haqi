@@ -351,6 +351,87 @@ export type GroupTaskActionResponse = {
     task: GroupTask
 }
 
+// ---- ReviewLoop types ----
+
+export type ReviewLoopStatus = 'executing' | 'reviewing' | 'waiting_user' | 'paused' | 'accepted' | 'aborted' | 'canceled'
+export type ReviewLoopUserPreference = 'auto' | 'verbose' | 'silent'
+export type ReviewRoundStatus = 'instructed' | 'executing' | 'executed' | 'reviewed' | 'user_pending'
+
+export type CriteriaItem = {
+    criteria: string
+    status: 'met' | 'not_met' | 'unclear'
+    note?: string
+}
+
+export type ReviewVerdict = {
+    action: 'continue' | 'pass' | 'abort' | 'notify_user'
+    feedback: string
+    userMessage?: string
+    progress: number
+    criteriaStatus: CriteriaItem[]
+}
+
+export type WorkerOutput = {
+    rawResponse: string
+    summary?: string
+    diff: string
+    filesChanged: string[]
+    commands: Array<{
+        command: string
+        exitCode: number
+        stdout: string
+        stderr: string
+    }>
+    exitStatus: 'success' | 'error'
+}
+
+export type ReviewLoop = {
+    id: string
+    namespace: string
+    workerSessionId: string
+    reviewerSessionId: string
+    requirement: string
+    acceptanceCriteria: string
+    status: ReviewLoopStatus
+    userPreference: ReviewLoopUserPreference
+    currentRound: number
+    maxRounds: number
+    createdAt: number
+    updatedAt: number
+}
+
+export type ReviewRound = {
+    id: string
+    loopId: string
+    namespace: string
+    round: number
+    instruction: string
+    workerOutput: WorkerOutput | null
+    verdict: ReviewVerdict | null
+    status: ReviewRoundStatus
+    startedAt: number
+    completedAt: number | null
+}
+
+export type ReviewLoopsResponse = {
+    loops: ReviewLoop[]
+}
+
+export type ReviewLoopDetailResponse = {
+    loop: ReviewLoop
+    rounds: ReviewRound[]
+}
+
+export type ReviewLoopRoundResponse = {
+    round: ReviewRound
+}
+
+export type ReviewLoopVerdictResponse = {
+    loop: ReviewLoop
+    round: ReviewRound
+    nextAction: string
+}
+
 export type GlobalMemory = {
     path: string
     content: string

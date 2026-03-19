@@ -770,7 +770,7 @@ export class ApiClient {
 
     async setThinkEffort(
         sessionId: string,
-        thinkEffort: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+        thinkEffort: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
     ): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}/think-effort`, {
             method: 'POST',
@@ -916,7 +916,7 @@ export class ApiClient {
         directory: string,
         agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
         model?: string,
-        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
+        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh',
         serviceTier?: 'fast' | 'flex',
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
@@ -957,6 +957,101 @@ export class ApiClient {
     async deleteSession(sessionId: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}`, {
             method: 'DELETE'
+        })
+    }
+
+    // ---- ReviewLoop API ----
+
+    async getReviewLoops(): Promise<import('../types/api').ReviewLoopsResponse> {
+        return await this.request('/api/review-loops')
+    }
+
+    async getReviewLoop(loopId: string): Promise<import('../types/api').ReviewLoopDetailResponse> {
+        return await this.request(`/api/review-loops/${encodeURIComponent(loopId)}`)
+    }
+
+    async createReviewLoop(options: {
+        workerSessionId: string
+        reviewerSessionId: string
+        requirement: string
+        acceptanceCriteria: string
+        maxRounds?: number
+        userPreference?: 'auto' | 'verbose' | 'silent'
+    }): Promise<import('../types/api').ReviewLoopDetailResponse> {
+        return await this.request('/api/review-loops', {
+            method: 'POST',
+            body: JSON.stringify(options)
+        })
+    }
+
+    async updateReviewLoop(loopId: string, options: {
+        userPreference?: 'auto' | 'verbose' | 'silent'
+        maxRounds?: number
+    }): Promise<{ loop: import('../types/api').ReviewLoop }> {
+        return await this.request(`/api/review-loops/${encodeURIComponent(loopId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(options)
+        })
+    }
+
+    async deleteReviewLoop(loopId: string): Promise<{ success: boolean }> {
+        return await this.request(`/api/review-loops/${encodeURIComponent(loopId)}`, {
+            method: 'DELETE'
+        })
+    }
+
+    async cancelReviewLoop(loopId: string): Promise<{ loop: import('../types/api').ReviewLoop }> {
+        return await this.request(`/api/review-loops/${encodeURIComponent(loopId)}/cancel`, {
+            method: 'POST'
+        })
+    }
+
+    async pauseReviewLoop(loopId: string): Promise<{ loop: import('../types/api').ReviewLoop }> {
+        return await this.request(`/api/review-loops/${encodeURIComponent(loopId)}/pause`, {
+            method: 'POST'
+        })
+    }
+
+    async startReviewRound(loopId: string, instruction: string): Promise<import('../types/api').ReviewLoopRoundResponse> {
+        return await this.request(`/api/review-loops/${encodeURIComponent(loopId)}/rounds`, {
+            method: 'POST',
+            body: JSON.stringify({ instruction })
+        })
+    }
+
+    async submitReviewWorkerOutput(loopId: string, roundId: string, workerOutput: unknown): Promise<import('../types/api').ReviewLoopRoundResponse> {
+        return await this.request(
+            `/api/review-loops/${encodeURIComponent(loopId)}/rounds/${encodeURIComponent(roundId)}/worker-output`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ workerOutput })
+            }
+        )
+    }
+
+    async submitReviewVerdict(loopId: string, roundId: string, verdict: import('../types/api').ReviewVerdict): Promise<import('../types/api').ReviewLoopVerdictResponse> {
+        return await this.request(
+            `/api/review-loops/${encodeURIComponent(loopId)}/rounds/${encodeURIComponent(roundId)}/verdict`,
+            {
+                method: 'POST',
+                body: JSON.stringify({ verdict })
+            }
+        )
+    }
+
+    async initiateReviewLoop(loopId: string): Promise<import('../types/api').ReviewLoopRoundResponse> {
+        return await this.request(`/api/review-loops/${encodeURIComponent(loopId)}/initiate`, {
+            method: 'POST'
+        })
+    }
+
+    async continueReviewLoop(loopId: string, options?: {
+        userPreference?: 'auto' | 'verbose' | 'silent'
+        additionalInstruction?: string
+    }): Promise<{ loop: import('../types/api').ReviewLoop }> {
+        return await this.request(`/api/review-loops/${encodeURIComponent(loopId)}/continue`, {
+            method: 'POST',
+            body: JSON.stringify(options ?? {})
         })
     }
 

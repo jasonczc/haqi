@@ -344,7 +344,7 @@ export async function startRunner(): Promise<void> {
           };
         }
 
-        if (agent === 'claude' && thinkEffort && thinkEffort !== 'auto' && thinkEffort !== 'xhigh') {
+        if (agent === 'claude' && thinkEffort && thinkEffort !== 'auto' && thinkEffort !== 'xhigh' && thinkEffort !== 'max') {
           extraEnv = {
             ...extraEnv,
             CLAUDE_CODE_EFFORT_LEVEL: thinkEffort
@@ -381,7 +381,7 @@ export async function startRunner(): Promise<void> {
         if (agent === 'codex' && serviceTier) {
           args.push('--service-tier', serviceTier);
         }
-        if (agent === 'claude' && (thinkEffort === 'low' || thinkEffort === 'medium' || thinkEffort === 'high')) {
+        if (agent === 'claude' && (thinkEffort === 'low' || thinkEffort === 'medium' || thinkEffort === 'high' || thinkEffort === 'max')) {
           args.push('--effort', thinkEffort);
         }
         if (yolo) {

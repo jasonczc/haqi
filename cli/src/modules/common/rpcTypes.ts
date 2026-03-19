@@ -6,7 +6,7 @@ export interface SpawnSessionOptions {
     approvedNewDirectoryCreation?: boolean
     agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
     model?: string
-    thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+    thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
     serviceTier?: 'fast' | 'flex'
     yolo?: boolean
     token?: string

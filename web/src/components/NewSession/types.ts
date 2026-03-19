@@ -1,11 +1,12 @@
 export type AgentType = 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
 export type SessionType = 'simple' | 'worktree'
-export type ThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+export type ThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 export type ModelOption = { value: string; label: string }
 export type CodexThinkEffort = ThinkEffort
 export type ServiceTier = 'auto' | 'fast' | 'flex'
 
 export const CLAUDE_THINK_EFFORT_OPTIONS: { value: ThinkEffort; label: string }[] = [
+    { value: 'max', label: 'Max' },
     { value: 'high', label: 'High' },
     { value: 'auto', label: 'Auto' },
     { value: 'low', label: 'Low' },
@@ -38,12 +39,13 @@ export function getThinkEffortOptions(agent: AgentType): { value: ThinkEffort; l
 
 export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
     claude: [
-        { value: 'us.anthropic.claude-sonnet-4-6[1m]', label: 'Sonnet (1M context)' },
-        { value: 'global.anthropic.claude-opus-4-6-v1[1m]', label: 'Opus (1M context)' },
         { value: 'auto', label: 'Default (recommended)' },
-        { value: 'us.anthropic.claude-sonnet-4-6', label: 'Sonnet 4.6' },
-        { value: 'global.anthropic.claude-opus-4-6-v1', label: 'Opus 4.6' },
-        { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
+        { value: 'sonnet', label: 'Sonnet (latest)' },
+        { value: 'opus', label: 'Opus (latest)' },
+        { value: 'haiku', label: 'Haiku (latest)' },
+        { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+        { value: 'claude-opus-4-6', label: 'Opus 4.6' },
+        { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
     ],
     codex: [
         { value: 'auto', label: 'Auto' },
@@ -70,7 +72,8 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
 
 function isModelOptionAllowedForAgent(agent: AgentType, value: string): boolean {
     if (agent === 'claude') {
-        return value === 'auto' || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.')
+        return value === 'auto' || value === 'sonnet' || value === 'opus' || value === 'haiku'
+            || value.startsWith('claude-') || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.')
     }
     if (agent === 'codex') {
         return value === 'auto' || value.startsWith('gpt-')

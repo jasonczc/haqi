@@ -178,7 +178,7 @@ body {
 
 /* Markdown styles */
 .markdown-content a { color: var(--app-link); text-decoration: underline; }
-.markdown-content code { background: var(--app-inline-code-bg); padding: 0.1em 0.3em; border-radius: 4px; font-size: 0.9em; }
+.markdown-content code { background: var(--app-inline-code-bg); padding: 0.15em 0.35em; border-radius: 3px; font-size: 0.8em; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
 .markdown-content blockquote { border-left: 3px solid var(--app-hint); padding-left: 0.75rem; margin: 0.5rem 0; opacity: 0.85; }
 .markdown-content ul, .markdown-content ol { padding-left: 1.5rem; margin: 0.5rem 0; }
 .markdown-content table { border-collapse: collapse; width: 100%; }
@@ -188,12 +188,23 @@ body {
     margin: 0;
     padding: 0.5rem;
     background-color: transparent !important;
-    font-size: 0.875rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    overflow-x: auto;
+    max-width: 100%;
 }
 
 .aui-md-codeblock pre.shiki code {
     display: block;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    white-space: pre;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+.aui-md-codeblock {
+    overflow: hidden;
+    max-width: 100%;
 }
 
 .aui-md-codeblock .shiki,
@@ -313,4 +324,106 @@ html[data-theme="dark"] .shiki span {
 .tsqd-open-btn-container {
   bottom: 50% !important;
   transform: translateY(50%);
+}
+
+/* CLI view mode — shared monospace font stack */
+.cli-session {
+  --cli-font: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --cli-prompt-color: #3b82f6;
+  --cli-tool-icon-color: #8b5cf6;
+  --cli-panel-bg: var(--app-subtle-bg);
+}
+
+[data-theme="dark"] .cli-session {
+  --cli-prompt-color: #60a5fa;
+  --cli-tool-icon-color: #a78bfa;
+}
+
+.cli-thread {
+  font-family: var(--cli-font);
+  font-size: calc(0.8125rem * var(--app-font-scale, 1));
+  line-height: 1.6;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.cli-thread .aui-md {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.cli-thread .aui-md p {
+  margin-bottom: 0.25rem;
+}
+
+.cli-thread .aui-md h1,
+.cli-thread .aui-md h2,
+.cli-thread .aui-md h3,
+.cli-thread .aui-md h4,
+.cli-thread .aui-md h5,
+.cli-thread .aui-md h6 {
+  font-family: inherit;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.cli-thread .aui-md ul,
+.cli-thread .aui-md ol {
+  padding-left: 1.75rem;
+  margin-bottom: 0.25rem;
+  list-style-position: outside;
+}
+
+.cli-thread .aui-md li {
+  margin-bottom: 0;
+}
+
+.cli-thread .aui-md-pre {
+  font-size: inherit;
+}
+
+.cli-thread .cli-agent-text {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+/* Ensure all pre/code blocks in CLI thread don't overflow */
+.cli-thread pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* Tool call lines: truncate long paths */
+.cli-thread button > span {
+  min-width: 0;
+}
+.cli-thread button {
+  overflow: hidden;
+}
+
+/* CLI session — monospace everywhere in the session area */
+.cli-session button,
+.cli-session span,
+.cli-session div,
+.cli-session input,
+.cli-session textarea,
+.cli-session p,
+.cli-session label {
+  font-family: var(--cli-font);
+}
+
+/* CLI composer — terminal-style input */
+.cli-composer {
+  font-family: var(--cli-font);
+  font-size: calc(0.8125rem * var(--app-font-scale, 1));
+}
+
+/* Composer buttons row: compact in CLI mode */
+.cli-composer .flex.items-center.justify-between {
+  padding-top: 0.125rem;
+  padding-bottom: 0.25rem;
 }

@@ -57,7 +57,7 @@ type ComposerModelOption = {
     label: string
 }
 
-type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 type SessionServiceTier = 'auto' | 'fast' | 'flex'
 
 type ComposerThinkEffortOption = {
@@ -310,6 +310,7 @@ function getServiceTierOptionsForFlavor(flavor?: string | null): ComposerService
 export function HappyComposer(props: {
     sessionId: string
     disabled?: boolean
+    cliMode?: boolean
     permissionMode?: PermissionMode
     modelMode?: ModelMode
     model?: string
@@ -357,6 +358,7 @@ export function HappyComposer(props: {
     const {
         sessionId,
         disabled = false,
+        cliMode = false,
         permissionMode: rawPermissionMode,
         modelMode: rawModelMode,
         model: rawModel,
@@ -1260,7 +1262,7 @@ export function HappyComposer(props: {
     ])
 
     return (
-        <div className={`px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)]`}>
+        <div className={`px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)] ${cliMode ? 'cli-composer' : ''}`}>
             <div className="mx-auto w-full max-w-content">
                 <ComposerPrimitive.Root className="relative" onSubmit={handleSubmit}>
                     {overlays}
@@ -1282,7 +1284,7 @@ export function HappyComposer(props: {
                         asChild
                         disabled={controlsDisabled}
                     >
-                        <div className="overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)] transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)]">
+                        <div className={`overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
                             {showInlineQueuePanel ? (
                                 <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
                                     <div className="flex flex-wrap items-center gap-2">
@@ -1393,7 +1395,10 @@ export function HappyComposer(props: {
                                 </div>
                             ) : null}
 
-                            <div className="flex items-center px-4 py-3">
+                            <div className={`flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
+                                {cliMode && (
+                                    <span className="mr-1.5 shrink-0 select-none text-[var(--cli-prompt-color,#3b82f6)] font-semibold text-sm">{'❯'}</span>
+                                )}
                                 <ComposerPrimitive.Input
                                     ref={textareaRef}
                                     autoFocus={!controlsDisabled && !isTouch}
@@ -1406,7 +1411,7 @@ export function HappyComposer(props: {
                                     onSelect={handleSelect}
                                     onKeyDown={handleKeyDown}
                                     onPaste={handlePaste}
-                                    className="flex-1 resize-none bg-transparent text-base leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                    className={`flex-1 resize-none bg-transparent leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[0.8125rem]' : 'text-base'}`}
                                 />
                             </div>
 

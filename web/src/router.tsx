@@ -62,7 +62,12 @@ import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
 import DebugDiffPage from '@/routes/debug/diff'
 import GroupDetailPage from '@/routes/groups/detail'
+import ReviewLoopsIndexPage from '@/routes/review-loops/index'
+import ReviewLoopDetailPage from '@/routes/review-loops/detail'
 import { useGroups } from '@/hooks/queries/useGroups'
+import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
+import type { ReviewLoop } from '@/types/api'
+import { ReviewLoopStatusBadge, CreateLoopModal, type CreateLoopData } from '@/components/ReviewLoop'
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -454,6 +459,13 @@ function SessionsPage() {
                             >
                                 Groups
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/review-loops' })}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Loops
+                            </button>
                         </div>
                         <div className="flex items-center gap-1.5">
                             {!isSessionsIndex ? (
@@ -650,7 +662,7 @@ function SessionPage() {
         messagesVersion,
         flushPending,
         setAtBottom,
-    } = useMessages(api, sessionId, { enabled: viewMode === 'normal' })
+    } = useMessages(api, sessionId, { enabled: viewMode === 'normal' || viewMode === 'cli' })
     const {
         turns,
         warning: turnsWarning,
@@ -1160,6 +1172,16 @@ function GroupsLayout() {
                             >
                                 Groups
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onClose?.()
+                                    navigate({ to: '/review-loops' })
+                                }}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Loops
+                            </button>
                         </div>
                         <div className="flex items-center gap-1.5">
                             {!isGroupsIndex ? (
@@ -1457,6 +1479,394 @@ function GroupsIndexPage() {
     )
 }
 
+// ─── ReviewLoops ────────────────────────────────────────────────────────────────
+
+function formatLoopAge(ts: number): string {
+    const diff = Date.now() - ts
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    const days = Math.floor(hrs / 24)
+    return `${days}d ago`
+}
+
+function LoopListItem(props: {
+    item: ReviewLoop
+    selected: boolean
+    density: SessionListDensity
+    onSelect: (loopId: string) => void
+}) {
+    const { item, selected, density, onSelect } = props
+    const isCompact = density === 'compact'
+    const truncatedReq = item.requirement.length > 50
+        ? item.requirement.slice(0, 50) + '...'
+        : item.requirement
+
+    return (
+        <button
+            type="button"
+            onClick={() => onSelect(item.id)}
+            className={`session-list-item flex w-full flex-col text-left font-mono transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-link)] select-none hover:bg-[var(--app-subtle-bg)] ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1 pl-3 pr-3 py-2.5'} ${selected ? 'bg-[var(--app-subtle-bg)]' : ''}`}
+            style={{ WebkitTouchCallout: 'none' }}
+            aria-current={selected ? 'page' : undefined}
+        >
+            <div className={`flex items-center gap-2 min-w-0 ${isCompact ? 'text-xs' : 'text-sm'}`}>
+                <span className="truncate min-w-0 text-[var(--app-fg)]">{truncatedReq}</span>
+            </div>
+            <div className={`flex items-center gap-2 flex-wrap ${isCompact ? 'text-[10px]' : 'text-[11px]'}`}>
+                <ReviewLoopStatusBadge status={item.status} />
+                <span className="text-[var(--app-hint)]">
+                    R{item.currentRound}/{item.maxRounds}
+                </span>
+                <span className="text-[var(--app-hint)]">
+                    {formatLoopAge(item.updatedAt)}
+                </span>
+            </div>
+        </button>
+    )
+}
+
+function filterLoopsBySearch(loops: ReviewLoop[], query: string): ReviewLoop[] {
+    const normalizedQuery = query.trim().toLowerCase()
+    if (!normalizedQuery) {
+        return loops
+    }
+    return loops.filter((item) => {
+        const req = item.requirement.toLowerCase()
+        const criteria = item.acceptanceCriteria.toLowerCase()
+        const loopId = item.id.toLowerCase()
+        const status = item.status.toLowerCase()
+        return req.includes(normalizedQuery)
+            || criteria.includes(normalizedQuery)
+            || loopId.includes(normalizedQuery)
+            || status.includes(normalizedQuery)
+    })
+}
+
+function ReviewLoopsLayout() {
+    const { api } = useAppContext()
+    const navigate = useNavigate()
+    const pathname = useLocation({ select: location => location.pathname })
+    const matchRoute = useMatchRoute()
+    const { t } = useTranslation()
+    const { loops, isLoading } = useReviewLoops(api)
+    const { sessions } = useSessions(api)
+    const { density, toggleDensity } = useSessionListDensity()
+    const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+    const [loopSearchQuery, setLoopSearchQuery] = useState('')
+    const [createModalOpen, setCreateModalOpen] = useState(false)
+    const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
+
+    const handleCreateLoop = useCallback(async (data: CreateLoopData) => {
+        if (!api) return
+        try {
+            const result = await api.createReviewLoop({
+                workerSessionId: data.workerSessionId,
+                reviewerSessionId: data.reviewerSessionId,
+                requirement: data.requirement,
+                acceptanceCriteria: data.acceptanceCriteria,
+                maxRounds: data.maxRounds,
+                userPreference: data.userPreference,
+            })
+            setCreateModalOpen(false)
+            const loopId = result.loop?.id
+            if (loopId) {
+                // Initiate the first round
+                try {
+                    await api.initiateReviewLoop(loopId)
+                } catch {
+                    // Loop created but initiation failed — user can retry from detail page
+                }
+                navigate({ to: '/review-loops/$loopId', params: { loopId } })
+            }
+        } catch (e) {
+            console.error('Failed to create loop:', e)
+        }
+    }, [api, navigate])
+
+    const loopMatch = matchRoute({ to: '/review-loops/$loopId', fuzzy: true })
+    const selectedLoopId = loopMatch ? loopMatch.loopId : null
+    const isLoopsIndex = pathname === '/review-loops' || pathname === '/review-loops/'
+    const showDesktopSidebar = isLoopsIndex || !desktopSidebarHidden
+    const toggleDensityLabel = density === 'comfortable'
+        ? t('sessions.display.toggleToCompact')
+        : t('sessions.display.toggleToComfortable')
+    const desktopSidebarToggleLabel = showDesktopSidebar
+        ? t('sessions.sidebar.hideDesktop')
+        : t('sessions.sidebar.showDesktop')
+    const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
+
+    const visibleLoops = useMemo(
+        () => filterLoopsBySearch(loops, loopSearchQuery),
+        [loops, loopSearchQuery]
+    )
+
+    const activeCount = visibleLoops.filter((l) => l.status === 'executing' || l.status === 'reviewing' || l.status === 'waiting_user').length
+
+    useEffect(() => {
+        if (isLoopsIndex) {
+            setMobileSidebarOpen(false)
+        }
+    }, [isLoopsIndex])
+
+    useEffect(() => {
+        if (isLoopsIndex && desktopSidebarHidden) {
+            setDesktopSidebarHidden(false)
+        }
+    }, [isLoopsIndex, desktopSidebarHidden, setDesktopSidebarHidden])
+
+    useEffect(() => {
+        if (!mobileSidebarOpen) return
+        const previousOverflow = document.body.style.overflow
+        document.body.style.overflow = 'hidden'
+
+        const handleResize = () => {
+            if (window.innerWidth >= 1024) {
+                setMobileSidebarOpen(false)
+            }
+        }
+
+        window.addEventListener('resize', handleResize)
+        return () => {
+            window.removeEventListener('resize', handleResize)
+            document.body.style.overflow = previousOverflow
+        }
+    }, [mobileSidebarOpen])
+
+    const closeSidebarOnMobile = useCallback(() => {
+        setMobileSidebarOpen(false)
+    }, [])
+
+    const toggleSidebarFromBar = useCallback(() => {
+        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+            toggleDesktopSidebar()
+            return
+        }
+        setMobileSidebarOpen(true)
+    }, [toggleDesktopSidebar])
+
+    const selectedLoop = selectedLoopId
+        ? loops.find((item) => item.id === selectedLoopId) ?? null
+        : null
+
+    const renderSidebarContent = (options?: { inDrawer?: boolean; onClose?: () => void }) => {
+        const inDrawer = options?.inDrawer === true
+        const onClose = options?.onClose
+
+        return (
+            <>
+                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)] font-mono">
+                    {/* Tab switcher row - terminal style */}
+                    <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
+                        <div className="flex items-center gap-0.5 text-xs">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onClose?.()
+                                    navigate({ to: '/sessions' })
+                                }}
+                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Sessions
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    onClose?.()
+                                    navigate({ to: '/groups' })
+                                }}
+                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Groups
+                            </button>
+                            <button
+                                type="button"
+                                className="border border-[var(--app-fg)] rounded-sm px-2 py-1 bg-[var(--app-fg)] text-[var(--app-bg)] font-medium"
+                            >
+                                Loops
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            {!isLoopsIndex ? (
+                                <button
+                                    type="button"
+                                    onClick={toggleDesktopSidebar}
+                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                    title={desktopSidebarToggleLabel}
+                                    aria-label={desktopSidebarToggleLabel}
+                                >
+                                    <SidebarIcon className="h-4 w-4" />
+                                </button>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={toggleDensity}
+                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                title={toggleDensityLabel}
+                                aria-label={toggleDensityLabel}
+                            >
+                                <DensityIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/settings' })}
+                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                title={t('settings.title')}
+                            >
+                                <SettingsIcon className="h-5 w-5" />
+                            </button>
+                            {inDrawer && onClose ? (
+                                <>
+                                    <span className="mx-0.5 h-5 w-px bg-[var(--app-divider)]" aria-hidden="true" />
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                        title={t('sessions.sidebar.close')}
+                                        aria-label={t('sessions.sidebar.close')}
+                                    >
+                                        <CloseIcon className="h-4 w-4" />
+                                    </button>
+                                </>
+                            ) : null}
+                        </div>
+                    </div>
+                    {/* Count info row */}
+                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
+                        <div className="text-xs text-[var(--app-hint)]">
+                            {visibleLoops.length} {visibleLoops.length === 1 ? 'loop' : 'loops'} {activeCount > 0 ? `\u2022 ${activeCount} active` : ''}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setCreateModalOpen(true)}
+                            className="rounded-sm border border-[var(--app-divider)] px-2 py-0.5 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors"
+                        >
+                            + new
+                        </button>
+                    </div>
+                    <div className="mx-auto w-full max-w-content px-3 pb-2">
+                        <input
+                            value={loopSearchQuery}
+                            onChange={(e) => setLoopSearchQuery(e.target.value)}
+                            placeholder="/ search..."
+                            className="w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-xs font-mono outline-none focus:border-[var(--app-link)]"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                    {isLoading ? (
+                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">Loading...</div>
+                    ) : visibleLoops.length === 0 ? (
+                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">
+                            {loopSearchQuery.trim() ? 'No loops match.' : 'No review loops yet.'}
+                        </div>
+                    ) : (
+                        <div className="py-1">
+                            {visibleLoops.map((item) => (
+                                <LoopListItem
+                                    key={item.id}
+                                    item={item}
+                                    selected={selectedLoopId === item.id}
+                                    density={density}
+                                    onSelect={(loopId) => {
+                                        setMobileSidebarOpen(false)
+                                        navigate({ to: '/review-loops/$loopId', params: { loopId } })
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </>
+        )
+    }
+
+    return (
+        <div className="flex h-full min-h-0">
+            {/* Sidebar */}
+            <div
+                className={`${isLoopsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]`}
+                style={sidebarStyle}
+            >
+                {renderSidebarContent()}
+            </div>
+
+            {/* Sidebar resize handle */}
+            <div
+                className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('sessions.sidebar.resize')}
+                title={t('sessions.sidebar.resize')}
+                onPointerDown={startSidebarResize}
+            >
+                <div
+                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
+                />
+            </div>
+
+            {/* Main area */}
+            <div className={`${isLoopsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 min-h-0 flex-1 flex-col bg-[var(--app-bg)]`}>
+                {!isLoopsIndex ? (
+                    <div className="flex items-center gap-2 border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] lg:pt-2">
+                        <button
+                            type="button"
+                            onClick={toggleSidebarFromBar}
+                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title={t('sessions.sidebar.open')}
+                            aria-label={t('sessions.sidebar.open')}
+                        >
+                            <SidebarIcon className="h-5 w-5" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                            <span className="truncate text-sm font-mono text-[var(--app-fg)]">
+                                {selectedLoop
+                                    ? (selectedLoop.requirement.length > 60
+                                        ? selectedLoop.requirement.slice(0, 60) + '...'
+                                        : selectedLoop.requirement)
+                                    : 'review-loop'}
+                            </span>
+                        </div>
+                    </div>
+                ) : null}
+                <div className="flex-1 min-h-0">
+                    <Outlet />
+                </div>
+            </div>
+
+            {mobileSidebarOpen ? (
+                <div
+                    className="fixed inset-0 z-40 flex lg:hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Loops sidebar"
+                >
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/35"
+                        onClick={closeSidebarOnMobile}
+                        aria-label={t('sessions.sidebar.close')}
+                    />
+                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
+                        {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
+                    </div>
+                </div>
+            ) : null}
+
+            <CreateLoopModal
+                open={createModalOpen}
+                onClose={() => setCreateModalOpen(false)}
+                onSubmit={handleCreateLoop}
+                sessions={sessions}
+            />
+        </div>
+    )
+}
+
 const rootRoute = createRootRoute({
     component: App,
 })
@@ -1598,6 +2008,24 @@ const groupDetailRoute = createRoute({
     component: GroupDetailPage,
 })
 
+const reviewLoopsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/review-loops',
+    component: ReviewLoopsLayout,
+})
+
+const reviewLoopsIndexRoute = createRoute({
+    getParentRoute: () => reviewLoopsRoute,
+    path: '/',
+    component: ReviewLoopsIndexPage,
+})
+
+const reviewLoopDetailRoute = createRoute({
+    getParentRoute: () => reviewLoopsRoute,
+    path: '$loopId',
+    component: ReviewLoopDetailPage,
+})
+
 export const routeTree = rootRoute.addChildren([
     indexRoute,
     debugDiffRoute,
@@ -1614,6 +2042,10 @@ export const routeTree = rootRoute.addChildren([
     groupsRoute.addChildren([
         groupsIndexRoute,
         groupDetailRoute,
+    ]),
+    reviewLoopsRoute.addChildren([
+        reviewLoopsIndexRoute,
+        reviewLoopDetailRoute,
     ]),
     settingsRoute,
 ])

@@ -25,4 +25,6 @@ export const queryKeys = {
     ] as const,
     slashCommands: (sessionId: string) => ['slash-commands', sessionId] as const,
     skills: (sessionId: string) => ['skills', sessionId] as const,
+    reviewLoops: ['review-loops'] as const,
+    reviewLoop: (loopId: string) => ['review-loop', loopId] as const,
 }

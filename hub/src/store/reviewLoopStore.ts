@@ -1,0 +1,95 @@
+import type { Database } from 'bun:sqlite'
+
+import {
+    createReviewLoop,
+    createReviewRound,
+    deleteReviewLoop,
+    getLatestReviewRound,
+    getReviewLoopByNamespace,
+    getReviewLoopsByNamespace,
+    getReviewRoundByNamespace,
+    getReviewRoundsByLoop,
+    updateReviewLoop,
+    updateReviewRound
+} from './reviewLoops'
+import type {
+    StoredReviewLoop,
+    StoredReviewLoopStatus,
+    StoredReviewLoopUserPreference,
+    StoredReviewRound,
+    StoredReviewRoundStatus
+} from './types'
+
+export class ReviewLoopStore {
+    private readonly db: Database
+
+    constructor(db: Database) {
+        this.db = db
+    }
+
+    createReviewLoop(options: {
+        namespace: string
+        workerSessionId: string
+        reviewerSessionId: string
+        requirement: string
+        acceptanceCriteria: string
+        maxRounds?: number
+        userPreference?: StoredReviewLoopUserPreference
+    }): StoredReviewLoop {
+        return createReviewLoop(this.db, options)
+    }
+
+    getReviewLoopsByNamespace(namespace: string): StoredReviewLoop[] {
+        return getReviewLoopsByNamespace(this.db, namespace)
+    }
+
+    getReviewLoopByNamespace(loopId: string, namespace: string): StoredReviewLoop | null {
+        return getReviewLoopByNamespace(this.db, loopId, namespace)
+    }
+
+    updateReviewLoop(options: {
+        loopId: string
+        namespace: string
+        status?: StoredReviewLoopStatus
+        userPreference?: StoredReviewLoopUserPreference
+        currentRound?: number
+        maxRounds?: number
+    }): StoredReviewLoop | null {
+        return updateReviewLoop(this.db, options)
+    }
+
+    deleteReviewLoop(options: { loopId: string; namespace: string }): boolean {
+        return deleteReviewLoop(this.db, options)
+    }
+
+    createReviewRound(options: {
+        loopId: string
+        namespace: string
+        round: number
+        instruction: string
+    }): StoredReviewRound {
+        return createReviewRound(this.db, options)
+    }
+
+    getReviewRoundsByLoop(loopId: string, namespace: string): StoredReviewRound[] {
+        return getReviewRoundsByLoop(this.db, loopId, namespace)
+    }
+
+    getReviewRoundByNamespace(roundId: string, namespace: string): StoredReviewRound | null {
+        return getReviewRoundByNamespace(this.db, roundId, namespace)
+    }
+
+    getLatestReviewRound(loopId: string, namespace: string): StoredReviewRound | null {
+        return getLatestReviewRound(this.db, loopId, namespace)
+    }
+
+    updateReviewRound(options: {
+        roundId: string
+        namespace: string
+        status?: StoredReviewRoundStatus
+        workerOutput?: unknown
+        verdict?: unknown
+    }): StoredReviewRound | null {
+        return updateReviewRound(this.db, options)
+    }
+}

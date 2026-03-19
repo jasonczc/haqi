@@ -557,6 +557,24 @@ export function useSSE(options: {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.groupNote(event.groupId) })
             }
 
+            if (event.type === 'review-loop-added') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoops })
+            }
+
+            if (event.type === 'review-loop-updated') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoops })
+                void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoop(event.loopId) })
+            }
+
+            if (event.type === 'review-loop-removed') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoops })
+                void queryClient.removeQueries({ queryKey: queryKeys.reviewLoop(event.loopId) })
+            }
+
+            if (event.type === 'review-loop-round-updated') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoop(event.loopId) })
+            }
+
             onEventRef.current(event)
         }
 

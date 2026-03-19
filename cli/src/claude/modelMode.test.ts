@@ -71,6 +71,8 @@ describe('claude model mode detection', () => {
         expect(findClaudeThinkEffortFromArgs(['--effort', 'low'])).toBe('low')
         expect(findClaudeThinkEffortFromArgs(['--foo', 'x', '--effort=medium'])).toBe('medium')
         expect(findClaudeThinkEffortFromArgs(['--effort', 'HIGH'])).toBe('high')
+        expect(findClaudeThinkEffortFromArgs(['--effort', 'max'])).toBe('max')
+        expect(findClaudeThinkEffortFromArgs(['--effort', 'MAX'])).toBe('max')
         expect(findClaudeThinkEffortFromArgs(['--effort', 'xhigh'])).toBeUndefined()
     })
 })

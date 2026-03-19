@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 
-export type ChatViewMode = 'normal' | 'brief'
+export type ChatViewMode = 'normal' | 'brief' | 'cli'
 
 const CHAT_VIEW_MODE_STORAGE_KEY = 'hapi-chat-view-mode-v1'
 
 function normalizeChatViewMode(value: unknown): ChatViewMode {
-    return value === 'brief' ? 'brief' : 'normal'
+    if (value === 'brief') return 'brief'
+    if (value === 'cli') return 'cli'
+    return 'normal'
 }
 
 function readChatViewMode(): ChatViewMode {

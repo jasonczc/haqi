@@ -23,6 +23,8 @@ import { HappyComposer, type CodexSendMode } from '@/components/AssistantChat/Ha
 import { safeReadCodexSendModeDefault } from '@/hooks/useCodexSendModePreference'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
 import { BriefTurnList } from '@/components/AssistantChat/BriefTurnList'
+import { CliThread } from '@/components/AssistantChat/CliThread'
+import { LiveActivityBar } from '@/components/AssistantChat/LiveActivityBar'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
@@ -53,7 +55,7 @@ type McpGuideItem = {
     descriptionKey: string
 }
 
-type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 type SessionServiceTier = 'auto' | 'fast' | 'flex'
 
 const MCP_GUIDES: McpGuideItem[] = [
@@ -666,7 +668,7 @@ export function SessionChat(props: {
     )
     const latestCodexPlanSignature = latestCodexPlan?.signature ?? null
     const showCodexPlanNotebook = supportsQueueControls
-        && props.viewMode === 'normal'
+        && (props.viewMode === 'normal' || props.viewMode === 'cli')
         && latestCodexPlan !== null
         && latestCodexPlanSignature !== dismissedCodexPlanSignature
 
@@ -1312,7 +1314,7 @@ export function SessionChat(props: {
             ) : null}
 
             <AssistantRuntimeProvider runtime={runtime}>
-                <div className="relative flex min-h-0 flex-1 flex-col">
+                <div className={`relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
                     {showCodexPlanNotebook && latestCodexPlan ? (
                         <div className="px-3 pt-2">
                             <div className="mx-auto w-full max-w-content rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/50 p-2.5">
@@ -1397,6 +1399,15 @@ export function SessionChat(props: {
                             >
                                 Brief
                             </button>
+                            <button
+                                type="button"
+                                className={`rounded px-2.5 py-1 text-xs font-mono transition-colors ${props.viewMode === 'cli'
+                                    ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                    : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                onClick={() => props.onViewModeChange('cli')}
+                            >
+                                CLI
+                            </button>
                         </div>
                     </div>
 
@@ -1412,6 +1423,25 @@ export function SessionChat(props: {
                             thinking={props.session.thinking}
                             density={props.density ?? 'comfortable'}
                             onLoadMoreTurns={props.onLoadMoreTurns}
+                        />
+                    ) : props.viewMode === 'cli' ? (
+                        <CliThread
+                            api={props.api}
+                            sessionId={props.session.id}
+                            metadata={props.session.metadata}
+                            agentState={props.session.agentState}
+                            permissionMode={props.session.permissionMode}
+                            disabled={sessionInactive}
+                            blocks={reconciled.blocks}
+                            isLoadingMessages={props.isLoadingMessages}
+                            messagesWarning={props.messagesWarning}
+                            hasMoreMessages={props.hasMoreMessages}
+                            isLoadingMoreMessages={props.isLoadingMoreMessages}
+                            onLoadMore={props.onLoadMore}
+                            onRefresh={props.onRefresh}
+                            onRetryMessage={props.onRetryMessage}
+                            onAtBottomChange={props.onAtBottomChange}
+                            density={props.density ?? 'comfortable'}
                         />
                     ) : (
                         <HappyThread
@@ -1440,9 +1470,17 @@ export function SessionChat(props: {
                         />
                     )}
 
+                    {props.viewMode === 'normal' && (
+                        <LiveActivityBar
+                            messages={props.messages}
+                            visible={props.session.thinking === true}
+                        />
+                    )}
+
                     <HappyComposer
                         sessionId={props.session.id}
                         disabled={composerDisabled}
+                        cliMode={props.viewMode === 'cli'}
                         permissionMode={props.session.permissionMode}
                         modelMode={props.session.modelMode}
                         model={props.session.metadata?.model}

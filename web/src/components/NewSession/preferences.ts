@@ -11,7 +11,7 @@ const CUSTOM_MODEL_STORAGE_KEY = 'hapi:newSession:customModelByAgent'
 const LAST_CONFIG_STORAGE_KEY = 'hapi:newSession:lastConfig'
 
 const VALID_AGENTS: AgentType[] = ['claude', 'codex', 'cursor', 'gemini', 'opencode']
-const VALID_THINK_EFFORTS: ThinkEffort[] = ['auto', 'low', 'medium', 'high', 'xhigh']
+const VALID_THINK_EFFORTS: ThinkEffort[] = ['auto', 'low', 'medium', 'high', 'max', 'xhigh']
 type AgentPreferenceMap = Partial<Record<AgentType, string>>
 
 export type LastSessionConfig = {

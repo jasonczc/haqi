@@ -20,7 +20,9 @@ import {
     reportCreateShareInputSchema,
     reportGetInputSchema,
     reportListInputSchema,
-    reportUpdateInputSchema
+    reportUpdateInputSchema,
+    reviewLoopWorkerSubmitInputSchema,
+    reviewLoopReviewerSubmitInputSchema
 } from "@/mcp/hapiMcpTools";
 
 type JsonObject = Record<string, unknown>;
@@ -359,6 +361,91 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    mcp.registerTool<any, any>('review_loop_worker_submit', {
+        description: 'Submit your execution results for the current ReviewLoop round',
+        title: 'Submit Review Loop Worker Output',
+        inputSchema: reviewLoopWorkerSubmitInputSchema
+    }, async (args: {
+        loop_id: string
+        round_id: string
+        raw_response: string
+        summary?: string
+        diff: string
+        files_changed: string[]
+        commands: { command: string; exit_code: number; stdout: string; stderr: string }[]
+        exit_status: 'success' | 'error'
+    }) => {
+        try {
+            const payload = await requestHubJson(
+                `/api/review-loops/${encodeURIComponent(args.loop_id)}/rounds/${encodeURIComponent(args.round_id)}/worker-output`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        workerOutput: {
+                            rawResponse: args.raw_response,
+                            summary: args.summary,
+                            diff: args.diff,
+                            filesChanged: args.files_changed,
+                            commands: args.commands.map((c: any) => ({
+                                command: c.command,
+                                exitCode: c.exit_code,
+                                stdout: c.stdout,
+                                stderr: c.stderr
+                            })),
+                            exitStatus: args.exit_status
+                        }
+                    })
+                }
+            );
+            return buildToolResult(payload, 'Worker output submitted successfully.');
+        } catch (error) {
+            return buildToolError('Failed to submit worker output', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('review_loop_reviewer_submit', {
+        description: 'Submit your review verdict for the current ReviewLoop round',
+        title: 'Submit Review Loop Verdict',
+        inputSchema: reviewLoopReviewerSubmitInputSchema
+    }, async (args: {
+        loop_id: string
+        round_id: string
+        action: 'continue' | 'pass' | 'abort' | 'notify_user'
+        feedback: string
+        user_message?: string
+        progress: number
+        criteria_status: { criteria: string; status: 'met' | 'not_met' | 'unclear'; note?: string }[]
+    }) => {
+        try {
+            const payload = await requestHubJson(
+                `/api/review-loops/${encodeURIComponent(args.loop_id)}/rounds/${encodeURIComponent(args.round_id)}/verdict`,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        verdict: {
+                            action: args.action,
+                            feedback: args.feedback,
+                            userMessage: args.user_message,
+                            progress: args.progress,
+                            criteriaStatus: args.criteria_status.map((c: any) => ({
+                                criteria: c.criteria,
+                                status: c.status,
+                                note: c.note
+                            }))
+                        }
+                    })
+                }
+            );
+            const nextAction = (payload as any)?.nextAction;
+            const summary = nextAction
+                ? `Verdict submitted. Next action: ${nextAction}`
+                : `Verdict submitted: ${args.action}`;
+            return buildToolResult(payload, summary);
+        } catch (error) {
+            return buildToolError('Failed to submit verdict', error);
+        }
+    });
+
     const transport = new StreamableHTTPServerTransport({
         // NOTE: Returning session id here will result in claude
         // sdk spawn to fail with `Invalid Request: Server already initialized`
@@ -397,7 +484,9 @@ export async function startHappyServer(client: ApiSessionClient) {
             'report_get',
             'report_list',
             'report_add_asset',
-            'report_create_share'
+            'report_create_share',
+            'review_loop_worker_submit',
+            'review_loop_reviewer_submit'
         ],
         stop: () => {
             logger.debug('[hapiMCP] Stopping server');

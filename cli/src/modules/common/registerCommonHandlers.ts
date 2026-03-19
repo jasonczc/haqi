@@ -9,6 +9,7 @@ import { registerSlashCommandHandlers } from './handlers/slashCommands'
 import { registerSkillsHandlers } from './handlers/skills'
 import { registerMcpHandlers } from './handlers/mcp'
 import { registerUploadHandlers } from './handlers/uploads'
+import { registerReviewLoopHandlers } from './handlers/reviewLoop'
 
 export function registerCommonHandlers(
     rpcHandlerManager: RpcHandlerManager,
@@ -27,4 +28,5 @@ export function registerCommonHandlers(
     registerMcpHandlers(rpcHandlerManager, { flavor: options.flavor })
     registerGitHandlers(rpcHandlerManager, workingDirectory)
     registerUploadHandlers(rpcHandlerManager)
+    registerReviewLoopHandlers(rpcHandlerManager, workingDirectory)
 }

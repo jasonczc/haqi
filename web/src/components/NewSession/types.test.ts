@@ -5,12 +5,13 @@ describe('NewSession model options', () => {
     it('uses fixed Claude model presets', () => {
         const claudeValues = MODEL_OPTIONS.claude.map((option) => option.value)
         expect(claudeValues).toEqual([
-            'us.anthropic.claude-sonnet-4-6[1m]',
-            'global.anthropic.claude-opus-4-6-v1[1m]',
             'auto',
-            'us.anthropic.claude-sonnet-4-6',
-            'global.anthropic.claude-opus-4-6-v1',
-            'global.anthropic.claude-haiku-4-5-20251001-v1:0'
+            'sonnet',
+            'opus',
+            'haiku',
+            'claude-sonnet-4-6',
+            'claude-opus-4-6',
+            'claude-haiku-4-5-20251001'
         ])
     })
 
@@ -27,7 +28,7 @@ describe('NewSession model options', () => {
 
     it('includes Claude think effort options', () => {
         const thinkEfforts = CLAUDE_THINK_EFFORT_OPTIONS.map((option) => option.value)
-        expect(thinkEfforts).toEqual(['high', 'auto', 'low', 'medium'])
+        expect(thinkEfforts).toEqual(['max', 'high', 'auto', 'low', 'medium'])
     })
 
     it('includes codex think effort options', () => {
@@ -46,7 +47,7 @@ it('filters model options by agent flavor', () => {
     const claudeValues = getModelOptionsForAgent('claude').map((option) => option.value)
     const codexValues = getModelOptionsForAgent('codex').map((option) => option.value)
 
-    expect(claudeValues.every((value) => value === 'auto' || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.'))).toBe(true)
+    expect(claudeValues.every((value) => value === 'auto' || value === 'sonnet' || value === 'opus' || value === 'haiku' || value.startsWith('claude-') || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.'))).toBe(true)
     expect(claudeValues).not.toContain('gpt-5.4')
     expect(codexValues.filter((value) => value === 'gpt-5.4')).toHaveLength(1)
 })

@@ -164,7 +164,7 @@ export class RpcGateway {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
             model?: string
-            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
             serviceTier?: 'fast' | 'flex'
             collaborationMode?: string | null
         }
@@ -181,7 +181,7 @@ export class RpcGateway {
         directory: string,
         agent: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode' = 'claude',
         model?: string,
-        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
+        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh',
         serviceTier?: 'fast' | 'flex',
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
@@ -366,6 +366,7 @@ export class RpcGateway {
                     source: string
                     targetSessionIds?: string[]
                 }
+                appendSystemPrompt?: string
             }
             attachments?: Array<{
                 id: string
@@ -458,6 +459,7 @@ export class RpcGateway {
                     source: string
                     targetSessionIds?: string[]
                 }
+                appendSystemPrompt?: string
             }
             attachments?: Array<{
                 id: string

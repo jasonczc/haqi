@@ -54,15 +54,15 @@ export const claudeCommand: CommandDefinition = {
                 if (!effort) {
                     throw new Error('Missing --effort value')
                 }
-                if (effort !== 'low' && effort !== 'medium' && effort !== 'high') {
-                    throw new Error('Invalid --effort value (expected low, medium, or high)')
+                if (effort !== 'low' && effort !== 'medium' && effort !== 'high' && effort !== 'max') {
+                    throw new Error('Invalid --effort value (expected low, medium, high, or max)')
                 }
                 options.thinkEffort = effort
                 unknownArgs.push('--effort', effort)
             } else if (arg.startsWith('--effort=')) {
                 const effort = arg.slice('--effort='.length)
-                if (effort !== 'low' && effort !== 'medium' && effort !== 'high') {
-                    throw new Error('Invalid --effort value (expected low, medium, or high)')
+                if (effort !== 'low' && effort !== 'medium' && effort !== 'high' && effort !== 'max') {
+                    throw new Error('Invalid --effort value (expected low, medium, high, or max)')
                 }
                 options.thinkEffort = effort
                 unknownArgs.push(arg)

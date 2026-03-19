@@ -342,6 +342,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
     const resolveEnqueuePayload = (payload: unknown): {
         text: string
         routeContext?: EnhancedMode['routeContext']
+        appendSystemPrompt?: string
         attachments?: Array<{
             id: string
             filename: string
@@ -390,12 +391,15 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                     && (entry.previewUrl === undefined || typeof entry.previewUrl === 'string');
             })
             : undefined;
+        const appendSystemPromptValue = (payload as { meta?: { appendSystemPrompt?: unknown } }).meta?.appendSystemPrompt;
+        const appendSystemPrompt = typeof appendSystemPromptValue === 'string' ? appendSystemPromptValue : undefined;
         if (!text && (!attachments || attachments.length === 0)) {
             throw new Error('Message requires text or attachments');
         }
         return {
             text,
             routeContext: routeContextResult.data,
+            appendSystemPrompt,
             attachments
         };
     };
@@ -579,7 +583,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (!normalized || normalized === 'auto') {
             return undefined;
         }
-        if (normalized === 'low' || normalized === 'medium' || normalized === 'high') {
+        if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max') {
             return normalized;
         }
         throw new Error('Invalid think effort');
@@ -647,7 +651,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 thinkEffort: currentThinkEffort,
                 fallbackModel: currentFallbackModel,
                 customSystemPrompt: pureContextMode ? undefined : currentCustomSystemPrompt,
-                appendSystemPrompt: pureContextMode ? undefined : currentAppendSystemPrompt,
+                appendSystemPrompt: parsed.appendSystemPrompt ?? (pureContextMode ? undefined : currentAppendSystemPrompt),
                 allowedTools: currentAllowedTools,
                 disallowedTools: currentDisallowedTools,
                 routeContext: parsed.routeContext
@@ -742,7 +746,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 model: currentModelMode === 'default' ? undefined : currentModelMode,
                 fallbackModel: currentFallbackModel,
                 customSystemPrompt: pureContextMode ? undefined : currentCustomSystemPrompt,
-                appendSystemPrompt: pureContextMode ? undefined : currentAppendSystemPrompt,
+                appendSystemPrompt: parsed.appendSystemPrompt ?? (pureContextMode ? undefined : currentAppendSystemPrompt),
                 allowedTools: currentAllowedTools,
                 disallowedTools: currentDisallowedTools,
                 routeContext: parsed.routeContext

@@ -1,0 +1,119 @@
+import { memo } from 'react'
+import type { ComponentPropsWithoutRef } from 'react'
+import type { AgentTextBlock, CliOutputBlock } from '@/chat/types'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { cn } from '@/lib/utils'
+import { useShikiHighlighter } from '@/lib/shiki'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
+import { CopyIcon, CheckIcon } from '@/components/icons'
+
+function CliCodeBlockInner(props: { language: string; code: string }) {
+    const highlighted = useShikiHighlighter(props.code, props.language)
+    const { copied, copy } = useCopyToClipboard()
+
+    return (
+        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-md border border-[var(--app-border)]">
+            <div className="flex items-center justify-between bg-[var(--app-code-bg)] px-2 py-0.5">
+                <span className="text-xs text-[var(--app-hint)]">{props.language}</span>
+                <button
+                    type="button"
+                    onClick={() => copy(props.code)}
+                    className="rounded p-0.5 text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
+                >
+                    {copied ? <CheckIcon className="h-3 w-3" /> : <CopyIcon className="h-3 w-3" />}
+                </button>
+            </div>
+            <pre className="shiki m-0 w-max min-w-full overflow-x-auto bg-[var(--app-code-bg)] p-2 text-sm font-mono">
+                <code className="block">{highlighted ?? props.code}</code>
+            </pre>
+        </div>
+    )
+}
+
+function CliCodeBlock(props: ComponentPropsWithoutRef<'code'>) {
+    const { children, className, ...rest } = props
+    const match = /language-(\w+)/.exec(className ?? '')
+    const language = match?.[1]
+    const code = String(children).replace(/\n$/, '')
+
+    if (language) {
+        return <CliCodeBlockInner language={language} code={code} />
+    }
+
+    return (
+        <code
+            {...rest}
+            className={cn(
+                'break-words rounded bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]',
+                className
+            )}
+        >
+            {children}
+        </code>
+    )
+}
+
+function CliPre(props: ComponentPropsWithoutRef<'pre'>) {
+    return <>{props.children}</>
+}
+
+const cliMarkdownComponents = {
+    code: CliCodeBlock,
+    pre: CliPre,
+    p: (props: ComponentPropsWithoutRef<'p'>) => (
+        <p {...props} className="aui-md-p mb-1 leading-relaxed break-words [overflow-wrap:anywhere]" />
+    ),
+    a: (props: ComponentPropsWithoutRef<'a'>) => (
+        <a {...props} className="text-[var(--app-link)] underline" rel={props.target === '_blank' ? 'noreferrer' : undefined} />
+    ),
+    blockquote: (props: ComponentPropsWithoutRef<'blockquote'>) => (
+        <blockquote {...props} className="border-l-4 border-[var(--app-hint)] pl-3 opacity-85 break-words" />
+    ),
+    ul: (props: ComponentPropsWithoutRef<'ul'>) => (
+        <ul {...props} className="aui-md-ul list-disc pl-5 my-0.5" />
+    ),
+    ol: (props: ComponentPropsWithoutRef<'ol'>) => (
+        <ol {...props} className="aui-md-ol list-decimal pl-5 my-0.5" />
+    ),
+    li: (props: ComponentPropsWithoutRef<'li'>) => (
+        <li {...props} className="aui-md-li my-0" />
+    ),
+    hr: (props: ComponentPropsWithoutRef<'hr'>) => (
+        <hr {...props} className="border-[var(--app-divider)] my-1" />
+    ),
+    table: (props: ComponentPropsWithoutRef<'table'>) => (
+        <div className="max-w-full overflow-x-auto my-1">
+            <table {...props} className="w-full border-collapse text-[length:inherit]" />
+        </div>
+    ),
+    th: (props: ComponentPropsWithoutRef<'th'>) => (
+        <th {...props} className="border border-[var(--app-border)] px-2 py-1 text-left font-semibold bg-[var(--app-subtle-bg)]" />
+    ),
+    td: (props: ComponentPropsWithoutRef<'td'>) => (
+        <td {...props} className="border border-[var(--app-border)] px-2 py-1" />
+    ),
+}
+
+export const CliAgentTextBlock = memo(function CliAgentTextBlock(props: { block: AgentTextBlock }) {
+    return (
+        <div className="py-0.5 cli-agent-text aui-md min-w-0 max-w-full break-words">
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={cliMarkdownComponents}
+            >
+                {props.block.text}
+            </ReactMarkdown>
+        </div>
+    )
+})
+
+export const CliCliOutputBlock = memo(function CliCliOutputBlock(props: { block: CliOutputBlock }) {
+    const { block } = props
+    const isUser = block.source === 'user'
+    return (
+        <div className={`py-0.5 ${isUser ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}>
+            <pre className="whitespace-pre-wrap break-words text-[length:inherit] leading-relaxed">{block.text}</pre>
+        </div>
+    )
+})

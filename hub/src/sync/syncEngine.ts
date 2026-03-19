@@ -15,6 +15,7 @@ import type { RpcRegistry } from '../socket/rpcRegistry'
 import type { SSEManager } from '../sse/sseManager'
 import { EventPublisher, type SyncEventListener } from './eventPublisher'
 import { GroupService, type GroupWithDetails } from './groupService'
+import { ReviewLoopService, type ReviewLoopWithRounds, type ReviewVerdictInput } from './reviewLoopService'
 import { MachineCache, type Machine } from './machineCache'
 import { MessageService } from './messageService'
 import {
@@ -428,6 +429,7 @@ export class SyncEngine {
     private readonly machineCache: MachineCache
     private readonly messageService: MessageService
     private readonly groupService: GroupService
+    private readonly reviewLoopService: ReviewLoopService
     private readonly rpcGateway: RpcGateway
     private readonly autoApprovalInFlight: Set<string> = new Set()
     private readonly activeGroupRoutesBySession: Map<string, GroupRouteContext> = new Map()
@@ -465,6 +467,13 @@ export class SyncEngine {
                 }
                 return { active: session.active }
             }
+        )
+        this.reviewLoopService = new ReviewLoopService(
+            store,
+            this.eventPublisher,
+            async (payload) => this.dispatchReviewLoopToWorker(payload),
+            async (payload) => this.dispatchReviewLoopToReviewer(payload),
+            async (payload) => this.notifyReviewLoopUser(payload)
         )
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
         this.reloadAll()
@@ -920,7 +929,7 @@ export class SyncEngine {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
             model?: string
-            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
             serviceTier?: 'fast' | 'flex'
             collaborationMode?: string | null
         }
@@ -929,7 +938,7 @@ export class SyncEngine {
             permissionMode?: Session['permissionMode']
             modelMode?: Session['modelMode']
             model?: string
-            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
             serviceTier?: 'fast' | 'flex'
             collaborationMode?: string
         } | undefined
@@ -944,7 +953,7 @@ export class SyncEngine {
                     permissionMode?: Session['permissionMode']
                     modelMode?: Session['modelMode']
                     model?: string
-                    thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+                    thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
                     serviceTier?: 'fast' | 'flex'
                     collaborationMode?: string
                 }
@@ -1059,7 +1068,7 @@ export class SyncEngine {
             permissionMode?: PermissionMode
             modelMode?: ModelMode
             model?: string
-            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh'
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
             serviceTier?: 'fast' | 'flex'
             collaborationMode?: string | null
         },
@@ -1081,7 +1090,7 @@ export class SyncEngine {
     private normalizeThinkEffortForFlavor(
         value: string | undefined,
         flavor: string | null
-    ): 'low' | 'medium' | 'high' | 'xhigh' | undefined {
+    ): 'low' | 'medium' | 'high' | 'max' | 'xhigh' | undefined {
         if (typeof value !== 'string') {
             return undefined
         }
@@ -1090,7 +1099,7 @@ export class SyncEngine {
         if (!normalized || normalized === 'auto') {
             return undefined
         }
-        if (normalized !== 'low' && normalized !== 'medium' && normalized !== 'high' && normalized !== 'xhigh') {
+        if (normalized !== 'low' && normalized !== 'medium' && normalized !== 'high' && normalized !== 'max' && normalized !== 'xhigh') {
             return undefined
         }
         if (flavor === 'claude' && normalized === 'xhigh') {
@@ -1733,7 +1742,7 @@ ${note.content}
         directory: string,
         agent: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode' = 'claude',
         model?: string,
-        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'xhigh',
+        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh',
         serviceTier?: 'fast' | 'flex',
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
@@ -2508,5 +2517,220 @@ ${note.content}
                 await new Promise((resolve) => setTimeout(resolve, 100))
             }
         }
+    }
+
+    // ---- ReviewLoop proxy methods ----
+
+    getReviewLoopsByNamespace(namespace: string) {
+        return this.reviewLoopService.getLoopsByNamespace(namespace)
+    }
+
+    getReviewLoopByNamespace(loopId: string, namespace: string) {
+        return this.reviewLoopService.getLoopByNamespace(loopId, namespace)
+    }
+
+    createReviewLoop(options: {
+        namespace: string
+        workerSessionId: string
+        reviewerSessionId: string
+        requirement: string
+        acceptanceCriteria: string
+        maxRounds?: number
+        userPreference?: 'auto' | 'verbose' | 'silent'
+    }): ReviewLoopWithRounds {
+        return this.reviewLoopService.createLoop(options)
+    }
+
+    deleteReviewLoop(loopId: string, namespace: string): boolean {
+        return this.reviewLoopService.deleteLoop(loopId, namespace)
+    }
+
+    cancelReviewLoop(loopId: string, namespace: string) {
+        return this.reviewLoopService.cancelLoop(loopId, namespace)
+    }
+
+    pauseReviewLoop(loopId: string, namespace: string) {
+        return this.reviewLoopService.pauseLoop(loopId, namespace)
+    }
+
+    updateReviewLoopPreference(loopId: string, namespace: string, userPreference: 'auto' | 'verbose' | 'silent') {
+        return this.reviewLoopService.updateUserPreference(loopId, namespace, userPreference)
+    }
+
+    updateReviewLoopMaxRounds(loopId: string, namespace: string, maxRounds: number) {
+        return this.reviewLoopService.updateMaxRounds(loopId, namespace, maxRounds)
+    }
+
+    async startReviewRound(loopId: string, namespace: string, instruction: string) {
+        return this.reviewLoopService.startRound(loopId, namespace, instruction)
+    }
+
+    async submitReviewWorkerOutput(loopId: string, namespace: string, roundId: string, workerOutput: unknown) {
+        return this.reviewLoopService.submitWorkerOutput(loopId, namespace, roundId, workerOutput)
+    }
+
+    async submitReviewVerdict(loopId: string, namespace: string, roundId: string, verdict: ReviewVerdictInput) {
+        return this.reviewLoopService.submitVerdict(loopId, namespace, roundId, verdict)
+    }
+
+    async userContinueReviewLoop(
+        loopId: string,
+        namespace: string,
+        options?: { userPreference?: 'auto' | 'verbose' | 'silent'; additionalInstruction?: string }
+    ) {
+        return this.reviewLoopService.userContinue(loopId, namespace, options)
+    }
+
+    async initiateReviewLoop(loopId: string, namespace: string) {
+        return this.reviewLoopService.initiateLoop(loopId, namespace)
+    }
+
+    // ---- ReviewLoop dispatch callbacks ----
+
+    private async dispatchReviewLoopToWorker(payload: {
+        loopId: string
+        namespace: string
+        roundId: string
+        workerSessionId: string
+        instruction: string
+    }): Promise<void> {
+        const session = this.getSessionByNamespace(payload.workerSessionId, payload.namespace)
+        if (!session) {
+            throw new Error(`Worker session ${payload.workerSessionId} not found`)
+        }
+        if (!session.active) {
+            throw new Error(`Worker session ${payload.workerSessionId} is not active`)
+        }
+
+        const systemPrompt = `[SYSTEM] You are in a ReviewLoop (loop=${payload.loopId}, round=${payload.roundId}). Execute the instruction below. When done, call the review_loop_worker_submit tool with your results (including raw_response, diff, files_changed, commands, exit_status). The loop_id is "${payload.loopId}" and round_id is "${payload.roundId}".`
+
+        const text = `${systemPrompt}\n\n---\n\n[ReviewLoop:${payload.loopId}] Round instruction:\n\n${payload.instruction}`
+
+        try {
+            await this.rpcGateway.enqueueClaudeMessage(payload.workerSessionId, {
+                text,
+                meta: {
+                    routeContext: {
+                        groupId: `review-loop:${payload.loopId}`,
+                        taskId: payload.roundId,
+                        traceId: payload.roundId,
+                        source: `review-loop:${payload.loopId}`,
+                        targetSessionIds: [payload.workerSessionId]
+                    }
+                }
+            })
+        } catch {
+            // Fallback: send as regular message
+            await this.messageService.sendMessage(payload.workerSessionId, { text })
+        }
+    }
+
+    private async dispatchReviewLoopToReviewer(payload: {
+        loopId: string
+        namespace: string
+        roundId: string
+        reviewerSessionId: string
+        workerOutput: unknown
+        requirement: string
+        acceptanceCriteria: string
+        allRounds: unknown[]
+        userPreference: string
+    }): Promise<void> {
+        const session = this.getSessionByNamespace(payload.reviewerSessionId, payload.namespace)
+        if (!session) {
+            throw new Error(`Reviewer session ${payload.reviewerSessionId} not found`)
+        }
+        if (!session.active) {
+            throw new Error(`Reviewer session ${payload.reviewerSessionId} is not active`)
+        }
+
+        const isInitialDispatch = payload.workerOutput === null
+        const workerOutputStr = payload.workerOutput
+            ? JSON.stringify(payload.workerOutput, null, 2)
+            : '(no worker output yet — this is the initial round)'
+
+        const previousRoundsStr = payload.allRounds.length > 0
+            ? JSON.stringify(payload.allRounds, null, 2)
+            : '(no previous rounds)'
+
+        const systemPrompt = `[SYSTEM] You are a ReviewLoop Reviewer (loop=${payload.loopId}, round=${payload.roundId}). Review the worker's output against the acceptance criteria. When you have formed your assessment, call the review_loop_reviewer_submit tool to provide your verdict.`
+
+        let instructionSection: string
+        if (isInitialDispatch) {
+            instructionSection = `## Your Task
+This is the INITIAL round. No worker output exists yet. You must generate the first instruction for the worker.
+Analyze the requirement and acceptance criteria below, then call review_loop_reviewer_submit with:
+- action: "continue"
+- feedback: A clear, detailed instruction for the worker to begin the task
+- progress: 0
+- criteriaStatus: Initial assessment of each criterion (all "not_met" at this stage)`
+        } else {
+            instructionSection = `## Your Task
+Review the worker's output below against the acceptance criteria. Then call review_loop_reviewer_submit with your verdict:
+- action: "pass" if ALL criteria are met
+- action: "continue" with feedback containing the next instruction if more work is needed
+- action: "abort" if the task is fundamentally blocked or impossible
+- action: "notify_user" if you need human input to proceed`
+        }
+
+        const text = `${systemPrompt}
+
+${instructionSection}
+
+## Requirement
+${payload.requirement}
+
+## Acceptance Criteria
+${payload.acceptanceCriteria}
+
+## Worker Output (Current Round)
+${workerOutputStr}
+
+## Previous Rounds History
+${previousRoundsStr}
+
+## User Preference
+${payload.userPreference}
+
+---
+Remember: Call review_loop_reviewer_submit when you have formed your assessment.`
+
+        try {
+            await this.rpcGateway.enqueueClaudeMessage(payload.reviewerSessionId, {
+                text,
+                meta: {
+                    routeContext: {
+                        groupId: `review-loop:${payload.loopId}`,
+                        taskId: payload.roundId,
+                        traceId: payload.roundId,
+                        source: `review-loop:${payload.loopId}`,
+                        targetSessionIds: [payload.reviewerSessionId]
+                    }
+                }
+            })
+        } catch {
+            await this.messageService.sendMessage(payload.reviewerSessionId, { text })
+        }
+    }
+
+    private async notifyReviewLoopUser(payload: {
+        loopId: string
+        namespace: string
+        message: string
+        loopStatus: string
+        round: number
+        progress: number
+    }): Promise<void> {
+        // Emit a toast event to notify the user via web UI
+        this.eventPublisher.emit({
+            type: 'toast',
+            namespace: payload.namespace,
+            data: {
+                title: `Review Loop [Round ${payload.round}]`,
+                body: payload.message,
+                sessionId: payload.loopId,
+                url: `/review-loops/${payload.loopId}`
+            }
+        })
     }
 }

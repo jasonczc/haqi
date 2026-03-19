@@ -2195,7 +2195,7 @@ export default function GroupDetailPage() {
         isLoadingMore: messagesLoadingMore,
         hasMore: messagesHasMore,
         loadMore: loadMoreMessages
-    } = useGroupMessages(api, groupId, { enabled: viewMode === 'normal' })
+    } = useGroupMessages(api, groupId, { enabled: viewMode === 'normal' || viewMode === 'cli' })
     const {
         turns: groupTurns,
         warning: groupTurnsWarning,
@@ -3210,6 +3210,15 @@ export default function GroupDetailPage() {
                         >
                             Brief
                         </button>
+                        <button
+                            type="button"
+                            className={`rounded px-2.5 py-1 text-xs font-mono transition-colors ${viewMode === 'cli'
+                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                            onClick={() => setViewMode('cli')}
+                        >
+                            CLI
+                        </button>
                     </div>
                 </div>
 
@@ -3235,7 +3244,11 @@ export default function GroupDetailPage() {
                                 Group unavailable.
                             </div>
                         )
-                    ) : messagesLoading && visibleMessages.length === 0 ? (
+                    ) : /* CLI mode falls through to Normal rendering below.
+                         The groups page uses GroupTimelineMessage[] (multi-session interleaved
+                         messages) which is incompatible with the ChatBlock[] model that CliThread
+                         expects. A dedicated groups-to-ChatBlock adapter would be needed to
+                         support CliThread here. */ messagesLoading && visibleMessages.length === 0 ? (
                         <div className="flex items-center justify-center py-8">
                             <LoadingState label="Loading messages..." className="text-sm" />
                         </div>

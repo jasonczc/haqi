@@ -213,6 +213,54 @@ export type StoredPushSubscription = {
     createdAt: number
 }
 
+// ---- ReviewLoop types ----
+
+export type StoredReviewLoopStatus =
+    | 'executing'
+    | 'reviewing'
+    | 'waiting_user'
+    | 'paused'
+    | 'accepted'
+    | 'aborted'
+    | 'canceled'
+
+export type StoredReviewLoopUserPreference = 'auto' | 'verbose' | 'silent'
+
+export type StoredReviewLoop = {
+    id: string
+    namespace: string
+    workerSessionId: string
+    reviewerSessionId: string
+    requirement: string
+    acceptanceCriteria: string
+    status: StoredReviewLoopStatus
+    userPreference: StoredReviewLoopUserPreference
+    currentRound: number
+    maxRounds: number
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredReviewRoundStatus =
+    | 'instructed'
+    | 'executing'
+    | 'executed'
+    | 'reviewed'
+    | 'user_pending'
+
+export type StoredReviewRound = {
+    id: string
+    loopId: string
+    namespace: string
+    round: number
+    instruction: string
+    workerOutput: unknown | null
+    verdict: unknown | null
+    status: StoredReviewRoundStatus
+    startedAt: number
+    completedAt: number | null
+}
+
 export type VersionedUpdateResult<T> =
     | { result: 'success'; version: number; value: T }
     | { result: 'version-mismatch'; version: number; value: T }

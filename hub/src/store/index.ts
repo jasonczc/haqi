@@ -11,6 +11,7 @@ import { SessionStore } from './sessionStore'
 import { UserStore } from './userStore'
 import { GroupStore } from './groupStore'
 import { ReportStore } from './reportStore'
+import { ReviewLoopStore } from './reviewLoopStore'
 import { createConversationTurnsSchema } from './turns'
 import { createGroupConversationTurnsSchema } from './groupTurns'
 
@@ -29,6 +30,11 @@ export type {
     StoredReport,
     StoredReportAsset,
     StoredReportShare,
+    StoredReviewLoop,
+    StoredReviewLoopStatus,
+    StoredReviewLoopUserPreference,
+    StoredReviewRound,
+    StoredReviewRoundStatus,
     StoredSession,
     StoredUser,
     VersionedUpdateResult
@@ -42,8 +48,9 @@ export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
+export { ReviewLoopStore } from './reviewLoopStore'
 
-const SCHEMA_VERSION: number = 11
+const SCHEMA_VERSION: number = 12
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -61,7 +68,9 @@ const REQUIRED_TABLES = [
     'group_notes',
     'reports',
     'report_assets',
-    'report_shares'
+    'report_shares',
+    'review_loops',
+    'review_rounds'
 ] as const
 
 export class Store {
@@ -77,6 +86,7 @@ export class Store {
     readonly projectPreferences: ProjectPreferenceStore
     readonly groups: GroupStore
     readonly reports: ReportStore
+    readonly reviewLoops: ReviewLoopStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -122,6 +132,7 @@ export class Store {
         this.projectPreferences = new ProjectPreferenceStore(this.db)
         this.groups = new GroupStore(this.db)
         this.reports = new ReportStore(this.db)
+        this.reviewLoops = new ReviewLoopStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -209,6 +220,13 @@ export class Store {
         if (currentVersion === 10 && SCHEMA_VERSION >= 11) {
             this.migrateFromV10ToV11()
             this.setUserVersion(11)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 11 && SCHEMA_VERSION >= 12) {
+            this.migrateFromV11ToV12()
+            this.setUserVersion(12)
             this.initSchema()
             return
         }
@@ -514,6 +532,47 @@ export class Store {
                 ON report_shares(report_id, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_report_shares_token
                 ON report_shares(token);
+
+            CREATE TABLE IF NOT EXISTS review_loops (
+                id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                worker_session_id TEXT NOT NULL,
+                reviewer_session_id TEXT NOT NULL,
+                requirement TEXT NOT NULL,
+                acceptance_criteria TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'executing',
+                user_preference TEXT NOT NULL DEFAULT 'auto',
+                current_round INTEGER NOT NULL DEFAULT 0,
+                max_rounds INTEGER NOT NULL DEFAULT 10,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (worker_session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                FOREIGN KEY (reviewer_session_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_review_loops_namespace
+                ON review_loops(namespace);
+            CREATE INDEX IF NOT EXISTS idx_review_loops_namespace_status
+                ON review_loops(namespace, status);
+
+            CREATE TABLE IF NOT EXISTS review_rounds (
+                id TEXT PRIMARY KEY,
+                loop_id TEXT NOT NULL,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                round INTEGER NOT NULL,
+                instruction TEXT NOT NULL,
+                worker_output TEXT,
+                verdict TEXT,
+                status TEXT NOT NULL DEFAULT 'instructed',
+                started_at INTEGER NOT NULL,
+                completed_at INTEGER,
+                FOREIGN KEY (loop_id) REFERENCES review_loops(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_review_rounds_loop
+                ON review_rounds(loop_id, round);
+            CREATE INDEX IF NOT EXISTS idx_review_rounds_namespace
+                ON review_rounds(namespace);
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_review_rounds_loop_round
+                ON review_rounds(loop_id, round);
         `)
     }
 
@@ -934,6 +993,59 @@ export class Store {
         }
         if (!columns.has('team_state_updated_at')) {
             this.db.exec('ALTER TABLE sessions ADD COLUMN team_state_updated_at INTEGER')
+        }
+    }
+
+    private migrateFromV11ToV12(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS review_loops (
+                    id TEXT PRIMARY KEY,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    worker_session_id TEXT NOT NULL,
+                    reviewer_session_id TEXT NOT NULL,
+                    requirement TEXT NOT NULL,
+                    acceptance_criteria TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'executing',
+                    user_preference TEXT NOT NULL DEFAULT 'auto',
+                    current_round INTEGER NOT NULL DEFAULT 0,
+                    max_rounds INTEGER NOT NULL DEFAULT 10,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    FOREIGN KEY (worker_session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+                    FOREIGN KEY (reviewer_session_id) REFERENCES sessions(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_review_loops_namespace
+                    ON review_loops(namespace);
+                CREATE INDEX IF NOT EXISTS idx_review_loops_namespace_status
+                    ON review_loops(namespace, status);
+
+                CREATE TABLE IF NOT EXISTS review_rounds (
+                    id TEXT PRIMARY KEY,
+                    loop_id TEXT NOT NULL,
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    round INTEGER NOT NULL,
+                    instruction TEXT NOT NULL,
+                    worker_output TEXT,
+                    verdict TEXT,
+                    status TEXT NOT NULL DEFAULT 'instructed',
+                    started_at INTEGER NOT NULL,
+                    completed_at INTEGER,
+                    FOREIGN KEY (loop_id) REFERENCES review_loops(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_review_rounds_loop
+                    ON review_rounds(loop_id, round);
+                CREATE INDEX IF NOT EXISTS idx_review_rounds_namespace
+                    ON review_rounds(namespace);
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_review_rounds_loop_round
+                    ON review_rounds(loop_id, round);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v11->v12 failed: ${message}`)
         }
     }
 
