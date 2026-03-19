@@ -87,14 +87,14 @@ export function DiffView(props: {
                     </div>
                 </button>
             </DialogTrigger>
-            <DialogContent className="max-w-6xl">
+            <DialogContent className="max-w-[calc(100vw-32px)] lg:max-w-[min(1800px,calc(100vw-48px))]">
                 <DialogHeader>
                     <DialogTitle className="break-all">{title}</DialogTitle>
                     <DialogDescription className="break-all font-mono">
                         {stats.label}
                     </DialogDescription>
                 </DialogHeader>
-                <div className="mt-3 max-h-[75vh] overflow-auto">
+                <div className="mt-3 max-h-[78vh] overflow-auto lg:max-h-[85vh]">
                     {diffBody}
                 </div>
             </DialogContent>
