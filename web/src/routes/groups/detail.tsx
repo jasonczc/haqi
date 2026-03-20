@@ -44,7 +44,6 @@ import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { useChatViewMode } from '@/hooks/useChatViewMode'
-import { useBriefModeCardSettings } from '@/hooks/useBriefModeCardSettings'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -1530,23 +1529,12 @@ type GroupTurnDetailState = {
 type GroupTurnDetailStateMap = Record<string, GroupTurnDetailState>
 
 const GROUP_TURN_DETAIL_PAGE_LIMIT = 120
-const BRIEF_PREVIEW_LINE_HEIGHT_REM = 1.4
 const MOBILE_BRIEF_BREAKPOINT_QUERY = '(max-width: 767px)'
 const MOBILE_BRIEF_TURN_QUERY_KEY = 'briefTurnId'
 
 function normalizeBriefPreview(value: string | null | undefined, fallback: string): string {
     const text = value?.trim() ?? ''
     return text.length > 0 ? text : fallback
-}
-
-function shouldFadeBriefPreview(text: string, maxLines: number): boolean {
-    const normalizedMaxLines = Math.max(1, maxLines)
-    const explicitLineCount = text.split(/\r?\n/g).length
-    if (explicitLineCount > normalizedMaxLines) {
-        return true
-    }
-    const estimatedCharsPerLine = 42
-    return text.length > normalizedMaxLines * estimatedCharsPerLine
 }
 
 function buildDefaultGroupTurnDetailState(): GroupTurnDetailState {
@@ -1692,11 +1680,6 @@ function GroupBriefTurnList(props: {
     sessionMap: Map<string, SessionSummary>
     onOpenSession: (sessionId: string) => void
 }) {
-    const {
-        briefCardAdaptiveHeight,
-        briefCardMaxLines,
-        briefCardShowLastBlockFullContent
-    } = useBriefModeCardSettings()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
     const isAtBottomRef = useRef(true)
@@ -1804,18 +1787,6 @@ function GroupBriefTurnList(props: {
         await fetchTurnMessages(activeTurn.id, activeDetail.nextBeforeSeq, true)
     }, [activeDetail, activeTurn, fetchTurnMessages])
 
-    const collapsedPreviewStyle = useMemo<CSSProperties>(() => {
-        const previewHeight = `${Math.max(1, briefCardMaxLines) * BRIEF_PREVIEW_LINE_HEIGHT_REM}rem`
-        if (briefCardAdaptiveHeight) {
-            return {
-                maxHeight: previewHeight
-            }
-        }
-        return {
-            height: previewHeight
-        }
-    }, [briefCardAdaptiveHeight, briefCardMaxLines])
-
     useEffect(() => {
         if (!activeTurnId) {
             return
@@ -1891,8 +1862,6 @@ function GroupBriefTurnList(props: {
             latestTurn.updatedAt
         ].join(':')
     }, [props.turns])
-
-    const latestTurnId = props.turns[props.turns.length - 1]?.id ?? null
 
     useEffect(() => {
         if (props.turns.length === 0) {
@@ -1974,11 +1943,6 @@ function GroupBriefTurnList(props: {
                                 turn.status === 'open' ? 'Generating…' : '(empty)'
                             )
                             const initiatorIsUser = (turn.initiatorSource ?? '').startsWith('user:')
-                            const shouldShowFullLastBlock = briefCardShowLastBlockFullContent
-                                && latestTurnId === turn.id
-                            const fade = shouldShowFullLastBlock
-                                ? false
-                                : shouldFadeBriefPreview(responderPreview, briefCardMaxLines)
 
                             return (
                                 <div className="px-3 pb-3">
@@ -1994,22 +1958,7 @@ function GroupBriefTurnList(props: {
                                         </div>
 
                                         <div className="flex justify-start">
-                                            {shouldShowFullLastBlock ? (
-                                                <div className="w-full max-w-[92%] px-1 py-1">
-                                                    <BriefFullMarkdownContent content={responderPreview} />
-                                                    <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
-                                                        <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
-                                                        <span>·</span>
-                                                        <button
-                                                            type="button"
-                                                            className="underline decoration-dotted hover:text-[var(--app-fg)]"
-                                                            onClick={() => openTurnDetails(turn.id)}
-                                                        >
-                                                            Open details
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ) : (
+                                            {turn.status === 'open' ? (
                                                 <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
                                                     turn.status === 'open'
                                                         ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
@@ -2023,12 +1972,8 @@ function GroupBriefTurnList(props: {
                                                     >
                                                         <BriefCardMarkdownPreview
                                                             content={responderPreview}
-                                                            style={collapsedPreviewStyle}
                                                             className="text-[var(--app-fg)]"
                                                         />
-                                                        {fade ? (
-                                                            <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
-                                                        ) : null}
                                                         <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
                                                             <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
                                                             <span>·</span>
@@ -2041,6 +1986,21 @@ function GroupBriefTurnList(props: {
                                                             ) : null}
                                                         </div>
                                                     </button>
+                                                </div>
+                                            ) : (
+                                                <div className="w-full max-w-[92%] px-1 py-1">
+                                                    <BriefFullMarkdownContent content={responderPreview} />
+                                                    <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                                                        <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
+                                                        <span>·</span>
+                                                        <button
+                                                            type="button"
+                                                            className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                                            onClick={() => openTurnDetails(turn.id)}
+                                                        >
+                                                            Open details
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

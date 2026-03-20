@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 
@@ -8,7 +8,6 @@ import { normalizeDecryptedMessage } from '@/chat/normalize'
 import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
 import { asRecord, extractLatestLiveActivity } from '@/components/AssistantChat/liveActivity'
-import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
 import {
@@ -19,7 +18,6 @@ import {
 import { Spinner } from '@/components/Spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
-import { useBriefModeCardSettings } from '@/hooks/useBriefModeCardSettings'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import type { ConversationTurn, DecryptedMessage, Session } from '@/types/api'
 
@@ -38,7 +36,6 @@ const DEFAULT_TURN_MESSAGE_LIMIT = 120
 const LIVE_PREVIEW_ROTATION_MS = 2600
 const LIVE_PREVIEW_FADE_MS = 180
 const TURN_DETAILS_REFRESH_INTERVAL_MS = 1200
-const BRIEF_PREVIEW_LINE_HEIGHT_REM = 1.4
 const MOBILE_BRIEF_BREAKPOINT_QUERY = '(max-width: 767px)'
 const MOBILE_BRIEF_TURN_QUERY_KEY = 'briefTurnId'
 const TURN_CHANGES_DETAIL_QUERY_KEY = 'turnChangesToolId'
@@ -62,16 +59,6 @@ function isCodexPlanModeEnabled(session: Session): boolean {
 function normalizePreview(value: string | null | undefined): string {
     const text = value?.trim() ?? ''
     return text.length > 0 ? text : '(empty)'
-}
-
-function shouldShowPreviewFade(text: string, maxLines: number): boolean {
-    const normalizedMaxLines = Math.max(1, maxLines)
-    const explicitLineCount = text.split(/\r?\n/g).length
-    if (explicitLineCount > normalizedMaxLines) {
-        return true
-    }
-    const estimatedCharsPerLine = 42
-    return text.length > normalizedMaxLines * estimatedCharsPerLine
 }
 
 function normalizeLivePreviewLine(line: string): string {
@@ -503,10 +490,6 @@ export function BriefTurnList(props: {
     density: SessionListDensity
     onLoadMoreTurns: () => Promise<void>
 }) {
-    const {
-        briefCardAdaptiveHeight,
-        briefCardMaxLines
-    } = useBriefModeCardSettings()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
     const isAtBottomRef = useRef(true)
@@ -664,18 +647,6 @@ export function BriefTurnList(props: {
         const openTurn = [...props.turns].reverse().find((turn) => turn.status === 'open')
         return openTurn?.id ?? props.turns[props.turns.length - 1]?.id ?? null
     }, [props.turns])
-
-    const collapsedPreviewStyle = useMemo<CSSProperties>(() => {
-        const previewHeight = `${Math.max(1, briefCardMaxLines) * BRIEF_PREVIEW_LINE_HEIGHT_REM}rem`
-        if (briefCardAdaptiveHeight) {
-            return {
-                maxHeight: previewHeight
-            }
-        }
-        return {
-            height: previewHeight
-        }
-    }, [briefCardAdaptiveHeight, briefCardMaxLines])
 
     const loadMoreActiveTurnDetails = useCallback(async () => {
         if (!activeTurn || !activeDetail) {
@@ -928,9 +899,6 @@ export function BriefTurnList(props: {
             isLiveTurn
         })
         const turnChangesSummary = turnChangesSummaryByTurnId[turn.id]
-        const previewFade = shouldShowFullLastBlock
-            ? false
-            : shouldShowPreviewFade(assistantPreview, briefCardMaxLines)
         const messageMeta = (
             <span className="inline-flex items-center gap-1">
                 <AnimatedCounter value={turn.messageCount} />
@@ -943,7 +911,7 @@ export function BriefTurnList(props: {
                 {userPreview.length > 0 ? (
                     <div className="flex justify-end">
                         <div className="max-w-[92%] rounded-2xl rounded-br-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/60 px-3 py-2 text-sm text-[var(--app-fg)]">
-                            <BriefCardMarkdownPreview content={userPreview} />
+                            <BriefFullMarkdownContent content={userPreview} className="text-sm" />
                         </div>
                     </div>
                 ) : null}
@@ -1003,27 +971,19 @@ export function BriefTurnList(props: {
                             </div>
                         </div>
                     ) : (
-                        <div className="relative w-full max-w-[92%] rounded-2xl rounded-bl-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2">
-                            <button
-                                type="button"
-                                className="block w-full text-left"
-                                onClick={() => openTurnDetails(turn.id)}
-                                aria-label="Open assistant details"
-                            >
-                                <BriefCardMarkdownPreview
-                                    content={assistantPreview}
-                                    style={collapsedPreviewStyle}
-                                    className="text-[var(--app-fg)]"
-                                />
-                                {previewFade ? (
-                                    <div className="pointer-events-none absolute inset-x-0 bottom-8 h-10 bg-gradient-to-t from-[var(--app-bg)] to-transparent" />
-                                ) : null}
-                                <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
-                                    <span>{messageMeta}</span>
-                                    <span>·</span>
-                                    <span className="underline decoration-dotted">Click to open details</span>
-                                </div>
-                            </button>
+                        <div className="w-full max-w-[92%] px-1 py-1">
+                            <BriefFullMarkdownContent content={assistantPreview} />
+                            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                                <span>{messageMeta}</span>
+                                <span>·</span>
+                                <button
+                                    type="button"
+                                    className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                    onClick={() => openTurnDetails(turn.id)}
+                                >
+                                    Open details
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -1031,8 +991,6 @@ export function BriefTurnList(props: {
         )
     }, [
         activeTurnIdForStreaming,
-        briefCardMaxLines,
-        collapsedPreviewStyle,
         latestTurnId,
         liveActivityByTurnId,
         openTurnDetails,

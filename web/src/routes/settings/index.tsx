@@ -10,11 +10,6 @@ import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueue
 import { useCodexSendModePreference } from '@/hooks/useCodexSendModePreference'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import {
-    BRIEF_CARD_MAX_LINES_LIMIT,
-    BRIEF_CARD_MIN_LINES_LIMIT,
-    useBriefModeCardSettings
-} from '@/hooks/useBriefModeCardSettings'
-import {
     useImageUploadCompression,
     type ImageUploadCompressionLevel,
     type ImageUploadCompressionTargetSize
@@ -259,14 +254,6 @@ export default function SettingsPage() {
     const { themePreference, setThemePreference } = useThemePreference()
     const { queueInlinePanelMode, setQueueInlinePanelMode } = useQueueInlinePanel()
     const { codexSendModeDefault, setCodexSendModeDefault } = useCodexSendModePreference()
-    const {
-        briefCardAdaptiveHeight,
-        briefCardMaxLines,
-        briefCardShowLastBlockFullContent,
-        setBriefCardAdaptiveHeight,
-        setBriefCardMaxLines,
-        setBriefCardShowLastBlockFullContent
-    } = useBriefModeCardSettings()
     const {
         imageUploadCompressionEnabled,
         imageUploadCompressionLevel,
@@ -595,19 +582,6 @@ export default function SettingsPage() {
 
     const handleProjectQuickCreateToggle = (value: boolean) => {
         setProjectQuickCreateEnabled(value)
-    }
-
-    const handleBriefCardAdaptiveHeightToggle = (value: boolean) => {
-        setBriefCardAdaptiveHeight(value)
-    }
-
-    const handleBriefCardMaxLinesChange = (event: ChangeEvent<HTMLInputElement>) => {
-        const parsed = Number.parseInt(event.target.value, 10)
-        setBriefCardMaxLines(parsed)
-    }
-
-    const handleBriefCardShowLastBlockFullContentToggle = (value: boolean) => {
-        setBriefCardShowLastBlockFullContent(value)
     }
 
     const handleImageUploadCompressionToggle = (value: boolean) => {
@@ -1374,64 +1348,6 @@ export default function SettingsPage() {
                                 checked={projectQuickCreateEnabled}
                                 onCheckedChange={handleProjectQuickCreateToggle}
                                 ariaLabel={t('settings.behavior.projectQuickCreate')}
-                            />
-                        </div>
-                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
-                            <div className="flex flex-col">
-                                <span className="text-[var(--app-fg)]">
-                                    {t('settings.behavior.briefCardAdaptive')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.behavior.briefCardAdaptive.description')}
-                                </span>
-                            </div>
-                            <Switch
-                                checked={briefCardAdaptiveHeight}
-                                onCheckedChange={handleBriefCardAdaptiveHeightToggle}
-                                ariaLabel={t('settings.behavior.briefCardAdaptive')}
-                            />
-                        </div>
-                        <div className="border-b border-[var(--app-divider)] px-3 py-3">
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.behavior.briefCardMaxLines')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.behavior.briefCardMaxLines.description')}
-                                    </span>
-                                </div>
-                                <span className="text-sm text-[var(--app-hint)]">
-                                    {t('settings.behavior.briefCardMaxLines.value', {
-                                        value: briefCardMaxLines,
-                                        max: BRIEF_CARD_MAX_LINES_LIMIT
-                                    })}
-                                </span>
-                            </div>
-                            <input
-                                type="range"
-                                min={BRIEF_CARD_MIN_LINES_LIMIT}
-                                max={BRIEF_CARD_MAX_LINES_LIMIT}
-                                step={1}
-                                value={briefCardMaxLines}
-                                onChange={handleBriefCardMaxLinesChange}
-                                aria-label={t('settings.behavior.briefCardMaxLines')}
-                                className="mt-3 w-full accent-[var(--app-link)]"
-                            />
-                        </div>
-                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
-                            <div className="flex flex-col">
-                                <span className="text-[var(--app-fg)]">
-                                    {t('settings.behavior.briefCardShowLastBlockFullContent')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.behavior.briefCardShowLastBlockFullContent.description')}
-                                </span>
-                            </div>
-                            <Switch
-                                checked={briefCardShowLastBlockFullContent}
-                                onCheckedChange={handleBriefCardShowLastBlockFullContentToggle}
-                                ariaLabel={t('settings.behavior.briefCardShowLastBlockFullContent')}
                             />
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
