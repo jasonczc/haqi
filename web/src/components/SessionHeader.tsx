@@ -141,7 +141,6 @@ export function SessionHeader(props: {
     const { t } = useTranslation()
     const { session, api, onSessionDeleted } = props
     const title = useMemo(() => getSessionTitle(session), [session])
-    const displayFlavor = session.metadata?.flavor?.trim() || 'unknown'
     const sidebarToggleLabel = props.sidebarVisible
         ? t('sessions.sidebar.hideDesktop')
         : t('sessions.sidebar.showDesktop')
@@ -260,9 +259,6 @@ export function SessionHeader(props: {
                         <div className="truncate font-mono text-sm font-semibold leading-none text-[var(--app-fg)]" title={title}>
                             {title}
                         </div>
-                        <div className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-[var(--app-hint)]" title={displayFlavor}>
-                            {displayFlavor}
-                        </div>
                     </div>
 
                     {props.viewMode && props.onViewModeChange ? (
@@ -293,7 +289,7 @@ export function SessionHeader(props: {
                             <button
                                 type="button"
                                 onClick={props.onViewPreview}
-                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                className="hidden h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] sm:flex"
                                 title="Preview"
                                 aria-label="Preview"
                             >
@@ -305,7 +301,7 @@ export function SessionHeader(props: {
                             <button
                                 type="button"
                                 onClick={props.onViewFiles}
-                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                className="hidden h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] sm:flex"
                                 title={t('session.title')}
                                 aria-label={t('session.title')}
                             >
@@ -317,7 +313,7 @@ export function SessionHeader(props: {
                             <button
                                 type="button"
                                 onClick={props.onViewMcpStatus}
-                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                className="hidden h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] sm:flex"
                                 title={t('session.mcpStatus')}
                                 aria-label={t('session.mcpStatus')}
                             >
