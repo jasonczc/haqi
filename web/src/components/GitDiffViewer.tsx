@@ -52,7 +52,7 @@ export function GitDiffViewer(props: {
     const showToolbar = props.showToolbar ?? true
 
     return (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-bg)]">
+        <div className="overflow-hidden rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)]">
             {showToolbar ? (
                 <div className="flex items-center justify-end border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1">
                     <button

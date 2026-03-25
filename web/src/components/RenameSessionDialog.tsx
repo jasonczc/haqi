@@ -70,13 +70,13 @@ export function RenameSessionDialog(props: RenameSessionDialogProps) {
                         onChange={(e) => setName(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={t('dialog.rename.placeholder')}
-                        className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
+                        className="w-full px-3 py-2.5 rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
                         disabled={isPending}
                         maxLength={255}
                     />
 
                     {error ? (
-                        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                        <div className="rounded-sm bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
                             {error}
                         </div>
                     ) : null}

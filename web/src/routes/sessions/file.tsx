@@ -89,9 +89,9 @@ function FileContentSkeleton() {
     return (
         <div role="status" aria-live="polite">
             <span className="sr-only">Loading file…</span>
-            <div className="animate-pulse space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3">
+            <div className="animate-pulse space-y-2 rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3">
                 {Array.from({ length: 12 }).map((_, index) => (
-                    <div key={`file-skeleton-${index}`} className={`h-3 ${widths[index % widths.length]} rounded bg-[var(--app-subtle-bg)]`} />
+                    <div key={`file-skeleton-${index}`} className={`h-3 ${widths[index % widths.length]} rounded-sm bg-[var(--app-subtle-bg)]`} />
                 ))}
             </div>
         </div>
@@ -319,7 +319,7 @@ export default function FilePage() {
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                     >
                         <BackIcon />
                     </button>
@@ -337,7 +337,7 @@ export default function FilePage() {
                     <button
                         type="button"
                         onClick={() => copyPath(filePath)}
-                        className="shrink-0 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
+                        className="shrink-0 rounded-sm p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
                         title="Copy path"
                     >
                         {pathCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
@@ -351,14 +351,14 @@ export default function FilePage() {
                         <button
                             type="button"
                             onClick={() => setDisplayMode('diff')}
-                            className={`rounded px-3 py-1 text-xs font-semibold ${displayMode === 'diff' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
+                            className={`rounded-sm px-3 py-1 text-xs font-semibold ${displayMode === 'diff' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
                         >
                             Diff
                         </button>
                         <button
                             type="button"
                             onClick={() => setDisplayMode('file')}
-                            className={`rounded px-3 py-1 text-xs font-semibold ${displayMode === 'file' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
+                            className={`rounded-sm px-3 py-1 text-xs font-semibold ${displayMode === 'file' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
                         >
                             File
                         </button>
@@ -369,7 +369,7 @@ export default function FilePage() {
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content p-4">
                     {diffErrorMessage ? (
-                        <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs text-[var(--app-hint)]">
+                        <div className="mb-3 rounded-sm bg-amber-500/10 p-2 text-xs text-[var(--app-hint)]">
                             {diffErrorMessage}
                         </div>
                     ) : null}
@@ -396,7 +396,7 @@ export default function FilePage() {
                                 Image preview unavailable because the file content is truncated.
                             </div>
                         ) : imagePreviewUrl ? (
-                            <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-2">
+                            <div className="overflow-hidden rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] p-2">
                                 <div className="max-h-[75vh] overflow-auto">
                                     <img
                                         src={imagePreviewUrl}
@@ -423,13 +423,13 @@ export default function FilePage() {
                                     <button
                                         type="button"
                                         onClick={() => copyContent(decodedContent)}
-                                        className="absolute right-2 top-2 z-10 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
+                                        className="absolute right-2 top-2 z-10 rounded-sm p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
                                         title="Copy file content"
                                     >
                                         {contentCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
                                     </button>
                                 ) : null}
-                                <pre className="shiki overflow-auto rounded-md bg-[var(--app-code-bg)] p-3 pr-8 text-xs font-mono">
+                                <pre className="shiki overflow-auto rounded-sm bg-[var(--app-code-bg)] p-3 pr-8 text-xs font-mono">
                                     <code>{highlighted ?? decodedContent}</code>
                                 </pre>
                             </div>

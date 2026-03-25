@@ -421,7 +421,7 @@ export default function TerminalPage() {
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                     >
                         <BackIcon />
                     </button>
@@ -435,7 +435,7 @@ export default function TerminalPage() {
 
             {session.active ? null : (
                 <div className="px-3 pt-3">
-                    <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
+                    <div className="mx-auto w-full max-w-content rounded-sm bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
                         Session is inactive. Terminal is unavailable.
                     </div>
                 </div>
@@ -443,7 +443,7 @@ export default function TerminalPage() {
 
             {errorMessage ? (
                 <div className="mx-auto w-full max-w-content px-3 pt-3">
-                    <div className="rounded-md border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] p-3 text-xs text-[var(--app-badge-error-text)]">
+                    <div className="rounded-sm border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] p-3 text-xs text-[var(--app-badge-error-text)]">
                         {errorMessage}
                     </div>
                 </div>
@@ -451,7 +451,7 @@ export default function TerminalPage() {
 
             {exitInfo ? (
                 <div className="mx-auto w-full max-w-content px-3 pt-3">
-                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-3 text-xs text-[var(--app-hint)]">
+                    <div className="rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-3 text-xs text-[var(--app-hint)]">
                         Terminal exited{exitInfo.code !== null ? ` with code ${exitInfo.code}` : ''}
                         {exitInfo.signal ? ` (${exitInfo.signal})` : ''}.
                     </div>
@@ -473,14 +473,14 @@ export default function TerminalPage() {
                                 void handlePasteAction()
                             }}
                             disabled={quickInputDisabled}
-                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm font-medium text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-button)] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm font-medium text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-button)] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {t('button.paste')}
                         </button>
                         {QUICK_INPUT_ROWS.map((row, rowIndex) => (
                             <div
                                 key={`terminal-quick-row-${rowIndex}`}
-                                className="flex items-stretch overflow-hidden rounded-md bg-[var(--app-secondary-bg)]"
+                                className="flex items-stretch overflow-hidden rounded-sm bg-[var(--app-secondary-bg)]"
                             >
                                 {row.map((input) => {
                                     const modifier = input.modifier
@@ -524,7 +524,7 @@ export default function TerminalPage() {
                         value={manualPasteText}
                         onChange={(event) => setManualPasteText(event.target.value)}
                         placeholder={t('terminal.paste.placeholder')}
-                        className="mt-2 min-h-32 w-full resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        className="mt-2 min-h-32 w-full resize-y rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
                         autoCapitalize="none"
                         autoCorrect="off"
                     />

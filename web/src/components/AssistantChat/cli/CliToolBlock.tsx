@@ -133,7 +133,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
             <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className={`flex items-center gap-1.5 text-xs rounded px-1 -mx-1 w-full text-left transition-colors ${hasResult ? 'hover:bg-[var(--app-subtle-bg)] cursor-pointer' : 'cursor-default'}`}
+                className={`flex items-center gap-1.5 text-xs rounded-sm px-1 -mx-1 w-full text-left transition-colors ${hasResult ? 'hover:bg-[var(--app-subtle-bg)] cursor-pointer' : 'cursor-default'}`}
             >
                 {/* Status indicator */}
                 <span className={`shrink-0 w-3.5 text-center ${stateColor}`}>

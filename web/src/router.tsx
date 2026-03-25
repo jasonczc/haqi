@@ -448,21 +448,21 @@ function SessionsPage() {
                         <div className="flex items-center gap-1">
                             <button
                                 type="button"
-                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
+                                className="border border-[var(--app-fg)] rounded-sm px-2 py-1 text-xs bg-[var(--app-fg)] text-[var(--app-bg)] font-medium"
                             >
                                 Sessions
                             </button>
                             <button
                                 type="button"
                                 onClick={() => navigate({ to: '/groups' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
                             >
                                 Groups
                             </button>
                             <button
                                 type="button"
                                 onClick={() => navigate({ to: '/review-loops' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
                             >
                                 Loops
                             </button>
@@ -472,7 +472,7 @@ function SessionsPage() {
                                 <button
                                     type="button"
                                     onClick={toggleDesktopSidebar}
-                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                    className="hidden lg:flex p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                     title={desktopSidebarToggleLabel}
                                     aria-label={desktopSidebarToggleLabel}
                                 >
@@ -482,27 +482,27 @@ function SessionsPage() {
                             <button
                                 type="button"
                                 onClick={toggleDensity}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                 title={toggleDensityLabel}
                                 aria-label={toggleDensityLabel}
                             >
-                                <DensityIcon className="h-5 w-5" />
+                                <DensityIcon className="h-4 w-4" />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => navigate({ to: '/settings' })}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                 title={t('settings.title')}
                             >
-                                <SettingsIcon className="h-5 w-5" />
+                                <SettingsIcon className="h-4 w-4" />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => openNewSession()}
-                                className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
+                                className="session-list-new-button p-1.5 rounded-sm text-[var(--app-link)] transition-colors"
                                 title={t('sessions.new')}
                             >
-                                <PlusIcon className="h-5 w-5" />
+                                <PlusIcon className="h-4 w-4" />
                             </button>
                             {inDrawer && onClose ? (
                                 <>
@@ -510,7 +510,7 @@ function SessionsPage() {
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                        className="p-1.5 rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                         title={t('sessions.sidebar.close')}
                                         aria-label={t('sessions.sidebar.close')}
                                     >
@@ -520,17 +520,15 @@ function SessionsPage() {
                             ) : null}
                         </div>
                     </div>
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
-                        <div className="text-xs text-[var(--app-hint)]">
+                    <div className="mx-auto w-full max-w-content flex items-center gap-2 px-3 py-1.5">
+                        <div className="shrink-0 text-[11px] text-[var(--app-hint)]">
                             {t('sessions.count', { n: visibleSessions.length, m: projectCount })}
                         </div>
-                    </div>
-                    <div className="mx-auto w-full max-w-content px-3 pb-2">
                         <input
                             value={sessionSearchQuery}
                             onChange={(e) => setSessionSearchQuery(e.target.value)}
                             placeholder={t('sessions.search.placeholder')}
-                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
+                            className="min-w-0 flex-1 rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-xs outline-none focus:border-[var(--app-link)]"
                         />
                     </div>
                 </div>
@@ -587,7 +585,7 @@ function SessionsPage() {
                     <button
                         type="button"
                         onClick={toggleDesktopSidebar}
-                        className="fixed left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 hidden h-10 w-10 items-center justify-center rounded-full border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] shadow-sm transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:flex"
+                        className="fixed left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 hidden h-8 w-8 items-center justify-center rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:flex"
                         title={t('sessions.sidebar.showDesktop')}
                         aria-label={t('sessions.sidebar.showDesktop')}
                     >
@@ -599,7 +597,7 @@ function SessionsPage() {
                     <button
                         type="button"
                         onClick={openSidebarOnMobile}
-                        className="fixed left-3 top-[calc(4rem+env(safe-area-inset-top))] z-30 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] shadow-sm transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:hidden"
+                        className="fixed left-3 top-[calc(4rem+env(safe-area-inset-top))] z-30 flex h-8 w-8 items-center justify-center rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:hidden"
                         title={t('sessions.sidebar.open')}
                         aria-label={t('sessions.sidebar.open')}
                     >
@@ -615,7 +613,7 @@ function SessionsPage() {
                             className="absolute inset-0 bg-black/35"
                             aria-label={t('sessions.sidebar.close')}
                         />
-                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
+                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]">
                             {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
                         </div>
                     </div>
@@ -842,7 +840,7 @@ function NewSessionPage() {
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                     >
                         <BackIcon />
                     </button>
@@ -1162,13 +1160,13 @@ function GroupsLayout() {
                                     onClose?.()
                                     navigate({ to: '/sessions' })
                                 }}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
                             >
                                 Sessions
                             </button>
                             <button
                                 type="button"
-                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
+                                className="border border-[var(--app-fg)] rounded-sm px-2 py-1 text-xs bg-[var(--app-fg)] text-[var(--app-bg)] font-medium"
                             >
                                 Groups
                             </button>
@@ -1178,7 +1176,7 @@ function GroupsLayout() {
                                     onClose?.()
                                     navigate({ to: '/review-loops' })
                                 }}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
                             >
                                 Loops
                             </button>
@@ -1188,7 +1186,7 @@ function GroupsLayout() {
                                 <button
                                     type="button"
                                     onClick={toggleDesktopSidebar}
-                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                    className="hidden lg:flex p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                     title={desktopSidebarToggleLabel}
                                     aria-label={desktopSidebarToggleLabel}
                                 >
@@ -1198,28 +1196,28 @@ function GroupsLayout() {
                             <button
                                 type="button"
                                 onClick={toggleDensity}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                 title={toggleDensityLabel}
                                 aria-label={toggleDensityLabel}
                             >
-                                <DensityIcon className="h-5 w-5" />
+                                <DensityIcon className="h-4 w-4" />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => navigate({ to: '/settings' })}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                 title={t('settings.title')}
                             >
-                                <SettingsIcon className="h-5 w-5" />
+                                <SettingsIcon className="h-4 w-4" />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setShowCreateModal(true)}
-                                className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
+                                className="session-list-new-button p-1.5 rounded-sm text-[var(--app-link)] transition-colors"
                                 title="New Group"
                                 aria-label="New Group"
                             >
-                                <PlusIcon className="h-5 w-5" />
+                                <PlusIcon className="h-4 w-4" />
                             </button>
                             {inDrawer && onClose ? (
                                 <>
@@ -1227,7 +1225,7 @@ function GroupsLayout() {
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                        className="p-1.5 rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                         title={t('sessions.sidebar.close')}
                                         aria-label={t('sessions.sidebar.close')}
                                     >
@@ -1237,18 +1235,16 @@ function GroupsLayout() {
                             ) : null}
                         </div>
                     </div>
-                    {/* Count info row - matching SessionsPage */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
-                        <div className="text-xs text-[var(--app-hint)]">
+                    {/* Count info row + search merged */}
+                    <div className="mx-auto w-full max-w-content flex items-center gap-2 px-3 py-1.5">
+                        <div className="shrink-0 text-[11px] text-[var(--app-hint)]">
                             {visibleGroups.length} {visibleGroups.length === 1 ? 'group' : 'groups'} • {totalMemberCount} {totalMemberCount === 1 ? 'member' : 'members'}
                         </div>
-                    </div>
-                    <div className="mx-auto w-full max-w-content px-3 pb-2">
                         <input
                             value={groupSearchQuery}
                             onChange={(e) => setGroupSearchQuery(e.target.value)}
                             placeholder={t('groups.search.placeholder')}
-                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
+                            className="min-w-0 flex-1 rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-xs outline-none focus:border-[var(--app-link)]"
                         />
                     </div>
                 </div>
@@ -1314,7 +1310,7 @@ function GroupsLayout() {
                         <button
                             type="button"
                             onClick={toggleSidebarFromBar}
-                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                             title={t('sessions.sidebar.open')}
                             aria-label={t('sessions.sidebar.open')}
                         >
@@ -1350,7 +1346,7 @@ function GroupsLayout() {
                         onClick={closeSidebarOnMobile}
                         aria-label={t('sessions.sidebar.close')}
                     />
-                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
+                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]">
                         {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
                     </div>
                 </div>
@@ -1359,7 +1355,7 @@ function GroupsLayout() {
             {/* Create group modal */}
             {showCreateModal ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-sm rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-xl">
+                    <div className="w-full max-w-sm rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] p-4">
                         <div className="mb-3 font-semibold text-[var(--app-fg)]">New Group</div>
                         <input
                             autoFocus
@@ -1367,13 +1363,13 @@ function GroupsLayout() {
                             onChange={(e) => setNewGroupName(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') { void handleCreate() } }}
                             placeholder="Group name"
-                            className="mb-2 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                            className="mb-2 w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
                         />
                         <input
                             value={newGroupDesc}
                             onChange={(e) => setNewGroupDesc(e.target.value)}
                             placeholder="Description (optional)"
-                            className="mb-3 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                            className="mb-3 w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
                         />
                         {createError ? (
                             <div className="mb-2 text-xs text-red-600">{createError}</div>
@@ -1382,7 +1378,7 @@ function GroupsLayout() {
                             <button
                                 type="button"
                                 onClick={() => { setShowCreateModal(false); setCreateError(null) }}
-                                className="rounded-md border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
+                                className="rounded-sm border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
                             >
                                 Cancel
                             </button>
@@ -1390,7 +1386,7 @@ function GroupsLayout() {
                                 type="button"
                                 onClick={() => { void handleCreate() }}
                                 disabled={isCreateRequestInFlight}
-                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                                className="rounded-sm bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
                             >
                                 {isCreateRequestInFlight ? 'Creating...' : 'Create'}
                             </button>
@@ -1415,7 +1411,7 @@ function GroupsLayout() {
 
             {renameModalOpen && actionTarget ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-sm rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-xl">
+                    <div className="w-full max-w-sm rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] p-4">
                         <div className="mb-3 font-semibold text-[var(--app-fg)]">Rename Group</div>
                         <input
                             autoFocus
@@ -1423,7 +1419,7 @@ function GroupsLayout() {
                             onChange={(e) => setRenameDraft(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') { void handleRenameGroup() } }}
                             placeholder="Group name"
-                            className="mb-2 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                            className="mb-2 w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
                         />
                         {renameError ? (
                             <div className="mb-2 text-xs text-red-600">{renameError}</div>
@@ -1435,7 +1431,7 @@ function GroupsLayout() {
                                     setRenameModalOpen(false)
                                     setRenameError(null)
                                 }}
-                                className="rounded-md border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
+                                className="rounded-sm border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
                             >
                                 Cancel
                             </button>
@@ -1443,7 +1439,7 @@ function GroupsLayout() {
                                 type="button"
                                 onClick={() => { void handleRenameGroup() }}
                                 disabled={isActionPending}
-                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                                className="rounded-sm bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
                             >
                                 {isActionPending ? 'Saving...' : 'Save'}
                             </button>
@@ -1694,7 +1690,7 @@ function ReviewLoopsLayout() {
                                 <button
                                     type="button"
                                     onClick={toggleDesktopSidebar}
-                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                    className="hidden lg:flex p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                     title={desktopSidebarToggleLabel}
                                     aria-label={desktopSidebarToggleLabel}
                                 >
@@ -1704,19 +1700,19 @@ function ReviewLoopsLayout() {
                             <button
                                 type="button"
                                 onClick={toggleDensity}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                 title={toggleDensityLabel}
                                 aria-label={toggleDensityLabel}
                             >
-                                <DensityIcon className="h-5 w-5" />
+                                <DensityIcon className="h-4 w-4" />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => navigate({ to: '/settings' })}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                className="p-1.5 rounded-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                                 title={t('settings.title')}
                             >
-                                <SettingsIcon className="h-5 w-5" />
+                                <SettingsIcon className="h-4 w-4" />
                             </button>
                             {inDrawer && onClose ? (
                                 <>
@@ -1724,7 +1720,7 @@ function ReviewLoopsLayout() {
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                        className="p-1.5 rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                         title={t('sessions.sidebar.close')}
                                         aria-label={t('sessions.sidebar.close')}
                                     >
@@ -1734,26 +1730,24 @@ function ReviewLoopsLayout() {
                             ) : null}
                         </div>
                     </div>
-                    {/* Count info row */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
-                        <div className="text-xs text-[var(--app-hint)]">
+                    {/* Count info row + search merged */}
+                    <div className="mx-auto w-full max-w-content flex items-center gap-2 px-3 py-1.5">
+                        <div className="shrink-0 text-[11px] text-[var(--app-hint)]">
                             {visibleLoops.length} {visibleLoops.length === 1 ? 'loop' : 'loops'} {activeCount > 0 ? `\u2022 ${activeCount} active` : ''}
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => setCreateModalOpen(true)}
-                            className="rounded-sm border border-[var(--app-divider)] px-2 py-0.5 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors"
-                        >
-                            + new
-                        </button>
-                    </div>
-                    <div className="mx-auto w-full max-w-content px-3 pb-2">
                         <input
                             value={loopSearchQuery}
                             onChange={(e) => setLoopSearchQuery(e.target.value)}
                             placeholder="/ search..."
-                            className="w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-xs font-mono outline-none focus:border-[var(--app-link)]"
+                            className="min-w-0 flex-1 rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-xs font-mono outline-none focus:border-[var(--app-link)]"
                         />
+                        <button
+                            type="button"
+                            onClick={() => setCreateModalOpen(true)}
+                            className="shrink-0 rounded-sm border border-[var(--app-divider)] px-2 py-0.5 font-mono text-[11px] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors"
+                        >
+                            + new
+                        </button>
                     </div>
                 </div>
 
@@ -1816,7 +1810,7 @@ function ReviewLoopsLayout() {
                         <button
                             type="button"
                             onClick={toggleSidebarFromBar}
-                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                             title={t('sessions.sidebar.open')}
                             aria-label={t('sessions.sidebar.open')}
                         >
@@ -1851,7 +1845,7 @@ function ReviewLoopsLayout() {
                         onClick={closeSidebarOnMobile}
                         aria-label={t('sessions.sidebar.close')}
                     />
-                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
+                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]">
                         {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
                     </div>
                 </div>

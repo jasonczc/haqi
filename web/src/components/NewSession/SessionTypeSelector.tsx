@@ -13,7 +13,7 @@ export function SessionTypeSelector(props: {
     const { t } = useTranslation()
 
     return (
-        <div className="flex flex-col gap-1.5 px-3 py-3">
+        <div className="flex flex-col gap-1.5 px-3 py-2">
             <label className="text-xs font-medium text-[var(--app-hint)]">
                 {t('newSession.type')}
             </label>
@@ -42,7 +42,7 @@ export function SessionTypeSelector(props: {
                                                 value={props.worktreeName}
                                                 onChange={(e) => props.onWorktreeNameChange(e.target.value)}
                                                 disabled={props.isDisabled}
-                                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                                                className="w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
                                             />
                                         ) : (
                                             <>

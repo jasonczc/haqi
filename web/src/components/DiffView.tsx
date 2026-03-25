@@ -68,7 +68,7 @@ export function DiffView(props: {
                     onKeyDown={onTriggerKeyDown}
                     onBlur={onTriggerBlur}
                 >
-                    <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] transition-colors hover:bg-[var(--app-secondary-bg)]">
+                    <div className="overflow-hidden rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)] transition-colors hover:bg-[var(--app-secondary-bg)]">
                         {props.filePath ? (
                             <div className="truncate border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-hint)]">
                                 {props.filePath}
@@ -104,7 +104,7 @@ export function DiffView(props: {
 
 function DiffFallback() {
     return (
-        <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-4 text-xs text-[var(--app-hint)]">
+        <div className="rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-4 text-xs text-[var(--app-hint)]">
             Loading diff…
         </div>
     )

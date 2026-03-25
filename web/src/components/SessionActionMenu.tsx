@@ -267,12 +267,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         : undefined
 
     const baseItemClassName =
-        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]'
+        'flex w-full items-center gap-3 rounded-sm px-3 py-2 text-left text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]'
 
     return (
         <div
             ref={menuRef}
-            className="fixed z-50 min-w-[200px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
+            className="fixed z-50 min-w-[200px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] p-1 animate-menu-pop"
             style={menuStyle}
         >
             <div

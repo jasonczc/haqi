@@ -204,7 +204,7 @@ export function TeamPanel(props: {
             <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className="flex w-full items-center gap-2 rounded-md bg-[var(--app-subtle-bg)] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--app-subtle-bg-hover)]"
+                className="flex w-full items-center gap-2 rounded-sm bg-[var(--app-subtle-bg)] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--app-subtle-bg-hover)]"
             >
                 <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -235,7 +235,7 @@ export function TeamPanel(props: {
             </button>
 
             {expanded && (
-                <div className="mt-1 rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2">
+                <div className="mt-1 rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2">
                     {teamState?.description && (
                         <p className="mb-2 text-xs text-[var(--app-hint)]">{teamState.description}</p>
                     )}
@@ -244,7 +244,7 @@ export function TeamPanel(props: {
                         <div className="mb-2 flex flex-wrap gap-2 border-b border-[var(--app-border)] pb-2">
                             <button
                                 type="button"
-                                className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                className="rounded-sm border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
                                 onClick={() => startControl('cleanup_team')}
                             >
                                 Clean up team
@@ -259,7 +259,7 @@ export function TeamPanel(props: {
                                 {runningAgents.map((agent, index) => (
                                     <div
                                         key={`${agent.name}:${agent.startedAt ?? index}`}
-                                        className="rounded-md bg-[var(--app-subtle-bg)] px-2 py-1 text-xs"
+                                        className="rounded-sm bg-[var(--app-subtle-bg)] px-2 py-1 text-xs"
                                     >
                                         <div className="font-medium text-[var(--app-fg)]">{agent.name}</div>
                                         {agent.task ? (
@@ -278,7 +278,7 @@ export function TeamPanel(props: {
                                 {visibleMembers.map((member) => (
                                     <div
                                         key={member.name}
-                                        className="flex flex-wrap items-center gap-2 rounded-md bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs"
+                                        className="flex flex-wrap items-center gap-2 rounded-sm bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs"
                                     >
                                         <span className={`inline-block h-1.5 w-1.5 rounded-full ${memberStatusDot(member.status)}`} />
                                         <span className="text-[var(--app-fg)]">{member.name}</span>
@@ -321,7 +321,7 @@ export function TeamPanel(props: {
                             <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">Tasks</div>
                             <div className="flex flex-col gap-1">
                                 {tasks.map((task, idx) => (
-                                    <div key={task.id ?? String(idx)} className="flex items-center gap-2 rounded-md bg-[var(--app-subtle-bg)] px-2 py-1">
+                                    <div key={task.id ?? String(idx)} className="flex items-center gap-2 rounded-sm bg-[var(--app-subtle-bg)] px-2 py-1">
                                         <div className={`min-w-0 flex-1 text-xs ${taskStatusColor(task.status)}`}>
                                             <span>{taskStatusIcon(task.status)}</span>{' '}
                                             <span>{task.title}</span>
@@ -348,7 +348,7 @@ export function TeamPanel(props: {
                     )}
 
                     {props.canControl && pendingControl && teamState ? (
-                        <div className="mb-2 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2">
+                        <div className="mb-2 rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2">
                             <div className="mb-2 text-xs font-medium text-[var(--app-fg)]">
                                 {actionLabel(pendingControl.action)}
                             </div>
@@ -360,7 +360,7 @@ export function TeamPanel(props: {
                                 <label className="mb-2 block text-xs text-[var(--app-hint)]">
                                     Teammate
                                     <select
-                                        className="mt-1 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm text-[var(--app-fg)]"
+                                        className="mt-1 w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm text-[var(--app-fg)]"
                                         value={pendingControl.memberName ?? ''}
                                         onChange={(event) => setPendingControl((current) => current
                                             ? { ...current, memberName: event.target.value }
@@ -378,7 +378,7 @@ export function TeamPanel(props: {
                                 <label className="mb-2 block text-xs text-[var(--app-hint)]">
                                     Task
                                     <select
-                                        className="mt-1 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm text-[var(--app-fg)]"
+                                        className="mt-1 w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm text-[var(--app-fg)]"
                                         value={pendingControl.taskId ?? ''}
                                         onChange={(event) => setPendingControl((current) => current
                                             ? { ...current, taskId: event.target.value }
@@ -396,7 +396,7 @@ export function TeamPanel(props: {
                                 <label className="mb-2 block text-xs text-[var(--app-hint)]">
                                     {pendingControl.action === 'assign_task' ? 'Additional guidance (optional)' : 'Message'}
                                     <textarea
-                                        className="mt-1 min-h-20 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm text-[var(--app-fg)]"
+                                        className="mt-1 min-h-20 w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm text-[var(--app-fg)]"
                                         value={pendingControl.message}
                                         onChange={(event) => setPendingControl((current) => current
                                             ? { ...current, message: event.target.value }
@@ -411,7 +411,7 @@ export function TeamPanel(props: {
                             )}
 
                             {pendingControl.confirmRequired ? (
-                                <label className="mb-2 flex items-start gap-2 rounded-md border border-amber-300/50 bg-amber-500/10 px-2 py-1.5 text-xs text-[var(--app-fg)]">
+                                <label className="mb-2 flex items-start gap-2 rounded-sm border border-amber-300/50 bg-amber-500/10 px-2 py-1.5 text-xs text-[var(--app-fg)]">
                                     <input
                                         type="checkbox"
                                         checked={!pendingControl.confirmRequired}
@@ -434,7 +434,7 @@ export function TeamPanel(props: {
                             <div className="flex gap-2">
                                 <button
                                     type="button"
-                                    className="rounded-md bg-[var(--app-link)] px-2 py-1 text-xs font-medium text-white disabled:opacity-60"
+                                    className="rounded-sm bg-[var(--app-link)] px-2 py-1 text-xs font-medium text-white disabled:opacity-60"
                                     onClick={() => void submitControl()}
                                     disabled={isSubmitting}
                                 >
@@ -442,7 +442,7 @@ export function TeamPanel(props: {
                                 </button>
                                 <button
                                     type="button"
-                                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)]"
+                                    className="rounded-sm border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)]"
                                     onClick={() => {
                                         setPendingControl(null)
                                         setSubmitError(null)

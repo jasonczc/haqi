@@ -1077,7 +1077,7 @@ export function HappyComposer(props: {
                                         onMouseDown={(e) => e.preventDefault()}
                                     >
                                         <div
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                                            className={`flex h-4 w-4 items-center justify-center rounded-sm border-2 ${
                                                 permissionMode === option.mode
                                                     ? 'border-[var(--app-link)]'
                                                     : 'border-[var(--app-hint)]'
@@ -1118,7 +1118,7 @@ export function HappyComposer(props: {
                                         onMouseDown={(e) => e.preventDefault()}
                                     >
                                         <div
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                                            className={`flex h-4 w-4 items-center justify-center rounded-sm border-2 ${
                                                 currentModelValue === option.value
                                                     ? 'border-[var(--app-link)]'
                                                     : 'border-[var(--app-hint)]'
@@ -1159,7 +1159,7 @@ export function HappyComposer(props: {
                                         onMouseDown={(e) => e.preventDefault()}
                                     >
                                         <div
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                                            className={`flex h-4 w-4 items-center justify-center rounded-sm border-2 ${
                                                 currentThinkEffortValue === option.value
                                                     ? 'border-[var(--app-link)]'
                                                     : 'border-[var(--app-hint)]'
@@ -1200,7 +1200,7 @@ export function HappyComposer(props: {
                                         onMouseDown={(e) => e.preventDefault()}
                                     >
                                         <div
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
+                                            className={`flex h-4 w-4 items-center justify-center rounded-sm border-2 ${
                                                 currentServiceTierValue === option.value
                                                     ? 'border-[var(--app-link)]'
                                                     : 'border-[var(--app-hint)]'
@@ -1284,23 +1284,23 @@ export function HappyComposer(props: {
                         asChild
                         disabled={controlsDisabled}
                     >
-                        <div className={`overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
+                        <div className={`overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-sm bg-[var(--app-secondary-bg)]'}`}>
                             {showInlineQueuePanel ? (
                                 <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
                                             {t('queue.dialog.title')}
                                         </span>
-                                        <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
+                                        <span className="inline-flex rounded-sm bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
                                             {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                         </span>
                                         {inlineQueueTaskRunning ? (
-                                            <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
+                                            <span className="inline-flex rounded-sm bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
                                                 {t('queue.inline.running')}
                                             </span>
                                         ) : null}
                                         {inlineQueueInQueue ? (
-                                            <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
+                                            <span className="inline-flex rounded-sm bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
                                                 {t('queue.summary.inQueue')}
                                             </span>
                                         ) : null}
@@ -1311,7 +1311,7 @@ export function HappyComposer(props: {
                                         </span>
                                         <button
                                             type="button"
-                                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-sm border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
                                             onClick={handleCodexQueueOpen}
                                             disabled={controlsDisabled || !onCodexQueueOpen}
                                         >
@@ -1329,7 +1329,7 @@ export function HappyComposer(props: {
                                                         return (
                                                             <div
                                                                 key={entry.id}
-                                                                className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
+                                                                className="flex items-center gap-2 rounded-sm bg-[var(--app-secondary-bg)] px-2 py-1.5"
                                                             >
                                                                 <span className="text-[10px] text-[var(--app-hint)]">
                                                                     #{index + 1}
@@ -1369,11 +1369,11 @@ export function HappyComposer(props: {
                             ) : null}
 
                             {attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
-                                <div className="flex flex-wrap gap-2 px-4 pt-3">
+                                <div className="flex flex-wrap gap-1.5 px-3 pt-2">
                                     {restoredDraftAttachments.map((attachment) => (
                                         <div
                                             key={`draft:${attachment.path}`}
-                                            className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
+                                            className="flex max-w-full items-center gap-2 rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
                                             title={attachment.path}
                                         >
                                             <span className="max-w-[180px] truncate">
@@ -1395,7 +1395,7 @@ export function HappyComposer(props: {
                                 </div>
                             ) : null}
 
-                            <div className={`flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
+                            <div className={`flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-3 py-2'}`}>
                                 {cliMode && (
                                     <span className="mr-1.5 shrink-0 select-none text-[var(--cli-prompt-color,#3b82f6)] font-semibold text-sm">{'❯'}</span>
                                 )}

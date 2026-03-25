@@ -697,7 +697,7 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
             </div>
 
             {selected ? (
-                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2 text-xs">
+                <div className="rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2 text-xs">
                     <div className={`font-semibold ${collabStatusTone(selected.status)}`}>
                         {selected.status ?? 'unknown'}
                     </div>
@@ -710,7 +710,7 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : null}
 
             {collab.prompt ? (
-                <div className="rounded-md border border-[var(--app-border)] p-2 text-xs text-[var(--app-hint)]">
+                <div className="rounded-sm border border-[var(--app-border)] p-2 text-xs text-[var(--app-hint)]">
                     <div className="mb-1 font-medium uppercase tracking-wide">prompt</div>
                     <div className="break-words text-[var(--app-fg)]">{collab.prompt}</div>
                 </div>
@@ -945,11 +945,11 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : null}
 
             {previewUrl ? (
-                <div className="overflow-hidden rounded border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-1">
+                <div className="overflow-hidden rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-1">
                     <img
                         src={previewUrl}
                         alt={altText}
-                        className="mx-auto max-h-[420px] max-w-full rounded object-contain"
+                        className="mx-auto max-h-[420px] max-w-full rounded-sm object-contain"
                     />
                 </div>
             ) : loading ? (

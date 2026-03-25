@@ -35,7 +35,7 @@ export function InstallPrompt() {
 
                         <div className="space-y-3">
                             <div className="flex items-start gap-3">
-                                <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--app-fg)] text-[var(--app-bg)] flex items-center justify-center text-sm font-medium">
+                                <div className="shrink-0 w-8 h-8 rounded-sm bg-[var(--app-fg)] text-[var(--app-bg)] flex items-center justify-center text-sm font-medium">
                                     1
                                 </div>
                                 <div className="flex-1 pt-1">
@@ -46,7 +46,7 @@ export function InstallPrompt() {
                             </div>
 
                             <div className="flex items-start gap-3">
-                                <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--app-fg)] text-[var(--app-bg)] flex items-center justify-center text-sm font-medium">
+                                <div className="shrink-0 w-8 h-8 rounded-sm bg-[var(--app-fg)] text-[var(--app-bg)] flex items-center justify-center text-sm font-medium">
                                     2
                                 </div>
                                 <div className="flex-1 pt-1">
@@ -57,7 +57,7 @@ export function InstallPrompt() {
                             </div>
 
                             <div className="flex items-start gap-3">
-                                <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--app-fg)] text-[var(--app-bg)] flex items-center justify-center text-sm font-medium">
+                                <div className="shrink-0 w-8 h-8 rounded-sm bg-[var(--app-fg)] text-[var(--app-bg)] flex items-center justify-center text-sm font-medium">
                                     3
                                 </div>
                                 <div className="flex-1 pt-1">
@@ -83,7 +83,7 @@ export function InstallPrompt() {
         }
 
         return (
-            <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-secondary-bg)] border border-[var(--app-border)] rounded-lg p-4 shadow-lg z-50">
+            <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-secondary-bg)] border border-[var(--app-border)] rounded-sm p-4 z-50">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-[var(--app-fg)]">
@@ -98,7 +98,7 @@ export function InstallPrompt() {
                             haptic.impact('light')
                             setShowIOSGuide(true)
                         }}
-                        className="shrink-0 px-4 py-2 bg-[var(--app-fg)] text-[var(--app-bg)] rounded-lg text-sm font-medium active:opacity-80"
+                        className="shrink-0 px-4 py-2 bg-[var(--app-fg)] text-[var(--app-bg)] rounded-sm text-sm font-medium active:opacity-80"
                     >
                         {t('install.button')}
                     </button>
@@ -131,7 +131,7 @@ export function InstallPrompt() {
     }
 
     return (
-        <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-secondary-bg)] border border-[var(--app-border)] rounded-lg p-4 shadow-lg z-50">
+        <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-secondary-bg)] border border-[var(--app-border)] rounded-sm p-4 z-50">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-[var(--app-fg)]">
@@ -143,7 +143,7 @@ export function InstallPrompt() {
                 </div>
                 <button
                     onClick={handleInstall}
-                    className="shrink-0 px-4 py-2 bg-[var(--app-fg)] text-[var(--app-bg)] rounded-lg text-sm font-medium active:opacity-80"
+                    className="shrink-0 px-4 py-2 bg-[var(--app-fg)] text-[var(--app-bg)] rounded-sm text-sm font-medium active:opacity-80"
                 >
                     {t('install.button')}
                 </button>

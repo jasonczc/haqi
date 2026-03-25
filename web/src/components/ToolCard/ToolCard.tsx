@@ -187,12 +187,12 @@ function renderTaskStateBadge(taskStateSummaryText: string | null, runningAgentN
     return (
         <div className="flex flex-wrap gap-1">
             {taskStateSummaryText ? (
-                <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                <span className="rounded-sm bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
                     {taskStateSummaryText}
                 </span>
             ) : null}
             {runningAgentNames ? (
-                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-600">
+                <span className="rounded-sm bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-600">
                     {runningAgentNames}
                 </span>
             ) : null}
@@ -604,7 +604,7 @@ function ToolCardInner(props: ToolCardProps) {
         return (
             <div
                 className={cn(
-                    'rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40',
+                    'rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40',
                     isCompact ? 'px-2 py-1' : 'px-2.5 py-1.5'
                 )}
             >
@@ -634,7 +634,7 @@ function ToolCardInner(props: ToolCardProps) {
 
         return (
             <div className={cn(
-                'flex flex-col gap-4 overflow-auto',
+                'flex flex-col gap-2 overflow-auto',
                 mobile
                     ? 'mt-0 min-h-0 flex-1 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]'
                     : isTurnChangesTool
@@ -687,7 +687,7 @@ function ToolCardInner(props: ToolCardProps) {
                             <button
                                 type="button"
                                 onClick={closeTurnChangesDetail}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-sm border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                 aria-label="Back"
                             >
                                 <BackIcon />
@@ -729,7 +729,7 @@ function ToolCardInner(props: ToolCardProps) {
                             <button
                                 type="button"
                                 onClick={closeDiffDetail}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-sm border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                 aria-label="Back"
                             >
                                 <BackIcon />
@@ -775,8 +775,8 @@ function ToolCardInner(props: ToolCardProps) {
     })()
 
     return (
-        <Card className="overflow-hidden shadow-sm">
-            <CardHeader className={cn('space-y-0', isCompact ? 'p-2.5' : 'p-3')}>
+        <Card className="overflow-hidden">
+            <CardHeader className={cn('space-y-0', isCompact ? 'p-2.5' : 'p-2.5')}>
                 {isCompact ? (
                     isTurnChangesTool ? (
                         <>
@@ -792,7 +792,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 onBlur={onTriggerBlur}
                             >
                                 <div className="flex items-center gap-2">
-                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded-sm bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
                                         {presentation.icon}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -806,7 +806,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         </div>
                                     </div>
                                     <span className={cn(
-                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                        'inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-medium',
                                         statusBadgeToneClass
                                     )}>
                                         <StatusIcon state={props.block.tool.state} />
@@ -837,7 +837,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 onBlur={onTriggerBlur}
                             >
                                 <div className="flex items-center gap-2">
-                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded-sm bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
                                         {presentation.icon}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -851,7 +851,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         </div>
                                     </div>
                                     <span className={cn(
-                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                        'inline-flex shrink-0 items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-medium',
                                         statusBadgeToneClass
                                     )}>
                                         <StatusIcon state={props.block.tool.state} />
@@ -871,7 +871,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 <>
                                     <button
                                         type="button"
-                                        className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
+                                        className="shrink-0 rounded-sm p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
                                         title={t('session.more')}
                                         aria-label={t('session.more')}
                                         onClick={openDiffDetail}
@@ -885,7 +885,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     <DialogTrigger asChild>
                                         <button
                                             type="button"
-                                            className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
+                                            className="shrink-0 rounded-sm p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
                                             title={t('session.more')}
                                             aria-label={t('session.more')}
                                         >
@@ -1029,7 +1029,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     ) : null}
                                     {toolName === 'Task' && taskStateSummaryText ? (
                                         <div className="flex flex-wrap gap-1">
-                                            <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                                            <span className="rounded-sm bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
                                                 {taskStateSummaryText}
                                             </span>
                                         </div>
@@ -1043,7 +1043,7 @@ function ToolCardInner(props: ToolCardProps) {
             </CardHeader>
 
             {showCardBody ? (
-                <CardContent className={cn(isCompact ? 'px-2.5 pb-2.5 pt-0' : 'px-3 pb-3 pt-0')}>
+                <CardContent className={cn(isCompact ? 'px-2.5 pb-2.5 pt-0' : 'px-2.5 pb-2.5 pt-0')}>
                     {taskSummary ? (
                         <div className={isCompact ? 'mt-1.5' : 'mt-2'}>
                             {taskSummary}
@@ -1052,11 +1052,11 @@ function ToolCardInner(props: ToolCardProps) {
 
                     {showInline ? (
                         CompactToolView ? (
-                            <div className={isCompact ? 'mt-2' : 'mt-3'}>
+                            <div className={isCompact ? 'mt-2' : 'mt-2'}>
                                 <CompactToolView block={props.block} metadata={props.metadata} />
                             </div>
                         ) : (
-                            <div className={cn('flex flex-col', isCompact ? 'mt-2 gap-2' : 'mt-3 gap-3')}>
+                            <div className={cn('flex flex-col', isCompact ? 'mt-2 gap-2' : 'mt-2 gap-2')}>
                                 <div>
                                     <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.input')}</div>
                                     {renderToolInput(props.block)}
@@ -1070,7 +1070,7 @@ function ToolCardInner(props: ToolCardProps) {
                     ) : null}
 
                     {isQuestionTool && permission?.status === 'pending' ? (
-                        <div className="mt-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
+                        <div className="mt-3 rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
                             <div className="text-xs font-medium text-[var(--app-hint)]">
                                 {t('tool.questionOverlay.inlineTitle')}
                             </div>

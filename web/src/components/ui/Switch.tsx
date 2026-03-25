@@ -20,7 +20,7 @@ export function Switch(props: SwitchProps) {
             disabled={disabled}
             onClick={() => onCheckedChange(!checked)}
             className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-0 p-0 appearance-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-sm border-0 p-0 appearance-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
                 checked ? 'bg-[#34C759]' : 'bg-[var(--app-border)]',
                 disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
                 className
@@ -28,7 +28,7 @@ export function Switch(props: SwitchProps) {
         >
             <span
                 className={cn(
-                    'h-4 w-4 rounded-full bg-white transition-transform',
+                    'h-4 w-4 rounded-sm bg-white transition-transform',
                     checked ? 'translate-x-4' : 'translate-x-0.5'
                 )}
             />

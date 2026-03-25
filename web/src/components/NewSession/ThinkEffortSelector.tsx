@@ -15,7 +15,7 @@ export function ThinkEffortSelector(props: {
     }
 
     return (
-        <div className="flex flex-col gap-1.5 px-3 py-3">
+        <div className="flex flex-col gap-1.5 px-3 py-2">
             <label className="text-xs font-medium text-[var(--app-hint)]">
                 {t('newSession.think')}{' '}
                 <span className="font-normal">({t('newSession.model.optional')})</span>
@@ -24,7 +24,7 @@ export function ThinkEffortSelector(props: {
                 value={props.thinkEffort}
                 onChange={(e) => props.onThinkEffortChange(e.target.value as ThinkEffort)}
                 disabled={props.isDisabled}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-text)] focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                className="w-full px-3 py-2 text-sm rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-text)] focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
             >
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>

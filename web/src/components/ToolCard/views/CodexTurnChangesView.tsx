@@ -370,7 +370,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [clampListWidth])
 
     const renderFileList = () => (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)]">
+        <div className="overflow-hidden rounded-sm border border-[var(--app-border)]">
             <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs font-medium text-[var(--app-hint)]">
                 Files ({files.length})
             </div>
@@ -411,7 +411,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     )
 
     const renderDiffPanel = (mobile: boolean) => (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)]">
+        <div className="overflow-hidden rounded-sm border border-[var(--app-border)]">
             {selectedFile ? (
                 <>
                     <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5">
@@ -461,7 +461,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
 
     return (
         <div className="flex flex-col gap-2" onKeyDown={handleNavigationKeyDown}>
-            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs text-[var(--app-hint)]">
+            <div className="rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs text-[var(--app-hint)]">
                 <div>{statusLabel(summary.status)}</div>
                 <div>Files: {summary.files.length}</div>
                 <div>Patch apply: {summary.patchTotal} ({summary.patchSuccess} success, {summary.patchFailed} failed)</div>

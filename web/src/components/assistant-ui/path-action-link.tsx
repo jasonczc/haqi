@@ -307,7 +307,7 @@ export function PathActionLink(props: {
     return (
         <>
             <span className={cn(
-                'inline-flex max-w-full items-center gap-1 rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 align-middle',
+                'inline-flex max-w-full items-center gap-1 rounded-sm border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 align-middle',
                 props.className
             )}>
                 <button
@@ -322,7 +322,7 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handlePreview}
                     disabled={busyAction !== null}
-                    className="shrink-0 rounded px-1 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                    className="shrink-0 rounded-sm px-1 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
                     title={canPreviewImage ? 'Preview image' : 'Open file preview'}
                 >
                     {busyAction === 'preview' ? '...' : '预览'}
@@ -331,7 +331,7 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handleDownload}
                     disabled={busyAction !== null}
-                    className="shrink-0 rounded px-1 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                    className="shrink-0 rounded-sm px-1 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
                     title="Download file"
                 >
                     {busyAction === 'download' ? '...' : '下载'}

@@ -132,7 +132,7 @@ function StatusBadge(props: { status: GitFileStatus['status'] }) {
 
     return (
         <span
-            className="inline-flex items-center justify-center rounded border px-1.5 py-0.5 text-[10px] font-semibold"
+            className="inline-flex items-center justify-center rounded-sm border px-1.5 py-0.5 text-[10px] font-semibold"
             style={{ color, borderColor: color }}
         >
             {label}
@@ -173,7 +173,7 @@ function GitFileRow(props: {
                 <div className="truncate font-medium">{props.file.fileName}</div>
                 <div className="min-w-0 flex items-center gap-1 text-xs text-[var(--app-hint)]">
                     {props.file.repo ? (
-                        <span className="shrink-0 rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--app-fg)]">
+                        <span className="shrink-0 rounded-sm border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--app-fg)]">
                             {props.file.repo}
                         </span>
                     ) : null}
@@ -223,10 +223,10 @@ function FileListSkeleton(props: { label: string; rows?: number }) {
             <span className="sr-only">{props.label}</span>
             {Array.from({ length: rows }).map((_, index) => (
                 <div key={`skeleton-row-${index}`} className="flex items-center gap-3">
-                    <div className="h-6 w-6 rounded bg-[var(--app-subtle-bg)]" />
+                    <div className="h-6 w-6 rounded-sm bg-[var(--app-subtle-bg)]" />
                     <div className="flex-1 space-y-2">
-                        <div className={`h-3 ${titleWidths[index % titleWidths.length]} rounded bg-[var(--app-subtle-bg)]`} />
-                        <div className={`h-2 ${subtitleWidths[index % subtitleWidths.length]} rounded bg-[var(--app-subtle-bg)]`} />
+                        <div className={`h-3 ${titleWidths[index % titleWidths.length]} rounded-sm bg-[var(--app-subtle-bg)]`} />
+                        <div className={`h-2 ${subtitleWidths[index % subtitleWidths.length]} rounded-sm bg-[var(--app-subtle-bg)]`} />
                     </div>
                 </div>
             ))}
@@ -375,7 +375,7 @@ export default function FilesPage() {
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                     >
                         <BackIcon />
                     </button>
@@ -386,7 +386,7 @@ export default function FilesPage() {
                     <button
                         type="button"
                         onClick={handleRefresh}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                         title="Refresh"
                     >
                         <RefreshIcon />
@@ -396,7 +396,7 @@ export default function FilesPage() {
 
             <div className="bg-[var(--app-bg)]">
                 <div className="mx-auto w-full max-w-content p-3 border-b border-[var(--app-border)]">
-                    <div className="flex items-center gap-2 rounded-md bg-[var(--app-subtle-bg)] px-3 py-2">
+                    <div className="flex items-center gap-2 rounded-sm bg-[var(--app-subtle-bg)] px-3 py-2">
                         <SearchIcon className="text-[var(--app-hint)]" />
                         <input
                             value={searchQuery}
@@ -421,7 +421,7 @@ export default function FilesPage() {
                     >
                         Changes
                         <span
-                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'changes' ? 'bg-[var(--app-link)]' : 'bg-transparent'}`}
+                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-sm ${activeTab === 'changes' ? 'bg-[var(--app-link)]' : 'bg-transparent'}`}
                         />
                     </button>
                     <button
@@ -433,7 +433,7 @@ export default function FilesPage() {
                     >
                         Directories
                         <span
-                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'directories' ? 'bg-[var(--app-link)]' : 'bg-transparent'}`}
+                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-sm ${activeTab === 'directories' ? 'bg-[var(--app-link)]' : 'bg-transparent'}`}
                         />
                     </button>
                 </div>
@@ -454,7 +454,7 @@ export default function FilesPage() {
                                 {repoSummaries.map((repo) => (
                                     <span
                                         key={`${repo.name}-${repo.branch ?? 'detached'}`}
-                                        className="rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                        className="rounded-sm border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
                                     >
                                         {repo.branch ? `${repo.name} · ${repo.branch}` : repo.name}
                                     </span>

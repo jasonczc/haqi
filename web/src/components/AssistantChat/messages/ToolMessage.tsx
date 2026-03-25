@@ -57,7 +57,7 @@ function HappyNestedBlockList(props: {
         <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
             {props.blocks.map((block) => {
                 if (block.kind === 'user-text') {
-                    const userBubbleClass = 'ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
+                    const userBubbleClass = 'ml-auto w-fit min-w-0 max-w-[88%] rounded-sm bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] sm:max-w-[84%] lg:max-w-[76%]'
                     const status = block.status
                     const canRetry = status === 'failed' && typeof block.localId === 'string' && Boolean(ctx.onRetryMessage)
                     const onRetry = canRetry ? () => ctx.onRetryMessage!(block.localId!) : undefined
@@ -177,7 +177,7 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
 
         return (
             <div className={`${isCompact ? 'py-0.5' : 'py-1'} min-w-0 max-w-full overflow-x-hidden`}>
-                <div className={`rounded-xl bg-[var(--app-secondary-bg)] shadow-sm ${isCompact ? 'p-2.5' : 'p-3'}`}>
+                <div className={`rounded-sm bg-[var(--app-secondary-bg)] ${isCompact ? 'p-2.5' : 'p-3'}`}>
                     <div className="flex items-center gap-2 text-xs">
                         <div className="font-mono text-[var(--app-hint)]">
                             Tool: {props.toolName}

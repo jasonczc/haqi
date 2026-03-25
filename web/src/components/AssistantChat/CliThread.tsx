@@ -130,14 +130,14 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
             <div
                 ref={scrollRef}
                 onScroll={handleScroll}
-                className="cli-thread flex-1 overflow-y-auto app-scrollbar px-4 py-3"
+                className="cli-thread flex-1 overflow-y-auto app-scrollbar px-3 py-2"
             >
                 <div className="mx-auto max-w-content space-y-0.5">
                     {/* Load more control */}
                     {(props.hasMoreMessages || props.isLoadingMoreMessages) && (
                         <div className="flex justify-center py-2">
                             {props.isLoadingMoreMessages ? (
-                                <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)] shadow-sm">
+                                <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-sm px-2.5 text-xs border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)]">
                                     <Spinner size="sm" label={null} className="text-current" />
                                     Loading…
                                 </div>
@@ -145,7 +145,7 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
                                 <button
                                     type="button"
                                     onClick={props.onLoadMore}
-                                    className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] shadow-sm transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                    className="inline-flex h-7 items-center justify-center gap-1.5 rounded-sm px-2.5 text-xs border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
                                 >
                                     Load older
                                 </button>
@@ -155,7 +155,7 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
 
                     {/* Loading state */}
                     {props.isLoadingMessages && props.blocks.length === 0 && (
-                        <div className="flex justify-center py-8">
+                        <div className="flex justify-center py-4">
                             <Spinner size="md" />
                         </div>
                     )}

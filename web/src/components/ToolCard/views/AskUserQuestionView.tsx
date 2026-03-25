@@ -41,7 +41,7 @@ function renderOtherAnswers(
             {customAnswers.map((answer, i) => (
                 <div
                     key={`other-${i}`}
-                    className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2"
+                    className="rounded-sm border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2"
                 >
                     <div className="flex items-start gap-2">
                         <span className="shrink-0 text-sm text-emerald-600">
@@ -75,7 +75,7 @@ function renderFreeformAnswers(
             {cleaned.map((answer, i) => (
                 <div
                     key={i}
-                    className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2"
+                    className="rounded-sm border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2"
                 >
                     <div className="flex items-start gap-2">
                         <span className="shrink-0 text-sm text-emerald-600">●</span>
@@ -119,7 +119,7 @@ export function AskUserQuestionView(props: ToolViewProps) {
                 const customAnswers = trimmedAnswers.filter((answer) => answer !== 'skipped' && !optionLabels.has(answer))
 
                 return (
-                    <div key={q.id} className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+                    <div key={q.id} className="rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
                         {q.header ? (
                             <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
                                 {q.header}
@@ -133,7 +133,7 @@ export function AskUserQuestionView(props: ToolViewProps) {
                         ) : null}
 
                         {isSkipped ? (
-                            <div className="mt-3 rounded-md border border-[var(--app-border)] px-2 py-2 text-sm text-[var(--app-hint)]">
+                            <div className="mt-3 rounded-sm border border-[var(--app-border)] px-2 py-2 text-sm text-[var(--app-hint)]">
                                 {t('tool.questionOverlay.skippedValue')}
                             </div>
                         ) : q.options.length > 0 ? (
@@ -144,7 +144,7 @@ export function AskUserQuestionView(props: ToolViewProps) {
                                         <div
                                             key={optIdx}
                                             className={cn(
-                                                "rounded-md border px-2 py-2",
+                                                "rounded-sm border px-2 py-2",
                                                 isSelected
                                                     ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
                                                     : "border-[var(--app-border)]"

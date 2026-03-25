@@ -20,7 +20,7 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-sm text-sm font-medium animate-bounce-in z-10"
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
         </button>
@@ -42,7 +42,7 @@ function MessageSkeleton() {
             <div className="space-y-3 animate-pulse">
                 {rows.map((row, index) => (
                     <div key={`skeleton-${index}`} className={row.align === 'end' ? 'flex justify-end' : 'flex justify-start'}>
-                        <div className={`${row.height} ${row.width} rounded-xl bg-[var(--app-subtle-bg)]`} />
+                        <div className={`${row.height} ${row.width} rounded-sm bg-[var(--app-subtle-bg)]`} />
                     </div>
                 ))}
             </div>
@@ -57,7 +57,7 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
         return null
     }
 
-    const controlClass = 'mx-auto inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs shadow-sm'
+    const controlClass = 'mx-auto inline-flex h-7 items-center justify-center gap-1.5 rounded-sm px-2.5 text-xs'
 
     if (props.loading) {
         return (
@@ -470,7 +470,7 @@ export function HappyThread(props: {
             <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
                 <ThreadPrimitive.Viewport asChild autoScroll={autoScrollEnabled}>
                     <div ref={viewportRef} className="app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-                        <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
+                        <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-2'}`}>
                             {showSkeleton ? (
                                 <MessageSkeleton />
                             ) : (
@@ -482,19 +482,19 @@ export function HappyThread(props: {
                                     />
 
                                     {props.messagesWarning ? (
-                                        <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs">
+                                        <div className="mb-2 rounded-sm bg-amber-500/10 p-2 text-xs">
                                             {props.messagesWarning}
                                         </div>
                                     ) : null}
 
                                     {import.meta.env.DEV && props.normalizedMessagesCount === 0 && props.rawMessagesCount > 0 ? (
-                                        <div className="mb-2 rounded-md bg-amber-500/10 p-2 text-xs">
+                                        <div className="mb-2 rounded-sm bg-amber-500/10 p-2 text-xs">
                                             Message normalization returned 0 items for {props.rawMessagesCount} messages (see `web/src/chat/normalize.ts`).
                                         </div>
                                     ) : null}
                                 </>
                             )}
-                            <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
+                            <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-2'}`}>
                                 <ThreadMessagesList />
                             </div>
                         </div>

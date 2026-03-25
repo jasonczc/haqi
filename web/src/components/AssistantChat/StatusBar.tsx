@@ -182,7 +182,7 @@ export function StatusBar(props: {
                             return (
                                 <span
                                     key={`${agent.name}:${agent.startedAt ?? index}`}
-                                    className="max-w-[220px] truncate rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                    className="max-w-[220px] truncate rounded-sm bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
                                     title={label}
                                 >
                                     {label}

@@ -67,7 +67,7 @@ export default function DebugDiffPage() {
                     <p className="mt-1 text-sm text-[var(--app-hint)]">{subtitle}</p>
                 </div>
 
-                <Suspense fallback={<div className="rounded-md border border-[var(--app-border)] p-4 text-sm text-[var(--app-hint)]">Loading diff viewer…</div>}>
+                <Suspense fallback={<div className="rounded-sm border border-[var(--app-border)] p-4 text-sm text-[var(--app-hint)]">Loading diff viewer…</div>}>
                     <GitDiffViewer
                         filePath="src/debug-demo.ts"
                         language="typescript"

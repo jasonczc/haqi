@@ -982,7 +982,7 @@ export default function SettingsPage() {
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                     >
                         <BackIcon />
                     </button>
@@ -1020,7 +1020,7 @@ export default function SettingsPage() {
 
                             {isOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[160px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[160px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] overflow-hidden z-50"
                                     role="listbox"
                                     aria-label={t('settings.language.title')}
                                 >
@@ -1075,7 +1075,7 @@ export default function SettingsPage() {
 
                             {isThemeOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[140px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] overflow-hidden z-50"
                                     role="listbox"
                                     aria-label={t('settings.display.theme')}
                                 >
@@ -1123,7 +1123,7 @@ export default function SettingsPage() {
 
                             {isFontOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[140px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] overflow-hidden z-50"
                                     role="listbox"
                                     aria-label={t('settings.display.fontSize')}
                                 >
@@ -1184,7 +1184,7 @@ export default function SettingsPage() {
 
                             {isVoiceOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[200px] max-h-[300px] overflow-y-auto rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[200px] max-h-[300px] overflow-y-auto rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] z-50"
                                     role="listbox"
                                     aria-label={t('settings.voice.title')}
                                 >
@@ -1256,7 +1256,7 @@ export default function SettingsPage() {
 
                             {isSendModeOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] overflow-hidden divide-y divide-[var(--app-divider)] z-50"
                                     role="listbox"
                                     aria-label={t('settings.behavior.defaultSendMode')}
                                 >
@@ -1321,7 +1321,7 @@ export default function SettingsPage() {
 
                             {isQueuePanelOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] overflow-hidden divide-y divide-[var(--app-divider)] z-50"
                                     role="listbox"
                                     aria-label={t('settings.behavior.queueInlinePanel')}
                                 >
@@ -1483,7 +1483,7 @@ export default function SettingsPage() {
 
                             {isImageCompressionLevelOpen && imageUploadCompressionEnabled && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] overflow-hidden z-50"
                                     role="listbox"
                                     aria-label={t('settings.behavior.imageCompression.level')}
                                 >
@@ -1548,7 +1548,7 @@ export default function SettingsPage() {
 
                             {isImageCompressionTargetSizeOpen && imageUploadCompressionEnabled && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] overflow-hidden z-50"
                                     role="listbox"
                                     aria-label={t('settings.behavior.imageCompression.targetSize')}
                                 >
@@ -1665,7 +1665,7 @@ export default function SettingsPage() {
                                 type="button"
                                 onClick={() => void loadUsageOverview(true)}
                                 disabled={usageLoading}
-                                className="inline-flex rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                className="inline-flex rounded-sm border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {usageLoading ? t('settings.usage.loading') : t('settings.usage.refresh')}
                             </button>
@@ -1673,7 +1673,7 @@ export default function SettingsPage() {
 
                         {usageError ? (
                             <div className="px-3 pb-3">
-                                <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                <div className="rounded-sm border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
                                     {usageError}
                                 </div>
                             </div>
@@ -1684,7 +1684,7 @@ export default function SettingsPage() {
                                 {([usageOverview.claude, usageOverview.codex] as const).map((provider) => (
                                     <div
                                         key={provider.provider}
-                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                        className="rounded-sm border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
                                     >
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="font-medium text-[var(--app-fg)]">
@@ -1768,7 +1768,7 @@ export default function SettingsPage() {
                                     <select
                                         value={selectedCodexMachineId}
                                         onChange={(event) => handleCodexMachineChange(event.target.value)}
-                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                        className="rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
                                         aria-label={t('settings.codexCredentials.machine')}
                                     >
                                         {activeMachines.map((machine) => (
@@ -1781,7 +1781,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleReloadCodexCredentials() }}
                                         disabled={!selectedCodexMachineId || codexCredentialLoading}
-                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-sm border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {t('settings.codexCredentials.actions.refresh')}
                                     </button>
@@ -1789,14 +1789,14 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleExportCodexCredentials() }}
                                         disabled={!codexCredentialState?.current.exists || codexCredentialExporting}
-                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-sm border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {t('settings.codexCredentials.actions.export')}
                                     </button>
                                 </div>
 
                                 <div className="px-3 pb-3">
-                                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="rounded-sm border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="font-medium text-[var(--app-fg)]">
                                                 {t('settings.codexCredentials.current.title')}
@@ -1826,7 +1826,7 @@ export default function SettingsPage() {
 
                                 {codexCredentialError ? (
                                     <div className="px-3 pb-3">
-                                        <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                        <div className="rounded-sm border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
                                             {codexCredentialError}
                                         </div>
                                     </div>
@@ -1834,14 +1834,14 @@ export default function SettingsPage() {
 
                                 {codexCredentialStatusMessage ? (
                                     <div className="px-3 pb-3">
-                                        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+                                        <div className="rounded-sm border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
                                             {codexCredentialStatusMessage}
                                         </div>
                                     </div>
                                 ) : null}
 
                                 <div className="grid gap-3 px-3 pb-3 lg:grid-cols-2">
-                                    <div className="space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="space-y-2 rounded-sm border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
                                         <div className="font-medium text-[var(--app-fg)]">
                                             {t('settings.codexCredentials.actions.saveCurrent')}
                                         </div>
@@ -1849,19 +1849,19 @@ export default function SettingsPage() {
                                             value={codexCredentialNameDraft}
                                             onChange={(event) => setCodexCredentialNameDraft(event.target.value)}
                                             placeholder={t('settings.codexCredentials.name.placeholder')}
-                                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                            className="w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
                                         />
                                         <button
                                             type="button"
                                             onClick={() => { void handleSaveCurrentCodexCredentials() }}
                                             disabled={!codexCredentialState?.current.exists || codexCredentialActionPendingId !== null}
-                                            className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="rounded-sm bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {t('settings.codexCredentials.actions.saveCurrent')}
                                         </button>
                                     </div>
 
-                                    <div className="space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="space-y-2 rounded-sm border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
                                         <div className="font-medium text-[var(--app-fg)]">
                                             {t('settings.codexCredentials.import.title')}
                                         </div>
@@ -1869,20 +1869,20 @@ export default function SettingsPage() {
                                             type="file"
                                             accept="application/json,.json"
                                             onChange={(event) => { void handleCodexCredentialFileChange(event) }}
-                                            className="block w-full text-sm text-[var(--app-fg)] file:mr-3 file:rounded-md file:border file:border-[var(--app-border)] file:bg-[var(--app-bg)] file:px-2.5 file:py-1.5 file:text-sm file:text-[var(--app-fg)]"
+                                            className="block w-full text-sm text-[var(--app-fg)] file:mr-3 file:rounded-sm file:border file:border-[var(--app-border)] file:bg-[var(--app-bg)] file:px-2.5 file:py-1.5 file:text-sm file:text-[var(--app-fg)]"
                                         />
                                         <textarea
                                             value={codexCredentialImportDraft}
                                             onChange={(event) => setCodexCredentialImportDraft(event.target.value)}
                                             placeholder={t('settings.codexCredentials.import.placeholder')}
-                                            className="h-36 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                            className="h-36 w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
                                             spellCheck={false}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => { void handleImportCodexCredentials() }}
                                             disabled={!codexCredentialImportDraft.trim() || codexCredentialActionPendingId !== null}
-                                            className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="rounded-sm bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {t('settings.codexCredentials.actions.import')}
                                         </button>
@@ -1898,7 +1898,7 @@ export default function SettingsPage() {
                                             {codexCredentialState.profiles.map((profile) => (
                                                 <div
                                                     key={profile.id}
-                                                    className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                                    className="rounded-sm border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
                                                 >
                                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                                         <div>
@@ -1919,7 +1919,7 @@ export default function SettingsPage() {
                                                                 type="button"
                                                                 onClick={() => { void handleActivateCodexCredential(profile.id) }}
                                                                 disabled={profile.isActive || codexCredentialActionPendingId !== null}
-                                                                className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className="rounded-sm border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
                                                             >
                                                                 {profile.isActive
                                                                     ? t('settings.codexCredentials.profile.active')
@@ -1929,7 +1929,7 @@ export default function SettingsPage() {
                                                                 type="button"
                                                                 onClick={() => { void handleDeleteCodexCredential(profile) }}
                                                                 disabled={profile.isActive || codexCredentialActionPendingId !== null}
-                                                                className="rounded-md border border-red-500/30 px-2.5 py-1.5 text-sm text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className="rounded-sm border border-red-500/30 px-2.5 py-1.5 text-sm text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
                                                             >
                                                                 {t('settings.codexCredentials.actions.delete')}
                                                             </button>
@@ -1944,7 +1944,7 @@ export default function SettingsPage() {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="rounded-md border border-dashed border-[var(--app-border)] px-3 py-4 text-sm text-[var(--app-hint)]">
+                                        <div className="rounded-sm border border-dashed border-[var(--app-border)] px-3 py-4 text-sm text-[var(--app-hint)]">
                                             {t('settings.codexCredentials.profiles.empty')}
                                         </div>
                                     )}
@@ -1973,7 +1973,7 @@ export default function SettingsPage() {
                                 value={reportDomainDraft}
                                 onChange={(event) => setReportDomainDraft(event.target.value)}
                                 placeholder={t('settings.reportDomain.placeholder')}
-                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
+                                className="w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
                                 spellCheck={false}
                                 disabled={reportDomainLoading || reportDomainEnvOverride}
                             />
@@ -1992,7 +1992,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleReloadReportDomain() }}
                                         disabled={reportDomainLoading || saveReportDomainMutation.isPending}
-                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-sm border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {t('settings.reportDomain.actions.reload')}
                                     </button>
@@ -2005,7 +2005,7 @@ export default function SettingsPage() {
                                             || !isReportDomainDirty
                                             || saveReportDomainMutation.isPending
                                         }
-                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-sm bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {saveReportDomainMutation.isPending
                                             ? t('settings.reportDomain.actions.saving')
@@ -2052,7 +2052,7 @@ export default function SettingsPage() {
 
                         {memoryError ? (
                             <div className="px-3 pb-2">
-                                <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                <div className="rounded-sm border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
                                     {memoryError}
                                 </div>
                             </div>
@@ -2063,7 +2063,7 @@ export default function SettingsPage() {
                                 value={memoryDraft}
                                 onChange={(event) => setMemoryDraft(event.target.value)}
                                 placeholder={memoryLoading ? t('settings.memory.placeholder.loading') : t('settings.memory.placeholder.edit')}
-                                className="h-56 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                className="h-56 w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
                                 spellCheck={false}
                             />
                             <div className="mt-2 flex items-center justify-between gap-2">
@@ -2075,7 +2075,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleReloadMemory() }}
                                         disabled={saveMemoryMutation.isPending}
-                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-sm border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {t('settings.memory.actions.reload')}
                                     </button>
@@ -2083,7 +2083,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleSaveMemory() }}
                                         disabled={!isMemoryDirty || saveMemoryMutation.isPending}
-                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-sm bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {saveMemoryMutation.isPending ? t('settings.memory.actions.saving') : t('settings.memory.actions.save')}
                                     </button>

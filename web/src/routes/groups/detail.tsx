@@ -734,20 +734,20 @@ function AddMemberModal(props: {
     if (mode === 'create') {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div className="flex w-full max-w-lg flex-col rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl" style={{ maxHeight: '90vh' }}>
+                <div className="flex w-full max-w-lg flex-col rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)]" style={{ maxHeight: '90vh' }}>
                     <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
                                 onClick={() => setMode('select')}
-                                className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                                className="rounded-sm p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
                                 title="Back to selection"
                             >
                                 <ChevronLeftIcon />
                             </button>
                             <div className="font-semibold text-sm text-[var(--app-fg)]">Create New Session</div>
                         </div>
-                        <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
+                        <button type="button" onClick={props.onClose} className="rounded-sm p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
                             <CloseIcon />
                         </button>
                     </div>
@@ -769,10 +769,10 @@ function AddMemberModal(props: {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="flex w-full max-w-sm flex-col rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl" style={{ maxHeight: '80vh' }}>
+            <div className="flex w-full max-w-sm flex-col rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)]" style={{ maxHeight: '80vh' }}>
                 <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
                     <div className="font-semibold text-sm text-[var(--app-fg)]">Add Member</div>
-                    <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
+                    <button type="button" onClick={props.onClose} className="rounded-sm p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
                         <CloseIcon />
                     </button>
                 </div>
@@ -791,7 +791,7 @@ function AddMemberModal(props: {
                 </div>
 
                 <div className="border-b border-[var(--app-divider)] px-3 py-2">
-                    <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]" />
+                    <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." className="w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]" />
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto">
@@ -867,11 +867,11 @@ function MemberPill(props: {
             type="button"
             {...longPressHandlers}
             disabled={!clickable}
-            className={`group relative flex items-center gap-1.5 rounded-lg border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-left transition-colors ${clickable ? 'hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-link)]' : 'cursor-default'}`}
+            className={`group relative flex items-center gap-1.5 rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-left transition-colors ${clickable ? 'hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-link)]' : 'cursor-default'}`}
             style={{ WebkitTouchCallout: 'none' }}
             aria-label={tooltipText}
         >
-            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] shadow-lg group-hover:block group-focus-visible:block">
+            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] group-hover:block group-focus-visible:block">
                 <div className="space-y-0.5">
                     <div className="font-medium">{title}</div>
                     {tooltipLines.map((line) => (
@@ -880,13 +880,13 @@ function MemberPill(props: {
                 </div>
             </div>
             <span className="relative shrink-0">
-                <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-semibold ${avatarTone}`}>
+                <span className={`flex h-5 w-5 items-center justify-center rounded-sm border text-[10px] font-semibold ${avatarTone}`}>
                     {avatarInitial}
                 </span>
                 <span className={`absolute -bottom-px -right-px h-1.5 w-1.5 rounded-full ${dotClass}`} />
             </span>
             <span className="max-w-[120px] truncate text-[11px] font-medium text-[var(--app-fg)]">{title}</span>
-            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] ${statusClass}`}>
+            <span className={`shrink-0 rounded-sm px-1.5 py-0.5 text-[10px] ${statusClass}`}>
                 {statusLabel}
             </span>
         </button>
@@ -1000,7 +1000,7 @@ function MemberActionMenu(props: MemberActionMenuProps) {
         <div
             ref={menuRef}
             role="menu"
-            className="fixed z-50 min-w-[180px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
+            className="fixed z-50 min-w-[180px] rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] p-1 animate-menu-pop"
             style={menuStyle}
         >
             <button
@@ -1010,7 +1010,7 @@ function MemberActionMenu(props: MemberActionMenuProps) {
                     onClose()
                     onRemove()
                 }}
-                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
+                className="flex w-full items-center rounded-sm px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
             >
                 Remove member
             </button>
@@ -1042,7 +1042,7 @@ function PendingRequestsQuickModal(props: {
             }}
         >
             <div
-                className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl"
+                className="flex w-full max-w-2xl flex-col overflow-hidden rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)]"
                 style={{ maxHeight: '85vh' }}
                 onClick={(event) => event.stopPropagation()}
             >
@@ -1058,7 +1058,7 @@ function PendingRequestsQuickModal(props: {
                     <button
                         type="button"
                         onClick={props.onClose}
-                        className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                        className="rounded-sm p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
                         title="Close"
                     >
                         <CloseIcon />
@@ -1084,12 +1084,12 @@ function PendingRequestsQuickModal(props: {
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
                     {props.loadError ? (
-                        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        <div className="rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
                             {props.loadError}
                         </div>
                     ) : null}
                     {props.actionError ? (
-                        <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        <div className="mb-2 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
                             {props.actionError}
                         </div>
                     ) : null}
@@ -1097,7 +1097,7 @@ function PendingRequestsQuickModal(props: {
                     {props.isLoading ? (
                         <LoadingState label="Loading pending requests..." className="py-4 text-sm" />
                     ) : props.requests.length === 0 ? (
-                        <div className="rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm text-[var(--app-hint)]">
+                        <div className="rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm text-[var(--app-hint)]">
                             No pending requests.
                         </div>
                     ) : (
@@ -1105,9 +1105,9 @@ function PendingRequestsQuickModal(props: {
                             {props.requests.map((request) => {
                                 const isActing = props.activeRequestId === request.id
                                 return (
-                                    <div key={request.id} className="rounded-lg border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]">
+                                    <div key={request.id} className="rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]">
                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--app-divider)] px-3 py-2 text-xs">
-                                            <span className="rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 font-semibold text-[var(--app-fg)]">
+                                            <span className="rounded-sm bg-[var(--app-subtle-bg)] px-1.5 py-0.5 font-semibold text-[var(--app-fg)]">
                                                 {request.tool}
                                             </span>
                                             <span className="text-[var(--app-hint)]">
@@ -1124,7 +1124,7 @@ function PendingRequestsQuickModal(props: {
                                             <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--app-hint)]">
                                                 Arguments
                                             </div>
-                                            <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--app-divider)] bg-[var(--app-bg)] p-2 text-[11px] text-[var(--app-fg)]">
+                                            <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] p-2 text-[11px] text-[var(--app-fg)]">
                                                 {formatPermissionArguments(request.arguments)}
                                             </pre>
                                         </div>
@@ -1134,7 +1134,7 @@ function PendingRequestsQuickModal(props: {
                                                 type="button"
                                                 onClick={() => { void props.onDeny(request.id) }}
                                                 disabled={props.activeRequestId !== null}
-                                                className="rounded border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="rounded-sm border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 Deny
                                             </button>
@@ -1192,7 +1192,7 @@ function TaskStateList(props: { taskStates: LatestTaskStates }) {
                         const target = typeof p?.targetSessionId === 'string' ? p.targetSessionId.slice(0, 14) : ''
                         const error = typeof p?.error === 'string' ? p.error : null
                         return (
-                            <div key={t.taskId ?? t.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1">
+                            <div key={t.taskId ?? t.id} className="flex flex-wrap items-center gap-1.5 rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1">
                                 <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${taskStatusClass(status)}`}>{status}</span>
                                 {target ? <span className="text-[10px] text-[var(--app-hint)]">{target}</span> : null}
                                 {error ? <span className="text-[10px] text-red-500">{error}</span> : null}
@@ -1230,7 +1230,7 @@ function TimelineBubble(props: {
     if (isSystem) {
         return (
             <div className="flex justify-center py-1">
-                <span className="rounded-full bg-[var(--app-secondary-bg)] px-3 py-1 text-[11px] italic text-[var(--app-hint)]">{text}</span>
+                <span className="rounded-sm bg-[var(--app-secondary-bg)] px-3 py-1 text-[11px] italic text-[var(--app-hint)]">{text}</span>
             </div>
         )
     }
@@ -1259,7 +1259,7 @@ function TimelineBubble(props: {
         <button
             type="button"
             onClick={() => props.onQuote?.(message)}
-            className="mb-1 shrink-0 self-end rounded-full p-1 text-[var(--app-hint)] opacity-100 transition-opacity hover:bg-[var(--app-subtle-bg)] md:opacity-0 md:group-hover/message:opacity-100"
+            className="mb-1 shrink-0 self-end rounded-sm p-1 text-[var(--app-hint)] opacity-100 transition-opacity hover:bg-[var(--app-subtle-bg)] md:opacity-0 md:group-hover/message:opacity-100"
             title="Reply"
         >
             <QuoteIcon className="h-3.5 w-3.5" />
@@ -1279,11 +1279,11 @@ function TimelineBubble(props: {
                                 className="transition-opacity hover:opacity-80"
                                 aria-label={actorTooltipText}
                             >
-                                <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${actorTone}`}>
+                                <span className={`flex h-7 w-7 items-center justify-center rounded-sm border text-xs font-semibold ${actorTone}`}>
                                     {actorInitial}
                                 </span>
                             </button>
-                            <div className={`pointer-events-none absolute top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] shadow-lg group-hover:block group-focus-within:block ${isUser ? 'right-0' : 'left-0'}`}>
+                            <div className={`pointer-events-none absolute top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] rounded-sm border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] group-hover:block group-focus-within:block ${isUser ? 'right-0' : 'left-0'}`}>
                                 <div className="space-y-0.5">
                                     <div className="font-medium">{actorTitle}</div>
                                     {actorTooltipLines.map((line) => (
@@ -1303,10 +1303,10 @@ function TimelineBubble(props: {
                     </div>
                 </div>
                 <div
-                    className={`rounded-2xl px-3 py-2 text-sm ${
+                    className={`rounded-sm px-3 py-2 text-sm ${
                         isUser
-                            ? 'bg-[var(--app-button)] text-[var(--app-button-text)] rounded-br-sm'
-                            : 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] rounded-bl-sm'
+                            ? 'bg-[var(--app-button)] text-[var(--app-button-text)]'
+                            : 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)]'
                     } ${isCommand
                         ? 'font-mono text-xs whitespace-pre-wrap break-words'
                         : isUser
@@ -1315,7 +1315,7 @@ function TimelineBubble(props: {
                     }`}
                 >
                     {quoteInfo && (
-                        <div className={`mb-1.5 flex items-start gap-1.5 rounded px-2 py-1.5 ${
+                        <div className={`mb-1.5 flex items-start gap-1.5 rounded-sm px-2 py-1.5 ${
                             isUser ? 'bg-[var(--app-subtle-bg)]' : 'bg-[var(--app-bg)]/60'
                         }`}>
                             <QuoteIcon className="mt-0.5 h-2.5 w-2.5 shrink-0 opacity-60" />
@@ -1428,7 +1428,7 @@ function ComposerAttachmentList(props: {
                         : formatFileSize(attachment.size)
 
                 return (
-                    <div key={attachment.id} className="flex min-w-[180px] max-w-full items-center gap-2 rounded-lg bg-[var(--app-subtle-bg)] px-3 py-2 text-base text-[var(--app-fg)]">
+                    <div key={attachment.id} className="flex min-w-[180px] max-w-full items-center gap-2 rounded-sm bg-[var(--app-subtle-bg)] px-3 py-2 text-base text-[var(--app-fg)]">
                         {attachment.status === 'uploading' ? (
                             <Spinner size="sm" label={null} className="text-[var(--app-hint)]" />
                         ) : null}
@@ -1441,7 +1441,7 @@ function ComposerAttachmentList(props: {
                             <img
                                 src={attachment.previewUrl}
                                 alt={attachment.filename}
-                                className="h-8 w-8 shrink-0 rounded object-cover"
+                                className="h-8 w-8 shrink-0 rounded-sm object-cover"
                             />
                         ) : (
                             <span className="shrink-0">
@@ -1460,7 +1460,7 @@ function ComposerAttachmentList(props: {
                             type="button"
                             onClick={() => { void props.onRemove(attachment.id) }}
                             disabled={props.disabled}
-                            className="shrink-0 rounded p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                            className="shrink-0 rounded-sm p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
                             title="Remove attachment"
                         >
                             <CloseIcon className="h-3 w-3" />
@@ -1498,7 +1498,7 @@ function TimelineHistoryControl(props: {
     if (props.isLoading) {
         return (
             <div className="py-1.5 text-center">
-                <span className="inline-flex rounded-full bg-[var(--app-button)] px-2.5 py-1 text-xs text-[var(--app-button-text)]">
+                <span className="inline-flex rounded-sm bg-[var(--app-button)] px-2.5 py-1 text-xs text-[var(--app-button-text)]">
                     Loading history...
                 </span>
             </div>
@@ -1510,7 +1510,7 @@ function TimelineHistoryControl(props: {
             <button
                 type="button"
                 onClick={props.onLoadMore}
-                className="inline-flex rounded-full border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2.5 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                className="inline-flex rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2.5 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
             >
                 Load older
             </button>
@@ -1922,7 +1922,7 @@ function GroupBriefTurnList(props: {
         <>
             <div className="relative min-h-0 flex-1">
                 {props.warning ? (
-                    <div className="mx-3 mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                    <div className="mx-3 mb-2 rounded-sm border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                         {props.warning}
                     </div>
                 ) : null}
@@ -1984,10 +1984,10 @@ function GroupBriefTurnList(props: {
                                 <div className="px-3 pb-3">
                                     <div className="space-y-2">
                                         <div className={`flex ${initiatorIsUser ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[92%] rounded-2xl border px-3 py-2 text-sm ${
+                                            <div className={`max-w-[92%] rounded-sm border px-3 py-2 text-sm ${
                                                 initiatorIsUser
-                                                    ? 'rounded-br-sm bg-[var(--app-button)] text-[var(--app-button-text)]'
-                                                    : 'rounded-bl-sm bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-border)]'
+                                                    ? 'bg-[var(--app-button)] text-[var(--app-button-text)]'
+                                                    : 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-border)]'
                                             }`}>
                                                 <BriefCardMarkdownPreview content={initiatorPreview} />
                                             </div>
@@ -2010,7 +2010,7 @@ function GroupBriefTurnList(props: {
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
+                                                <div className={`relative w-full max-w-[92%] rounded-sm border bg-[var(--app-bg)] px-3 py-2 ${
                                                     turn.status === 'open'
                                                         ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
                                                         : 'border-[var(--app-border)]'
@@ -2034,7 +2034,7 @@ function GroupBriefTurnList(props: {
                                                             <span>·</span>
                                                             <span className="underline decoration-dotted">Click to open details</span>
                                                             {turn.status === 'open' ? (
-                                                                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                                                                <span className="ml-auto inline-flex items-center gap-1 rounded-sm border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
                                                                     <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
                                                                     Generating
                                                                 </span>
@@ -2060,7 +2060,7 @@ function GroupBriefTurnList(props: {
                                 <button
                                     type="button"
                                     onClick={closeTurnDetails}
-                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-sm border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                     aria-label="Back"
                                 >
                                     <ChevronLeftIcon />
@@ -3022,7 +3022,7 @@ export default function GroupDetailPage() {
                                         const dotClass = getMemberStatusDotClass(status)
                                         return (
                                             <div key={member.id} className="relative">
-                                                <span className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] font-semibold ${avatarTone}`}>
+                                                <span className={`flex h-4 w-4 items-center justify-center rounded-sm border text-[9px] font-semibold ${avatarTone}`}>
                                                     {avatarInitial}
                                                 </span>
                                                 <div className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ${dotClass}`} />
@@ -3081,7 +3081,7 @@ export default function GroupDetailPage() {
                                         <button
                                             type="button"
                                             onClick={() => handleOpenPendingQuickModal(sessionId)}
-                                            className="rounded-md border border-[var(--app-badge-warning-text)] bg-[var(--app-badge-warning-bg)] px-2 py-1 text-[10px] font-medium text-[var(--app-badge-warning-text)] hover:opacity-80"
+                                            className="rounded-sm border border-[var(--app-badge-warning-text)] bg-[var(--app-badge-warning-bg)] px-2 py-1 text-[10px] font-medium text-[var(--app-badge-warning-text)] hover:opacity-80"
                                             title="Handle pending permission requests"
                                         >
                                             Pending {pendingCount}
@@ -3146,7 +3146,7 @@ export default function GroupDetailPage() {
                                     onChange={(e) => setNoteDraft(e.target.value)}
                                     placeholder="Note content..."
                                     rows={5}
-                                    className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)] resize-y"
+                                    className="w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)] resize-y"
                                 />
                                 <div className="mt-2 grid grid-cols-[auto_1fr] items-start gap-x-2 gap-y-1.5">
                                     <span className="self-center text-[11px] text-[var(--app-hint)]">Executor</span>
@@ -3157,7 +3157,7 @@ export default function GroupDetailPage() {
                                             void handleUpdateNoteExecutor(next.length > 0 ? next : null)
                                         }}
                                         disabled={isPending}
-                                        className="w-full rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
+                                        className="w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
                                     >
                                         <option value="">Not configured</option>
                                         {members
@@ -3179,7 +3179,7 @@ export default function GroupDetailPage() {
                                         onChange={(e) => setNotePromptDraft(e.target.value)}
                                         placeholder="Optional prompt for each generation..."
                                         rows={2}
-                                        className="w-full resize-y rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                        className="w-full resize-y rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
                                     />
                                 </div>
                             </>
@@ -3191,10 +3191,10 @@ export default function GroupDetailPage() {
             {/* D. Timeline */}
             <div className="flex-1 min-h-0 flex flex-col">
                 <div className="px-3 pb-2 pt-1">
-                    <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-1">
+                    <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-1">
                         <button
                             type="button"
-                            className={`rounded px-2.5 py-1 text-xs transition-colors ${viewMode === 'normal'
+                            className={`rounded-sm px-2.5 py-1 text-xs transition-colors ${viewMode === 'normal'
                                 ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
                                 : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
                             onClick={() => setViewMode('normal')}
@@ -3203,7 +3203,7 @@ export default function GroupDetailPage() {
                         </button>
                         <button
                             type="button"
-                            className={`rounded px-2.5 py-1 text-xs transition-colors ${viewMode === 'brief'
+                            className={`rounded-sm px-2.5 py-1 text-xs transition-colors ${viewMode === 'brief'
                                 ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
                                 : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
                             onClick={() => setViewMode('brief')}
@@ -3320,7 +3320,7 @@ export default function GroupDetailPage() {
                             position={mentionPosition}
                         />
                     ) : null}
-                    <div className={`overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)] transition-colors ${quotedMessage ? 'ring-1 ring-[var(--app-link)]/40' : ''}`}>
+                    <div className={`overflow-hidden rounded-sm bg-[var(--app-secondary-bg)] transition-colors ${quotedMessage ? 'ring-1 ring-[var(--app-link)]/40' : ''}`}>
                         <ComposerAttachmentList
                             attachments={composerAttachments}
                             disabled={isPending}
@@ -3342,7 +3342,7 @@ export default function GroupDetailPage() {
                                 <button
                                     type="button"
                                     onClick={() => setQuotedMessage(null)}
-                                    className="mt-0.5 shrink-0 rounded p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                                    className="mt-0.5 shrink-0 rounded-sm p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
                                     title="Cancel reply"
                                 >
                                     <CloseIcon className="h-3 w-3" />
@@ -3367,7 +3367,7 @@ export default function GroupDetailPage() {
                                 type="button"
                                 onClick={openAttachmentPicker}
                                 disabled={isPending || !uploadSessionId}
-                                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-8 w-8 items-center justify-center rounded-sm text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
                                 title={uploadSessionId ? 'Attach files' : 'No online member available for uploads'}
                             >
                                 <AttachmentIcon className="h-[18px] w-[18px]" />
@@ -3375,7 +3375,7 @@ export default function GroupDetailPage() {
                             <button
                                 type="submit"
                                 disabled={!canSendComposer}
-                                className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${canSendComposer ? 'bg-black' : 'bg-[#C0C0C0]'}`}
+                                className={`flex h-8 w-8 items-center justify-center rounded-sm text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${canSendComposer ? 'bg-black' : 'bg-[#C0C0C0]'}`}
                                 title="Send"
                             >
                                 <SendIcon className="h-4 w-4" />

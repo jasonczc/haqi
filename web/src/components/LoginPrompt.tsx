@@ -138,7 +138,7 @@ export function LoginPrompt(props: LoginPromptProps) {
                             placeholder={t('login.placeholder')}
                             autoComplete="current-password"
                             disabled={isLoading}
-                            className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
+                            className="w-full px-3 py-2.5 rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
                         />
                     </div>
 
@@ -152,7 +152,7 @@ export function LoginPrompt(props: LoginPromptProps) {
                         type="submit"
                         disabled={isLoading || !accessToken.trim()}
                         aria-busy={isLoading}
-                        className="w-full py-2.5 rounded-lg bg-[var(--app-button)] text-[var(--app-button-text)] font-medium disabled:opacity-50 hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2"
+                        className="w-full py-2.5 rounded-sm bg-[var(--app-button)] text-[var(--app-button-text)] font-medium disabled:opacity-50 hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2"
                     >
                         {isLoading ? (
                             <>
@@ -198,7 +198,7 @@ export function LoginPrompt(props: LoginPromptProps) {
                                                 setServerError(null)
                                             }}
                                             placeholder={t('login.server.placeholder')}
-                                            className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
+                                            className="w-full px-3 py-2.5 rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
                                         />
                                         <div className="text-[11px] text-[var(--app-hint)]">
                                             {t('login.server.hint')}

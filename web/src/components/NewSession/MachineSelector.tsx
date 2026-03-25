@@ -17,7 +17,7 @@ export function MachineSelector(props: {
     const { t } = useTranslation()
 
     return (
-        <div className="flex flex-col gap-1.5 px-3 py-3">
+        <div className="flex flex-col gap-1.5 px-3 py-2">
             <label className="text-xs font-medium text-[var(--app-hint)]">
                 {t('newSession.machine')}
             </label>
@@ -25,7 +25,7 @@ export function MachineSelector(props: {
                 value={props.machineId ?? ''}
                 onChange={(e) => props.onChange(e.target.value)}
                 disabled={props.isDisabled}
-                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                className="w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
             >
                 {props.isLoading && (
                     <option value="">{t('loading.machines')}</option>

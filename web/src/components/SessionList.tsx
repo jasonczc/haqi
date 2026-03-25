@@ -405,7 +405,7 @@ function SessionItem(props: {
             <button
                 type="button"
                 {...longPressHandlers}
-                className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
+                className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1 px-2.5 py-2'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
                 style={{ WebkitTouchCallout: 'none' }}
                 aria-current={selected ? 'page' : undefined}
             >
@@ -416,7 +416,7 @@ function SessionItem(props: {
                                 className={`h-2 w-2 rounded-full ${statusDotClass}`}
                             />
                         </span>
-                        <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
+                        <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-sm'}`}>
                             {sessionName}
                         </div>
                     </div>
@@ -452,7 +452,7 @@ function SessionItem(props: {
                     </div>
                 ) : null}
                 {!isCompact ? (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--app-hint)]">
                         <span className="inline-flex items-center gap-2">
                             <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
                                 ❖
@@ -628,7 +628,7 @@ function SessionGroupRow(props: {
         <div
             ref={setNodeRef}
             style={dragStyle}
-            className={`z-10 flex w-full items-center gap-1 border-b border-[var(--app-divider)] cursor-grab active:cursor-grabbing select-none ${isDropTarget ? 'bg-[var(--app-secondary-bg)]' : 'bg-[var(--app-bg)]'} ${isDragging ? 'opacity-70' : ''} ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}
+            className={`z-10 flex w-full items-center gap-1 border-b border-[var(--app-divider)] cursor-grab active:cursor-grabbing select-none ${isDropTarget ? 'bg-[var(--app-secondary-bg)]' : 'bg-[var(--app-bg)]'} ${isDragging ? 'opacity-70' : ''} ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-2.5 py-1.5'}`}
             onContextMenu={(event) => {
                 event.preventDefault()
                 event.stopPropagation()
@@ -640,18 +640,18 @@ function SessionGroupRow(props: {
             <button
                 type="button"
                 onClick={() => onToggleGroup(group.directory, isCollapsed)}
-                className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-[var(--app-secondary-bg)]"
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-sm px-1 py-1 text-left transition-colors hover:bg-[var(--app-secondary-bg)]"
             >
                 <ChevronIcon
                     className="h-4 w-4 text-[var(--app-hint)]"
                     collapsed={isCollapsed}
                 />
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className={`font-medium break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`} title={group.directory}>
+                    <span className={`font-medium break-words ${density === 'compact' ? 'text-sm' : 'text-sm'}`} title={group.directory}>
                         {group.displayName}
                     </span>
                     {isProjectOffline ? (
-                        <span className="shrink-0 rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                        <span className="shrink-0 rounded-sm bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
                             {t('misc.offline')}
                         </span>
                     ) : null}
@@ -664,7 +664,7 @@ function SessionGroupRow(props: {
                 <button
                     type="button"
                     {...plusButtonHandlers}
-                    className="shrink-0 rounded p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-secondary-bg)]"
+                    className="shrink-0 rounded-sm p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-secondary-bg)]"
                     title={t('sessions.newInProject')}
                     aria-label={t('sessions.newInProject')}
                 >
@@ -871,7 +871,7 @@ export function SessionList(props: {
                     <button
                         type="button"
                         onClick={() => props.onNewSession()}
-                        className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
+                        className="session-list-new-button p-1.5 rounded-sm text-[var(--app-link)] transition-colors"
                         title={t('sessions.new')}
                     >
                         <PlusIcon className="h-5 w-5" />

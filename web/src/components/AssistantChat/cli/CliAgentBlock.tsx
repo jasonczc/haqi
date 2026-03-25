@@ -13,7 +13,7 @@ function CliCodeBlockInner(props: { language: string; code: string }) {
     const { copied, copy } = useCopyToClipboard()
 
     return (
-        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-md border border-[var(--app-border)]">
+        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-sm border border-[var(--app-border)]">
             <div className="flex items-center justify-between bg-[var(--app-code-bg)] px-2 py-0.5">
                 <span className="text-xs text-[var(--app-hint)]">{props.language}</span>
                 <button
@@ -45,7 +45,7 @@ function CliCodeBlock(props: ComponentPropsWithoutRef<'code'>) {
         <code
             {...rest}
             className={cn(
-                'break-words rounded bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]',
+                'break-words rounded-sm bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]',
                 className
             )}
         >
@@ -71,10 +71,10 @@ const cliMarkdownComponents = {
         <blockquote {...props} className="border-l-4 border-[var(--app-hint)] pl-3 opacity-85 break-words" />
     ),
     ul: (props: ComponentPropsWithoutRef<'ul'>) => (
-        <ul {...props} className="aui-md-ul list-disc pl-5 my-0.5" />
+        <ul {...props} className="aui-md-ul list-disc pl-4 my-0.5" />
     ),
     ol: (props: ComponentPropsWithoutRef<'ol'>) => (
-        <ol {...props} className="aui-md-ol list-decimal pl-5 my-0.5" />
+        <ol {...props} className="aui-md-ol list-decimal pl-4 my-0.5" />
     ),
     li: (props: ComponentPropsWithoutRef<'li'>) => (
         <li {...props} className="aui-md-li my-0" />

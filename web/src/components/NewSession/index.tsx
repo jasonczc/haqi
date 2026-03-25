@@ -430,7 +430,7 @@ export function NewSession(props: {
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
             />
-            <div className="flex flex-col gap-1.5 px-3 py-3">
+            <div className="flex flex-col gap-1.5 px-3 py-2">
                 <label className="text-xs font-medium text-[var(--app-hint)]">
                     Preview URL (optional)
                 </label>
@@ -440,7 +440,7 @@ export function NewSession(props: {
                     value={previewUrlInput}
                     onChange={(event) => setPreviewUrlInput(event.target.value)}
                     disabled={isFormDisabled}
-                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                    className="w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
                 />
                 {previewUrlHistory.length > 0 ? (
                     <div className="flex flex-wrap gap-1 pt-1">
@@ -450,7 +450,7 @@ export function NewSession(props: {
                                 type="button"
                                 onClick={() => setPreviewUrlInput(url)}
                                 disabled={isFormDisabled}
-                                className="max-w-[240px] truncate rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:opacity-50"
+                                className="max-w-[240px] truncate rounded-sm bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:opacity-50"
                                 title={url}
                             >
                                 {url}

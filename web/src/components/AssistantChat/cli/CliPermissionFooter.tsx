@@ -28,7 +28,7 @@ function CliBtn(props: {
     return (
         <button
             type="button"
-            className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 disabled:pointer-events-none ${color}`}
+            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 disabled:pointer-events-none ${color}`}
             disabled={props.disabled}
             onClick={props.onClick}
         >
@@ -235,7 +235,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                         onKeyDown={e => { if (e.key === 'Enter') submit() }}
                         disabled={props.disabled || loading}
                         placeholder="Type your answer…"
-                        className="block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                        className="block w-full max-w-md rounded-sm border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
                     />
                 </div>
             ) : (
@@ -252,7 +252,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                                         type="button"
                                         onClick={() => toggle(qIdx, optIdx)}
                                         disabled={props.disabled || loading}
-                                        className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${selected
+                                        className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${selected
                                             ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
                                             : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
                                         }`}
@@ -267,7 +267,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                                 type="button"
                                 onClick={() => toggleOther(qIdx)}
                                 disabled={props.disabled || loading}
-                                className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${otherSelectedByQ[qIdx]
+                                className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${otherSelectedByQ[qIdx]
                                     ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
                                     : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
                                 }`}
@@ -282,7 +282,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                                 onChange={e => setOtherTextByQ(prev => { const n = prev.slice(); n[qIdx] = e.target.value; return n })}
                                 disabled={props.disabled || loading}
                                 placeholder="Type your answer…"
-                                className="mt-0.5 block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                                className="mt-0.5 block w-full max-w-md rounded-sm border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
                             />
                         )}
                     </div>
@@ -366,7 +366,7 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
                                             type="button"
                                             onClick={() => select(q.id, opt.label)}
                                             disabled={props.disabled || loading}
-                                            className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${selected
+                                            className={`inline-flex items-center rounded-sm border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${selected
                                                 ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
                                                 : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
                                             }`}
@@ -385,7 +385,7 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
                             onKeyDown={e => { if (e.key === 'Enter') submit() }}
                             disabled={props.disabled || loading}
                             placeholder={q.options.length > 0 ? 'Additional note (optional)…' : 'Type your answer…'}
-                            className="mt-0.5 block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                            className="mt-0.5 block w-full max-w-md rounded-sm border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
                         />
                     </div>
                 )

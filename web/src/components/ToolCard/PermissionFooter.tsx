@@ -78,7 +78,7 @@ function PermissionRowButton(props: {
     disabled: boolean
     onClick: () => void
 }) {
-    const base = 'flex w-full items-center justify-between rounded-md px-2 py-2 text-sm text-left transition-colors disabled:pointer-events-none disabled:opacity-50 hover:bg-[var(--app-subtle-bg)]'
+    const base = 'flex w-full items-center justify-between rounded-sm px-2 py-2 text-sm text-left transition-colors disabled:pointer-events-none disabled:opacity-50 hover:bg-[var(--app-subtle-bg)]'
     const tone = props.tone === 'allow'
         ? 'text-emerald-600'
         : props.tone === 'deny'

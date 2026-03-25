@@ -28,7 +28,7 @@ function CodeHeader(props: CodeHeaderProps) {
             <button
                 type="button"
                 onClick={() => copy(props.code)}
-                className="shrink-0 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
+                className="shrink-0 rounded-sm p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
                 title="Copy"
             >
                 {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
@@ -45,7 +45,7 @@ function Pre(props: ComponentPropsWithoutRef<'pre'>) {
             <pre
                 {...rest}
                 className={cn(
-                    'aui-md-pre m-0 w-max min-w-full rounded-b-md rounded-t-none bg-[var(--app-code-bg)] p-2 text-sm',
+                    'aui-md-pre m-0 w-max min-w-full rounded-b-sm rounded-t-none bg-[var(--app-code-bg)] p-2 text-sm',
                     className
                 )}
             />
@@ -69,7 +69,7 @@ function Code(props: ComponentPropsWithoutRef<'code'>) {
         <code
             {...props}
             className={cn(
-                'aui-md-code break-words rounded bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] font-mono text-[0.9em]',
+                'aui-md-code break-words rounded-sm bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] font-mono text-[0.9em]',
                 props.className
             )}
         />
@@ -111,11 +111,11 @@ function Blockquote(props: ComponentPropsWithoutRef<'blockquote'>) {
 }
 
 function UnorderedList(props: ComponentPropsWithoutRef<'ul'>) {
-    return <ul {...props} className={cn('aui-md-ul list-disc pl-6', props.className)} />
+    return <ul {...props} className={cn('aui-md-ul list-disc pl-4', props.className)} />
 }
 
 function OrderedList(props: ComponentPropsWithoutRef<'ol'>) {
-    return <ol {...props} className={cn('aui-md-ol list-decimal pl-6', props.className)} />
+    return <ol {...props} className={cn('aui-md-ol list-decimal pl-4', props.className)} />
 }
 
 function ListItem(props: ComponentPropsWithoutRef<'li'>) {
