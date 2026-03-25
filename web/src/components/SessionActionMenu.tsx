@@ -20,6 +20,8 @@ type SessionActionMenuProps = {
     onDelete: () => void
     anchorPoint: { x: number; y: number }
     menuId?: string
+    viewMode?: 'normal' | 'brief' | 'cli'
+    onViewModeChange?: (mode: 'normal' | 'brief' | 'cli') => void
 }
 
 function EditIcon(props: { className?: string }) {
@@ -128,6 +130,27 @@ function TrashIcon(props: { className?: string }) {
     )
 }
 
+
+function TerminalIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <path d="M4 17 10 11 4 5" />
+            <path d="M12 19h8" />
+        </svg>
+    )
+}
+
 type MenuPosition = {
     top: number
     left: number
@@ -146,7 +169,9 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onArchive,
         onDelete,
         anchorPoint,
-        menuId
+        menuId,
+        viewMode,
+        onViewModeChange
     } = props
     const menuRef = useRef<HTMLDivElement | null>(null)
     const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
@@ -179,6 +204,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const handleDelete = () => {
         onClose()
         onDelete()
+    }
+
+    const handleViewModeChange = (mode: 'normal' | 'brief' | 'cli') => {
+        if (!onViewModeChange) return
+        onClose()
+        onViewModeChange(mode)
     }
 
     const updatePosition = useCallback(() => {
@@ -249,7 +280,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         if (!isOpen) return
 
         const frame = window.requestAnimationFrame(() => {
-            const firstItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')
+            const firstItem = menuRef.current?.querySelector<HTMLElement>('[role="menuitem"], [role="menuitemradio"]')
             firstItem?.focus()
         })
 
@@ -287,6 +318,33 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 aria-labelledby={headingId}
                 className="flex flex-col gap-1"
             >
+                {viewMode && onViewModeChange ? (
+                    <>
+                        <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                            View mode
+                        </div>
+                        {([
+                            ['normal', 'Normal'],
+                            ['brief', 'Brief'],
+                            ['cli', 'CLI']
+                        ] as const).map(([mode, label]) => (
+                            <button
+                                key={mode}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={viewMode === mode}
+                                className={`${baseItemClassName} ${viewMode === mode ? 'bg-[var(--app-subtle-bg)] text-[var(--app-fg)]' : 'hover:bg-[var(--app-subtle-bg)]'}`}
+                                onClick={() => handleViewModeChange(mode)}
+                            >
+                                <TerminalIcon className="text-[var(--app-hint)]" />
+                                <span className="flex-1">{label}</span>
+                                {viewMode === mode ? <span className="text-[11px] text-[var(--app-hint)]">Current</span> : null}
+                            </button>
+                        ))}
+                        <div className="my-1 h-px bg-[var(--app-border)]" />
+                    </>
+                ) : null}
+
                 <button
                     type="button"
                     role="menuitem"

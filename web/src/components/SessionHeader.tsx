@@ -261,29 +261,6 @@ export function SessionHeader(props: {
                         </div>
                     </div>
 
-                    {props.viewMode && props.onViewModeChange ? (
-                        <div className="flex shrink-0 items-center rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-0.5">
-                            {([
-                                ['normal', 'N'],
-                                ['brief', 'B'],
-                                ['cli', 'CLI']
-                            ] as const).map(([mode, label]) => (
-                                <button
-                                    key={mode}
-                                    type="button"
-                                    className={`rounded-sm px-1.5 py-0.5 text-[10px] leading-none transition-colors ${props.viewMode === mode
-                                        ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                        : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'} ${mode === 'cli' ? 'font-mono' : ''}`}
-                                    onClick={() => props.onViewModeChange!(mode)}
-                                    aria-label={mode}
-                                    title={mode === 'normal' ? 'Normal' : mode === 'brief' ? 'Brief' : 'CLI'}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                    ) : null}
-
                     <div className="flex shrink-0 items-center gap-0.5">
                         {props.onViewPreview ? (
                             <button
@@ -349,6 +326,8 @@ export function SessionHeader(props: {
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
                 menuId={menuId}
+                viewMode={props.viewMode}
+                onViewModeChange={props.onViewModeChange}
             />
 
             <RenameSessionDialog
