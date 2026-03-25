@@ -141,10 +141,7 @@ export function SessionHeader(props: {
     const { t } = useTranslation()
     const { session, api, onSessionDeleted } = props
     const title = useMemo(() => getSessionTitle(session), [session])
-    const worktreeBranch = session.metadata?.worktree?.branch
-    const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
-    const displayThinkEffort = session.metadata?.thinkEffort?.trim()
-    const displayServiceTier = session.metadata?.serviceTier?.trim()
+    const displayFlavor = session.metadata?.flavor?.trim() || 'unknown'
     const sidebarToggleLabel = props.sidebarVisible
         ? t('sessions.sidebar.hideDesktop')
         : t('sessions.sidebar.showDesktop')
@@ -222,19 +219,19 @@ export function SessionHeader(props: {
 
     return (
         <>
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 py-2 px-3">
-                    <div className="flex items-center gap-1">
-                        {/* Back button */}
+            <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
+                <div className="mx-auto flex w-full max-w-content items-center gap-1.5 px-2 py-1.5">
+                    <div className="flex items-center gap-0.5">
                         <button
                             type="button"
                             onClick={props.onBack}
-                            className="flex h-7 w-7 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            aria-label="Back"
                         >
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
+                                width="16"
+                                height="16"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
@@ -250,101 +247,98 @@ export function SessionHeader(props: {
                             <button
                                 type="button"
                                 onClick={props.onToggleSidebar}
-                                className="flex h-7 w-7 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                 title={sidebarToggleLabel}
                                 aria-label={sidebarToggleLabel}
                             >
-                                <SidebarIcon />
+                                <SidebarIcon className="h-4 w-4" />
                             </button>
                         ) : null}
                     </div>
 
-                    {/* Session info - two lines: title and path */}
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                        <div className="truncate font-mono text-sm font-semibold leading-none text-[var(--app-fg)]" title={title}>
                             {title}
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--app-hint)]">
-                            <span className="inline-flex items-center gap-1">
-                                <span aria-hidden="true">❖</span>
-                                {session.metadata?.flavor?.trim() || 'unknown'}
-                            </span>
-                            <span>
-                                {t('session.item.model')}: {displayModel}
-                                {displayThinkEffort ? ` · ${t('session.item.thinkLevel')}: ${displayThinkEffort}` : ''}
-                                {displayServiceTier ? ` · ${t('newSession.serviceTier')}: ${displayServiceTier}` : ''}
-                            </span>
-                            {worktreeBranch ? (
-                                <span>{t('session.item.worktree')}: {worktreeBranch}</span>
-                            ) : null}
+                        <div className="mt-0.5 truncate text-[10px] uppercase tracking-wide text-[var(--app-hint)]" title={displayFlavor}>
+                            {displayFlavor}
                         </div>
                     </div>
 
                     {props.viewMode && props.onViewModeChange ? (
-                        <div className="flex items-center rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-0.5">
-                            {(['normal', 'brief', 'cli'] as const).map((mode) => (
+                        <div className="flex shrink-0 items-center rounded-sm border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-0.5">
+                            {([
+                                ['normal', 'N'],
+                                ['brief', 'B'],
+                                ['cli', 'CLI']
+                            ] as const).map(([mode, label]) => (
                                 <button
                                     key={mode}
                                     type="button"
-                                    className={`rounded-sm px-2 py-0.5 text-[11px] transition-colors ${props.viewMode === mode
+                                    className={`rounded-sm px-1.5 py-0.5 text-[10px] leading-none transition-colors ${props.viewMode === mode
                                         ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
                                         : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'} ${mode === 'cli' ? 'font-mono' : ''}`}
                                     onClick={() => props.onViewModeChange!(mode)}
+                                    aria-label={mode}
+                                    title={mode === 'normal' ? 'Normal' : mode === 'brief' ? 'Brief' : 'CLI'}
                                 >
-                                    {mode === 'normal' ? 'Normal' : mode === 'brief' ? 'Brief' : 'CLI'}
+                                    {label}
                                 </button>
                             ))}
                         </div>
                     ) : null}
 
-                    {props.onViewPreview ? (
+                    <div className="flex shrink-0 items-center gap-0.5">
+                        {props.onViewPreview ? (
+                            <button
+                                type="button"
+                                onClick={props.onViewPreview}
+                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                title="Preview"
+                                aria-label="Preview"
+                            >
+                                <BrowserIcon className="h-4 w-4" />
+                            </button>
+                        ) : null}
+
+                        {props.onViewFiles ? (
+                            <button
+                                type="button"
+                                onClick={props.onViewFiles}
+                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                title={t('session.title')}
+                                aria-label={t('session.title')}
+                            >
+                                <FilesIcon className="h-4 w-4" />
+                            </button>
+                        ) : null}
+
+                        {props.onViewMcpStatus ? (
+                            <button
+                                type="button"
+                                onClick={props.onViewMcpStatus}
+                                className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                title={t('session.mcpStatus')}
+                                aria-label={t('session.mcpStatus')}
+                            >
+                                <PlugIcon className="h-4 w-4" />
+                            </button>
+                        ) : null}
+
                         <button
                             type="button"
-                            onClick={props.onViewPreview}
-                            className="flex h-7 w-7 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title="Preview"
-                            aria-label="Preview"
+                            onClick={handleMenuToggle}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            ref={menuAnchorRef}
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen}
+                            aria-controls={menuOpen ? menuId : undefined}
+                            className="flex h-6 w-6 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title={t('session.more')}
                         >
-                            <BrowserIcon />
+                            <MoreVerticalIcon className="h-4 w-4" />
                         </button>
-                    ) : null}
-
-                    {props.onViewFiles ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewFiles}
-                            className="flex h-7 w-7 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('session.title')}
-                        >
-                            <FilesIcon />
-                        </button>
-                    ) : null}
-
-                    {props.onViewMcpStatus ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewMcpStatus}
-                            className="flex h-7 w-7 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('session.mcpStatus')}
-                            aria-label={t('session.mcpStatus')}
-                        >
-                            <PlugIcon />
-                        </button>
-                    ) : null}
-
-                    <button
-                        type="button"
-                        onClick={handleMenuToggle}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        ref={menuAnchorRef}
-                        aria-haspopup="menu"
-                        aria-expanded={menuOpen}
-                        aria-controls={menuOpen ? menuId : undefined}
-                        className="flex h-7 w-7 items-center justify-center rounded-sm text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                        title={t('session.more')}
-                    >
-                        <MoreVerticalIcon />
-                    </button>
+                    </div>
                 </div>
             </div>
 
