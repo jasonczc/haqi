@@ -127,6 +127,15 @@ export class MessageQueue2<T> {
     }
 
     /**
+     * Drain all pending queue entries in order and clear the queue.
+     */
+    drainEntries(): MessageQueueItem<T>[] {
+        const drained = this.queue.map((item) => ({ ...item }));
+        this.queue = [];
+        return drained;
+    }
+
+    /**
      * Push a message to the queue with a mode.
      */
     push(message: string, mode: T, options?: { deferUserMessageUntilDequeue?: boolean; isolate?: boolean }): void {
@@ -212,12 +221,21 @@ export class MessageQueue2<T> {
     /**
      * Push a message to the beginning of the queue with a mode.
      */
-    unshift(message: string, mode: T, options?: { deferUserMessageUntilDequeue?: boolean }): void {
+    unshift(
+        message: string,
+        mode: T,
+        options?: { deferUserMessageUntilDequeue?: boolean; isolate?: boolean }
+    ): void {
         if (this.closed) {
             throw new Error('Cannot unshift to closed queue');
         }
 
-        const queueItem = this.createQueueItem(message, mode, false, options?.deferUserMessageUntilDequeue === true);
+        const queueItem = this.createQueueItem(
+            message,
+            mode,
+            options?.isolate === true,
+            options?.deferUserMessageUntilDequeue === true
+        );
         const modeHash = queueItem.modeHash;
         logger.debug(`[MessageQueue2] unshift() called with mode hash: ${modeHash}`);
 

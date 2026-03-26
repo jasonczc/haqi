@@ -209,6 +209,16 @@ export async function runCodex(opts: {
         };
     };
 
+    const buildCurrentEnhancedMode = (): EnhancedMode => ({
+        permissionMode: currentPermissionMode ?? 'default',
+        model: currentModel,
+        effort: currentEffort,
+        serviceTier: currentServiceTier,
+        collaborationMode: getCurrentCollaborationMode()
+    });
+
+    const mergeQueuedMessages = (messages: string[]): string => messages.join('\n\n---\n\n');
+
     const getCodexStatusMessage = async (): Promise<string> => {
         const sessionInstance = sessionWrapperRef.current;
         return await buildCodexStatusMessage({
@@ -534,6 +544,38 @@ export async function runCodex(opts: {
             return {
                 success: true,
                 clearedCount,
+                queue: getCodexQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getCodexQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('stop-and-flush-codex-queue', async () => {
+        try {
+            const sessionInstance = sessionWrapperRef.current;
+            if (!sessionInstance) {
+                return {
+                    success: false,
+                    error: 'Codex session is not ready',
+                    queue: getCodexQueueStateSnapshot()
+                };
+            }
+
+            const drainedEntries = messageQueue.drainEntries();
+            await sessionInstance.stopCurrentTurn();
+
+            if (drainedEntries.length > 0) {
+                const mergedMessage = mergeQueuedMessages(drainedEntries.map((entry) => entry.message));
+                messageQueue.unshift(mergedMessage, buildCurrentEnhancedMode(), {
+                    deferUserMessageUntilDequeue: true,
+                    isolate: true
+                });
+            }
+
+            return {
+                success: true,
                 queue: getCodexQueueStateSnapshot()
             };
         } catch (error) {

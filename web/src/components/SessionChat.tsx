@@ -489,7 +489,16 @@ export function SessionChat(props: {
     const dialogQueuePollIntervalMs = codexQueueHasLiveActivity ? 2_000 : 6_000
     const agentFlavor = props.session.metadata?.flavor ?? null
     const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
-    const { abortSession, switchSession, setPermissionMode, setModel, setThinkEffort, setServiceTier, setCollaborationMode } = useSessionActions(
+    const {
+        abortSession,
+        stopAndFlushCodexQueue,
+        switchSession,
+        setPermissionMode,
+        setModel,
+        setThinkEffort,
+        setServiceTier,
+        setCollaborationMode
+    } = useSessionActions(
         props.api,
         props.session.id,
         agentFlavor
@@ -766,12 +775,6 @@ export function SessionChat(props: {
         }
     }, [setCollaborationMode, props.onRefresh, haptic, codexCollaborationMode])
 
-    // Abort handler
-    const handleAbort = useCallback(async () => {
-        await abortSession()
-        props.onRefresh()
-    }, [abortSession, props.onRefresh])
-
     // Switch to remote handler
     const handleSwitchToRemote = useCallback(async () => {
         await switchSession()
@@ -983,6 +986,23 @@ export function SessionChat(props: {
             void refreshCodexQueue({ silent: true })
         }, 150)
     }, [supportsQueueControls, refreshCodexQueue])
+
+    const handleAbort = useCallback(async () => {
+        if (agentFlavor === 'codex' && codexQueuePendingCount > 0) {
+            await stopAndFlushCodexQueue()
+        } else {
+            await abortSession()
+        }
+        props.onRefresh()
+        void refreshCodexQueue({ silent: true })
+    }, [
+        abortSession,
+        stopAndFlushCodexQueue,
+        agentFlavor,
+        codexQueuePendingCount,
+        props.onRefresh,
+        refreshCodexQueue
+    ])
 
     const handleCodexQueueOpen = useCallback(() => {
         if (!supportsQueueControls) {
