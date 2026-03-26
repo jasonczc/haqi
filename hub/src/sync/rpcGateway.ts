@@ -437,6 +437,20 @@ export class RpcGateway {
         }
     }
 
+    async stopAndFlushCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'stop-and-flush-codex-queue', {}) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'stop-and-flush-codex-queue')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue stop+send is unavailable for this session. Please restart the session.'
+            }
+        }
+    }
+
     async getClaudeQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
         try {
             return await this.sessionRpc(sessionId, 'get-claude-queue', {}) as RpcCodexQueueResponse

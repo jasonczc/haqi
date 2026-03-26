@@ -511,6 +511,17 @@ describe('MessageQueue2', () => {
         expect(queue.size()).toBe(0);
     });
 
+    it('should drain queue entries in order and clear the queue', () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.push('first', 'mode-a');
+        queue.push('second', 'mode-b');
+
+        const drained = queue.drainEntries();
+
+        expect(drained.map((entry) => entry.message)).toEqual(['first', 'second']);
+        expect(queue.size()).toBe(0);
+    });
+
     it('should process isolated deferred messages one by one', async () => {
         const queue = new MessageQueue2<string>((mode) => mode);
         queue.push('queue-1', 'mode', { deferUserMessageUntilDequeue: true, isolate: true });

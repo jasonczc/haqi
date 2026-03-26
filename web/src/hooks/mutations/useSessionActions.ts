@@ -15,6 +15,7 @@ export function useSessionActions(
     agentFlavor?: string | null
 ): {
     abortSession: () => Promise<void>
+    stopAndFlushCodexQueue: () => Promise<void>
     archiveSession: () => Promise<void>
     switchSession: () => Promise<void>
     setPermissionMode: (mode: PermissionMode) => Promise<void>
@@ -42,6 +43,19 @@ export function useSessionActions(
                 throw new Error('Session unavailable')
             }
             await api.abortSession(sessionId)
+        },
+        onSuccess: () => void invalidateSession(),
+    })
+
+    const stopAndFlushCodexQueueMutation = useMutation({
+        mutationFn: async () => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            const result = await api.stopAndFlushCodexQueue(sessionId)
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to stop and flush Codex queue')
+            }
         },
         onSuccess: () => void invalidateSession(),
     })
@@ -166,6 +180,7 @@ export function useSessionActions(
 
     return {
         abortSession: abortMutation.mutateAsync,
+        stopAndFlushCodexQueue: stopAndFlushCodexQueueMutation.mutateAsync,
         archiveSession: archiveMutation.mutateAsync,
         switchSession: switchMutation.mutateAsync,
         setPermissionMode: permissionMutation.mutateAsync,
@@ -178,6 +193,7 @@ export function useSessionActions(
         spawnSameConfigSession: async () => await spawnFromExistingSession(false),
         duplicateSession: async () => await spawnFromExistingSession(true),
         isPending: abortMutation.isPending
+            || stopAndFlushCodexQueueMutation.isPending
             || archiveMutation.isPending
             || switchMutation.isPending
             || permissionMutation.isPending

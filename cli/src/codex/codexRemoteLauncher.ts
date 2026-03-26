@@ -87,7 +87,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         return React.createElement(CodexDisplay, context);
     }
 
-    private async handleAbort(): Promise<void> {
+    private async interruptCurrentTurn(options?: { resetQueue?: boolean }): Promise<void> {
         logger.debug('[Codex] Abort requested - stopping current task');
         try {
             if (this.useAppServer && this.appServerClient) {
@@ -106,7 +106,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             }
 
             this.abortController.abort();
-            this.session.queue.reset();
+            if (options?.resetQueue !== false) {
+                this.session.queue.reset();
+            }
             this.permissionHandler?.reset();
             this.reasoningProcessor?.abort();
             this.diffProcessor?.reset();
@@ -117,6 +119,14 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         } finally {
             this.abortController = new AbortController();
         }
+    }
+
+    private async handleAbort(): Promise<void> {
+        await this.interruptCurrentTurn({ resetQueue: true });
+    }
+
+    private async handleStopCurrentTurn(): Promise<void> {
+        await this.interruptCurrentTurn({ resetQueue: false });
     }
 
     private async handleExitFromUi(): Promise<void> {
@@ -1006,6 +1016,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
         const { server: happyServer, mcpServers } = await buildHapiMcpBridge(session.client);
         this.happyServer = happyServer;
+        session.setStopCurrentTurnHandler(() => this.handleStopCurrentTurn());
 
         this.setupAbortHandlers(session.client.rpcHandlerManager, {
             onAbort: () => this.handleAbort(),
@@ -1362,6 +1373,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
         }
 
         this.clearAbortHandlers(this.session.client.rpcHandlerManager);
+        this.session.setStopCurrentTurnHandler(null);
 
         if (this.happyServer) {
             this.happyServer.stop();

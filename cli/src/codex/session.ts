@@ -18,6 +18,7 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
     readonly startingMode: 'local' | 'remote';
     localLaunchFailure: LocalLaunchFailure | null = null;
     private collaborationMode: EnhancedMode['collaborationMode'];
+    private stopCurrentTurnHandler: (() => Promise<void>) | null = null;
 
     constructor(opts: {
         api: ApiClient;
@@ -86,6 +87,14 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
 
     getCollaborationMode = (): EnhancedMode['collaborationMode'] => {
         return this.collaborationMode;
+    };
+
+    setStopCurrentTurnHandler = (handler: (() => Promise<void>) | null): void => {
+        this.stopCurrentTurnHandler = handler;
+    };
+
+    stopCurrentTurn = async (): Promise<void> => {
+        await this.stopCurrentTurnHandler?.();
     };
 
     recordLocalLaunchFailure = (message: string, exitReason: LocalLaunchExitReason): void => {
