@@ -593,7 +593,18 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (!payload || typeof payload !== 'object') {
             throw new Error('Invalid session config payload');
         }
-        const config = payload as { permissionMode?: unknown; modelMode?: unknown; model?: unknown; thinkEffort?: unknown };
+        const config = payload as { permissionMode?: unknown; modelMode?: unknown; model?: unknown; thinkEffort?: unknown; collaborationMode?: unknown };
+
+        if (config.collaborationMode !== undefined) {
+            // For Claude, collaborationMode 'plan' maps to permissionMode 'plan'
+            const collab = typeof config.collaborationMode === 'string' ? config.collaborationMode.trim().toLowerCase() : '';
+            if (collab === 'plan') {
+                currentPermissionMode = 'plan';
+            } else if (currentPermissionMode === 'plan') {
+                // Switching out of plan mode -> revert to default
+                currentPermissionMode = 'default';
+            }
+        }
 
         if (config.permissionMode !== undefined) {
             currentPermissionMode = resolvePermissionMode(config.permissionMode);
@@ -626,7 +637,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 permissionMode: currentPermissionMode,
                 modelMode: currentModelMode,
                 model: currentModel,
-                thinkEffort: currentThinkEffort
+                thinkEffort: currentThinkEffort,
+                collaborationMode: currentPermissionMode === 'plan' ? 'plan' : undefined
             }
         };
     });

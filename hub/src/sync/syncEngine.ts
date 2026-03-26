@@ -992,7 +992,7 @@ export class SyncEngine {
             && (applied.thinkEffort !== undefined || config.thinkEffort !== undefined)
         const shouldUpdateServiceTierMetadata = flavor === 'codex'
             && (applied.serviceTier !== undefined || config.serviceTier !== undefined)
-        const shouldUpdateCollaborationModeMetadata = flavor === 'codex'
+        const shouldUpdateCollaborationModeMetadata = (flavor === 'codex' || flavor === 'claude')
             && (applied.collaborationMode !== undefined || config.collaborationMode !== undefined)
 
         if (shouldUpdateModelMetadata || shouldUpdateThinkEffortMetadata || shouldUpdateServiceTierMetadata || shouldUpdateCollaborationModeMetadata) {
@@ -1115,7 +1115,7 @@ export class SyncEngine {
         value: string | null | undefined,
         flavor: string | null
     ): string | undefined {
-        if (flavor !== 'codex') {
+        if (flavor !== 'codex' && flavor !== 'claude') {
             return undefined
         }
 
@@ -1856,7 +1856,7 @@ ${note.content}
             && isPermissionModeAllowedForFlavor(sourceSession.permissionMode, flavor)
             ? sourceSession.permissionMode
             : undefined
-        const sourceCollaborationMode = flavor === 'codex' && typeof metadata.collaborationMode === 'string'
+        const sourceCollaborationMode = (flavor === 'codex' || flavor === 'claude') && typeof metadata.collaborationMode === 'string'
             ? (metadata.collaborationMode.trim().toLowerCase() === 'plan' ? 'plan' : undefined)
             : undefined
         const duplicatedName = this.buildDuplicateSessionName(sourceSession)
