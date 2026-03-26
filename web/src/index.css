@@ -229,6 +229,16 @@ html[data-theme="dark"] .shiki span {
     text-decoration: var(--shiki-dark-text-decoration) !important;
 }
 
+.aui-md-mermaid-svg svg {
+    display: block;
+    height: auto;
+    max-width: none;
+}
+
+.aui-md-mermaid-svg .error-icon {
+    display: none;
+}
+
 /* Ultrathink rainbow sparkle effect - per-letter wave animation */
 @keyframes rainbow-wave {
   0% { color: #ff5555; }      /* red */

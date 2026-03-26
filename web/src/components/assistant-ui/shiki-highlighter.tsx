@@ -1,7 +1,12 @@
 import type { SyntaxHighlighterProps } from '@assistant-ui/react-markdown'
 import { useShikiHighlighter } from '@/lib/shiki'
+import { isMermaidLanguage, MermaidBlock } from '@/components/assistant-ui/mermaid-block'
 
 export function SyntaxHighlighter(props: SyntaxHighlighterProps) {
+    if (isMermaidLanguage(props.language)) {
+        return <MermaidBlock code={props.code} language={props.language} />
+    }
+
     const highlighted = useShikiHighlighter(props.code, props.language)
 
     return (

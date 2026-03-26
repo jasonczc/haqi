@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import { useShikiHighlighter } from '@/lib/shiki'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
+import { isMermaidLanguage, MermaidBlock } from '@/components/assistant-ui/mermaid-block'
 import { CopyIcon, CheckIcon } from '@/components/icons'
 
 function CliCodeBlockInner(props: { language: string; code: string }) {
@@ -24,9 +25,13 @@ function CliCodeBlockInner(props: { language: string; code: string }) {
                     {copied ? <CheckIcon className="h-3 w-3" /> : <CopyIcon className="h-3 w-3" />}
                 </button>
             </div>
-            <pre className="shiki m-0 w-max min-w-full overflow-x-auto bg-[var(--app-code-bg)] p-2 text-sm font-mono">
-                <code className="block">{highlighted ?? props.code}</code>
-            </pre>
+            {isMermaidLanguage(props.language)
+                ? <MermaidBlock code={props.code} language={props.language} />
+                : (
+                    <pre className="shiki m-0 w-max min-w-full overflow-x-auto bg-[var(--app-code-bg)] p-2 text-sm font-mono">
+                        <code className="block">{highlighted ?? props.code}</code>
+                    </pre>
+                )}
         </div>
     )
 }
