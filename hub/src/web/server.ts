@@ -64,6 +64,10 @@ function serveEmbeddedAsset(asset: EmbeddedWebAsset): Response {
     })
 }
 
+function isStaticAssetRequest(pathname: string): boolean {
+    return /\.(?:js|css|map|json|wasm|png|jpe?g|gif|svg|webp|ico|woff2?|ttf)$/i.test(pathname)
+}
+
 function createWebApp(options: {
     getSyncEngine: () => SyncEngine | null
     getSseManager: () => SSEManager | null
@@ -191,6 +195,10 @@ from GitHub Pages instead of through the relay tunnel.
                 return serveEmbeddedAsset(asset)
             }
 
+            if (c.req.path.startsWith('/assets/') || isStaticAssetRequest(c.req.path)) {
+                return c.text('Asset not found', 404)
+            }
+
             return await next()
         })
 
@@ -218,7 +226,12 @@ from GitHub Pages instead of through the relay tunnel.
         return app
     }
 
-    app.use('/assets/*', serveStatic({ root: distDir }))
+    app.use('/assets/*', async (c, next) => {
+        await serveStatic({ root: distDir })(c, next)
+        if (!c.finalized) {
+            return c.text('Asset not found', 404)
+        }
+    })
 
     app.use('*', async (c, next) => {
         if (c.req.path.startsWith('/api')) {
@@ -226,7 +239,10 @@ from GitHub Pages instead of through the relay tunnel.
             return
         }
 
-        return await serveStatic({ root: distDir })(c, next)
+        await serveStatic({ root: distDir })(c, next)
+        if (!c.finalized && isStaticAssetRequest(c.req.path)) {
+            return c.text('Asset not found', 404)
+        }
     })
 
     app.get('*', async (c, next) => {

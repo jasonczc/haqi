@@ -1,28 +1,8 @@
 import '@git-diff-view/react/styles/diff-view-pure.css'
 import { DiffModeEnum, DiffView } from '@git-diff-view/react'
-import { memo, useEffect, useMemo, useState } from 'react'
+import { memo, useMemo } from 'react'
 import { useDiffSoftWrap } from '@/hooks/useDiffSoftWrap'
 import { useDiffViewMode } from '@/hooks/useDiffViewMode'
-
-type DiffHighlighter = Awaited<ReturnType<typeof import('@git-diff-view/shiki')['getDiffViewHighlighter']>>
-
-let cachedHighlighter: DiffHighlighter | null = null
-let cachedHighlighterPromise: Promise<DiffHighlighter> | null = null
-
-async function loadDiffHighlighter(): Promise<DiffHighlighter> {
-    if (cachedHighlighter) {
-        return cachedHighlighter
-    }
-    if (!cachedHighlighterPromise) {
-        cachedHighlighterPromise = import('@git-diff-view/shiki')
-            .then(({ getDiffViewHighlighter }) => getDiffViewHighlighter())
-            .then((highlighter) => {
-                cachedHighlighter = highlighter
-                return highlighter
-            })
-    }
-    return cachedHighlighterPromise
-}
 
 export function GitDiffViewer(props: {
     filePath: string
@@ -33,23 +13,8 @@ export function GitDiffViewer(props: {
     theme: 'light' | 'dark'
     showToolbar?: boolean
 }) {
-    const [highlighter, setHighlighter] = useState<DiffHighlighter | null>(() => cachedHighlighter)
     const { softWrap, toggleSoftWrap } = useDiffSoftWrap()
     const { diffViewMode, setDiffViewMode } = useDiffViewMode()
-
-    useEffect(() => {
-        let cancelled = false
-
-        void loadDiffHighlighter().then((next) => {
-            if (!cancelled) {
-                setHighlighter(next)
-            }
-        })
-
-        return () => {
-            cancelled = true
-        }
-    }, [])
 
     const showToolbar = props.showToolbar ?? true
     const diffData = useMemo(() => ({
@@ -105,21 +70,14 @@ export function GitDiffViewer(props: {
                     </button>
                 </div>
             ) : null}
-            {highlighter ? (
-                <DiffView
-                    data={diffData}
-                    diffViewMode={diffViewMode}
-                    diffViewTheme={props.theme}
-                    diffViewHighlight
-                    diffViewWrap={softWrap}
-                    diffViewFontSize={12}
-                    registerHighlighter={highlighter}
-                />
-            ) : (
-                <div className="px-3 py-4 text-xs text-[var(--app-hint)]">
-                    Loading diff…
-                </div>
-            )}
+            <DiffView
+                data={diffData}
+                diffViewMode={diffViewMode}
+                diffViewTheme={props.theme}
+                diffViewHighlight={false}
+                diffViewWrap={softWrap}
+                diffViewFontSize={12}
+            />
         </div>
     )
 }
