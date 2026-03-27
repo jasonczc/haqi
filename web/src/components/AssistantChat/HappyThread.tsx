@@ -421,6 +421,28 @@ export function HappyThread(props: {
         })
     }, [props.sessionId, props.isLoadingMessages, props.pendingCount, props.rawMessagesCount, props.messagesVersion])
 
+    useLayoutEffect(() => {
+        if (initialAutoScrollPendingRef.current) {
+            return
+        }
+        if (!autoScrollEnabledRef.current) {
+            return
+        }
+        if (pendingScrollRef.current) {
+            return
+        }
+        if (props.isLoadingMoreMessages) {
+            return
+        }
+        const viewport = viewportRef.current
+        if (!viewport) {
+            return
+        }
+
+        viewport.scrollTop = viewport.scrollHeight
+        previousScrollTopRef.current = viewport.scrollTop
+    }, [props.sessionId, props.messagesVersion, props.isLoadingMoreMessages])
+
     useEffect(() => {
         isLoadingMoreRef.current = props.isLoadingMoreMessages
         if (props.isLoadingMoreMessages) {
