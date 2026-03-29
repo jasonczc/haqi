@@ -51,6 +51,7 @@ export type RuntimeHandle = {
     containerId?: string
     previewTargets?: PreviewTarget[]
     serviceHandles?: ServiceRuntimeHandle[]
+    controlToken?: string
 }
 
 export type SessionRuntimeHandle = {

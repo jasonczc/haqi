@@ -3,7 +3,7 @@ import os from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { EnvironmentService, PreviewTarget } from '@hapi/protocol/types'
-import type { DockerCliPortBinding, DockerCliRuntime } from './dockerCli'
+import { DockerCliRuntime, type DockerCliPortBinding } from './dockerCli'
 import type { ServiceEndpoint, ServiceRuntimeHandle } from '@/cloud/types'
 
 export type StartedService = {
@@ -24,7 +24,7 @@ function inferEnvKey(serviceName: string, port: number): string {
 }
 
 export class DockerServiceOrchestrator {
-    constructor(private readonly runtime: DockerCliRuntime) {
+    constructor(private readonly runtime: DockerCliRuntime = new DockerCliRuntime()) {
     }
 
     async startServices(options: {

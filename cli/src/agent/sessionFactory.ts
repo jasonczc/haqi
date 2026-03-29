@@ -25,6 +25,10 @@ export type SessionBootstrapOptions = {
     workspaceId?: string
     runtimeKind?: Metadata['runtimeKind']
     environmentId?: string
+    repositoryUrl?: string
+    repositoryProvider?: string
+    repositoryRef?: Metadata['repositoryRef']
+    previewUrls?: Metadata['previewUrls']
 }
 
 export type SessionBootstrapResult = {
@@ -58,6 +62,10 @@ export function buildSessionMetadata(options: {
     workspaceId?: string
     runtimeKind?: Metadata['runtimeKind']
     environmentId?: string
+    repositoryUrl?: string
+    repositoryProvider?: string
+    repositoryRef?: Metadata['repositoryRef']
+    previewUrls?: Metadata['previewUrls']
 }): Metadata {
     const happyLibDir = runtimePath()
     const worktreeInfo = readWorktreeEnv()
@@ -83,7 +91,11 @@ export function buildSessionMetadata(options: {
         spawnRequestId: options.spawnRequestId,
         workspaceId: options.workspaceId,
         runtimeKind: options.runtimeKind,
-        environmentId: options.environmentId
+        environmentId: options.environmentId,
+        repositoryUrl: options.repositoryUrl,
+        repositoryProvider: options.repositoryProvider,
+        repositoryRef: options.repositoryRef,
+        previewUrls: options.previewUrls
     }
 }
 
@@ -134,7 +146,11 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         spawnRequestId: options.spawnRequestId,
         workspaceId: options.workspaceId,
         runtimeKind: options.runtimeKind,
-        environmentId: options.environmentId
+        environmentId: options.environmentId,
+        repositoryUrl: options.repositoryUrl,
+        repositoryProvider: options.repositoryProvider,
+        repositoryRef: options.repositoryRef,
+        previewUrls: options.previewUrls
     })
 
     const sessionInfo = await api.getOrCreateSession({

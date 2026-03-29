@@ -11,6 +11,7 @@ export type HostProcessExecutionResult = {
     childProcess: ChildProcess
     pid: number
     runtimeKind: RuntimeKind
+    containerId?: string
     workingDirectory: string
     env: Record<string, string>
 }

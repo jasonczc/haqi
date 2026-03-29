@@ -23,8 +23,11 @@ import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
 import { prepareWorkspace } from '@/cloud/workspace/prepareWorkspace';
 import { resolveEnvironmentTemplate } from '@/cloud/environment/resolveEnvironment';
+import { DockerCliRuntime } from '@/cloud/docker/dockerCli';
 import { DockerServiceOrchestrator } from '@/cloud/docker/serviceOrchestrator';
 import { buildSpawnEnvironment, startHostProcessExecutor } from '@/cloud/executors/HostProcessExecutor';
+import { startDockerSessionExecutor } from '@/cloud/executors/DockerSessionExecutor';
+import { createPreviewTargetsFromBindings } from '@/cloud/preview/previewReporter';
 import type { PreparedWorkspace, PreparedWorkspaceCleanup, ResolvedEnvironmentTemplate } from '@/cloud/types';
 
 export async function startRunner(): Promise<void> {
@@ -137,6 +140,8 @@ export async function startRunner(): Promise<void> {
     // Session spawning awaiter system
     const pidToAwaiter = new Map<number, (session: TrackedSession) => void>();
     const pidToErrorAwaiter = new Map<number, (errorMessage: string) => void>();
+    const requestIdToAwaiter = new Map<string, (session: TrackedSession) => void>();
+    const requestIdToErrorAwaiter = new Map<string, (errorMessage: string) => void>();
     type SpawnFailureDetails = {
       message: string
       pid?: number
@@ -159,16 +164,21 @@ export async function startRunner(): Promise<void> {
       logger.debugLargeJson(`[RUNNER RUN] Session reported`, sessionMetadata);
 
       const pid = sessionMetadata.hostPid;
-      if (!pid) {
-        logger.debug(`[RUNNER RUN] Session webhook missing hostPid for sessionId: ${sessionId}`);
-        return;
-      }
+      const requestId = sessionMetadata.spawnRequestId;
+      const existingSession = (() => {
+        if (pid) {
+          const byPid = pidToTrackedSession.get(pid);
+          if (byPid) return byPid;
+        }
 
-      logger.debug(`[RUNNER RUN] Session webhook: ${sessionId}, PID: ${pid}, started by: ${sessionMetadata.startedBy || 'unknown'}`);
-      logger.debug(`[RUNNER RUN] Current tracked sessions before webhook: ${Array.from(pidToTrackedSession.keys()).join(', ')}`);
+        if (requestId) {
+          return Array.from(pidToTrackedSession.values()).find((session) => session.spawnRequestId === requestId) ?? undefined;
+        }
 
-      // Check if we already have this PID (runner-spawned)
-      const existingSession = pidToTrackedSession.get(pid);
+        return undefined;
+      })();
+
+      logger.debug(`[RUNNER RUN] Session webhook: ${sessionId}, PID: ${pid ?? 'n/a'}, requestId: ${requestId ?? 'n/a'}, started by: ${sessionMetadata.startedBy || 'unknown'}`);
 
       if (existingSession && existingSession.startedBy === 'runner') {
         // Update runner-spawned session with reported data
@@ -186,14 +196,29 @@ export async function startRunner(): Promise<void> {
         logger.debug(`[RUNNER RUN] Updated runner-spawned session ${sessionId} with metadata`);
 
         // Resolve any awaiter for this PID
-        const awaiter = pidToAwaiter.get(pid);
+        const awaiter = pid !== undefined ? pidToAwaiter.get(pid) : undefined;
         if (awaiter) {
-          pidToAwaiter.delete(pid);
-          pidToErrorAwaiter.delete(pid);
+          if (pid !== undefined) {
+            pidToAwaiter.delete(pid);
+            pidToErrorAwaiter.delete(pid);
+          }
           awaiter(existingSession);
           logger.debug(`[RUNNER RUN] Resolved session awaiter for PID ${pid}`);
         }
+        if (requestId) {
+          const requestAwaiter = requestIdToAwaiter.get(requestId);
+          if (requestAwaiter) {
+            requestIdToAwaiter.delete(requestId);
+            requestIdToErrorAwaiter.delete(requestId);
+            requestAwaiter(existingSession);
+            logger.debug(`[RUNNER RUN] Resolved session awaiter for requestId ${requestId}`);
+          }
+        }
       } else if (!existingSession) {
+        if (!pid) {
+          logger.debug(`[RUNNER RUN] Session webhook missing hostPid and no matching requestId for sessionId: ${sessionId}`);
+          return;
+        }
         // New session started externally
         const trackedSession: TrackedSession = {
           startedBy: 'hapi directly - likely by user from terminal',
@@ -214,6 +239,7 @@ export async function startRunner(): Promise<void> {
       logger.debugLargeJson('[RUNNER RUN] Spawning session', options);
 
       const { directory, approvedNewDirectoryCreation = true } = options;
+      const spawnRequestId = options.resumeSessionId ?? options.sessionId ?? `spawn-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
       const agent = options.agent ?? 'claude';
       const sessionType = options.sessionType ?? 'simple';
       const worktreeName = options.worktreeName;
@@ -374,6 +400,13 @@ export async function startRunner(): Promise<void> {
           worktreeInfo,
           serviceEnv
         });
+        extraEnv.HAPI_SPAWN_REQUEST_ID = spawnRequestId;
+        if (preparedWorkspace?.workspaceId) {
+          extraEnv.HAPI_WORKSPACE_ID = preparedWorkspace.workspaceId;
+        }
+        if (resolvedEnvironment?.environmentId) {
+          extraEnv.HAPI_ENVIRONMENT_ID = resolvedEnvironment.environmentId;
+        }
 
         // sessionId reserved for future use
         const MAX_TAIL_CHARS = 4000;
@@ -475,9 +508,11 @@ export async function startRunner(): Promise<void> {
           startedBy: 'runner',
           pid,
           runtimeKind: execution.runtimeKind,
+          spawnRequestId,
           workspaceId: preparedWorkspace.workspaceId,
           serviceContainerIds: startedServices.map((service) => service.containerId),
-          childProcess: happyProcess,
+          childProcess: 'childProcess' in execution ? execution.childProcess : undefined,
+          containerId: 'containerId' in execution ? execution.containerId : undefined,
           directoryCreated,
           message: directoryCreated && options.directory ? `The path '${options.directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
         };
@@ -485,32 +520,34 @@ export async function startRunner(): Promise<void> {
 
         pidToTrackedSession.set(pid, trackedSession);
 
-        happyProcess.on('exit', (code, signal) => {
-          observedExitCode = typeof code === 'number' ? code : null;
-          observedExitSignal = signal ?? null;
-          logger.debug(`[RUNNER RUN] Child PID ${pid} exited with code ${code}, signal ${signal}`);
-          if (code !== 0 || signal) {
-            logStderrTail();
-          }
-          const errorAwaiter = pidToErrorAwaiter.get(pid);
-          if (errorAwaiter) {
-            pidToErrorAwaiter.delete(pid);
-            pidToAwaiter.delete(pid);
-            errorAwaiter(buildWebhookFailureMessage('exit-before-webhook'));
-          }
-          onChildExited(pid);
-        });
+        if (happyProcess) {
+          happyProcess.on('exit', (code, signal) => {
+            observedExitCode = typeof code === 'number' ? code : null;
+            observedExitSignal = signal ?? null;
+            logger.debug(`[RUNNER RUN] Child PID ${pid} exited with code ${code}, signal ${signal}`);
+            if (code !== 0 || signal) {
+              logStderrTail();
+            }
+            const errorAwaiter = pidToErrorAwaiter.get(pid);
+            if (errorAwaiter) {
+              pidToErrorAwaiter.delete(pid);
+              pidToAwaiter.delete(pid);
+              errorAwaiter(buildWebhookFailureMessage('exit-before-webhook'));
+            }
+            onChildExited(pid);
+          });
 
-        happyProcess.on('error', (error) => {
-          logger.debug(`[RUNNER RUN] Child process error:`, error);
-          const errorAwaiter = pidToErrorAwaiter.get(pid);
-          if (errorAwaiter) {
-            pidToErrorAwaiter.delete(pid);
-            pidToAwaiter.delete(pid);
-            errorAwaiter(buildWebhookFailureMessage('process-error-before-webhook'));
-          }
-          onChildExited(pid);
-        });
+          happyProcess.on('error', (error) => {
+            logger.debug(`[RUNNER RUN] Child process error:`, error);
+            const errorAwaiter = pidToErrorAwaiter.get(pid);
+            if (errorAwaiter) {
+              pidToErrorAwaiter.delete(pid);
+              pidToAwaiter.delete(pid);
+              errorAwaiter(buildWebhookFailureMessage('process-error-before-webhook'));
+            }
+            onChildExited(pid);
+          });
+        }
 
         // Wait for webhook to populate session with happySessionId
         logger.debug(`[RUNNER RUN] Waiting for session webhook for PID ${pid}`);
@@ -520,6 +557,8 @@ export async function startRunner(): Promise<void> {
           const timeout = setTimeout(() => {
             pidToAwaiter.delete(pid);
             pidToErrorAwaiter.delete(pid);
+            requestIdToAwaiter.delete(spawnRequestId);
+            requestIdToErrorAwaiter.delete(spawnRequestId);
             logger.debug(`[RUNNER RUN] Session webhook timeout for PID ${pid}`);
             logStderrTail();
             resolve({
@@ -534,6 +573,8 @@ export async function startRunner(): Promise<void> {
           pidToAwaiter.set(pid, (completedSession) => {
             clearTimeout(timeout);
             pidToErrorAwaiter.delete(pid);
+            requestIdToAwaiter.delete(spawnRequestId);
+            requestIdToErrorAwaiter.delete(spawnRequestId);
             logger.debug(`[RUNNER RUN] Session ${completedSession.happySessionId} fully spawned with webhook`);
             resolve({
               type: 'success',
@@ -542,6 +583,26 @@ export async function startRunner(): Promise<void> {
           });
           pidToErrorAwaiter.set(pid, (errorMessage) => {
             clearTimeout(timeout);
+            resolve({
+              type: 'error',
+              errorMessage
+            });
+          });
+          requestIdToAwaiter.set(spawnRequestId, (completedSession) => {
+            clearTimeout(timeout);
+            pidToAwaiter.delete(pid);
+            pidToErrorAwaiter.delete(pid);
+            requestIdToErrorAwaiter.delete(spawnRequestId);
+            resolve({
+              type: 'success',
+              sessionId: completedSession.happySessionId!
+            });
+          });
+          requestIdToErrorAwaiter.set(spawnRequestId, (errorMessage) => {
+            clearTimeout(timeout);
+            pidToAwaiter.delete(pid);
+            pidToErrorAwaiter.delete(pid);
+            requestIdToAwaiter.delete(spawnRequestId);
             resolve({
               type: 'error',
               errorMessage
@@ -560,6 +621,9 @@ export async function startRunner(): Promise<void> {
           });
           await stopStartedServices();
           await cleanupPreparedWorkspace();
+          if (execution.runtimeKind === 'docker-session' && 'containerId' in execution && execution.containerId) {
+            await new DockerCliRuntime().remove(execution.containerId).catch(() => undefined);
+          }
           await maybeCleanupWorktree('spawn-error');
         } else {
           reportSpawnOutcomeToHub?.({ type: 'success' });
@@ -623,6 +687,11 @@ export async function startRunner(): Promise<void> {
     // Handle child process exit
     const onChildExited = (pid: number) => {
       logger.debug(`[RUNNER RUN] Removing exited process PID ${pid} from tracking`);
+      const tracked = pidToTrackedSession.get(pid);
+      if (tracked?.spawnRequestId) {
+        requestIdToAwaiter.delete(tracked.spawnRequestId);
+        requestIdToErrorAwaiter.delete(tracked.spawnRequestId);
+      }
       pidToTrackedSession.delete(pid);
       pidToAwaiter.delete(pid);
       pidToErrorAwaiter.delete(pid);

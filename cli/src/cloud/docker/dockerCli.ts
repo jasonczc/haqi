@@ -131,6 +131,11 @@ export class DockerCliRuntime {
         }
     }
 
+    async logs(containerId: string, tail: number = 200): Promise<string> {
+        const result = await runDockerCommand(['logs', '--tail', String(tail), containerId])
+        return [result.stdout, result.stderr].filter(Boolean).join('\n')
+    }
+
     async stop(containerId: string): Promise<void> {
         await runDockerCommand(['stop', containerId])
     }

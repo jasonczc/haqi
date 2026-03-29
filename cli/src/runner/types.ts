@@ -19,6 +19,7 @@ export interface TrackedSession {
   workspaceId?: string;
   serviceContainerIds?: string[];
   containerId?: string;
+  cleanupPaths?: string[];
   childProcess?: ChildProcess;
   error?: string;
   directoryCreated?: boolean;
