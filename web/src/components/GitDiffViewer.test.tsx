@@ -16,7 +16,7 @@ vi.mock('@git-diff-view/react', () => ({
 }))
 
 describe('GitDiffViewer', () => {
-    it('renders diff view immediately without syntax highlighter bootstrap', () => {
+    it('enables syntax highlighting for diff content', () => {
         render(
             <GitDiffViewer
                 filePath="a.txt"
@@ -28,7 +28,7 @@ describe('GitDiffViewer', () => {
             />
         )
 
-        expect(screen.getByTestId('diff-view')).toHaveAttribute('data-highlight', 'false')
+        expect(screen.getByTestId('diff-view')).toHaveAttribute('data-highlight', 'true')
         expect(screen.getByText('Unified')).toBeInTheDocument()
         expect(screen.getByText('before')).toBeInTheDocument()
     })

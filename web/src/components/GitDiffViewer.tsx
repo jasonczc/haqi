@@ -74,7 +74,7 @@ export function GitDiffViewer(props: {
                 data={diffData}
                 diffViewMode={diffViewMode}
                 diffViewTheme={props.theme}
-                diffViewHighlight={false}
+                diffViewHighlight
                 diffViewWrap={softWrap}
                 diffViewFontSize={12}
             />
