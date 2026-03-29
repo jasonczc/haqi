@@ -36,6 +36,7 @@ import {
 import { SessionCache } from './sessionCache'
 import { EnvironmentRegistry as CloudEnvironmentRegistry } from '../cloud/environmentRegistry'
 import {
+    buildProviderSummaries,
     buildWorkerSummaries,
     type CloudProviderName,
     filterWorkersByProvider
@@ -100,6 +101,13 @@ export type CloudPreviewRecord = {
     machineId?: string
     previews: import('@hapi/protocol/types').PreviewTarget[]
     updatedAt: number
+}
+
+type SessionMetadataShape = {
+    machineId?: string
+    environmentId?: string
+    runtimeKind?: 'host-process' | 'docker-session'
+    previewUrls?: import('@hapi/protocol/types').PreviewTarget[]
 }
 
 type MirroredPayload = {
@@ -546,6 +554,14 @@ export class SyncEngine {
         return this.cloudEnvironmentRegistry.get(id)
     }
 
+    getCloudEnvironmentRecord(machineId: string, environmentId: string) {
+        return this.cloudEnvironmentRegistry.getRecord(machineId, environmentId)
+    }
+
+    listCloudEnvironmentRecords(machineId: string) {
+        return this.cloudEnvironmentRegistry.listForMachine(machineId)
+    }
+
     listCloudEnvironments(): import('@hapi/protocol/types').EnvironmentTemplate[] {
         return this.cloudEnvironmentRegistry.list()
     }
@@ -568,24 +584,8 @@ export class SyncEngine {
         )
     }
 
-    listCloudProviders(): Array<{ id: CloudProviderName }> {
-        const providers = new Set<CloudProviderName>(['auto'])
-        for (const machine of this.machineCache.getOnlineMachines()) {
-            const provider = machine.metadata?.provider?.trim().toLowerCase()
-            if (
-                provider === 'manual'
-                || provider === 'docker'
-                || provider === 'managed'
-                || provider === 'kubernetes'
-                || provider === 'vm'
-            ) {
-                providers.add(provider)
-            } else {
-                providers.add('unknown')
-            }
-        }
-
-        return [...providers].map((id) => ({ id }))
+    listCloudProviders() {
+        return buildProviderSummaries(this.machineCache.getMachines())
     }
 
     private resolveNamespace(event: SyncEvent): string | undefined {
@@ -857,6 +857,7 @@ export class SyncEngine {
     handleRealtimeEvent(event: SyncEvent): void {
         if (event.type === 'session-updated' && event.sessionId) {
             const refreshed = this.sessionCache.refreshSession(event.sessionId)
+            this.syncCloudRegistriesFromSession(refreshed)
             if (refreshed?.permissionMode === 'auto-approve') {
                 void this.maybeAutoApprovePendingRequests(event.sessionId)
             }
@@ -933,14 +934,46 @@ export class SyncEngine {
     private reloadAll(): void {
         this.sessionCache.reloadAll()
         this.machineCache.reloadAll()
+        for (const session of this.sessionCache.getSessions()) {
+            this.syncCloudRegistriesFromSession(session)
+        }
     }
 
     getOrCreateSession(tag: string, metadata: unknown, agentState: unknown, namespace: string): Session {
-        return this.sessionCache.getOrCreateSession(tag, metadata, agentState, namespace)
+        const session = this.sessionCache.getOrCreateSession(tag, metadata, agentState, namespace)
+        this.syncCloudRegistriesFromSession(session)
+        return session
     }
 
     getOrCreateMachine(id: string, metadata: unknown, runnerState: unknown, namespace: string): Machine {
         return this.machineCache.getOrCreateMachine(id, metadata, runnerState, namespace)
+    }
+
+    private syncCloudRegistriesFromSession(session: Session | null | undefined): void {
+        const metadata = session?.metadata as SessionMetadataShape | undefined
+        if (!session || !metadata) {
+            return
+        }
+
+        const environmentId = typeof metadata.environmentId === 'string' ? metadata.environmentId.trim() : ''
+        if (environmentId) {
+            this.cloudEnvironmentRegistry.record({
+                machineId: metadata.machineId ?? 'unknown',
+                environmentId,
+                version: 'session',
+                source: 'session',
+                runtimeKind: metadata.runtimeKind
+            })
+
+            if (!this.cloudEnvironmentRegistry.get(environmentId)) {
+                this.cloudEnvironmentRegistry.register({
+                    id: environmentId,
+                    runtime: metadata.runtimeKind ? { kind: metadata.runtimeKind } : undefined
+                })
+            }
+        }
+
+        this.previewRegistry.setSessionPreviews(session.id, metadata.previewUrls, metadata.machineId)
     }
 
     async sendMessage(

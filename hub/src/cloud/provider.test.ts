@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'bun:test'
 
-import { buildWorkerSummaries, filterWorkersByProvider, type CloudProviderName } from './provider'
+import {
+    buildProviderSummaries,
+    buildWorkerSummaries,
+    filterWorkersByProvider,
+    type CloudProviderName
+} from './provider'
 import type { Machine } from '../sync/machineCache'
 
 function createMachine(overrides: Partial<Machine>): Machine {
@@ -87,8 +92,38 @@ describe('cloud provider helpers', () => {
             expect.objectContaining({
                 machineId: 'provider-1',
                 provider: 'kubernetes' satisfies CloudProviderName,
-                lifecycle: 'busy'
+                lifecycle: 'busy',
+                active: true,
+                executorType: 'cloud-self-hosted'
             })
+        ])
+    })
+
+    it('builds provider summaries with counts and provider types', () => {
+        const workers = [
+            createMachine({ id: 'docker-1' }),
+            createMachine({
+                id: 'managed-1',
+                metadata: {
+                    ...createMachine({}).metadata!,
+                    provider: 'managed',
+                    executorType: 'cloud-managed'
+                }
+            }),
+            createMachine({
+                id: 'unknown-1',
+                metadata: {
+                    ...createMachine({}).metadata!,
+                    provider: 'something-custom'
+                }
+            })
+        ]
+
+        expect(buildProviderSummaries(workers)).toEqual([
+            { id: 'auto', type: 'self-hosted', count: 3 },
+            { id: 'docker', type: 'self-hosted', count: 1 },
+            { id: 'managed', type: 'managed', count: 1 },
+            { id: 'unknown', type: 'self-hosted', count: 1 }
         ])
     })
 })

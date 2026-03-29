@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 import type { SyncEvent } from '@hapi/protocol/types'
 import { Store } from '../store'
 import type { EventPublisher } from './eventPublisher'
@@ -106,5 +106,57 @@ describe('alive incremental events', () => {
                 previews: [preview]
             })
         ]))
+    })
+
+    it('derives environment and preview registries from session updates', () => {
+        const store = new Store(':memory:')
+        const engine = new SyncEngine(
+            store,
+            {} as Server,
+            {
+                getSocketIdForMethod: () => null,
+            } as unknown as RpcRegistry,
+            { broadcast: mock(() => {}) } as unknown as SSEManager
+        )
+
+        const session = engine.getOrCreateSession(
+            'session-cloud',
+            {
+                path: '/workspace/demo',
+                host: 'cloudbox',
+                machineId: 'machine-1',
+                environmentId: 'node-dev',
+                previewUrls: [
+                    {
+                        id: 'preview-1',
+                        name: 'web',
+                        port: 3000,
+                        url: 'https://preview.example.com',
+                        visibility: 'private'
+                    }
+                ]
+            },
+            { requests: {}, completedRequests: {} },
+            'default'
+        )
+
+        expect(engine.listCloudEnvironments()).toEqual([
+            expect.objectContaining({
+                id: 'node-dev',
+                source: 'session'
+            })
+        ])
+        expect(engine.listCloudPreviews()).toEqual([
+            expect.objectContaining({
+                sessionId: session.id,
+                machineId: 'machine-1',
+                previews: [
+                    expect.objectContaining({
+                        id: 'preview-1',
+                        port: 3000
+                    })
+                ]
+            })
+        ])
     })
 })

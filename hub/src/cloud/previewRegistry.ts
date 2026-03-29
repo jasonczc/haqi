@@ -2,6 +2,7 @@ import type { PreviewTarget } from '@hapi/protocol/types'
 
 type PreviewRegistryEntry = {
     sessionId: string
+    machineId?: string
     updatedAt: number
     previews: PreviewTarget[]
 }
@@ -17,7 +18,7 @@ export class PreviewRegistry {
         return this.previewsBySessionId.get(sessionId) ?? null
     }
 
-    setSessionPreviews(sessionId: string, previews: PreviewTarget[] | undefined): void {
+    setSessionPreviews(sessionId: string, previews: PreviewTarget[] | undefined, machineId?: string): void {
         if (!previews || previews.length === 0) {
             this.previewsBySessionId.delete(sessionId)
             return
@@ -25,6 +26,7 @@ export class PreviewRegistry {
 
         this.previewsBySessionId.set(sessionId, {
             sessionId,
+            machineId,
             updatedAt: Date.now(),
             previews
         })

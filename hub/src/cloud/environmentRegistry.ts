@@ -4,7 +4,7 @@ export type CloudEnvironmentRecord = {
     machineId: string
     environmentId: string
     version: string
-    source?: EnvironmentTemplate['source']
+    source?: EnvironmentTemplate['source'] | 'session'
     runtimeKind?: RuntimeKind
     repositoryUrl?: string
     template?: EnvironmentTemplate

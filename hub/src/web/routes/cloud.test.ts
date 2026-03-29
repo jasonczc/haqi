@@ -18,7 +18,11 @@ describe('createCloudRoutes', () => {
             listCloudWorkers: (provider?: string) => [{
                 machineId: 'machine-1',
                 provider: provider ?? 'auto',
+                active: true,
+                executorType: 'cloud-self-hosted',
                 lifecycle: 'idle',
+                region: 'us-east-1',
+                labels: ['docker', 'warm-cache'],
                 updatedAt: 1
             }]
         }))
@@ -32,7 +36,11 @@ describe('createCloudRoutes', () => {
                 {
                     machineId: 'machine-1',
                     provider: 'docker',
+                    active: true,
+                    executorType: 'cloud-self-hosted',
                     lifecycle: 'idle',
+                    region: 'us-east-1',
+                    labels: ['docker', 'warm-cache'],
                     updatedAt: 1
                 }
             ]
@@ -43,8 +51,8 @@ describe('createCloudRoutes', () => {
         const app = createAuthedApp(() => ({
             listCloudWorkers: () => [],
             listCloudProviders: () => [
-                { id: 'docker', count: 2 },
-                { id: 'managed', count: 1 }
+                { id: 'docker', type: 'self-hosted', count: 2 },
+                { id: 'managed', type: 'managed', count: 1 }
             ]
         }))
 
@@ -54,8 +62,8 @@ describe('createCloudRoutes', () => {
         expect(response.status).toBe(200)
         expect(json).toEqual({
             providers: [
-                { id: 'docker', count: 2 },
-                { id: 'managed', count: 1 }
+                { id: 'docker', type: 'self-hosted', count: 2 },
+                { id: 'managed', type: 'managed', count: 1 }
             ]
         })
     })

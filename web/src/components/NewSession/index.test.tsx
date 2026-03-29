@@ -27,6 +27,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('NewSession initial directory preset', () => {
     afterEach(() => {
         cleanup()
+        localStorage.clear()
     })
 
     beforeEach(() => {
@@ -301,14 +302,10 @@ describe('NewSession initial directory preset', () => {
             />
         )
 
-        fireEvent.click(screen.getByRole('radio', { name: 'newSession.executionBackend.cloudSelfHosted' }))
+        fireEvent.click(screen.getByRole('radio', { name: 'Self-hosted cloud worker' }))
         fireEvent.change(screen.getByPlaceholderText('/path/to/project'), { target: { value: '/tmp/project' } })
-        fireEvent.click(screen.getByRole('radio', { name: 'newSession.runtimeKind.dockerSession' }))
-        const environmentInput = screen.getAllByRole('textbox').find((element) => {
-            return (element as HTMLInputElement).placeholder === 'newSession.environmentIdPlaceholder'
-        })
-        expect(environmentInput).toBeDefined()
-        fireEvent.change(environmentInput as HTMLInputElement, { target: { value: 'node-dev' } })
+        fireEvent.click(screen.getByRole('radio', { name: 'Docker session' }))
+        fireEvent.change(screen.getByPlaceholderText('default-node18'), { target: { value: 'node-dev' } })
         fireEvent.change(screen.getByPlaceholderText('https://github.com/org/repo.git'), { target: { value: 'https://github.com/acme/demo.git' } })
         fireEvent.change(screen.getByPlaceholderText('main'), { target: { value: 'feature/cloud' } })
         fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'persistent' } })
@@ -346,5 +343,59 @@ describe('NewSession initial directory preset', () => {
         expect(saved.repositoryBranch).toBe('feature/cloud')
         expect(saved.workspaceMode).toBe('persistent')
         expect(saved.ttlMinutes).toBe('120')
+    })
+
+    it('renders translated cloud settings labels', async () => {
+        const getSessions = vi.fn(async () => ({ sessions: [] }))
+        const checkMachinePathsExists = vi.fn(async (_machineId: string, paths: string[]) => ({
+            exists: Object.fromEntries(paths.map((path) => [path, true]))
+        }))
+
+        const api = {
+            getSessions,
+            checkMachinePathsExists,
+            spawnSession: vi.fn()
+        } as unknown as ApiClient
+
+        const machines: Machine[] = [
+            {
+                id: 'machine-1',
+                seq: 1,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                active: true,
+                activeAt: Date.now(),
+                metadata: {
+                    host: 'cloudbox',
+                    platform: 'linux',
+                    happyCliVersion: '0.15.2',
+                    homeDir: '/home/test',
+                    happyHomeDir: '/home/test/.hapi',
+                    happyLibDir: '/opt/haqi'
+                },
+                metadataVersion: 1,
+                runnerState: null,
+                runnerStateVersion: 1
+            }
+        ]
+
+        renderWithProviders(
+            <NewSession
+                api={api}
+                machines={machines}
+                onSuccess={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('radio', { name: 'Self-hosted cloud worker' }))
+
+        expect(screen.getByText('Execution backend')).toBeInTheDocument()
+        expect(screen.getByText('Runtime')).toBeInTheDocument()
+        expect(screen.getByLabelText('Environment ID')).toBeInTheDocument()
+        expect(screen.getByPlaceholderText('default-node18')).toBeInTheDocument()
+        expect(screen.getByLabelText('Repository URL')).toBeInTheDocument()
+        expect(screen.getByLabelText('Branch')).toBeInTheDocument()
+        expect(screen.getByLabelText('TTL minutes')).toBeInTheDocument()
     })
 })

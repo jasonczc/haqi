@@ -159,6 +159,7 @@ export type MachinePathsExistsResponse = { exists: Record<string, boolean> }
 export type CloudProviderSummary = {
     id: string
     type: 'self-hosted' | 'managed'
+    count: number
 }
 
 export type CloudProviderSummaryResponse = {
@@ -191,8 +192,12 @@ export type CloudProviderName = 'auto' | 'manual' | 'docker' | 'managed' | 'kube
 export type CloudWorkerSummary = {
     machineId: string
     provider: CloudProviderName
+    active: boolean
     environmentId?: string
+    executorType?: 'local' | 'cloud-self-hosted' | 'cloud-managed'
     lifecycle?: string
+    region?: string
+    labels?: string[]
     capabilities?: Record<string, unknown>
     resources?: Record<string, unknown>
     updatedAt: number

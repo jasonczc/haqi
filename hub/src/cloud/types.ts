@@ -25,11 +25,22 @@ export type PreviewRegistration = {
 
 export type WorkerSummary = {
     machineId: string
+    provider: string
+    active: boolean
     environmentId?: string
+    executorType?: 'local' | 'cloud-self-hosted' | 'cloud-managed'
     lifecycle?: WorkerLifecycle
+    region?: string
+    labels?: string[]
     capabilities?: WorkerCapabilities
     resources?: WorkerResources
     updatedAt: number
+}
+
+export type ProviderSummary = {
+    id: string
+    type: 'self-hosted' | 'managed'
+    count: number
 }
 
 export type CloudWorkerProvider = {

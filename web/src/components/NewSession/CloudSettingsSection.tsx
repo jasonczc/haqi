@@ -99,10 +99,11 @@ export function CloudSettingsSection(props: {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--app-hint)]">
+                        <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-environment-id">
                             {t('newSession.environmentId')}
                         </label>
                         <input
+                            id="new-session-environment-id"
                             type="text"
                             placeholder={t('newSession.environmentIdPlaceholder')}
                             value={props.environmentId}
@@ -113,10 +114,11 @@ export function CloudSettingsSection(props: {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--app-hint)]">
+                        <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-repository-url">
                             {t('newSession.repositoryUrl')}
                         </label>
                         <input
+                            id="new-session-repository-url"
                             type="text"
                             placeholder="https://github.com/org/repo.git"
                             value={props.repositoryUrl}
@@ -127,10 +129,11 @@ export function CloudSettingsSection(props: {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--app-hint)]">
+                        <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-repository-branch">
                             {t('newSession.repositoryBranch')}
                         </label>
                         <input
+                            id="new-session-repository-branch"
                             type="text"
                             placeholder="main"
                             value={props.repositoryBranch}
@@ -141,10 +144,11 @@ export function CloudSettingsSection(props: {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--app-hint)]">
+                        <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-workspace-mode">
                             {t('newSession.workspaceMode')}
                         </label>
                         <select
+                            id="new-session-workspace-mode"
                             value={props.workspaceMode}
                             onChange={(event) => props.onWorkspaceModeChange(event.target.value as 'ephemeral' | 'persistent' | 'snapshot-derived')}
                             disabled={props.isDisabled}
@@ -168,10 +172,11 @@ export function CloudSettingsSection(props: {
                     </label>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--app-hint)]">
+                        <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-ttl-minutes">
                             {t('newSession.ttlMinutes')}
                         </label>
                         <input
+                            id="new-session-ttl-minutes"
                             type="number"
                             min={1}
                             step={1}

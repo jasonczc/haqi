@@ -25,4 +25,19 @@ describe('PreviewRegistry', () => {
         expect(registry.list()).toHaveLength(1)
         expect(registry.getPreviewCount('session-1')).toBe(1)
     })
+
+    it('clears previews when empty previews are registered', () => {
+        const registry = new PreviewRegistry()
+
+        registry.setSessionPreviews('session-1', [
+            {
+                id: 'preview-1',
+                port: 3000
+            }
+        ])
+        registry.setSessionPreviews('session-1', [])
+
+        expect(registry.get('session-1')).toBeNull()
+        expect(registry.list()).toEqual([])
+    })
 })

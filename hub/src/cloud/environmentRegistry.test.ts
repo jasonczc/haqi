@@ -47,4 +47,27 @@ describe('EnvironmentRegistry', () => {
         expect(registry.list()).toHaveLength(0)
         expect(registry.get('a')).toBeNull()
     })
+
+    it('records per-machine environment availability', () => {
+        const registry = new EnvironmentRegistry()
+        const record = registry.record({
+            machineId: 'machine-a',
+            environmentId: 'node-dev',
+            version: 'v1',
+            source: 'team',
+            runtimeKind: 'docker-session',
+            repositoryUrl: 'https://github.com/acme/demo.git'
+        })
+
+        expect(record).toEqual(expect.objectContaining({
+            machineId: 'machine-a',
+            environmentId: 'node-dev',
+            version: 'v1',
+            source: 'team',
+            runtimeKind: 'docker-session',
+            repositoryUrl: 'https://github.com/acme/demo.git'
+        }))
+        expect(registry.getRecord('machine-a', 'node-dev')).toEqual(record)
+        expect(registry.listForMachine('machine-a')).toEqual([record])
+    })
 })
