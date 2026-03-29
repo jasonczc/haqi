@@ -156,6 +156,14 @@ export type ConversationTurnMessagesResponse = {
 
 export type MachinesResponse = { machines: Machine[] }
 export type MachinePathsExistsResponse = { exists: Record<string, boolean> }
+export type CloudProviderSummary = {
+    id: string
+    type: 'self-hosted' | 'managed'
+}
+
+export type CloudProviderSummaryResponse = {
+    providers: CloudProviderSummary[]
+}
 export type CloudEnvironmentSummary = {
     id: string
     source?: 'builtin' | 'repo' | 'team' | 'user'

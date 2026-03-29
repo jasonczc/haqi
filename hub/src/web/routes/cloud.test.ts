@@ -31,10 +31,31 @@ describe('createCloudRoutes', () => {
             workers: [
                 {
                     machineId: 'machine-1',
-                    provider: 'auto',
+                    provider: 'docker',
                     lifecycle: 'idle',
                     updatedAt: 1
                 }
+            ]
+        })
+    })
+
+    it('returns cloud providers summary', async () => {
+        const app = createAuthedApp(() => ({
+            listCloudWorkers: () => [],
+            listCloudProviders: () => [
+                { id: 'docker', count: 2 },
+                { id: 'managed', count: 1 }
+            ]
+        }))
+
+        const response = await app.request('http://localhost/api/cloud/providers')
+        const json = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(json).toEqual({
+            providers: [
+                { id: 'docker', count: 2 },
+                { id: 'managed', count: 1 }
             ]
         })
     })

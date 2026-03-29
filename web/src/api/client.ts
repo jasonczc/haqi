@@ -2,7 +2,7 @@ import type {
     AttachmentMetadata,
     AuthResponse,
     CloudProviderSummaryResponse,
-    CloudWorkerSummaryResponse,
+    CloudWorkersResponse,
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
     QueueResponse,
@@ -848,11 +848,16 @@ export class ApiClient {
     }
 
     async getCloudProviders(): Promise<CloudProviderSummaryResponse> {
-        return await this.request<CloudProviderSummaryResponse>('/api/machines/cloud/providers')
+        return await this.request<CloudProviderSummaryResponse>('/api/cloud/providers')
     }
 
-    async getCloudWorkers(): Promise<CloudWorkerSummaryResponse> {
-        return await this.request<CloudWorkerSummaryResponse>('/api/machines/cloud/workers')
+    async getCloudWorkers(provider?: string): Promise<CloudWorkersResponse> {
+        const params = new URLSearchParams()
+        if (provider?.trim()) {
+            params.set('provider', provider.trim())
+        }
+        const qs = params.toString()
+        return await this.request<CloudWorkersResponse>(`/api/cloud/workers${qs ? `?${qs}` : ''}`)
     }
 
     async checkMachinePathsExists(
