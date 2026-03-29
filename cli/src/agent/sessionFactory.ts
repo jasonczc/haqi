@@ -24,6 +24,7 @@ export type SessionBootstrapOptions = {
     spawnRequestId?: string
     workspaceId?: string
     runtimeKind?: Metadata['runtimeKind']
+    executionBackend?: Metadata['executionBackend']
     environmentId?: string
     repositoryUrl?: string
     repositoryProvider?: string
@@ -61,6 +62,7 @@ export function buildSessionMetadata(options: {
     spawnRequestId?: string
     workspaceId?: string
     runtimeKind?: Metadata['runtimeKind']
+    executionBackend?: Metadata['executionBackend']
     environmentId?: string
     repositoryUrl?: string
     repositoryProvider?: string
@@ -91,6 +93,7 @@ export function buildSessionMetadata(options: {
         spawnRequestId: options.spawnRequestId,
         workspaceId: options.workspaceId,
         runtimeKind: options.runtimeKind,
+        executionBackend: options.executionBackend,
         environmentId: options.environmentId,
         repositoryUrl: options.repositoryUrl,
         repositoryProvider: options.repositoryProvider,
@@ -134,6 +137,13 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     const runtimeKind = options.runtimeKind ?? (
         process.env.HAPI_RUNTIME_KIND === 'docker-session' || process.env.HAPI_RUNTIME_KIND === 'host-process'
             ? process.env.HAPI_RUNTIME_KIND
+            : undefined
+    )
+    const executionBackend = options.executionBackend ?? (
+        process.env.HAPI_EXECUTION_BACKEND === 'local'
+            || process.env.HAPI_EXECUTION_BACKEND === 'cloud-self-hosted'
+            || process.env.HAPI_EXECUTION_BACKEND === 'cloud-managed'
+            ? process.env.HAPI_EXECUTION_BACKEND
             : undefined
     )
     const environmentId = options.environmentId ?? process.env.HAPI_ENVIRONMENT_ID
@@ -183,6 +193,7 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         spawnRequestId,
         workspaceId,
         runtimeKind,
+        executionBackend,
         environmentId,
         repositoryUrl,
         repositoryProvider,

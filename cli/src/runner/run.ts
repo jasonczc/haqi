@@ -401,11 +401,31 @@ export async function startRunner(): Promise<void> {
           serviceEnv
         });
         extraEnv.HAPI_SPAWN_REQUEST_ID = spawnRequestId;
+        extraEnv.HAPI_RUNTIME_KIND = resolvedEnvironment.runtimeKind;
         if (preparedWorkspace?.workspaceId) {
           extraEnv.HAPI_WORKSPACE_ID = preparedWorkspace.workspaceId;
         }
         if (resolvedEnvironment?.environmentId) {
           extraEnv.HAPI_ENVIRONMENT_ID = resolvedEnvironment.environmentId;
+        }
+        if (preparedWorkspace?.source?.repository?.url) {
+          extraEnv.HAPI_REPOSITORY_URL = preparedWorkspace.source.repository.url;
+          if (preparedWorkspace.source.repository.provider) {
+            extraEnv.HAPI_REPOSITORY_PROVIDER = preparedWorkspace.source.repository.provider;
+          }
+          const repositoryRef = preparedWorkspace.source.repository.ref;
+          if (repositoryRef?.branch) {
+            extraEnv.HAPI_REPOSITORY_BRANCH = repositoryRef.branch;
+          }
+          if (repositoryRef?.tag) {
+            extraEnv.HAPI_REPOSITORY_TAG = repositoryRef.tag;
+          }
+          if (repositoryRef?.commit) {
+            extraEnv.HAPI_REPOSITORY_COMMIT = repositoryRef.commit;
+          }
+          if (repositoryRef?.pr) {
+            extraEnv.HAPI_REPOSITORY_PR = repositoryRef.pr;
+          }
         }
         if (resolvedEnvironment?.runtimeKind) {
           extraEnv.HAPI_RUNTIME_KIND = resolvedEnvironment.runtimeKind;
@@ -660,6 +680,29 @@ export async function startRunner(): Promise<void> {
           }
           await maybeCleanupWorktree('spawn-error');
         } else {
+          const previewTargets = [
+            ...startedServices.flatMap((service) => service.previews),
+            ...('previewTargets' in execution ? execution.previewTargets : [])
+          ];
+          const repositorySource = preparedWorkspace.source?.repository;
+          if (previewTargets.length > 0 || repositorySource || resolvedEnvironment.environmentId) {
+            const metadata = trackedSession.happySessionMetadataFromLocalWebhook ?? {
+              path: spawnDirectory,
+              host: process.env.HAPI_HOSTNAME || os.hostname()
+            } as Metadata;
+            const nextMetadata: Metadata = {
+              ...metadata,
+              runtimeKind: execution.runtimeKind,
+              spawnRequestId,
+              workspaceId: preparedWorkspace.workspaceId,
+              environmentId: resolvedEnvironment.environmentId,
+              previewUrls: previewTargets.length > 0 ? previewTargets : metadata.previewUrls,
+              repositoryUrl: repositorySource?.url ?? metadata.repositoryUrl,
+              repositoryProvider: repositorySource?.provider ?? metadata.repositoryProvider,
+              repositoryRef: repositorySource?.ref ?? metadata.repositoryRef
+            };
+            trackedSession.happySessionMetadataFromLocalWebhook = nextMetadata;
+          }
           reportSpawnOutcomeToHub?.({ type: 'success' });
         }
         return spawnResult;
