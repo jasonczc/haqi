@@ -21,6 +21,10 @@ export type SessionBootstrapOptions = {
     workingDirectory?: string
     tag?: string
     agentState?: AgentState | null
+    spawnRequestId?: string
+    workspaceId?: string
+    runtimeKind?: Metadata['runtimeKind']
+    environmentId?: string
 }
 
 export type SessionBootstrapResult = {
@@ -50,6 +54,10 @@ export function buildSessionMetadata(options: {
     workingDirectory: string
     machineId: string
     now?: number
+    spawnRequestId?: string
+    workspaceId?: string
+    runtimeKind?: Metadata['runtimeKind']
+    environmentId?: string
 }): Metadata {
     const happyLibDir = runtimePath()
     const worktreeInfo = readWorktreeEnv()
@@ -71,7 +79,11 @@ export function buildSessionMetadata(options: {
         lifecycleState: 'running',
         lifecycleStateSince: now,
         flavor: options.flavor,
-        worktree: worktreeInfo ?? undefined
+        worktree: worktreeInfo ?? undefined,
+        spawnRequestId: options.spawnRequestId,
+        workspaceId: options.workspaceId,
+        runtimeKind: options.runtimeKind,
+        environmentId: options.environmentId
     }
 }
 
@@ -118,7 +130,11 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         flavor: options.flavor,
         startedBy,
         workingDirectory,
-        machineId
+        machineId,
+        spawnRequestId: options.spawnRequestId,
+        workspaceId: options.workspaceId,
+        runtimeKind: options.runtimeKind,
+        environmentId: options.environmentId
     })
 
     const sessionInfo = await api.getOrCreateSession({

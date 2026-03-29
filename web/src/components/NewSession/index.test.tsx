@@ -160,9 +160,11 @@ describe('NewSession initial directory preset', () => {
             expect(spawnSession).toHaveBeenCalledTimes(1)
         })
 
-        const [calledMachineId, calledDirectory] = spawnSession.mock.calls[0]
+        const [calledMachineId, calledRequest] = spawnSession.mock.calls[0]
         expect(calledMachineId).toBe('machine-1')
-        expect(calledDirectory).toBe('/tmp/project')
+        expect(calledRequest).toEqual(expect.objectContaining({
+            directory: '/tmp/project'
+        }))
         expect(onSuccess).toHaveBeenCalledWith('session-1')
     })
 

@@ -309,6 +309,7 @@ export const MetadataSchema = z.object({
     runtimeKind: RuntimeKindSchema.optional(),
     workerId: z.string().optional(),
     workspaceId: z.string().optional(),
+    spawnRequestId: z.string().optional(),
     workspaceSource: WorkspaceSourceSchema.optional(),
     workspaceMode: WorkspaceModeSchema.optional(),
     repositoryUrl: z.string().optional(),
@@ -318,6 +319,13 @@ export const MetadataSchema = z.object({
     environmentId: z.string().optional(),
     environmentVersion: z.string().optional(),
     previewUrls: z.array(PreviewTargetSchema).optional(),
+    serviceEndpoints: z.array(z.object({
+        service: z.string(),
+        host: z.string(),
+        port: z.number().int().positive(),
+        containerPort: z.number().int().positive(),
+        url: z.string().optional()
+    })).optional(),
     setupStatus: z.object({
         phase: z.string(),
         message: z.string().optional(),

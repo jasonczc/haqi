@@ -43,7 +43,11 @@ export function reduceTimeline(
                 continue
             }
             if (msg.content.type === 'plan-update') {
-                const text = formatPlanUpdateText(msg.content)
+                const content = msg.content as Extract<typeof msg.content, { type: 'plan-update' }>
+                const text = formatPlanUpdateText({
+                    explanation: content.explanation,
+                    plan: content.plan
+                })
                 if (text) {
                     blocks.push({
                         kind: 'agent-text',

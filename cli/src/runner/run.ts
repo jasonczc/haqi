@@ -174,6 +174,15 @@ export async function startRunner(): Promise<void> {
         // Update runner-spawned session with reported data
         existingSession.happySessionId = sessionId;
         existingSession.happySessionMetadataFromLocalWebhook = sessionMetadata;
+        if (sessionMetadata.spawnRequestId) {
+          existingSession.spawnRequestId = sessionMetadata.spawnRequestId;
+        }
+        if (sessionMetadata.workspaceId) {
+          existingSession.workspaceId = sessionMetadata.workspaceId;
+        }
+        if (sessionMetadata.runtimeKind) {
+          existingSession.runtimeKind = sessionMetadata.runtimeKind;
+        }
         logger.debug(`[RUNNER RUN] Updated runner-spawned session ${sessionId} with metadata`);
 
         // Resolve any awaiter for this PID
@@ -190,7 +199,10 @@ export async function startRunner(): Promise<void> {
           startedBy: 'hapi directly - likely by user from terminal',
           happySessionId: sessionId,
           happySessionMetadataFromLocalWebhook: sessionMetadata,
-          pid
+          pid,
+          spawnRequestId: sessionMetadata.spawnRequestId,
+          workspaceId: sessionMetadata.workspaceId,
+          runtimeKind: sessionMetadata.runtimeKind
         };
         pidToTrackedSession.set(pid, trackedSession);
         logger.debug(`[RUNNER RUN] Registered externally-started session ${sessionId}`);
@@ -318,6 +330,11 @@ export async function startRunner(): Promise<void> {
         for (const cleanupPath of preparedWorkspaceCleanup?.cleanupPaths ?? preparedWorkspace?.cleanupPaths ?? []) {
           await fs.rm(cleanupPath, { recursive: true, force: true }).catch(() => undefined);
         }
+      };
+      const applyPreparedMetadata = (trackedSession: TrackedSession) => {
+        trackedSession.spawnRequestId = options.resumeSessionId ?? options.sessionId;
+        trackedSession.workspaceId = preparedWorkspace?.workspaceId;
+        trackedSession.runtimeKind = resolvedEnvironment?.runtimeKind ?? trackedSession.runtimeKind;
       };
       const stopStartedServices = async () => {
         if (!dockerServiceOrchestrator || startedServices.length === 0) {
@@ -464,6 +481,7 @@ export async function startRunner(): Promise<void> {
           directoryCreated,
           message: directoryCreated && options.directory ? `The path '${options.directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
         };
+        applyPreparedMetadata(trackedSession);
 
         pidToTrackedSession.set(pid, trackedSession);
 
