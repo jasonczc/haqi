@@ -83,6 +83,13 @@ export async function startDockerSessionExecutor(params: {
         detach: true
     }
 
+    if (params.options.executionBackend) {
+        spec.labels = {
+            ...(spec.labels ?? {}),
+            'haqi.execution_backend': params.options.executionBackend
+        }
+    }
+
     const containerId = await params.runtime.run(spec)
     const inspect = await params.runtime.inspect(containerId)
     const previewTargets: PreviewTarget[] = []

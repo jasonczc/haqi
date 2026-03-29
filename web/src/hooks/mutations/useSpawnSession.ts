@@ -5,6 +5,7 @@ import { queryKeys } from '@/lib/query-keys'
 import type {
     AgentFlavor,
     EnvironmentTemplate,
+    ExecutionBackend,
     RuntimeKind,
     WorkerResources,
     WorkspaceSource,
@@ -23,6 +24,7 @@ type SpawnInput = {
     sessionType?: 'simple' | 'worktree'
     worktreeName?: string
     previewUrl?: string
+    executionBackend?: ExecutionBackend
     runtimeKind?: RuntimeKind
     environmentId?: string
     environment?: EnvironmentTemplate
@@ -62,6 +64,7 @@ export function useSpawnSession(api: ApiClient | null): {
                 sessionType: input.sessionType,
                 worktreeName: input.worktreeName,
                 previewUrl: input.previewUrl,
+                executionBackend: input.executionBackend,
                 runtimeKind: input.runtimeKind,
                 environmentId: input.environmentId,
                 environment: input.environment,

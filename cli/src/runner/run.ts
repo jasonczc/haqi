@@ -361,6 +361,7 @@ export async function startRunner(): Promise<void> {
         trackedSession.spawnRequestId = options.resumeSessionId ?? options.sessionId;
         trackedSession.workspaceId = preparedWorkspace?.workspaceId;
         trackedSession.runtimeKind = resolvedEnvironment?.runtimeKind ?? trackedSession.runtimeKind;
+        trackedSession.executionBackend = options.executionBackend ?? trackedSession.executionBackend;
       };
       const stopStartedServices = async () => {
         if (!dockerServiceOrchestrator || startedServices.length === 0) {
@@ -401,6 +402,9 @@ export async function startRunner(): Promise<void> {
           serviceEnv
         });
         extraEnv.HAPI_SPAWN_REQUEST_ID = spawnRequestId;
+        if (options.executionBackend) {
+          extraEnv.HAPI_EXECUTION_BACKEND = options.executionBackend;
+        }
         extraEnv.HAPI_RUNTIME_KIND = resolvedEnvironment.runtimeKind;
         if (preparedWorkspace?.workspaceId) {
           extraEnv.HAPI_WORKSPACE_ID = preparedWorkspace.workspaceId;
@@ -560,6 +564,7 @@ export async function startRunner(): Promise<void> {
         const trackedSession: TrackedSession = {
           startedBy: 'runner',
           pid,
+          executionBackend: options.executionBackend,
           runtimeKind: execution.runtimeKind,
           spawnRequestId,
           workspaceId: preparedWorkspace.workspaceId,
@@ -692,6 +697,7 @@ export async function startRunner(): Promise<void> {
             } as Metadata;
             const nextMetadata: Metadata = {
               ...metadata,
+              executionBackend: options.executionBackend ?? metadata.executionBackend,
               runtimeKind: execution.runtimeKind,
               spawnRequestId,
               workspaceId: preparedWorkspace.workspaceId,

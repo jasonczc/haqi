@@ -650,6 +650,7 @@ export const MachineSpawnRequestSchema = z.object({
     sessionType: z.enum(['simple', 'worktree']).optional(),
     worktreeName: z.string().optional(),
     previewUrl: z.string().optional(),
+    executionBackend: ExecutionBackendSchema.optional(),
     runtimeKind: RuntimeKindSchema.optional(),
     environmentId: z.string().optional(),
     environment: EnvironmentTemplateSchema.optional(),

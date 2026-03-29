@@ -356,6 +356,7 @@ describe('NewSession initial directory preset', () => {
         const [, request] = spawnSession.mock.calls[0]
         expect(request).toEqual(expect.objectContaining({
             directory: '/tmp/project',
+            executionBackend: 'cloud-self-hosted',
             runtimeKind: 'docker-session',
             environmentId: 'node-dev',
             workspaceSource: expect.objectContaining({

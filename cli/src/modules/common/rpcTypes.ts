@@ -1,6 +1,7 @@
 import type {
     AgentFlavor,
     EnvironmentTemplate,
+    ExecutionBackend,
     NetworkMode,
     RuntimeKind,
     WorkerResources,
@@ -22,6 +23,7 @@ export interface SpawnSessionOptions {
     token?: string
     sessionType?: 'simple' | 'worktree'
     worktreeName?: string
+    executionBackend?: ExecutionBackend
     runtimeKind?: RuntimeKind
     environmentId?: string
     environment?: EnvironmentTemplate

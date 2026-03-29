@@ -14,6 +14,7 @@ export interface TrackedSession {
   happySessionId?: string;
   happySessionMetadataFromLocalWebhook?: Metadata;
   pid: number;
+  executionBackend?: Metadata['executionBackend'];
   runtimeKind?: RuntimeKind;
   spawnRequestId?: string;
   workspaceId?: string;

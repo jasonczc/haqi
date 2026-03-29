@@ -55,6 +55,10 @@ export async function buildSpawnEnvironment(
         extraEnv.CLAUDE_CODE_EFFORT_LEVEL = options.thinkEffort
     }
 
+    if (options.executionBackend) {
+        extraEnv.HAPI_EXECUTION_BACKEND = options.executionBackend
+    }
+
     return extraEnv
 }
 

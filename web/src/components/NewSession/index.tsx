@@ -464,6 +464,7 @@ export function NewSession(props: {
                 sessionType: sessionSettings.sessionType,
                 worktreeName: sessionSettings.worktreeName,
                 previewUrl: sessionSettings.previewUrl,
+                executionBackend,
                 runtimeKind,
                 environmentId: environmentId.trim() || undefined,
                 environment: cloudEnvironment,

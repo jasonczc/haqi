@@ -1886,6 +1886,7 @@ ${note.content}
             worktreeName?: string
             resumeSessionId?: string
             previewUrl?: string | null
+            executionBackend?: 'local' | 'cloud-self-hosted' | 'cloud-managed'
             runtimeKind?: 'host-process' | 'docker-session'
             environmentId?: string
             environment?: import('@hapi/protocol/types').EnvironmentTemplate
@@ -1919,6 +1920,7 @@ ${note.content}
             sessionType: request.sessionType,
             worktreeName: request.worktreeName,
             resumeSessionId: request.resumeSessionId,
+            executionBackend: request.executionBackend,
             runtimeKind: request.runtimeKind,
             environmentId: request.environmentId,
             environment: request.environment,
