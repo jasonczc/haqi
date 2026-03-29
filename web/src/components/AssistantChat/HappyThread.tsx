@@ -158,10 +158,10 @@ export function HappyThread(props: {
             onRefresh: props.onRefresh,
             onRetryMessage: props.onRetryMessage
         }}>
-            <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col relative">
+            <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
                 <ThreadPrimitive.Viewport
                     ref={viewportRef}
-                    className="app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+                    className="app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
                 >
                     <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
                         {showSkeleton ? (

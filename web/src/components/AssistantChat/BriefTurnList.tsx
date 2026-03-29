@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso'
 
 import type { ApiClient } from '@/api/client'
 import type { ChatBlock, NormalizedMessage } from '@/chat/types'
@@ -15,6 +14,7 @@ import {
     shouldFetchLatestTurnChangesSummary,
     shouldShowLatestBriefTurnAsFullContent
 } from '@/components/AssistantChat/briefTurnPresentation'
+import { restoreScrollTopByDelta, shouldTriggerLoadOlder } from '@/components/AssistantChat/historyScroll'
 import { Spinner } from '@/components/Spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useSessionReopenPositionPreference } from '@/hooks/useSessionReopenPositionPreference'
@@ -491,10 +491,13 @@ export function BriefTurnList(props: {
     density: SessionListDensity
     onLoadMoreTurns: () => Promise<void>
 }) {
-    const listRef = useRef<VirtuosoHandle | null>(null)
+    const scrollerRef = useRef<HTMLDivElement | null>(null)
     const isAtBottomRef = useRef(true)
     const initialScrollAppliedRef = useRef(false)
-    const topIndexRef = useRef(0)
+    const pendingRestoreRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null)
+    const previousScrollTopRef = useRef(0)
+    const lastLoadTriggerAtRef = useRef(0)
+    const loadMoreArmedRef = useRef(true)
     const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
     const [turnDetailStateById, setTurnDetailStateById] = useState<TurnDetailStateMap>({})
     const [liveActivityByTurnId, setLiveActivityByTurnId] = useState<Record<string, string>>({})
@@ -836,7 +839,10 @@ export function BriefTurnList(props: {
 
     useEffect(() => {
         initialScrollAppliedRef.current = false
-        topIndexRef.current = 0
+        pendingRestoreRef.current = null
+        previousScrollTopRef.current = 0
+        lastLoadTriggerAtRef.current = 0
+        loadMoreArmedRef.current = true
         setLiveActivityByTurnId({})
     }, [props.session.id])
 
@@ -1006,56 +1012,141 @@ export function BriefTurnList(props: {
     ])
 
     useEffect(() => {
-        if (props.turns.length === 0) {
-            initialScrollAppliedRef.current = false
-            return
-        }
-        if (props.isLoading || initialScrollAppliedRef.current) {
-            return
-        }
-        initialScrollAppliedRef.current = true
-    }, [props.isLoading, props.turns.length])
-
-    useEffect(() => {
         return () => {
             writeSessionScrollSnapshot(props.session.id, 'brief', {
-                top: 0,
-                topIndex: topIndexRef.current,
+                top: scrollerRef.current?.scrollTop ?? 0,
+                topIndex: 0,
                 lastKey: latestTurnKey,
                 savedAt: Date.now()
             })
         }
     }, [latestTurnKey, props.session.id])
 
-    const initialTopMostItemIndex = useMemo(() => {
-        if (props.turns.length === 0) {
-            return 0
+    const loadOlderTurnsPreservingViewport = useCallback(() => {
+        if (props.isLoadingMore || !props.hasMore) {
+            return
         }
-        const snapshot = readSessionScrollSnapshot(props.session.id, 'brief')
-        const shouldRestore = snapshot && (
-            sessionReopenPosition === 'restore'
-            || (
-                sessionReopenPosition === 'bottom-if-unread'
-                && snapshot.lastKey !== null
-                && latestTurnKey !== null
-                && snapshot.lastKey === latestTurnKey
-            )
-        )
 
-        if (shouldRestore && snapshot?.topIndex !== undefined) {
-            isAtBottomRef.current = false
-            return {
-                index: Math.min(snapshot.topIndex, props.turns.length - 1),
-                align: 'start' as const
+        const scroller = scrollerRef.current
+        if (scroller) {
+            pendingRestoreRef.current = {
+                scrollTop: scroller.scrollTop,
+                scrollHeight: scroller.scrollHeight
             }
         }
 
-        isAtBottomRef.current = true
-        return {
-            index: 'LAST' as const,
-            align: 'end' as const
+        void props.onLoadMoreTurns()
+    }, [props.hasMore, props.isLoadingMore, props.onLoadMoreTurns])
+
+    useEffect(() => {
+        const scroller = scrollerRef.current
+        if (!scroller) {
+            return
         }
-    }, [latestTurnKey, props.session.id, props.turns.length, sessionReopenPosition])
+
+        previousScrollTopRef.current = scroller.scrollTop
+
+        const handleScroll = () => {
+            const currentScrollTop = scroller.scrollTop
+            const distanceFromBottom = scroller.scrollHeight - currentScrollTop - scroller.clientHeight
+            isAtBottomRef.current = distanceFromBottom <= 32
+
+            writeSessionScrollSnapshot(props.session.id, 'brief', {
+                top: currentScrollTop,
+                topIndex: 0,
+                lastKey: latestTurnKey,
+                savedAt: Date.now()
+            })
+
+            if (currentScrollTop >= 96) {
+                loadMoreArmedRef.current = true
+            }
+
+            if (shouldTriggerLoadOlder({
+                previousScrollTop: previousScrollTopRef.current,
+                currentScrollTop,
+                thresholdPx: 48,
+                isArmed: loadMoreArmedRef.current,
+                isLoadingMessages: props.isLoading,
+                isLoadingMoreMessages: props.isLoadingMore,
+                hasMoreMessages: props.hasMore,
+                lastTriggeredAtMs: lastLoadTriggerAtRef.current,
+                nowMs: Date.now(),
+                cooldownMs: 300
+            })) {
+                loadMoreArmedRef.current = false
+                lastLoadTriggerAtRef.current = Date.now()
+                loadOlderTurnsPreservingViewport()
+            }
+
+            previousScrollTopRef.current = currentScrollTop
+        }
+
+        scroller.addEventListener('scroll', handleScroll, { passive: true })
+        return () => {
+            scroller.removeEventListener('scroll', handleScroll)
+        }
+    }, [
+        latestTurnKey,
+        loadOlderTurnsPreservingViewport,
+        props.hasMore,
+        props.isLoading,
+        props.isLoadingMore,
+        props.session.id,
+        props.turns.length
+    ])
+
+    useLayoutEffect(() => {
+        const scroller = scrollerRef.current
+        if (!scroller) {
+            return
+        }
+
+        if (!initialScrollAppliedRef.current) {
+            if (props.isLoading && props.turns.length === 0) {
+                return
+            }
+            const snapshot = readSessionScrollSnapshot(props.session.id, 'brief')
+            const shouldRestore = snapshot && (
+                sessionReopenPosition === 'restore'
+                || (
+                    sessionReopenPosition === 'bottom-if-unread'
+                    && snapshot.lastKey !== null
+                    && latestTurnKey !== null
+                    && snapshot.lastKey === latestTurnKey
+                )
+            )
+
+            if (shouldRestore && snapshot) {
+                scroller.scrollTop = Math.min(snapshot.top, Math.max(0, scroller.scrollHeight - scroller.clientHeight))
+                const distanceFromBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
+                isAtBottomRef.current = distanceFromBottom <= 32
+            } else {
+                scroller.scrollTop = scroller.scrollHeight
+                isAtBottomRef.current = true
+            }
+            previousScrollTopRef.current = scroller.scrollTop
+            initialScrollAppliedRef.current = true
+            return
+        }
+
+        const pendingRestore = pendingRestoreRef.current
+        if (pendingRestore) {
+            scroller.scrollTop = restoreScrollTopByDelta({
+                previousScrollTop: pendingRestore.scrollTop,
+                previousScrollHeight: pendingRestore.scrollHeight,
+                nextScrollHeight: scroller.scrollHeight
+            })
+            previousScrollTopRef.current = scroller.scrollTop
+            pendingRestoreRef.current = null
+            return
+        }
+
+        if (isAtBottomRef.current) {
+            scroller.scrollTop = scroller.scrollHeight
+            previousScrollTopRef.current = scroller.scrollTop
+        }
+    }, [latestTurnKey, props.isLoading, props.session.id, props.turns, sessionReopenPosition])
 
     return (
         <>
@@ -1067,72 +1158,44 @@ export function BriefTurnList(props: {
                         </div>
                     ) : null}
 
-                    <div className="min-h-0 flex-1 pr-1">
-                        {props.isLoading && props.turns.length === 0 ? (
-                            <div className="text-xs text-[var(--app-hint)]">Loading conversation…</div>
-                        ) : null}
+                    <div className="min-h-0 flex flex-1 flex-col pr-1">
+                        <div
+                            ref={scrollerRef}
+                            className="app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+                        >
+                            {props.isLoading && props.turns.length === 0 ? (
+                                <div className="text-xs text-[var(--app-hint)]">Loading conversation…</div>
+                            ) : null}
 
-                        {props.turns.length === 0 && !props.isLoading ? (
-                            <div className="text-xs text-[var(--app-hint)]">No turns yet.</div>
-                        ) : null}
+                            {props.turns.length === 0 && !props.isLoading ? (
+                                <div className="text-xs text-[var(--app-hint)]">No turns yet.</div>
+                            ) : null}
 
-                        {props.turns.length > 0 ? (
-                            <Virtuoso
-                                key={`${props.session.id}:${sessionReopenPosition}`}
-                                ref={listRef}
-                                style={{ height: '100%' }}
-                                data={props.turns}
-                                overscan={320}
-                                initialTopMostItemIndex={initialTopMostItemIndex}
-                                followOutput={(isAtBottom) => (isAtBottom ? 'auto' : false)}
-                                atBottomStateChange={(isAtBottom) => {
-                                    isAtBottomRef.current = isAtBottom
-                                }}
-                                rangeChanged={(range) => {
-                                    topIndexRef.current = range.startIndex
-                                    writeSessionScrollSnapshot(props.session.id, 'brief', {
-                                        top: 0,
-                                        topIndex: range.startIndex,
-                                        lastKey: latestTurnKey,
-                                        savedAt: Date.now()
-                                    })
-                                }}
-                                startReached={() => {
-                                    if (!props.hasMore || props.isLoadingMore) {
-                                        return
-                                    }
-                                    void props.onLoadMoreTurns()
-                                }}
-                                components={{
-                                    Header: () => (
-                                        props.hasMore || props.isLoadingMore ? (
-                                            <div className="pb-2">
-                                                <button
-                                                    type="button"
-                                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] disabled:opacity-60"
-                                                    onClick={() => {
-                                                        if (props.isLoadingMore) {
-                                                            return
-                                                        }
-                                                        void props.onLoadMoreTurns()
-                                                    }}
-                                                    disabled={props.isLoadingMore}
-                                                >
-                                                    {props.isLoadingMore ? 'Loading older turns…' : 'Load older turns'}
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="h-1" />
-                                        )
-                                    )
-                                }}
-                                itemContent={(index, turn) => (
-                                    <div key={turn.id ?? index} className="pb-3">
-                                        {renderTurnRow(turn)}
-                                    </div>
-                                )}
-                            />
-                        ) : null}
+                            {props.turns.length > 0 ? (
+                                <>
+                                    {props.hasMore || props.isLoadingMore ? (
+                                        <div className="pb-2">
+                                            <button
+                                                type="button"
+                                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] disabled:opacity-60"
+                                                onClick={loadOlderTurnsPreservingViewport}
+                                                disabled={props.isLoadingMore}
+                                            >
+                                                {props.isLoadingMore ? 'Loading older turns…' : 'Load older turns'}
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="h-1" />
+                                    )}
+
+                                    {props.turns.map((turn) => (
+                                        <div key={turn.id} className="pb-3">
+                                            {renderTurnRow(turn)}
+                                        </div>
+                                    ))}
+                                </>
+                            ) : null}
+                        </div>
                     </div>
                 </div>
 
