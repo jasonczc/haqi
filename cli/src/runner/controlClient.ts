@@ -34,6 +34,37 @@ export function getInstalledCliMtimeMs(): number | undefined {
 }
 
 async function runnerPost(path: string, body?: any): Promise<{ error?: string } | any> {
+  const callbackUrl = process.env.HAPI_RUNNER_CALLBACK_URL
+  if (callbackUrl) {
+    try {
+      const response = await fetch(`${callbackUrl}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(body || {}),
+          callbackToken: process.env.HAPI_RUNNER_CALLBACK_TOKEN || undefined
+        }),
+        signal: AbortSignal.timeout(process.env.HAPI_RUNNER_HTTP_TIMEOUT ? parseInt(process.env.HAPI_RUNNER_HTTP_TIMEOUT) : 10_000)
+      });
+
+      if (!response.ok) {
+        const errorMessage = `Request failed: ${path}, HTTP ${response.status}`;
+        logger.debug(`[CONTROL CLIENT] ${errorMessage}`);
+        return {
+          error: errorMessage
+        };
+      }
+
+      return await response.json();
+    } catch (error) {
+      const errorMessage = `Request failed: ${path}, ${error instanceof Error ? error.message : 'Unknown error'}`;
+      logger.debug(`[CONTROL CLIENT] ${errorMessage}`);
+      return {
+        error: errorMessage
+      };
+    }
+  }
+
   const state = await readRunnerState();
   if (!state?.httpPort) {
     const errorMessage = 'No runner running, no state file found';
