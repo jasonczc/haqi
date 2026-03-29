@@ -237,3 +237,10 @@ Web login requires the `CLI_API_TOKEN` from `$HAPI_HOME/settings.json` (auto-gen
 - `bun run test:hub` — hub tests (Bun test runner).
 - `bun run test:cli` — cli tests (Vitest); requires `bun run tools:unpack` first (handled by `cli/package.json` script).
 - Some pre-existing test failures exist in cli (`codexRemoteLauncher.test.ts`) and hub (`schemaRepair.test.ts`).
+
+### Agent CLIs
+
+HAQI wraps external AI agent CLIs. Both are installed globally via npm:
+
+- **Claude Code CLI**: `npm install -g @anthropic-ai/claude-code` → `claude` command. Requires `ANTHROPIC_API_KEY` env var.
+- **Codex CLI**: `npm install -g @openai/codex` → `codex` command. Requires `OPENAI_API_KEY` env var.
