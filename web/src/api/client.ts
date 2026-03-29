@@ -3,6 +3,8 @@ import type {
     AuthResponse,
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
+    EnvironmentTemplate,
+    MachineSpawnRequest,
     QueueResponse,
     SessionUsageResponse,
     QueueStatusResponse,
@@ -922,19 +924,11 @@ export class ApiClient {
 
     async spawnSession(
         machineId: string,
-        directory: string,
-        agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
-        model?: string,
-        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh',
-        serviceTier?: 'fast' | 'flex',
-        yolo?: boolean,
-        sessionType?: 'simple' | 'worktree',
-        worktreeName?: string,
-        previewUrl?: string
+        request: MachineSpawnRequest
     ): Promise<SpawnResponse> {
         return await this.request<SpawnResponse>(`/api/machines/${encodeURIComponent(machineId)}/spawn`, {
             method: 'POST',
-            body: JSON.stringify({ directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, previewUrl })
+            body: JSON.stringify(request)
         })
     }
 

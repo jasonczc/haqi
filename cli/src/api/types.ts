@@ -1,12 +1,23 @@
 import {
     AgentStateSchema,
     AttachmentMetadataSchema,
+    MachineMetadataSchema as ProtocolMachineMetadataSchema,
+    MachineSchema as ProtocolMachineSchema,
     MetadataSchema,
     ModelModeSchema,
     PermissionModeSchema,
+    RunnerStateSchema as ProtocolRunnerStateSchema,
+    SpawnResponseSchema,
     TodosSchema
 } from '@hapi/protocol/schemas'
-import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
+import type {
+    Machine as ProtocolMachine,
+    MachineMetadata as ProtocolMachineMetadata,
+    ModelMode,
+    PermissionMode,
+    RunnerState as ProtocolRunnerState,
+    SpawnResponse as ProtocolSpawnResponse
+} from '@hapi/protocol/types'
 import { z } from 'zod'
 import { UsageSchema } from '@/claude/types'
 
@@ -28,49 +39,15 @@ export type SessionPermissionMode = PermissionMode
 export type SessionModelMode = ModelMode
 
 export { AgentStateSchema, AttachmentMetadataSchema, MetadataSchema }
-
-export const MachineMetadataSchema = z.object({
-    host: z.string(),
-    platform: z.string(),
-    happyCliVersion: z.string(),
-    displayName: z.string().optional(),
-    homeDir: z.string(),
-    happyHomeDir: z.string(),
-    happyLibDir: z.string()
-})
-
-export type MachineMetadata = z.infer<typeof MachineMetadataSchema>
-
-export const RunnerStateSchema = z.object({
-    status: z.union([z.enum(['running', 'shutting-down']), z.string()]),
-    pid: z.number().optional(),
-    httpPort: z.number().optional(),
-    startedAt: z.number().optional(),
-    shutdownRequestedAt: z.number().optional(),
-    shutdownSource: z.union([z.enum(['mobile-app', 'cli', 'os-signal', 'unknown']), z.string()]).optional(),
-    lastSpawnError: z.object({
-        message: z.string(),
-        pid: z.number().optional(),
-        exitCode: z.number().nullable().optional(),
-        signal: z.string().nullable().optional(),
-        at: z.number()
-    }).nullable().optional()
-})
-
-export type RunnerState = z.infer<typeof RunnerStateSchema>
-
-export type Machine = {
-    id: string
-    seq: number
-    createdAt: number
-    updatedAt: number
-    active: boolean
-    activeAt: number
-    metadata: MachineMetadata | null
-    metadataVersion: number
-    runnerState: RunnerState | null
-    runnerStateVersion: number
+export {
+    ProtocolMachineMetadataSchema as MachineMetadataSchema,
+    ProtocolRunnerStateSchema as RunnerStateSchema,
+    SpawnResponseSchema
 }
+
+export type MachineMetadata = ProtocolMachineMetadata
+export type RunnerState = ProtocolRunnerState
+export type Machine = ProtocolMachine
 
 export const CliMessagesResponseSchema = z.object({
     messages: z.array(z.object({
@@ -108,21 +85,27 @@ export const CreateSessionResponseSchema = z.object({
 export type CreateSessionResponse = z.infer<typeof CreateSessionResponseSchema>
 
 export const CreateMachineResponseSchema = z.object({
-    machine: z.object({
-        id: z.string(),
-        seq: z.number(),
-        createdAt: z.number(),
-        updatedAt: z.number(),
-        active: z.boolean(),
-        activeAt: z.number(),
-        metadata: z.unknown().nullable(),
-        metadataVersion: z.number(),
-        runnerState: z.unknown().nullable(),
-        runnerStateVersion: z.number()
-    })
+    machine: ProtocolMachineSchema
 })
 
 export type CreateMachineResponse = z.infer<typeof CreateMachineResponseSchema>
+export type SpawnResponse = ProtocolSpawnResponse
+export type {
+    EnvironmentTemplate,
+    ExecutionBackend,
+    MachineSpawnRequest,
+    PreviewTarget,
+    RepositoryRef,
+    RepositorySpec,
+    RuntimeKind,
+    SecretRef,
+    WorkerCapabilities,
+    WorkerLifecycle,
+    WorkerResources,
+    WorkspaceMode,
+    WorkspaceSource,
+    WorkspaceSpec
+} from '@hapi/protocol/types'
 
 export const MessageRouteContextSchema = z.object({
     groupId: z.string(),

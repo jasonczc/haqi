@@ -2,11 +2,20 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type { SpawnResponse } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
+import type {
+    AgentFlavor,
+    EnvironmentTemplate,
+    NetworkMode,
+    RuntimeKind,
+    WorkerResources,
+    WorkspaceSource,
+    WorkspaceSpec,
+} from '@hapi/protocol/types'
 
 type SpawnInput = {
     machineId: string
-    directory: string
-    agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
+    directory?: string
+    agent?: AgentFlavor
     model?: string
     thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
     serviceTier?: 'fast' | 'flex'
@@ -14,6 +23,21 @@ type SpawnInput = {
     sessionType?: 'simple' | 'worktree'
     worktreeName?: string
     previewUrl?: string
+    runtimeKind?: RuntimeKind
+    environmentId?: string
+    environment?: EnvironmentTemplate
+    workspaceSource?: WorkspaceSource
+    workspace?: WorkspaceSpec
+    resources?: WorkerResources
+    networkPolicy?: NetworkMode
+    ttlMinutes?: number
+    persistentWorkspace?: boolean
+    secrets?: string[]
+    labels?: string[]
+    preview?: {
+        autoDetect?: boolean
+        preferredPort?: number
+    }
 }
 
 export function useSpawnSession(api: ApiClient | null): {
@@ -38,7 +62,19 @@ export function useSpawnSession(api: ApiClient | null): {
                 input.yolo,
                 input.sessionType,
                 input.worktreeName,
-                input.previewUrl
+                input.previewUrl,
+                input.runtimeKind,
+                input.environmentId,
+                input.environment,
+                input.workspaceSource,
+                input.workspace,
+                input.resources,
+                input.networkPolicy,
+                input.ttlMinutes,
+                input.persistentWorkspace,
+                input.secrets,
+                input.labels,
+                input.preview
             )
         },
         onSuccess: () => {

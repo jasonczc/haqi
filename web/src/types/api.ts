@@ -1,7 +1,11 @@
 import type {
     DecryptedMessage as ProtocolDecryptedMessage,
+    Machine as ProtocolMachine,
+    MachineMetadata as ProtocolMachineMetadata,
+    RunnerState as ProtocolRunnerState,
     Session,
     SessionSummary,
+    SpawnResponse as ProtocolSpawnResponse,
     SyncEvent as ProtocolSyncEvent,
     WorktreeMetadata
 } from '@hapi/protocol/types'
@@ -16,11 +20,24 @@ export type {
     CodexCredentialSaveCurrentRequest,
     CodexCredentialStateResponse,
     CodexCredentialSummary,
+    EnvironmentRuntime,
+    EnvironmentService,
+    EnvironmentTemplate,
+    ExecutionBackend,
+    MachineMetadata as ProtocolSharedMachineMetadata,
+    MachineSpawnRequest,
     ModelMode,
     PermissionMode,
+    PreviewTarget,
+    RepoCache,
+    RepositoryRef,
+    RepositorySpec,
+    RunnerState as ProtocolSharedRunnerState,
     Session,
     SessionSummary,
     SessionSummaryMetadata,
+    SecretRef,
+    SpawnResponse as ProtocolSharedSpawnResponse,
     TeamControlAction,
     TeamControlRequest,
     TeamControlResponse,
@@ -29,6 +46,12 @@ export type {
     TeamState,
     TeamTask,
     TodoItem,
+    WorkerCapabilities,
+    WorkerLifecycle,
+    WorkerResources,
+    WorkspaceMode,
+    WorkspaceSource,
+    WorkspaceSpec,
     WorktreeMetadata
 } from '@hapi/protocol/types'
 
@@ -57,33 +80,9 @@ export type DecryptedMessage = ProtocolDecryptedMessage & {
     originalText?: string
 }
 
-export type RunnerState = {
-    status?: string
-    pid?: number
-    httpPort?: number
-    startedAt?: number
-    shutdownRequestedAt?: number
-    shutdownSource?: string
-    lastSpawnError?: {
-        message: string
-        pid?: number
-        exitCode?: number | null
-        signal?: string | null
-        at: number
-    } | null
-}
-
-export type Machine = {
-    id: string
-    active: boolean
-    metadata: {
-        host: string
-        platform: string
-        happyCliVersion: string
-        displayName?: string
-    } | null
-    runnerState?: RunnerState | null
-}
+export type RunnerState = ProtocolRunnerState
+export type MachineMetadata = ProtocolMachineMetadata
+export type Machine = ProtocolMachine
 
 export type AuthResponse = {
     token: string
@@ -545,9 +544,7 @@ export type SessionUsageResponse = {
     error?: string
 }
 
-export type SpawnResponse =
-    | { type: 'success'; sessionId: string }
-    | { type: 'error'; message: string }
+export type SpawnResponse = ProtocolSpawnResponse
 
 export type GitCommandResponse = {
     success: boolean

@@ -19,6 +19,259 @@ export const WorktreeMetadataSchema = z.object({
 
 export type WorktreeMetadata = z.infer<typeof WorktreeMetadataSchema>
 
+export const ExecutionBackendSchema = z.enum([
+    'local',
+    'cloud-self-hosted',
+    'cloud-managed'
+])
+
+export type ExecutionBackend = z.infer<typeof ExecutionBackendSchema>
+
+export const RuntimeKindSchema = z.enum([
+    'host-process',
+    'docker-session'
+])
+
+export type RuntimeKind = z.infer<typeof RuntimeKindSchema>
+
+export const WorkerLifecycleSchema = z.enum([
+    'provisioning',
+    'booting',
+    'ready',
+    'preparing-workspace',
+    'busy',
+    'idle',
+    'draining',
+    'shutting-down',
+    'stopping',
+    'stopped',
+    'failed'
+])
+
+export type WorkerLifecycle = z.infer<typeof WorkerLifecycleSchema>
+
+export const PreviewVisibilitySchema = z.enum([
+    'private',
+    'public'
+])
+
+export type PreviewVisibility = z.infer<typeof PreviewVisibilitySchema>
+
+export const NetworkModeSchema = z.enum([
+    'default',
+    'restricted',
+    'off'
+])
+
+export type NetworkMode = z.infer<typeof NetworkModeSchema>
+
+export const AgentFlavorSchema = z.enum([
+    'claude',
+    'codex',
+    'cursor',
+    'gemini',
+    'opencode'
+])
+
+export type AgentFlavor = z.infer<typeof AgentFlavorSchema>
+
+export const WorkerResourcesSchema = z.object({
+    cpu: z.number().positive().optional(),
+    memoryMb: z.number().int().positive().optional(),
+    diskGb: z.number().int().positive().optional(),
+    gpu: z.number().int().nonnegative().optional()
+})
+
+export type WorkerResources = z.infer<typeof WorkerResourcesSchema>
+
+export const RepoCacheSchema = z.object({
+    enabled: z.boolean(),
+    rootPath: z.string().optional()
+})
+
+export type RepoCache = z.infer<typeof RepoCacheSchema>
+
+export const WorkerCapabilitiesSchema = z.object({
+    docker: z.boolean().optional(),
+    nestedDocker: z.boolean().optional(),
+    gitLfs: z.boolean().optional(),
+    submodules: z.boolean().optional(),
+    previewPorts: z.boolean().optional(),
+    persistentWorkspace: z.boolean().optional(),
+    snapshotRestore: z.boolean().optional(),
+    internetAccess: z.boolean().optional(),
+    serviceContainers: z.boolean().optional(),
+    dockerSession: z.boolean().optional(),
+    maxConcurrentSessions: z.number().int().positive().optional(),
+    supportedAgents: z.array(AgentFlavorSchema).optional(),
+    resources: WorkerResourcesSchema.optional()
+})
+
+export type WorkerCapabilities = z.infer<typeof WorkerCapabilitiesSchema>
+
+export const RepositoryRefSchema = z.object({
+    branch: z.string().optional(),
+    tag: z.string().optional(),
+    commit: z.string().optional(),
+    pr: z.string().optional()
+})
+
+export type RepositoryRef = z.infer<typeof RepositoryRefSchema>
+
+export const RepositorySpecSchema = z.object({
+    url: z.string().min(1),
+    provider: z.enum(['github', 'gitlab', 'bitbucket', 'generic']).optional(),
+    ref: RepositoryRefSchema.optional(),
+    subdirectory: z.string().optional(),
+    cloneDepth: z.number().int().positive().optional(),
+    withSubmodules: z.boolean().optional(),
+    withLfs: z.boolean().optional()
+})
+
+export type RepositorySpec = z.infer<typeof RepositorySpecSchema>
+
+export const WorkspaceModeSchema = z.enum([
+    'ephemeral',
+    'persistent',
+    'snapshot-derived'
+])
+
+export type WorkspaceMode = z.infer<typeof WorkspaceModeSchema>
+
+export const WorkspaceSpecSchema = z.object({
+    mode: WorkspaceModeSchema.optional(),
+    name: z.string().optional(),
+    baseDir: z.string().optional()
+})
+
+export type WorkspaceSpec = z.infer<typeof WorkspaceSpecSchema>
+
+export const WorkspaceSourceSchema = z.object({
+    type: z.enum(['path', 'repo', 'session-clone']).optional(),
+    directory: z.string().optional(),
+    repository: RepositorySpecSchema.optional(),
+    sourceSessionId: z.string().optional()
+})
+
+export type WorkspaceSource = z.infer<typeof WorkspaceSourceSchema>
+
+export const SecretRefSchema = z.object({
+    name: z.string().min(1),
+    mountAs: z.enum(['env', 'file']).optional(),
+    envName: z.string().optional(),
+    filePath: z.string().optional(),
+    required: z.boolean().optional()
+})
+
+export type SecretRef = z.infer<typeof SecretRefSchema>
+
+export const EnvironmentServicePortSchema = z.object({
+    name: z.string().optional(),
+    containerPort: z.number().int().positive(),
+    hostPort: z.number().int().positive().optional(),
+    protocol: z.enum(['tcp', 'udp']).optional(),
+    expose: z.boolean().optional(),
+    public: z.boolean().optional()
+})
+
+export type EnvironmentServicePort = z.infer<typeof EnvironmentServicePortSchema>
+
+export const EnvironmentServiceHealthcheckSchema = z.object({
+    type: z.enum(['tcp', 'http', 'command']),
+    port: z.number().int().positive().optional(),
+    path: z.string().optional(),
+    command: z.array(z.string()).optional(),
+    intervalMs: z.number().int().positive().optional(),
+    timeoutMs: z.number().int().positive().optional()
+})
+
+export type EnvironmentServiceHealthcheck = z.infer<typeof EnvironmentServiceHealthcheckSchema>
+
+export const EnvironmentServiceSchema = z.object({
+    name: z.string().min(1),
+    image: z.string().min(1),
+    command: z.array(z.string()).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    ports: z.array(EnvironmentServicePortSchema).optional(),
+    volumes: z.array(z.string()).optional(),
+    healthcheck: EnvironmentServiceHealthcheckSchema.optional(),
+    restartPolicy: z.enum(['no', 'on-failure', 'always', 'unless-stopped']).optional()
+})
+
+export type EnvironmentService = z.infer<typeof EnvironmentServiceSchema>
+
+export const EnvironmentTerminalSchema = z.object({
+    name: z.string().min(1),
+    command: z.string().min(1)
+})
+
+export type EnvironmentTerminal = z.infer<typeof EnvironmentTerminalSchema>
+
+export const EnvironmentCacheMountSchema = z.object({
+    path: z.string().min(1),
+    key: z.string().optional(),
+    scope: z.enum(['repo', 'env', 'user']).optional()
+})
+
+export type EnvironmentCacheMount = z.infer<typeof EnvironmentCacheMountSchema>
+
+export const EnvironmentRuntimeSchema = z.object({
+    kind: RuntimeKindSchema.optional(),
+    image: z.string().optional(),
+    dockerfile: z.string().optional(),
+    buildContext: z.string().optional(),
+    snapshot: z.string().optional(),
+    agentCanUpdateSnapshot: z.boolean().optional(),
+    resources: WorkerResourcesSchema.optional(),
+    networkMode: NetworkModeSchema.optional(),
+    user: z.string().optional(),
+    workingDir: z.string().optional()
+})
+
+export type EnvironmentRuntime = z.infer<typeof EnvironmentRuntimeSchema>
+
+export const EnvironmentTemplateSchema = z.object({
+    id: z.string().min(1).optional(),
+    name: z.string().min(1).optional(),
+    version: z.string().optional(),
+    description: z.string().optional(),
+    source: z.enum(['builtin', 'repo', 'team', 'user']).optional(),
+    runtime: EnvironmentRuntimeSchema.optional(),
+    install: z.union([z.string(), z.array(z.string())]).optional(),
+    start: z.union([z.string(), z.array(z.string())]).optional(),
+    terminals: z.array(EnvironmentTerminalSchema).optional(),
+    services: z.array(EnvironmentServiceSchema).optional(),
+    ports: z.array(EnvironmentServicePortSchema).optional(),
+    resources: WorkerResourcesSchema.optional(),
+    network: z.object({
+        mode: NetworkModeSchema.optional(),
+        allowDomains: z.array(z.string()).optional()
+    }).optional(),
+    cache: z.array(EnvironmentCacheMountSchema).optional(),
+    secrets: z.array(SecretRefSchema).optional(),
+    user: z.string().optional(),
+    workingDir: z.string().optional(),
+    repositoryDependencies: z.array(z.string()).optional(),
+    features: z.object({
+        docker: z.boolean().optional(),
+        node: z.boolean().optional(),
+        bun: z.boolean().optional(),
+        python: z.boolean().optional()
+    }).optional()
+})
+
+export type EnvironmentTemplate = z.infer<typeof EnvironmentTemplateSchema>
+
+export const PreviewTargetSchema = z.object({
+    id: z.string(),
+    name: z.string().optional(),
+    port: z.number().int().positive(),
+    url: z.string().optional(),
+    visibility: PreviewVisibilitySchema.optional()
+})
+
+export type PreviewTarget = z.infer<typeof PreviewTargetSchema>
+
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),
@@ -51,7 +304,25 @@ export const MetadataSchema = z.object({
     archivedBy: z.string().optional(),
     archiveReason: z.string().optional(),
     flavor: z.string().nullish(),
-    worktree: WorktreeMetadataSchema.optional()
+    worktree: WorktreeMetadataSchema.optional(),
+    executionBackend: ExecutionBackendSchema.optional(),
+    runtimeKind: RuntimeKindSchema.optional(),
+    workerId: z.string().optional(),
+    workspaceId: z.string().optional(),
+    workspaceSource: WorkspaceSourceSchema.optional(),
+    workspaceMode: WorkspaceModeSchema.optional(),
+    repositoryUrl: z.string().optional(),
+    repositoryProvider: z.string().optional(),
+    repositoryRef: RepositoryRefSchema.optional(),
+    repositoryCommit: z.string().optional(),
+    environmentId: z.string().optional(),
+    environmentVersion: z.string().optional(),
+    previewUrls: z.array(PreviewTargetSchema).optional(),
+    setupStatus: z.object({
+        phase: z.string(),
+        message: z.string().optional(),
+        updatedAt: z.number()
+    }).optional()
 })
 
 export type Metadata = z.infer<typeof MetadataSchema>
@@ -271,6 +542,142 @@ export const DecryptedMessageSchema = z.object({
 })
 
 export type DecryptedMessage = z.infer<typeof DecryptedMessageSchema>
+
+export const MachineMetadataSchema = z.object({
+    host: z.string(),
+    platform: z.string(),
+    happyCliVersion: z.string(),
+    displayName: z.string().optional(),
+    homeDir: z.string(),
+    happyHomeDir: z.string(),
+    happyLibDir: z.string(),
+    executorType: ExecutionBackendSchema.optional(),
+    provider: z.string().optional(),
+    region: z.string().optional(),
+    zone: z.string().optional(),
+    image: z.string().optional(),
+    environmentId: z.string().optional(),
+    workerVersion: z.string().optional(),
+    labels: z.array(z.string()).optional(),
+    capabilities: WorkerCapabilitiesSchema.optional(),
+    resources: WorkerResourcesSchema.optional(),
+    repoCache: RepoCacheSchema.optional()
+})
+
+export type MachineMetadata = z.infer<typeof MachineMetadataSchema>
+
+export const RunnerStateSchema = z.object({
+    status: z.string().optional(),
+    lifecycle: WorkerLifecycleSchema.optional(),
+    pid: z.number().optional(),
+    httpPort: z.number().optional(),
+    startedAt: z.number().optional(),
+    shutdownRequestedAt: z.number().optional(),
+    shutdownSource: z.string().optional(),
+    currentSessionId: z.string().nullable().optional(),
+    capacity: z.object({
+        total: z.number().int().nonnegative(),
+        used: z.number().int().nonnegative()
+    }).optional(),
+    workspacePreparation: z.object({
+        phase: z.string(),
+        repo: z.string().optional(),
+        ref: z.string().optional(),
+        progress: z.number().min(0).max(100).optional(),
+        startedAt: z.number().optional(),
+        updatedAt: z.number().optional()
+    }).nullable().optional(),
+    lastProvisionError: z.object({
+        message: z.string(),
+        code: z.string().optional(),
+        at: z.number()
+    }).nullable().optional(),
+    lastWorkspaceError: z.object({
+        message: z.string(),
+        code: z.string().optional(),
+        at: z.number()
+    }).nullable().optional(),
+    lastSpawnError: z.object({
+        message: z.string(),
+        pid: z.number().optional(),
+        exitCode: z.number().nullable().optional(),
+        signal: z.string().nullable().optional(),
+        at: z.number()
+    }).nullable().optional(),
+    lastHeartbeatAt: z.number().optional(),
+    publicPreviewBaseUrl: z.string().optional(),
+    leaseExpiresAt: z.number().optional(),
+    ttlExpiresAt: z.number().optional(),
+    costHint: z.object({
+        currency: z.string(),
+        hourlyRate: z.number().nonnegative().optional()
+    }).optional()
+})
+
+export type RunnerState = z.infer<typeof RunnerStateSchema>
+
+export const MachineSchema = z.object({
+    id: z.string(),
+    seq: z.number(),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    active: z.boolean(),
+    activeAt: z.number(),
+    metadata: MachineMetadataSchema.nullable(),
+    metadataVersion: z.number(),
+    runnerState: RunnerStateSchema.nullable(),
+    runnerStateVersion: z.number()
+})
+
+export type Machine = z.infer<typeof MachineSchema>
+
+export const MachineSpawnRequestSchema = z.object({
+    directory: z.string().min(1).optional(),
+    agent: AgentFlavorSchema.optional(),
+    model: z.string().optional(),
+    thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'max', 'xhigh']).optional(),
+    serviceTier: z.enum(['fast', 'flex']).optional(),
+    yolo: z.boolean().optional(),
+    sessionType: z.enum(['simple', 'worktree']).optional(),
+    worktreeName: z.string().optional(),
+    previewUrl: z.string().optional(),
+    runtimeKind: RuntimeKindSchema.optional(),
+    environmentId: z.string().optional(),
+    environment: EnvironmentTemplateSchema.optional(),
+    workspaceSource: WorkspaceSourceSchema.optional(),
+    workspace: WorkspaceSpecSchema.optional(),
+    resources: WorkerResourcesSchema.optional(),
+    networkPolicy: NetworkModeSchema.optional(),
+    ttlMinutes: z.number().int().positive().optional(),
+    persistentWorkspace: z.boolean().optional(),
+    secrets: z.array(z.string().min(1)).optional(),
+    labels: z.array(z.string()).optional(),
+    preview: z.object({
+        autoDetect: z.boolean().optional(),
+        preferredPort: z.number().int().positive().optional()
+    }).optional()
+})
+
+export type MachineSpawnRequest = z.infer<typeof MachineSpawnRequestSchema>
+
+export const SpawnResponseSchema = z.discriminatedUnion('type', [
+    z.object({
+        type: z.literal('success'),
+        sessionId: z.string(),
+        requestId: z.string().optional()
+    }),
+    z.object({
+        type: z.literal('error'),
+        message: z.string(),
+        code: z.string().optional()
+    }),
+    z.object({
+        type: z.literal('requestToApproveDirectoryCreation'),
+        directory: z.string()
+    })
+])
+
+export type SpawnResponse = z.infer<typeof SpawnResponseSchema>
 
 export const SessionSchema = z.object({
     id: z.string(),
