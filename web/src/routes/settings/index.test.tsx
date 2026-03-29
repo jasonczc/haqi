@@ -358,6 +358,15 @@ describe('SettingsPage', () => {
         expect(window.localStorage.getItem('hapi:codexSendModeDefault')).toBe('queue')
     })
 
+    it('persists session reopen position preference', () => {
+        renderWithProviders(<SettingsPage />)
+
+        fireEvent.click(screen.getByRole('button', { name: /Session Reopen Position/i }))
+        fireEvent.click(screen.getByRole('option', { name: /Restore last position/i }))
+
+        expect(window.localStorage.getItem('hapi:sessionReopenPosition:v1')).toBe('restore')
+    })
+
     it('displays the App Version with correct value', () => {
         renderWithProviders(<SettingsPage />)
         expandGroup(/About/)

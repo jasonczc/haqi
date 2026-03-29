@@ -17,8 +17,10 @@ import {
 } from '@/components/AssistantChat/briefTurnPresentation'
 import { Spinner } from '@/components/Spinner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useSessionReopenPositionPreference } from '@/hooks/useSessionReopenPositionPreference'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
+import { readSessionScrollSnapshot, writeSessionScrollSnapshot } from '@/lib/sessionScrollState'
 import type { ConversationTurn, DecryptedMessage, Session } from '@/types/api'
 
 type TurnDetailState = {
@@ -467,8 +469,7 @@ function TurnDetailThread(props: {
                     isLoadingMoreMessages={props.isLoadingMoreMessages}
                     onLoadMore={props.onLoadMore}
                     pendingCount={0}
-                    rawMessagesCount={props.messages.length}
-                    normalizedMessagesCount={normalizedMessages.length}
+                    newestMessageSeq={props.messages[props.messages.length - 1]?.seq ?? null}
                     messagesVersion={normalizedMessages.length}
                     forceScrollToken={forceScrollToken}
                     density={props.density}
@@ -491,8 +492,9 @@ export function BriefTurnList(props: {
     onLoadMoreTurns: () => Promise<void>
 }) {
     const listRef = useRef<VirtuosoHandle | null>(null)
-    const autoScrollToBottomDoneRef = useRef(false)
     const isAtBottomRef = useRef(true)
+    const initialScrollAppliedRef = useRef(false)
+    const topIndexRef = useRef(0)
     const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
     const [turnDetailStateById, setTurnDetailStateById] = useState<TurnDetailStateMap>({})
     const [liveActivityByTurnId, setLiveActivityByTurnId] = useState<Record<string, string>>({})
@@ -516,6 +518,7 @@ export function BriefTurnList(props: {
         () => isCodexPlanModeEnabled(props.session),
         [props.session]
     )
+    const { sessionReopenPosition } = useSessionReopenPositionPreference()
     const generatingBadgeText = codexPlanModeEnabled ? 'Generating (Plan mode)' : 'Generating'
 
     const fetchTurnMessages = useCallback(async (
@@ -832,7 +835,8 @@ export function BriefTurnList(props: {
     }, [isMobileViewport])
 
     useEffect(() => {
-        autoScrollToBottomDoneRef.current = false
+        initialScrollAppliedRef.current = false
+        topIndexRef.current = 0
         setLiveActivityByTurnId({})
     }, [props.session.id])
 
@@ -883,6 +887,7 @@ export function BriefTurnList(props: {
     }, [props.turns])
 
     const latestTurnId = props.turns[props.turns.length - 1]?.id ?? null
+    const latestTurnKey = latestTurnId ? `${latestTurnId}:${props.turns[props.turns.length - 1]?.updatedAt ?? ''}` : null
 
     const renderTurnRow = useCallback((turn: ConversationTurn) => {
         const userPreview = turn.userPreview?.trim() ?? ''
@@ -1002,34 +1007,55 @@ export function BriefTurnList(props: {
 
     useEffect(() => {
         if (props.turns.length === 0) {
-            autoScrollToBottomDoneRef.current = false
+            initialScrollAppliedRef.current = false
             return
         }
-        if (props.isLoading) {
+        if (props.isLoading || initialScrollAppliedRef.current) {
             return
         }
-        if (autoScrollToBottomDoneRef.current && !isAtBottomRef.current) {
-            return
-        }
+        initialScrollAppliedRef.current = true
+    }, [props.isLoading, props.turns.length])
 
-        autoScrollToBottomDoneRef.current = true
-        const scrollToBottom = () => {
-            listRef.current?.scrollToIndex({
-                index: 'LAST',
-                align: 'end',
-                behavior: 'auto'
+    useEffect(() => {
+        return () => {
+            writeSessionScrollSnapshot(props.session.id, 'brief', {
+                top: 0,
+                topIndex: topIndexRef.current,
+                lastKey: latestTurnKey,
+                savedAt: Date.now()
             })
         }
+    }, [latestTurnKey, props.session.id])
 
-        scrollToBottom()
-        const rafId = window.requestAnimationFrame(scrollToBottom)
-        const timeoutId = window.setTimeout(scrollToBottom, 120)
-
-        return () => {
-            window.cancelAnimationFrame(rafId)
-            window.clearTimeout(timeoutId)
+    const initialTopMostItemIndex = useMemo(() => {
+        if (props.turns.length === 0) {
+            return 0
         }
-    }, [latestTurnUpdateToken, props.isLoading, props.turns.length])
+        const snapshot = readSessionScrollSnapshot(props.session.id, 'brief')
+        const shouldRestore = snapshot && (
+            sessionReopenPosition === 'restore'
+            || (
+                sessionReopenPosition === 'bottom-if-unread'
+                && snapshot.lastKey !== null
+                && latestTurnKey !== null
+                && snapshot.lastKey === latestTurnKey
+            )
+        )
+
+        if (shouldRestore && snapshot?.topIndex !== undefined) {
+            isAtBottomRef.current = false
+            return {
+                index: Math.min(snapshot.topIndex, props.turns.length - 1),
+                align: 'start' as const
+            }
+        }
+
+        isAtBottomRef.current = true
+        return {
+            index: 'LAST' as const,
+            align: 'end' as const
+        }
+    }, [latestTurnKey, props.session.id, props.turns.length, sessionReopenPosition])
 
     return (
         <>
@@ -1052,12 +1078,24 @@ export function BriefTurnList(props: {
 
                         {props.turns.length > 0 ? (
                             <Virtuoso
+                                key={`${props.session.id}:${sessionReopenPosition}`}
                                 ref={listRef}
                                 style={{ height: '100%' }}
                                 data={props.turns}
                                 overscan={320}
+                                initialTopMostItemIndex={initialTopMostItemIndex}
+                                followOutput={(isAtBottom) => (isAtBottom ? 'auto' : false)}
                                 atBottomStateChange={(isAtBottom) => {
                                     isAtBottomRef.current = isAtBottom
+                                }}
+                                rangeChanged={(range) => {
+                                    topIndexRef.current = range.startIndex
+                                    writeSessionScrollSnapshot(props.session.id, 'brief', {
+                                        top: 0,
+                                        topIndex: range.startIndex,
+                                        lastKey: latestTurnKey,
+                                        savedAt: Date.now()
+                                    })
                                 }}
                                 startReached={() => {
                                     if (!props.hasMore || props.isLoadingMore) {

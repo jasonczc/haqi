@@ -401,6 +401,7 @@ export function SessionChat(props: {
     isLoadingMoreTurns: boolean
     isSending: boolean
     pendingCount: number
+    newestMessageSeq: number | null
     messagesVersion: number
     viewMode: ChatViewMode
     onViewModeChange: (mode: ChatViewMode) => void
@@ -1465,13 +1466,16 @@ export function SessionChat(props: {
                             isLoadingMoreMessages={props.isLoadingMoreMessages}
                             onLoadMore={props.onLoadMore}
                             onRefresh={props.onRefresh}
+                            onFlushPending={props.onFlushPending}
                             onRetryMessage={props.onRetryMessage}
                             onAtBottomChange={props.onAtBottomChange}
+                            pendingCount={props.pendingCount}
+                            newestMessageSeq={props.newestMessageSeq}
+                            messagesVersion={props.messagesVersion}
                             density={props.density ?? 'comfortable'}
                         />
                     ) : (
                         <HappyThread
-                            key={props.session.id}
                             api={props.api}
                             sessionId={props.session.id}
                             metadata={props.session.metadata}
@@ -1488,8 +1492,7 @@ export function SessionChat(props: {
                             isLoadingMoreMessages={props.isLoadingMoreMessages}
                             onLoadMore={props.onLoadMore}
                             pendingCount={props.pendingCount}
-                            rawMessagesCount={props.messages.length}
-                            normalizedMessagesCount={normalizedMessages.length}
+                            newestMessageSeq={props.newestMessageSeq}
                             messagesVersion={props.messagesVersion}
                             forceScrollToken={forceScrollToken}
                             density={props.density ?? 'comfortable'}

@@ -656,6 +656,7 @@ function SessionPage() {
         isLoading: messagesLoading,
         isLoadingMore: messagesLoadingMore,
         hasMore: messagesHasMore,
+        newestSeq,
         loadMore: loadMoreMessages,
         refetch: refetchMessages,
         pendingCount,
@@ -780,6 +781,7 @@ function SessionPage() {
             isLoadingMoreTurns={turnsLoadingMore}
             isSending={isSending}
             pendingCount={pendingCount}
+            newestMessageSeq={newestSeq}
             messagesVersion={messagesVersion}
             viewMode={viewMode}
             onViewModeChange={setViewMode}

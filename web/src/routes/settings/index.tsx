@@ -8,6 +8,10 @@ import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useEnterBehavior } from '@/hooks/useEnterBehavior'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useCodexSendModePreference } from '@/hooks/useCodexSendModePreference'
+import {
+    useSessionReopenPositionPreference,
+    type SessionReopenPositionPreference
+} from '@/hooks/useSessionReopenPositionPreference'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import {
     useImageUploadCompression,
@@ -32,6 +36,7 @@ const voiceLanguages = getElevenLabsSupportedLanguages()
 const themePreferences: ThemePreference[] = ['light', 'dark', 'system']
 const queueInlinePanelModes: QueueInlinePanelMode[] = ['off', 'compact', 'full']
 const codexSendModes = ['direct', 'queue'] as const
+const sessionReopenPositionModes: SessionReopenPositionPreference[] = ['bottom', 'restore', 'bottom-if-unread']
 const imageUploadCompressionLevels: ImageUploadCompressionLevel[] = ['light', 'balanced', 'aggressive']
 const imageUploadCompressionTargetSizes: ImageUploadCompressionTargetSize[] = ['auto', '500kb', '1mb', '2mb', '5mb']
 const SETTINGS_GROUP_EXPANDED_STORAGE_KEY = 'hapi-settings-group-expanded-v1'
@@ -235,6 +240,7 @@ export default function SettingsPage() {
     const [isVoiceOpen, setIsVoiceOpen] = useState(false)
     const [isQueuePanelOpen, setIsQueuePanelOpen] = useState(false)
     const [isSendModeOpen, setIsSendModeOpen] = useState(false)
+    const [isSessionReopenPositionOpen, setIsSessionReopenPositionOpen] = useState(false)
     const [isImageCompressionLevelOpen, setIsImageCompressionLevelOpen] = useState(false)
     const [isImageCompressionTargetSizeOpen, setIsImageCompressionTargetSizeOpen] = useState(false)
     const [groupExpandedState, setGroupExpandedState] = useState<SettingsGroupExpandedState>(() => readSettingsGroupExpandedState())
@@ -248,12 +254,14 @@ export default function SettingsPage() {
     const voiceContainerRef = useRef<HTMLDivElement>(null)
     const queuePanelContainerRef = useRef<HTMLDivElement>(null)
     const sendModeContainerRef = useRef<HTMLDivElement>(null)
+    const sessionReopenPositionContainerRef = useRef<HTMLDivElement>(null)
     const imageCompressionLevelContainerRef = useRef<HTMLDivElement>(null)
     const imageCompressionTargetSizeContainerRef = useRef<HTMLDivElement>(null)
     const { fontScale, setFontScale } = useFontScale()
     const { themePreference, setThemePreference } = useThemePreference()
     const { queueInlinePanelMode, setQueueInlinePanelMode } = useQueueInlinePanel()
     const { codexSendModeDefault, setCodexSendModeDefault } = useCodexSendModePreference()
+    const { sessionReopenPosition, setSessionReopenPosition } = useSessionReopenPositionPreference()
     const {
         imageUploadCompressionEnabled,
         imageUploadCompressionLevel,
@@ -309,6 +317,7 @@ export default function SettingsPage() {
     const currentVoiceLanguage = voiceLanguages.find((lang) => lang.code === voiceLanguage)
     const currentQueuePanelLabel = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}`)
     const currentCodexSendModeLabel = t(`queue.mode.${codexSendModeDefault}`)
+    const currentSessionReopenPositionLabel = t(`settings.behavior.sessionReopenPosition.${sessionReopenPosition}`)
     const currentQueuePanelModeDescription = t(`settings.behavior.queueInlinePanel.${queueInlinePanelMode}.description`)
     const currentImageCompressionLevelLabel = t(
         `settings.behavior.imageCompression.level.${imageUploadCompressionLevel}`
@@ -578,6 +587,11 @@ export default function SettingsPage() {
     const handleCodexSendModeDefaultChange = (mode: typeof codexSendModes[number]) => {
         setCodexSendModeDefault(mode)
         setIsSendModeOpen(false)
+    }
+
+    const handleSessionReopenPositionChange = (mode: SessionReopenPositionPreference) => {
+        setSessionReopenPosition(mode)
+        setIsSessionReopenPositionOpen(false)
     }
 
     const handleProjectQuickCreateToggle = (value: boolean) => {
@@ -858,6 +872,7 @@ export default function SettingsPage() {
             !isVoiceOpen &&
             !isQueuePanelOpen &&
             !isSendModeOpen &&
+            !isSessionReopenPositionOpen &&
             !isImageCompressionLevelOpen &&
             !isImageCompressionTargetSizeOpen
         ) return
@@ -880,6 +895,13 @@ export default function SettingsPage() {
             }
             if (isSendModeOpen && sendModeContainerRef.current && !sendModeContainerRef.current.contains(event.target as Node)) {
                 setIsSendModeOpen(false)
+            }
+            if (
+                isSessionReopenPositionOpen &&
+                sessionReopenPositionContainerRef.current &&
+                !sessionReopenPositionContainerRef.current.contains(event.target as Node)
+            ) {
+                setIsSessionReopenPositionOpen(false)
             }
             if (
                 isImageCompressionLevelOpen &&
@@ -906,6 +928,7 @@ export default function SettingsPage() {
         isVoiceOpen,
         isQueuePanelOpen,
         isSendModeOpen,
+        isSessionReopenPositionOpen,
         isImageCompressionLevelOpen,
         isImageCompressionTargetSizeOpen
     ])
@@ -919,6 +942,7 @@ export default function SettingsPage() {
             !isVoiceOpen &&
             !isQueuePanelOpen &&
             !isSendModeOpen &&
+            !isSessionReopenPositionOpen &&
             !isImageCompressionLevelOpen &&
             !isImageCompressionTargetSizeOpen
         ) return
@@ -931,6 +955,7 @@ export default function SettingsPage() {
                 setIsVoiceOpen(false)
                 setIsQueuePanelOpen(false)
                 setIsSendModeOpen(false)
+                setIsSessionReopenPositionOpen(false)
                 setIsImageCompressionLevelOpen(false)
                 setIsImageCompressionTargetSizeOpen(false)
             }
@@ -945,6 +970,7 @@ export default function SettingsPage() {
         isVoiceOpen,
         isQueuePanelOpen,
         isSendModeOpen,
+        isSessionReopenPositionOpen,
         isImageCompressionLevelOpen,
         isImageCompressionTargetSizeOpen
     ])
@@ -1322,6 +1348,70 @@ export default function SettingsPage() {
                                                         }`}
                                                     >
                                                         {t(`settings.behavior.queueInlinePanel.${mode}.description`)}
+                                                    </span>
+                                                </span>
+                                                {isSelected && (
+                                                    <span className="mt-0.5 shrink-0 text-[var(--app-link)]">
+                                                        <CheckIcon />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        <div ref={sessionReopenPositionContainerRef} className="relative border-b border-[var(--app-border)]">
+                            <button
+                                type="button"
+                                onClick={() => setIsSessionReopenPositionOpen(!isSessionReopenPositionOpen)}
+                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                aria-expanded={isSessionReopenPositionOpen}
+                                aria-haspopup="listbox"
+                            >
+                                <div className="flex flex-col">
+                                    <span className="text-[var(--app-fg)]">
+                                        {t('settings.behavior.sessionReopenPosition')}
+                                    </span>
+                                    <span className="text-xs text-[var(--app-hint)]">
+                                        {t('settings.behavior.sessionReopenPosition.description')}
+                                    </span>
+                                </div>
+                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
+                                    <span>{currentSessionReopenPositionLabel}</span>
+                                    <ChevronDownIcon className={`transition-transform ${isSessionReopenPositionOpen ? 'rotate-180' : ''}`} />
+                                </span>
+                            </button>
+
+                            {isSessionReopenPositionOpen && (
+                                <div
+                                    className="absolute right-3 top-full mt-1 min-w-[240px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    role="listbox"
+                                    aria-label={t('settings.behavior.sessionReopenPosition')}
+                                >
+                                    {sessionReopenPositionModes.map((mode) => {
+                                        const isSelected = sessionReopenPosition === mode
+                                        return (
+                                            <button
+                                                key={mode}
+                                                type="button"
+                                                role="option"
+                                                aria-selected={isSelected}
+                                                onClick={() => handleSessionReopenPositionChange(mode)}
+                                                className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition-colors ${
+                                                    isSelected
+                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
+                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                                                }`}
+                                            >
+                                                <span className="flex min-w-0 flex-col">
+                                                    <span>{t(`settings.behavior.sessionReopenPosition.${mode}`)}</span>
+                                                    <span
+                                                        className={`text-xs ${
+                                                            isSelected ? 'text-[var(--app-link)] opacity-80' : 'text-[var(--app-hint)]'
+                                                        }`}
+                                                    >
+                                                        {t(`settings.behavior.sessionReopenPosition.${mode}.description`)}
                                                     </span>
                                                 </span>
                                                 {isSelected && (

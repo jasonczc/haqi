@@ -37,6 +37,7 @@ export function useMessages(
     isLoading: boolean
     isLoadingMore: boolean
     hasMore: boolean
+    newestSeq: number | null
     pendingCount: number
     messagesVersion: number
     loadMore: () => Promise<unknown>
@@ -107,6 +108,7 @@ export function useMessages(
         isLoading: state.isLoading,
         isLoadingMore: state.isLoadingMore,
         hasMore: state.hasMore,
+        newestSeq: state.newestSeq,
         pendingCount: state.pendingCount,
         messagesVersion: state.messagesVersion,
         loadMore,
