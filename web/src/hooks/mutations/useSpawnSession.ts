@@ -5,12 +5,12 @@ import { queryKeys } from '@/lib/query-keys'
 import type {
     AgentFlavor,
     EnvironmentTemplate,
-    NetworkMode,
     RuntimeKind,
     WorkerResources,
     WorkspaceSource,
     WorkspaceSpec,
 } from '@hapi/protocol/types'
+import type { NetworkMode } from '@hapi/protocol/schemas'
 
 type SpawnInput = {
     machineId: string
@@ -52,30 +52,29 @@ export function useSpawnSession(api: ApiClient | null): {
             if (!api) {
                 throw new Error('API unavailable')
             }
-            return await api.spawnSession(
-                input.machineId,
-                input.directory,
-                input.agent,
-                input.model,
-                input.thinkEffort,
-                input.serviceTier,
-                input.yolo,
-                input.sessionType,
-                input.worktreeName,
-                input.previewUrl,
-                input.runtimeKind,
-                input.environmentId,
-                input.environment,
-                input.workspaceSource,
-                input.workspace,
-                input.resources,
-                input.networkPolicy,
-                input.ttlMinutes,
-                input.persistentWorkspace,
-                input.secrets,
-                input.labels,
-                input.preview
-            )
+            return await api.spawnSession(input.machineId, {
+                directory: input.directory,
+                agent: input.agent,
+                model: input.model,
+                thinkEffort: input.thinkEffort,
+                serviceTier: input.serviceTier,
+                yolo: input.yolo,
+                sessionType: input.sessionType,
+                worktreeName: input.worktreeName,
+                previewUrl: input.previewUrl,
+                runtimeKind: input.runtimeKind,
+                environmentId: input.environmentId,
+                environment: input.environment,
+                workspaceSource: input.workspaceSource,
+                workspace: input.workspace,
+                resources: input.resources,
+                networkPolicy: input.networkPolicy,
+                ttlMinutes: input.ttlMinutes,
+                persistentWorkspace: input.persistentWorkspace,
+                secrets: input.secrets,
+                labels: input.labels,
+                preview: input.preview
+            })
         },
         onSuccess: () => {
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })

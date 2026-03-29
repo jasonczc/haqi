@@ -231,6 +231,7 @@ from GitHub Pages instead of through the relay tunnel.
         if (!c.finalized) {
             return c.text('Asset not found', 404)
         }
+        return
     })
 
     app.use('*', async (c, next) => {
@@ -243,6 +244,7 @@ from GitHub Pages instead of through the relay tunnel.
         if (!c.finalized && isStaticAssetRequest(c.req.path)) {
             return c.text('Asset not found', 404)
         }
+        return
     })
 
     app.get('*', async (c, next) => {

@@ -340,7 +340,9 @@ function SessionsPage() {
             if (result.type !== 'success') {
                 addToast({
                     title: t('sessions.quickCreate.failed'),
-                    body: result.message,
+                    body: result.type === 'error'
+                        ? result.message
+                        : t('newSession.directory.createApprovalRequired'),
                     sessionId: '',
                     url: ''
                 })

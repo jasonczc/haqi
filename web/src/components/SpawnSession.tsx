@@ -55,7 +55,7 @@ export function SpawnSession(props: {
                 return
             }
             haptic.notification('error')
-            setError(result.message)
+            setError(result.type === 'error' ? result.message : `Directory creation requires approval: ${result.directory}`)
         } catch (e) {
             haptic.notification('error')
             setError(e instanceof Error ? e.message : 'Failed to spawn session')

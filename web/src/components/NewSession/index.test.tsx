@@ -66,12 +66,22 @@ describe('NewSession initial directory preset', () => {
         const machines: Machine[] = [
             {
                 id: 'machine-1',
+                seq: 1,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
                 active: true,
+                activeAt: Date.now(),
                 metadata: {
                     host: 'devbox',
                     platform: 'linux',
-                    happyCliVersion: '0.15.2'
-                }
+                    happyCliVersion: '0.15.2',
+                    homeDir: '/home/test',
+                    happyHomeDir: '/home/test/.hapi',
+                    happyLibDir: '/opt/haqi'
+                },
+                metadataVersion: 1,
+                runnerState: null,
+                runnerStateVersion: 1
             }
         ]
 
@@ -114,12 +124,22 @@ describe('NewSession initial directory preset', () => {
         const machines: Machine[] = [
             {
                 id: 'machine-1',
+                seq: 1,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
                 active: true,
+                activeAt: Date.now(),
                 metadata: {
                     host: 'devbox',
                     platform: 'linux',
-                    happyCliVersion: '0.15.2'
-                }
+                    happyCliVersion: '0.15.2',
+                    homeDir: '/home/test',
+                    happyHomeDir: '/home/test/.hapi',
+                    happyLibDir: '/opt/haqi'
+                },
+                metadataVersion: 1,
+                runnerState: null,
+                runnerStateVersion: 1
             }
         ]
 
@@ -167,12 +187,22 @@ describe('NewSession initial directory preset', () => {
         const machines: Machine[] = [
             {
                 id: 'machine-1',
+                seq: 1,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
                 active: true,
+                activeAt: Date.now(),
                 metadata: {
                     host: 'devbox',
                     platform: 'linux',
-                    happyCliVersion: '0.15.2'
-                }
+                    happyCliVersion: '0.15.2',
+                    homeDir: '/home/test',
+                    happyHomeDir: '/home/test/.hapi',
+                    happyLibDir: '/opt/haqi'
+                },
+                metadataVersion: 1,
+                runnerState: null,
+                runnerStateVersion: 1
             }
         ]
 

@@ -173,7 +173,10 @@ export function useSessionActions(
     const spawnFromExistingSession = async (inheritHistory: boolean): Promise<string> => {
         const result = await spawnFromExistingMutation.mutateAsync(inheritHistory)
         if (result.type !== 'success') {
-            throw new Error(result.message || 'Failed to spawn session from existing')
+            if (result.type === 'error') {
+                throw new Error(result.message || 'Failed to spawn session from existing')
+            }
+            throw new Error(`Directory creation requires approval: ${result.directory}`)
         }
         return result.sessionId
     }

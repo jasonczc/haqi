@@ -3,8 +3,6 @@ import type {
     AuthResponse,
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
-    EnvironmentTemplate,
-    MachineSpawnRequest,
     QueueResponse,
     SessionUsageResponse,
     QueueStatusResponse,
@@ -57,6 +55,7 @@ import type {
     TeamControlRequest,
     TeamControlResponse
 } from '@/types/api'
+import type { MachineSpawnRequest } from '@hapi/protocol/types'
 
 type ApiClientOptions = {
     baseUrl?: string
