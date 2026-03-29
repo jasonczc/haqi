@@ -67,7 +67,14 @@ export function startRunnerControlServer({
               pid: z.number(),
               runtimeKind: z.string().optional(),
               containerId: z.string().optional(),
-              workspaceId: z.string().optional()
+              workspaceId: z.string().optional(),
+              previewUrls: z.array(z.object({
+                id: z.string(),
+                port: z.number(),
+                name: z.string().optional(),
+                url: z.string().optional(),
+                visibility: z.enum(['private', 'public']).optional()
+              })).optional()
             }))
           })
         }
@@ -84,7 +91,8 @@ export function startRunnerControlServer({
             pid: child.pid,
             runtimeKind: child.runtimeKind,
             containerId: child.containerId,
-            workspaceId: child.workspaceId
+            workspaceId: child.workspaceId,
+            previewUrls: child.happySessionMetadataFromLocalWebhook?.previewUrls
           }))
       }
     });

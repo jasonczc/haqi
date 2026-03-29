@@ -407,6 +407,27 @@ export async function startRunner(): Promise<void> {
         if (resolvedEnvironment?.environmentId) {
           extraEnv.HAPI_ENVIRONMENT_ID = resolvedEnvironment.environmentId;
         }
+        if (resolvedEnvironment?.runtimeKind) {
+          extraEnv.HAPI_RUNTIME_KIND = resolvedEnvironment.runtimeKind;
+        }
+        if (options.workspaceSource?.repository?.url) {
+          extraEnv.HAPI_REPOSITORY_URL = options.workspaceSource.repository.url;
+        }
+        if (options.workspaceSource?.repository?.provider) {
+          extraEnv.HAPI_REPOSITORY_PROVIDER = options.workspaceSource.repository.provider;
+        }
+        if (options.workspaceSource?.repository?.ref?.branch) {
+          extraEnv.HAPI_REPOSITORY_BRANCH = options.workspaceSource.repository.ref.branch;
+        }
+        if (options.workspaceSource?.repository?.ref?.tag) {
+          extraEnv.HAPI_REPOSITORY_TAG = options.workspaceSource.repository.ref.tag;
+        }
+        if (options.workspaceSource?.repository?.ref?.commit) {
+          extraEnv.HAPI_REPOSITORY_COMMIT = options.workspaceSource.repository.ref.commit;
+        }
+        if (options.workspaceSource?.repository?.ref?.pr) {
+          extraEnv.HAPI_REPOSITORY_PR = options.workspaceSource.repository.ref.pr;
+        }
 
         // sessionId reserved for future use
         const MAX_TAIL_CHARS = 4000;
@@ -670,13 +691,17 @@ export async function startRunner(): Promise<void> {
         if (session.happySessionId === sessionId ||
           (sessionId.startsWith('PID-') && pid === parseInt(sessionId.replace('PID-', '')))) {
 
-          if (session.startedBy === 'runner' && session.childProcess) {
+        if (session.startedBy === 'runner' && session.childProcess) {
             try {
               void killProcessByChildProcess(session.childProcess);
               logger.debug(`[RUNNER RUN] Requested termination for runner-spawned session ${sessionId}`);
             } catch (error) {
               logger.debug(`[RUNNER RUN] Failed to kill session ${sessionId}:`, error);
             }
+          } else if (session.containerId) {
+            void new DockerCliRuntime().remove(session.containerId).catch((error) => {
+              logger.debug(`[RUNNER RUN] Failed to remove docker session container ${session.containerId}:`, error);
+            });
           } else {
             // For externally started sessions, try to kill by PID
             try {
@@ -684,6 +709,17 @@ export async function startRunner(): Promise<void> {
               logger.debug(`[RUNNER RUN] Requested termination for external session PID ${pid}`);
             } catch (error) {
               logger.debug(`[RUNNER RUN] Failed to kill external session PID ${pid}:`, error);
+            }
+          }
+
+          if (session.serviceContainerIds?.length) {
+            for (const serviceContainerId of session.serviceContainerIds) {
+              void new DockerCliRuntime().remove(serviceContainerId).catch(() => undefined);
+            }
+          }
+          if (session.cleanupPaths?.length) {
+            for (const cleanupPath of session.cleanupPaths) {
+              void fs.rm(cleanupPath, { recursive: true, force: true }).catch(() => undefined);
             }
           }
 

@@ -140,6 +140,12 @@ export function SessionHeader(props: {
     const { session, api, onSessionDeleted } = props
     const title = useMemo(() => getSessionTitle(session), [session])
     const worktreeBranch = session.metadata?.worktree?.branch
+    const executionBackend = session.metadata?.executionBackend
+    const runtimeKind = session.metadata?.runtimeKind
+    const workspaceId = session.metadata?.workspaceId
+    const environmentId = session.metadata?.environmentId
+    const repositoryRef = session.metadata?.repositoryRef
+    const previewCount = session.metadata?.previewUrls?.length ?? 0
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
     const displayThinkEffort = session.metadata?.thinkEffort?.trim()
     const displayServiceTier = session.metadata?.serviceTier?.trim()
@@ -272,8 +278,26 @@ export function SessionHeader(props: {
                                 {displayThinkEffort ? ` · ${t('session.item.thinkLevel')}: ${displayThinkEffort}` : ''}
                                 {displayServiceTier ? ` · ${t('newSession.serviceTier')}: ${displayServiceTier}` : ''}
                             </span>
+                            {executionBackend ? (
+                                <span>{executionBackend}{runtimeKind ? ` · ${runtimeKind}` : ''}</span>
+                            ) : null}
+                            {environmentId ? (
+                                <span>env: {environmentId}</span>
+                            ) : null}
+                            {repositoryRef?.branch ? (
+                                <span>branch: {repositoryRef.branch}</span>
+                            ) : null}
+                            {repositoryRef?.commit ? (
+                                <span>commit: {repositoryRef.commit.slice(0, 12)}</span>
+                            ) : null}
+                            {workspaceId ? (
+                                <span>workspace: {workspaceId}</span>
+                            ) : null}
                             {worktreeBranch ? (
                                 <span>{t('session.item.worktree')}: {worktreeBranch}</span>
+                            ) : null}
+                            {previewCount > 0 ? (
+                                <span>previews: {previewCount}</span>
                             ) : null}
                         </div>
                     </div>
