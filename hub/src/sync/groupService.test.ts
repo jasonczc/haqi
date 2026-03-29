@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { Database } from 'bun:sqlite'
 import type { SyncEvent } from '@hapi/protocol/types'
-import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Store } from '../store'
@@ -685,14 +685,12 @@ describe('GroupService createGroup', () => {
             })
 
             const notePath = join(dir, 'memory', 'groups', 'default', created.group.id, 'GROUP-NOTE.md')
-            const before = store.groups.getGroupNote(created.group.id, 'default')
-            const waitUntil = (before?.updatedAt ?? Date.now()) + 5
-            while (Date.now() <= waitUntil) {
-                // Busy wait to ensure file mtime is newer than note.updatedAt.
-            }
 
             const finalMarkdown = '## 每个agent的职责\n- session-a: 完成同步\n\n## 当前目标、进展以及待办事项\n- [ ] 验收'
             writeFileSync(notePath, finalMarkdown, { encoding: 'utf8' })
+            // Force mtime strictly after DB note.updatedAt (FS may use coarse or tied mtimes).
+            const futureSec = (Date.now() + 60_000) / 1000
+            utimesSync(notePath, futureSec, futureSec)
 
             const syncResult = service.syncGroupNoteMarkdownFiles()
             expect(syncResult.pulledFromFile).toBe(1)
