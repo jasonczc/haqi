@@ -82,7 +82,7 @@ export function buildSessionMetadata(options: {
         happyLibDir,
         happyToolsDir: resolve(happyLibDir, 'tools', 'unpacked'),
         startedFromRunner: options.startedBy === 'runner',
-        hostPid: process.pid,
+        hostPid: options.runtimeKind === 'docker-session' ? undefined : process.pid,
         startedBy: options.startedBy,
         lifecycleState: 'running',
         lifecycleStateSince: now,
@@ -129,6 +129,43 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     const startedBy = options.startedBy ?? 'terminal'
     const sessionTag = options.tag ?? randomUUID()
     const agentState = options.agentState === undefined ? {} : options.agentState
+    const spawnRequestId = options.spawnRequestId ?? process.env.HAPI_SPAWN_REQUEST_ID
+    const workspaceId = options.workspaceId ?? process.env.HAPI_WORKSPACE_ID
+    const runtimeKind = options.runtimeKind ?? (
+        process.env.HAPI_RUNTIME_KIND === 'docker-session' || process.env.HAPI_RUNTIME_KIND === 'host-process'
+            ? process.env.HAPI_RUNTIME_KIND
+            : undefined
+    )
+    const environmentId = options.environmentId ?? process.env.HAPI_ENVIRONMENT_ID
+    const repositoryUrl = options.repositoryUrl ?? process.env.HAPI_REPOSITORY_URL
+    const repositoryProvider = options.repositoryProvider ?? process.env.HAPI_REPOSITORY_PROVIDER
+    const repositoryRef = options.repositoryRef ?? (() => {
+        const branch = process.env.HAPI_REPOSITORY_BRANCH?.trim()
+        const tag = process.env.HAPI_REPOSITORY_TAG?.trim()
+        const commit = process.env.HAPI_REPOSITORY_COMMIT?.trim()
+        const pr = process.env.HAPI_REPOSITORY_PR?.trim()
+        if (!branch && !tag && !commit && !pr) {
+            return undefined
+        }
+        return {
+            branch: branch || undefined,
+            tag: tag || undefined,
+            commit: commit || undefined,
+            pr: pr || undefined
+        }
+    })()
+    const previewUrls = options.previewUrls ?? (() => {
+        const raw = process.env.HAPI_PREVIEW_TARGETS_JSON
+        if (!raw) {
+            return undefined
+        }
+        try {
+            const parsed = JSON.parse(raw)
+            return Array.isArray(parsed) ? parsed as Metadata['previewUrls'] : undefined
+        } catch {
+            return undefined
+        }
+    })()
 
     const api = await ApiClient.create()
 
@@ -143,14 +180,14 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         startedBy,
         workingDirectory,
         machineId,
-        spawnRequestId: options.spawnRequestId,
-        workspaceId: options.workspaceId,
-        runtimeKind: options.runtimeKind,
-        environmentId: options.environmentId,
-        repositoryUrl: options.repositoryUrl,
-        repositoryProvider: options.repositoryProvider,
-        repositoryRef: options.repositoryRef,
-        previewUrls: options.previewUrls
+        spawnRequestId,
+        workspaceId,
+        runtimeKind,
+        environmentId,
+        repositoryUrl,
+        repositoryProvider,
+        repositoryRef,
+        previewUrls
     })
 
     const sessionInfo = await api.getOrCreateSession({

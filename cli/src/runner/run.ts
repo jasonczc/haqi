@@ -431,48 +431,60 @@ export async function startRunner(): Promise<void> {
         // Keep actual target directory in HAPI_WORKING_DIRECTORY to preserve session behavior.
         const executionCwd = isBunCompiled() ? spawnDirectory : projectPath();
 
-        const execution = startHostProcessExecutor({
-          executionCwd,
-          workingDirectory: spawnDirectory,
-          env: extraEnv,
-          options
-        });
-        happyProcess = execution.childProcess;
+        const execution = resolvedEnvironment.runtimeKind === 'docker-session'
+          ? await startDockerSessionExecutor({
+              runtime: new DockerCliRuntime(),
+              workspace: preparedWorkspace,
+              environment: resolvedEnvironment,
+              env: extraEnv,
+              options,
+              sessionLabel: spawnRequestId
+            })
+          : startHostProcessExecutor({
+              executionCwd,
+              workingDirectory: spawnDirectory,
+              env: extraEnv,
+              options
+            });
 
-        happyProcess.stderr?.on('data', (data) => {
-          stderrTail = appendTail(stderrTail, data);
-        });
-
-        let spawnErrorBeforePidCheck: Error | null = null;
-        const captureSpawnErrorBeforePidCheck = (error: Error) => {
-          spawnErrorBeforePidCheck = error;
-        };
-        happyProcess.once('error', captureSpawnErrorBeforePidCheck);
-
-        if (!happyProcess.pid) {
-          // Allow the async 'error' event to fire before we read it
-          await new Promise((resolve) => setImmediate(resolve));
-          const details = [`cwd=${spawnDirectory}`];
-          if (spawnErrorBeforePidCheck) {
-            details.push(formatSpawnError(spawnErrorBeforePidCheck));
-          }
-          const errorMessage = `Failed to spawn HAPI process - no PID returned (${details.join('; ')})`;
-          logger.debug('[RUNNER RUN] Failed to spawn process - no PID returned', spawnErrorBeforePidCheck ?? null);
-          reportSpawnOutcomeToHub?.({
-            type: 'error',
-            details: {
-              message: errorMessage
-            }
+        if ('childProcess' in execution) {
+          happyProcess = execution.childProcess;
+          happyProcess.stderr?.on('data', (data) => {
+            stderrTail = appendTail(stderrTail, data);
           });
-          await maybeCleanupWorktree('no-pid');
-          return {
-            type: 'error',
-            errorMessage
-          };
-        }
-        happyProcess.removeListener('error', captureSpawnErrorBeforePidCheck);
 
-        const pid = happyProcess.pid;
+          let spawnErrorBeforePidCheck: Error | null = null;
+          const captureSpawnErrorBeforePidCheck = (error: Error) => {
+            spawnErrorBeforePidCheck = error;
+          };
+          happyProcess.once('error', captureSpawnErrorBeforePidCheck);
+
+          if (!happyProcess.pid) {
+            await new Promise((resolve) => setImmediate(resolve));
+            const details = [`cwd=${spawnDirectory}`];
+            if (spawnErrorBeforePidCheck) {
+              details.push(formatSpawnError(spawnErrorBeforePidCheck));
+            }
+            const errorMessage = `Failed to spawn HAPI process - no PID returned (${details.join('; ')})`;
+            logger.debug('[RUNNER RUN] Failed to spawn process - no PID returned', spawnErrorBeforePidCheck ?? null);
+            reportSpawnOutcomeToHub?.({
+              type: 'error',
+              details: {
+                message: errorMessage
+              }
+            });
+            await stopStartedServices();
+            await cleanupPreparedWorkspace();
+            await maybeCleanupWorktree('no-pid');
+            return {
+              type: 'error',
+              errorMessage
+            };
+          }
+          happyProcess.removeListener('error', captureSpawnErrorBeforePidCheck);
+        }
+
+        const pid = 'pid' in execution ? execution.pid : process.pid;
         logger.debug(`[RUNNER RUN] Spawned process with PID ${pid}`);
         let observedExitCode: number | null = null;
         let observedExitSignal: NodeJS.Signals | null = null;
@@ -513,6 +525,7 @@ export async function startRunner(): Promise<void> {
           serviceContainerIds: startedServices.map((service) => service.containerId),
           childProcess: 'childProcess' in execution ? execution.childProcess : undefined,
           containerId: 'containerId' in execution ? execution.containerId : undefined,
+          cleanupPaths: preparedWorkspace.cleanupPaths,
           directoryCreated,
           message: directoryCreated && options.directory ? `The path '${options.directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
         };

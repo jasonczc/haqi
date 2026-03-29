@@ -64,7 +64,10 @@ export function startRunnerControlServer({
             children: z.array(z.object({
               startedBy: z.string(),
               happySessionId: z.string(),
-              pid: z.number()
+              pid: z.number(),
+              runtimeKind: z.string().optional(),
+              containerId: z.string().optional(),
+              workspaceId: z.string().optional()
             }))
           })
         }
@@ -78,7 +81,10 @@ export function startRunnerControlServer({
           .map(child => ({
             startedBy: child.startedBy,
             happySessionId: child.happySessionId!,
-            pid: child.pid
+            pid: child.pid,
+            runtimeKind: child.runtimeKind,
+            containerId: child.containerId,
+            workspaceId: child.workspaceId
           }))
       }
     });

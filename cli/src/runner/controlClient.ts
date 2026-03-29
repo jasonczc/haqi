@@ -99,8 +99,17 @@ export async function stopRunnerSession(sessionId: string): Promise<boolean> {
   return result.success || false;
 }
 
-export async function spawnRunnerSession(directory: string, sessionId?: string): Promise<any> {
-  const result = await runnerPost('/spawn-session', { directory, sessionId });
+export async function spawnRunnerSession(
+  directory: string,
+  sessionId?: string,
+  options?: { sessionType?: 'simple' | 'worktree'; worktreeName?: string }
+): Promise<any> {
+  const result = await runnerPost('/spawn-session', {
+    directory,
+    sessionId,
+    sessionType: options?.sessionType,
+    worktreeName: options?.worktreeName
+  });
   return result;
 }
 
