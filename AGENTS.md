@@ -199,3 +199,41 @@ Expected: `/health` OK; process command shows `~/.local/bin/haqi hub`.
 2. Unsure: read more code; if still stuck, ask w/ short options.
 3. Conflicts: call out; pick safer path.
 4. Unrecognized changes: assume other agent; keep going; focus your changes. If it causes issues, stop + ask user.
+
+## Cursor Cloud specific instructions
+
+### Runtime
+
+- Bun v1.3.5 is the runtime. Installed at `~/.bun/bin/bun`; ensure `$BUN_INSTALL/bin` is on `$PATH`.
+- No Docker, Redis, or external DB needed. SQLite is built into Bun via `bun:sqlite`.
+
+### Running dev servers
+
+Hub + web together: `bun run dev` from repo root (uses `concurrently`).
+
+**Port/proxy gotcha**: The web Vite dev server proxies `/api` and `/socket.io` to the hub. Default proxy target is `http://127.0.0.1:3006`. When running hub on a non-default port (e.g. `HAPI_LISTEN_PORT=3016`), you must also set `VITE_HUB_PROXY` for the web dev server, or use the default port 3006:
+
+```bash
+# Option A: use default port 3006
+export HAPI_HOME="$HOME/.hapi-dev"
+bun run dev
+
+# Option B: use custom port (must also set VITE_HUB_PROXY)
+export HAPI_HOME="$HOME/.hapi-dev"
+export HAPI_LISTEN_PORT=3016
+export HAPI_PUBLIC_URL="http://localhost:3016"
+export VITE_HUB_PROXY="http://127.0.0.1:3016"
+bun run dev
+```
+
+### Auth for web UI
+
+Web login requires the `CLI_API_TOKEN` from `$HAPI_HOME/settings.json` (auto-generated on first hub start). Enter this token in the web login form as "Access Token".
+
+### Tests
+
+- `bun run test` runs cli + hub + web tests.
+- `bun run test:web` — all web tests (Vitest); currently pass.
+- `bun run test:hub` — hub tests (Bun test runner).
+- `bun run test:cli` — cli tests (Vitest); requires `bun run tools:unpack` first (handled by `cli/package.json` script).
+- Some pre-existing test failures exist in cli (`codexRemoteLauncher.test.ts`) and hub (`schemaRepair.test.ts`).
