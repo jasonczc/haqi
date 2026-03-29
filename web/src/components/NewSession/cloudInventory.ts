@@ -1,4 +1,5 @@
 import type {
+    CloudEnvironmentSummary,
     CloudProviderSummary,
     CloudWorkerSummary,
     ExecutionBackend,
@@ -10,6 +11,8 @@ export type CloudInventorySummary = {
     workerCount: number
     activeWorkerCount: number
     selectedWorker: CloudWorkerSummary | null
+    matchingEnvironments: CloudEnvironmentSummary[]
+    selectedEnvironment: CloudEnvironmentSummary | null
 }
 
 export type CloudRuntimeWarning = 'dockerUnavailable' | 'dockerSessionUnavailable'
@@ -17,17 +20,35 @@ export type CloudRuntimeWarning = 'dockerUnavailable' | 'dockerSessionUnavailabl
 export function getCloudInventorySummary(options: {
     backend: ExecutionBackend
     selectedMachineId: string | null
+    environmentId: string
     providers: CloudProviderSummary[]
     workers: CloudWorkerSummary[]
+    environments?: CloudEnvironmentSummary[]
 }): CloudInventorySummary {
     if (options.backend === 'local') {
         return {
             providerCount: 0,
             workerCount: 0,
             activeWorkerCount: 0,
-            selectedWorker: null
+            selectedWorker: null,
+            matchingEnvironments: [],
+            selectedEnvironment: null
         }
     }
+
+    const environments = options.environments ?? []
+    const matchingEnvironments = environments.filter((environment) => {
+        const runtimeKind = environment.runtimeKind
+        const workerSupportsRuntime = options.workers.some((worker) => {
+            if (runtimeKind === 'docker-session') {
+                return worker.capabilities?.dockerSession === true
+            }
+            return true
+        })
+        return workerSupportsRuntime
+    })
+
+    const normalizedEnvironmentId = options.environmentId.trim()
 
     return {
         providerCount: options.providers.filter((provider) => provider.id !== 'auto').length,
@@ -35,6 +56,10 @@ export function getCloudInventorySummary(options: {
         activeWorkerCount: options.workers.filter((worker) => worker.active).length,
         selectedWorker: options.selectedMachineId
             ? options.workers.find((worker) => worker.machineId === options.selectedMachineId) ?? null
+            : null,
+        matchingEnvironments,
+        selectedEnvironment: normalizedEnvironmentId
+            ? matchingEnvironments.find((environment) => environment.id === normalizedEnvironmentId) ?? null
             : null
     }
 }

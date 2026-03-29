@@ -30,13 +30,18 @@ describe('cloudInventory helpers', () => {
         expect(getCloudInventorySummary({
             backend: 'cloud-self-hosted',
             selectedMachineId: 'worker-1',
+            environmentId: '',
             providers,
             workers
+            ,
+            environments: []
         })).toEqual({
             providerCount: 2,
             workerCount: 2,
             activeWorkerCount: 1,
-            selectedWorker: expect.objectContaining({ machineId: 'worker-1' })
+            selectedWorker: expect.objectContaining({ machineId: 'worker-1' }),
+            matchingEnvironments: [],
+            selectedEnvironment: null
         })
     })
 

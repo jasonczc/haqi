@@ -172,6 +172,7 @@ export type CloudEnvironmentSummary = {
     serviceCount: number
     repositoryDependenciesCount: number
     hasPreviewPorts: boolean
+    version?: string
 }
 
 export type CloudPreviewRegistration = {

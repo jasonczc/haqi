@@ -860,6 +860,10 @@ export class ApiClient {
         return await this.request<CloudWorkersResponse>(`/api/cloud/workers${qs ? `?${qs}` : ''}`)
     }
 
+    async getCloudEnvironments(): Promise<import('@/types/api').CloudEnvironmentsResponse> {
+        return await this.request<import('@/types/api').CloudEnvironmentsResponse>('/api/machines/cloud/environments')
+    }
+
     async checkMachinePathsExists(
         machineId: string,
         paths: string[]

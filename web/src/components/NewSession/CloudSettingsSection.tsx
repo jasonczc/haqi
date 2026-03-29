@@ -1,5 +1,5 @@
+import type { CloudEnvironmentSummary, ExecutionBackend, RuntimeKind } from '@/types/api'
 import type { CloudInventorySummary, CloudRuntimeWarning } from './cloudInventory'
-import type { ExecutionBackend, RuntimeKind } from '@/types/api'
 import { useTranslation } from '@/lib/use-translation'
 
 export function CloudSettingsSection(props: {
@@ -12,6 +12,10 @@ export function CloudSettingsSection(props: {
     persistentWorkspace: boolean
     ttlMinutes: string
     cloudInventorySummary: CloudInventorySummary
+    cloudEnvironments: CloudEnvironmentSummary[]
+    cloudEnvironmentsLoading?: boolean
+    cloudEnvironmentsError?: string | null
+    selectedEnvironmentSummary: CloudEnvironmentSummary | null
     selectedProviderType?: 'self-hosted' | 'managed'
     selectedWorkerLifecycle?: string
     runtimeWarning: CloudRuntimeWarning | null
@@ -99,6 +103,15 @@ export function CloudSettingsSection(props: {
                                 {t('newSession.cloudInventory.lifecycle')}: {props.selectedWorkerLifecycle}
                             </div>
                         ) : null}
+                        {props.selectedEnvironmentSummary ? (
+                            <div className="mt-1">
+                                {t('newSession.cloudInventory.environmentSummary', {
+                                    runtime: props.selectedEnvironmentSummary.runtimeKind ?? 'host-process',
+                                    services: props.selectedEnvironmentSummary.serviceCount,
+                                    dependencies: props.selectedEnvironmentSummary.repositoryDependenciesCount
+                                })}
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="flex flex-col gap-1.5">
@@ -150,6 +163,32 @@ export function CloudSettingsSection(props: {
                             disabled={props.isDisabled}
                             className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
                         />
+                        {props.cloudEnvironmentsLoading ? (
+                            <div className="pt-1 text-[11px] text-[var(--app-hint)]">
+                                {t('newSession.cloudEnvironment.loading')}
+                            </div>
+                        ) : props.cloudEnvironmentsError ? (
+                            <div className="pt-1 text-[11px] text-red-600">
+                                {props.cloudEnvironmentsError}
+                            </div>
+                        ) : props.cloudEnvironments.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                                {props.cloudEnvironments.map((environment) => (
+                                    <span
+                                        key={environment.id}
+                                        className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)]"
+                                        title={`${environment.runtimeKind ?? 'host-process'} · ${environment.serviceCount} services`}
+                                    >
+                                        {environment.id}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
+                        {props.selectedEnvironmentSummary ? (
+                            <div className="pt-1 text-[11px] text-[var(--app-hint)]">
+                                {t('newSession.cloudEnvironment.selected', { id: props.selectedEnvironmentSummary.id })}
+                            </div>
+                        ) : null}
                     </div>
 
                     <div className="flex flex-col gap-1.5">

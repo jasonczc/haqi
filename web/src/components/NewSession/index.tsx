@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent as Re
 import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type {
+    CloudEnvironmentSummary,
     CloudProviderSummary,
     CloudWorkerSummary,
     ExecutionBackend,
@@ -14,6 +15,7 @@ import type {
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
 import { useSessions } from '@/hooks/queries/useSessions'
+import { useCloudEnvironments } from '@/hooks/queries/useCloudEnvironments'
 import { useCloudProviders } from '@/hooks/queries/useCloudProviders'
 import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
@@ -229,6 +231,11 @@ export function NewSession(props: {
         isLoading: cloudWorkersLoading,
         error: cloudWorkersError
     } = useCloudWorkers(props.api, executionBackend !== 'local')
+    const {
+        environments: cloudEnvironments,
+        isLoading: cloudEnvironmentsLoading,
+        error: cloudEnvironmentsError
+    } = useCloudEnvironments(props.api, executionBackend !== 'local')
 
     const allPaths = useDirectorySuggestions(machineId, sessions, recentPaths)
 
@@ -268,10 +275,12 @@ export function NewSession(props: {
         () => getCloudInventorySummary({
             backend: executionBackend,
             selectedMachineId: machineId,
+            environmentId,
             providers: cloudProviders,
-            workers: cloudWorkers
+            workers: cloudWorkers,
+            environments: cloudEnvironments
         }),
-        [cloudProviders, cloudWorkers, executionBackend, machineId]
+        [cloudEnvironments, cloudProviders, cloudWorkers, environmentId, executionBackend, machineId]
     )
     const selectedCloudWorker = useMemo<CloudWorkerSummary | null>(
         () => executionBackend === 'local'
@@ -291,6 +300,12 @@ export function NewSession(props: {
             selectedWorker: selectedCloudWorker
         }),
         [runtimeKind, selectedCloudWorker]
+    )
+    const selectedEnvironmentSummary = useMemo<CloudEnvironmentSummary | null>(
+        () => environmentId.trim()
+            ? cloudEnvironments.find((environment) => environment.id === environmentId.trim()) ?? null
+            : null,
+        [cloudEnvironments, environmentId]
     )
 
     const getSuggestions = useCallback(async (query: string): Promise<Suggestion[]> => {
@@ -572,6 +587,10 @@ export function NewSession(props: {
                 selectedProviderType={selectedCloudProvider?.type}
                 selectedWorkerLifecycle={selectedCloudWorker?.lifecycle}
                 runtimeWarning={cloudRuntimeWarning}
+                cloudEnvironments={cloudEnvironments}
+                cloudEnvironmentsLoading={cloudEnvironmentsLoading}
+                cloudEnvironmentsError={cloudEnvironmentsError}
+                selectedEnvironmentSummary={selectedEnvironmentSummary}
                 isDisabled={isFormDisabled}
                 onExecutionBackendChange={setExecutionBackend}
                 onRuntimeKindChange={setRuntimeKind}
