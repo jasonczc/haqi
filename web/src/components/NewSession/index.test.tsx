@@ -5,6 +5,19 @@ import { I18nProvider } from '@/lib/i18n-context'
 import type { ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
 import { NewSession } from './index'
+import { useCloudProviders } from '@/hooks/queries/useCloudProviders'
+import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
+
+vi.mock('@/hooks/queries/useCloudProviders', () => ({
+    useCloudProviders: vi.fn()
+}))
+
+vi.mock('@/hooks/queries/useCloudWorkers', () => ({
+    useCloudWorkers: vi.fn()
+}))
+
+const mockedUseCloudProviders = vi.mocked(useCloudProviders)
+const mockedUseCloudWorkers = vi.mocked(useCloudWorkers)
 
 function renderWithProviders(ui: React.ReactElement) {
     const queryClient = new QueryClient({
@@ -37,6 +50,18 @@ describe('NewSession initial directory preset', () => {
         localStorage.setItem('hapi:recentPaths', JSON.stringify({
             'machine-1': ['/recent/path']
         }))
+        mockedUseCloudProviders.mockReturnValue({
+            providers: [],
+            isLoading: false,
+            error: null,
+            refetch: vi.fn()
+        })
+        mockedUseCloudWorkers.mockReturnValue({
+            workers: [],
+            isLoading: false,
+            error: null,
+            refetch: vi.fn()
+        })
         Object.defineProperty(window, 'matchMedia', {
             writable: true,
             value: vi.fn().mockImplementation(() => ({
@@ -397,5 +422,86 @@ describe('NewSession initial directory preset', () => {
         expect(screen.getByLabelText('Repository URL')).toBeInTheDocument()
         expect(screen.getByLabelText('Branch')).toBeInTheDocument()
         expect(screen.getByLabelText('TTL minutes')).toBeInTheDocument()
+    })
+
+    it('renders cloud inventory summary and docker capability warnings', async () => {
+        mockedUseCloudProviders.mockReturnValue({
+            providers: [
+                { id: 'auto', type: 'self-hosted', count: 2 },
+                { id: 'docker', type: 'self-hosted', count: 1 }
+            ],
+            isLoading: false,
+            error: null,
+            refetch: vi.fn()
+        })
+        mockedUseCloudWorkers.mockReturnValue({
+            workers: [
+                {
+                    machineId: 'machine-1',
+                    provider: 'docker',
+                    active: true,
+                    executorType: 'cloud-self-hosted',
+                    capabilities: {
+                        docker: true,
+                        dockerSession: false
+                    },
+                    updatedAt: Date.now()
+                }
+            ],
+            isLoading: false,
+            error: null,
+            refetch: vi.fn()
+        })
+
+        const api = {
+            getSessions: vi.fn(async () => ({ sessions: [] })),
+            checkMachinePathsExists: vi.fn(async (_machineId: string, paths: string[]) => ({
+                exists: Object.fromEntries(paths.map((path) => [path, true]))
+            })),
+            spawnSession: vi.fn()
+        } as unknown as ApiClient
+
+        const machines: Machine[] = [
+            {
+                id: 'machine-1',
+                seq: 1,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                active: true,
+                activeAt: Date.now(),
+                metadata: {
+                    host: 'cloudbox',
+                    platform: 'linux',
+                    happyCliVersion: '0.15.2',
+                    homeDir: '/home/test',
+                    happyHomeDir: '/home/test/.hapi',
+                    happyLibDir: '/opt/haqi'
+                },
+                metadataVersion: 1,
+                runnerState: null,
+                runnerStateVersion: 1
+            }
+        ]
+
+        renderWithProviders(
+            <NewSession
+                api={api}
+                machines={machines}
+                onSuccess={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('radio', { name: 'Self-hosted cloud worker' }))
+
+        expect(screen.getByText('Cloud inventory')).toBeInTheDocument()
+        expect(screen.getByText('1 providers available')).toBeInTheDocument()
+        expect(screen.getByText('1 workers visible')).toBeInTheDocument()
+        expect(screen.getByText('self-hosted')).toBeInTheDocument()
+        expect(screen.queryByText('No selected cloud workers advertise Docker support.')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('radio', { name: 'Docker session' }))
+
+        expect(screen.getByText('No selected cloud workers advertise full docker-session support.')).toBeInTheDocument()
     })
 })

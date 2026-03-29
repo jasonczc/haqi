@@ -15,6 +15,11 @@ export const CLOUD_PROVIDER_NAMES = [
 
 export type CloudProviderName = typeof CLOUD_PROVIDER_NAMES[number]
 
+function isCloudWorker(machine: Machine): boolean {
+    return machine.metadata?.executorType === 'cloud-self-hosted'
+        || machine.metadata?.executorType === 'cloud-managed'
+}
+
 export function normalizeProvider(value: string | undefined): CloudProviderName {
     if (!value) {
         return 'unknown'
@@ -43,15 +48,17 @@ export function filterWorkersByProvider(
     machines: Machine[],
     provider: CloudProviderName
 ): Machine[] {
+    const cloudMachines = machines.filter(isCloudWorker)
+
     if (provider === 'auto') {
-        return machines
+        return cloudMachines
     }
 
-    return machines.filter((machine) => normalizeProvider(machine.metadata?.provider) === provider)
+    return cloudMachines.filter((machine) => normalizeProvider(machine.metadata?.provider) === provider)
 }
 
 export function buildWorkerSummaries(machines: Machine[]): WorkerSummary[] {
-    return machines.map((machine) => ({
+    return machines.filter(isCloudWorker).map((machine) => ({
         machineId: machine.id,
         provider: normalizeProvider(machine.metadata?.provider),
         active: machine.active,
@@ -73,15 +80,16 @@ export function buildWorkerSummaries(machines: Machine[]): WorkerSummary[] {
 }
 
 export function buildProviderSummaries(machines: Machine[]): ProviderSummary[] {
+    const cloudMachines = machines.filter(isCloudWorker)
     const counts = new Map<CloudProviderName, ProviderSummary>()
 
     counts.set('auto', {
         id: 'auto',
-        type: machines.every((machine) => resolveProviderType(machine) === 'managed') ? 'managed' : 'self-hosted',
-        count: machines.length
+        type: cloudMachines.every((machine) => resolveProviderType(machine) === 'managed') ? 'managed' : 'self-hosted',
+        count: cloudMachines.length
     })
 
-    for (const machine of machines) {
+    for (const machine of cloudMachines) {
         const provider = normalizeProvider(machine.metadata?.provider)
         const current = counts.get(provider)
         if (current) {

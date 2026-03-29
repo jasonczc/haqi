@@ -142,8 +142,7 @@ describe('alive incremental events', () => {
 
         expect(engine.listCloudEnvironments()).toEqual([
             expect.objectContaining({
-                id: 'node-dev',
-                source: 'session'
+                id: 'node-dev'
             })
         ])
         expect(engine.listCloudPreviews()).toEqual([

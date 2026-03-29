@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent as Re
 import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type {
+    CloudProviderSummary,
+    CloudWorkerSummary,
     ExecutionBackend,
     EnvironmentTemplate,
     Machine,
@@ -12,6 +14,8 @@ import type {
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
 import { useSessions } from '@/hooks/queries/useSessions'
+import { useCloudProviders } from '@/hooks/queries/useCloudProviders'
+import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
 import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
@@ -61,6 +65,7 @@ import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
+import { getCloudInventorySummary, getCloudRuntimeWarning } from './cloudInventory'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -214,6 +219,16 @@ export function NewSession(props: {
     })
 
     const previewUrlHistory = previewUrlHistoryQuery.data?.urls ?? []
+    const {
+        providers: cloudProviders,
+        isLoading: cloudProvidersLoading,
+        error: cloudProvidersError
+    } = useCloudProviders(props.api, executionBackend !== 'local')
+    const {
+        workers: cloudWorkers,
+        isLoading: cloudWorkersLoading,
+        error: cloudWorkersError
+    } = useCloudWorkers(props.api, executionBackend !== 'local')
 
     const allPaths = useDirectorySuggestions(machineId, sessions, recentPaths)
 
@@ -248,6 +263,34 @@ export function NewSession(props: {
     const verifiedPaths = useMemo(
         () => allPaths.filter((path) => pathExistence[path]),
         [allPaths, pathExistence]
+    )
+    const cloudInventorySummary = useMemo(
+        () => getCloudInventorySummary({
+            backend: executionBackend,
+            selectedMachineId: machineId,
+            providers: cloudProviders,
+            workers: cloudWorkers
+        }),
+        [cloudProviders, cloudWorkers, executionBackend, machineId]
+    )
+    const selectedCloudWorker = useMemo<CloudWorkerSummary | null>(
+        () => executionBackend === 'local'
+            ? null
+            : cloudWorkers.find((worker) => worker.machineId === machineId) ?? null,
+        [cloudWorkers, executionBackend, machineId]
+    )
+    const selectedCloudProvider = useMemo<CloudProviderSummary | null>(
+        () => selectedCloudWorker
+            ? cloudProviders.find((provider) => provider.id === selectedCloudWorker.provider) ?? null
+            : null,
+        [cloudProviders, selectedCloudWorker]
+    )
+    const cloudRuntimeWarning = useMemo(
+        () => getCloudRuntimeWarning({
+            runtimeKind,
+            selectedWorker: selectedCloudWorker
+        }),
+        [runtimeKind, selectedCloudWorker]
     )
 
     const getSuggestions = useCallback(async (query: string): Promise<Suggestion[]> => {
@@ -525,6 +568,10 @@ export function NewSession(props: {
                 workspaceMode={workspaceMode}
                 persistentWorkspace={persistentWorkspace}
                 ttlMinutes={ttlMinutes}
+                cloudInventorySummary={cloudInventorySummary}
+                selectedProviderType={selectedCloudProvider?.type}
+                selectedWorkerLifecycle={selectedCloudWorker?.lifecycle}
+                runtimeWarning={cloudRuntimeWarning}
                 isDisabled={isFormDisabled}
                 onExecutionBackendChange={setExecutionBackend}
                 onRuntimeKindChange={setRuntimeKind}

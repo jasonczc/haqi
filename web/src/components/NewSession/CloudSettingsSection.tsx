@@ -1,3 +1,4 @@
+import type { CloudInventorySummary, CloudRuntimeWarning } from './cloudInventory'
 import type { ExecutionBackend, RuntimeKind } from '@/types/api'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -10,6 +11,10 @@ export function CloudSettingsSection(props: {
     workspaceMode: 'ephemeral' | 'persistent' | 'snapshot-derived'
     persistentWorkspace: boolean
     ttlMinutes: string
+    cloudInventorySummary: CloudInventorySummary
+    selectedProviderType?: 'self-hosted' | 'managed'
+    selectedWorkerLifecycle?: string
+    runtimeWarning: CloudRuntimeWarning | null
     isDisabled: boolean
     onExecutionBackendChange: (value: ExecutionBackend) => void
     onRuntimeKindChange: (value: RuntimeKind) => void
@@ -68,6 +73,34 @@ export function CloudSettingsSection(props: {
 
             {isCloud ? (
                 <>
+                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 px-3 py-2 text-xs text-[var(--app-hint)]">
+                        <div className="font-medium text-[var(--app-fg)]">
+                            {t('newSession.cloudInventory.title')}
+                        </div>
+                        <div className="mt-1">
+                            {t('newSession.cloudInventory.providerCount', { count: props.cloudInventorySummary.providerCount })}
+                        </div>
+                        <div className="mt-1">
+                            {t('newSession.cloudInventory.workerCount', { count: props.cloudInventorySummary.workerCount })}
+                        </div>
+                        <div className="mt-1">
+                            {t('newSession.cloudInventory.activeWorkers', {
+                                active: props.cloudInventorySummary.activeWorkerCount,
+                                total: props.cloudInventorySummary.workerCount
+                            })}
+                        </div>
+                        {props.selectedProviderType ? (
+                            <div className="mt-1">
+                                {t(`newSession.cloudInventory.type.${props.selectedProviderType === 'managed' ? 'managed' : 'selfHosted'}`)}
+                            </div>
+                        ) : null}
+                        {props.selectedWorkerLifecycle ? (
+                            <div className="mt-1">
+                                {t('newSession.cloudInventory.lifecycle')}: {props.selectedWorkerLifecycle}
+                            </div>
+                        ) : null}
+                    </div>
+
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-[var(--app-hint)]">
                             {t('newSession.runtimeKind')}
@@ -97,6 +130,12 @@ export function CloudSettingsSection(props: {
                             </label>
                         </div>
                     </div>
+
+                    {props.runtimeWarning ? (
+                        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                            {t(`newSession.cloudWarning.${props.runtimeWarning}`)}
+                        </div>
+                    ) : null}
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-environment-id">
