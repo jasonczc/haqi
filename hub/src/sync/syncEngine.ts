@@ -34,6 +34,8 @@ import {
     type RpcUploadFileResponse
 } from './rpcGateway'
 import { SessionCache } from './sessionCache'
+import { EnvironmentRegistry as CloudEnvironmentRegistry } from '../cloud/environmentRegistry'
+import { PreviewRegistry } from '../cloud/previewRegistry'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
@@ -77,6 +79,22 @@ type MessageEnvelope = {
     contentType: string | null
     data: unknown
     meta: Record<string, unknown> | null
+}
+
+export type CloudEnvironmentSummary = {
+    id: string
+    source: 'builtin' | 'repo' | 'team' | 'user'
+    runtimeKind?: 'host-process' | 'docker-session'
+    serviceCount: number
+    repositoryDependenciesCount: number
+    hasPreviewPorts: boolean
+}
+
+export type CloudPreviewRecord = {
+    sessionId: string
+    machineId?: string
+    previews: import('@hapi/protocol/types').PreviewTarget[]
+    updatedAt: number
 }
 
 type MirroredPayload = {
@@ -442,6 +460,8 @@ export class SyncEngine {
     private readonly groupService: GroupService
     private readonly reviewLoopService: ReviewLoopService
     private readonly rpcGateway: RpcGateway
+    private readonly cloudEnvironmentRegistry: CloudEnvironmentRegistry
+    private readonly previewRegistry: PreviewRegistry
     private readonly autoApprovalInFlight: Set<string> = new Set()
     private readonly activeGroupRoutesBySession: Map<string, GroupRouteContext> = new Map()
     // Routes registered at queue-dispatch time for flavors (claude/gemini) that don't
@@ -487,6 +507,8 @@ export class SyncEngine {
             async (payload) => this.notifyReviewLoopUser(payload)
         )
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
+        this.cloudEnvironmentRegistry = new CloudEnvironmentRegistry()
+        this.previewRegistry = new PreviewRegistry()
         this.reloadAll()
         this.syncGroupNoteMarkdownFiles()
         this.inactivityTimer = setInterval(() => this.expireInactive(), 5_000)
@@ -509,6 +531,30 @@ export class SyncEngine {
 
     subscribe(listener: SyncEventListener): () => void {
         return this.eventPublisher.subscribe(listener)
+    }
+
+    registerEnvironmentDefinition(template: import('@hapi/protocol/types').EnvironmentTemplate): void {
+        this.cloudEnvironmentRegistry.register(template)
+    }
+
+    getEnvironmentDefinition(id: string): import('@hapi/protocol/types').EnvironmentTemplate | null {
+        return this.cloudEnvironmentRegistry.get(id)
+    }
+
+    listCloudEnvironments(): import('@hapi/protocol/types').EnvironmentTemplate[] {
+        return this.cloudEnvironmentRegistry.list()
+    }
+
+    registerSessionPreviews(sessionId: string, previews: import('@hapi/protocol/types').PreviewTarget[] | undefined): void {
+        this.previewRegistry.setSessionPreviews(sessionId, previews)
+    }
+
+    getSessionPreviews(sessionId: string): import('@hapi/protocol/types').PreviewTarget[] {
+        return this.previewRegistry.getSessionPreviews(sessionId)
+    }
+
+    listCloudPreviews() {
+        return this.previewRegistry.list()
     }
 
     private resolveNamespace(event: SyncEvent): string | undefined {

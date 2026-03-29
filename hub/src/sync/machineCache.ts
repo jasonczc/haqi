@@ -1,17 +1,7 @@
-import { z } from 'zod'
+import { MachineMetadataSchema, RunnerStateSchema } from '@hapi/protocol/schemas'
 import type { Store } from '../store'
 import { clampAliveTime } from './aliveTime'
 import { EventPublisher } from './eventPublisher'
-
-const machineMetadataSchema = z.object({
-    host: z.string().optional(),
-    platform: z.string().optional(),
-    happyCliVersion: z.string().optional(),
-    displayName: z.string().optional(),
-    homeDir: z.string().optional(),
-    happyHomeDir: z.string().optional(),
-    happyLibDir: z.string().optional()
-})
 
 export interface Machine {
     id: string
@@ -29,6 +19,17 @@ export interface Machine {
         homeDir?: string
         happyHomeDir?: string
         happyLibDir?: string
+        executorType?: 'local' | 'cloud-self-hosted' | 'cloud-managed'
+        provider?: string
+        region?: string
+        zone?: string
+        image?: string
+        environmentId?: string
+        workerVersion?: string
+        labels?: string[]
+        capabilities?: unknown
+        resources?: unknown
+        repoCache?: unknown
     } | null
     metadataVersion: number
     runnerState: unknown | null
@@ -91,7 +92,7 @@ export class MachineCache {
         const existing = this.machines.get(machineId)
 
         const metadata = (() => {
-            const parsed = machineMetadataSchema.safeParse(stored.metadata)
+            const parsed = MachineMetadataSchema.safeParse(stored.metadata)
             if (!parsed.success) return null
             const data = parsed.data
             const host = typeof data.host === 'string' ? data.host : 'unknown'
@@ -101,7 +102,26 @@ export class MachineCache {
             const homeDir = typeof data.homeDir === 'string' ? data.homeDir : undefined
             const happyHomeDir = typeof data.happyHomeDir === 'string' ? data.happyHomeDir : undefined
             const happyLibDir = typeof data.happyLibDir === 'string' ? data.happyLibDir : undefined
-            return { host, platform, happyCliVersion, displayName, homeDir, happyHomeDir, happyLibDir }
+            return {
+                host,
+                platform,
+                happyCliVersion,
+                displayName,
+                homeDir,
+                happyHomeDir,
+                happyLibDir,
+                executorType: data.executorType,
+                provider: data.provider,
+                region: data.region,
+                zone: data.zone,
+                image: data.image,
+                environmentId: data.environmentId,
+                workerVersion: data.workerVersion,
+                labels: data.labels,
+                capabilities: data.capabilities,
+                resources: data.resources,
+                repoCache: data.repoCache
+            }
         })()
 
         const storedActiveAt = stored.activeAt ?? stored.createdAt
@@ -118,7 +138,13 @@ export class MachineCache {
             activeAt: useStoredActivity ? storedActiveAt : (existingActiveAt || storedActiveAt),
             metadata,
             metadataVersion: stored.metadataVersion,
-            runnerState: stored.runnerState,
+            runnerState: (() => {
+                if (stored.runnerState == null) {
+                    return null
+                }
+                const parsed = RunnerStateSchema.safeParse(stored.runnerState)
+                return parsed.success ? parsed.data : stored.runnerState
+            })(),
             runnerStateVersion: stored.runnerStateVersion
         }
 

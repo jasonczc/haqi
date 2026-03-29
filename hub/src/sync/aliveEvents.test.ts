@@ -4,6 +4,10 @@ import { Store } from '../store'
 import type { EventPublisher } from './eventPublisher'
 import { MachineCache } from './machineCache'
 import { SessionCache } from './sessionCache'
+import { SyncEngine } from './syncEngine'
+import type { Server } from 'socket.io'
+import type { RpcRegistry } from '../socket/rpcRegistry'
+import type { SSEManager } from '../sse/sseManager'
 
 function createPublisher(events: SyncEvent[]): EventPublisher {
     return {
@@ -60,5 +64,47 @@ describe('alive incremental events', () => {
         }
 
         expect(update.data).toEqual(expect.objectContaining({ id: machine.id, active: true }))
+    })
+
+    it('stores environment and preview history through sync engine registries', () => {
+        const store = new Store(':memory:')
+        const engine = new SyncEngine(
+            store,
+            {} as Server,
+            {
+                getSocketIdForMethod: () => null,
+            } as unknown as RpcRegistry,
+            {} as SSEManager
+        )
+
+        const preview = {
+            id: 'preview-1',
+            name: 'web',
+            port: 3000,
+            url: 'http://127.0.0.1:3000',
+            visibility: 'private' as const
+        }
+
+        engine.registerSessionPreviews('session-a', [preview])
+        expect(engine.getSessionPreviews('session-a')).toEqual([preview])
+
+        engine.registerEnvironmentDefinition({
+            id: 'node-dev',
+            version: '1',
+            runtime: {
+                kind: 'docker-session',
+                image: 'ghcr.io/acme/node:18'
+            }
+        })
+        expect(engine.getEnvironmentDefinition('node-dev')).toEqual(expect.objectContaining({
+            id: 'node-dev'
+        }))
+        expect(engine.listCloudEnvironments()).toHaveLength(1)
+        expect(engine.listCloudPreviews()).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                sessionId: 'session-a',
+                previews: [preview]
+            })
+        ]))
     })
 })

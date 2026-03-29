@@ -49,6 +49,28 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         return c.json({ machines })
     })
 
+    app.get('/machines/cloud/environments', (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        return c.json({
+            environments: engine.listCloudEnvironments()
+        })
+    })
+
+    app.get('/machines/cloud/previews', (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        return c.json({
+            previews: engine.listCloudPreviews()
+        })
+    })
+
     app.post('/machines/:id/spawn', async (c) => {
         const engine = getSyncEngine()
         if (!engine) {
