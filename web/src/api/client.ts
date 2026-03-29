@@ -1,6 +1,8 @@
 import type {
     AttachmentMetadata,
     AuthResponse,
+    CloudProviderSummaryResponse,
+    CloudWorkerSummaryResponse,
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
     QueueResponse,
@@ -843,6 +845,14 @@ export class ApiClient {
 
     async getMachines(): Promise<MachinesResponse> {
         return await this.request<MachinesResponse>('/api/machines')
+    }
+
+    async getCloudProviders(): Promise<CloudProviderSummaryResponse> {
+        return await this.request<CloudProviderSummaryResponse>('/api/machines/cloud/providers')
+    }
+
+    async getCloudWorkers(): Promise<CloudWorkerSummaryResponse> {
+        return await this.request<CloudWorkerSummaryResponse>('/api/machines/cloud/workers')
     }
 
     async checkMachinePathsExists(

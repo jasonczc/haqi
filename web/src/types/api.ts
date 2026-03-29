@@ -156,6 +156,51 @@ export type ConversationTurnMessagesResponse = {
 
 export type MachinesResponse = { machines: Machine[] }
 export type MachinePathsExistsResponse = { exists: Record<string, boolean> }
+export type CloudEnvironmentSummary = {
+    id: string
+    source?: 'builtin' | 'repo' | 'team' | 'user'
+    runtimeKind?: 'host-process' | 'docker-session'
+    serviceCount: number
+    repositoryDependenciesCount: number
+    hasPreviewPorts: boolean
+}
+
+export type CloudPreviewRegistration = {
+    sessionId: string
+    machineId?: string
+    previews: Array<{
+        id: string
+        port: number
+        name?: string
+        url?: string
+        visibility?: 'private' | 'public'
+    }>
+    updatedAt: number
+}
+
+export type CloudProviderName = 'auto' | 'manual' | 'docker' | 'managed' | 'kubernetes' | 'vm' | 'unknown'
+
+export type CloudWorkerSummary = {
+    machineId: string
+    provider: CloudProviderName
+    environmentId?: string
+    lifecycle?: string
+    capabilities?: Record<string, unknown>
+    resources?: Record<string, unknown>
+    updatedAt: number
+}
+
+export type CloudEnvironmentsResponse = {
+    environments: CloudEnvironmentSummary[]
+}
+
+export type CloudPreviewsResponse = {
+    previews: CloudPreviewRegistration[]
+}
+
+export type CloudWorkersResponse = {
+    workers: CloudWorkerSummary[]
+}
 
 export type GroupTimelineMessageType = 'chat' | 'command' | 'task_state' | 'note_state' | 'system'
 

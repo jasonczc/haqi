@@ -35,6 +35,11 @@ import {
 } from './rpcGateway'
 import { SessionCache } from './sessionCache'
 import { EnvironmentRegistry as CloudEnvironmentRegistry } from '../cloud/environmentRegistry'
+import {
+    buildWorkerSummaries,
+    type CloudProviderName,
+    filterWorkersByProvider
+} from '../cloud/provider'
 import { PreviewRegistry } from '../cloud/previewRegistry'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
@@ -555,6 +560,32 @@ export class SyncEngine {
 
     listCloudPreviews() {
         return this.previewRegistry.list()
+    }
+
+    listCloudWorkers(provider: CloudProviderName = 'auto') {
+        return buildWorkerSummaries(
+            filterWorkersByProvider(this.machineCache.getOnlineMachines(), provider)
+        )
+    }
+
+    listCloudProviders(): Array<{ id: CloudProviderName }> {
+        const providers = new Set<CloudProviderName>(['auto'])
+        for (const machine of this.machineCache.getOnlineMachines()) {
+            const provider = machine.metadata?.provider?.trim().toLowerCase()
+            if (
+                provider === 'manual'
+                || provider === 'docker'
+                || provider === 'managed'
+                || provider === 'kubernetes'
+                || provider === 'vm'
+            ) {
+                providers.add(provider)
+            } else {
+                providers.add('unknown')
+            }
+        }
+
+        return [...providers].map((id) => ({ id }))
     }
 
     private resolveNamespace(event: SyncEvent): string | undefined {
