@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
-import type { Machine } from '@/types/api'
+import type {
+    ExecutionBackend,
+    EnvironmentTemplate,
+    Machine,
+    RuntimeKind,
+    WorkspaceSource,
+    WorkspaceSpec
+} from '@/types/api'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
 import { useSessions } from '@/hooks/queries/useSessions'
@@ -23,6 +30,7 @@ import {
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
+import { CloudSettingsSection } from './CloudSettingsSection'
 import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
 import { ServiceTierSelector } from './ServiceTierSelector'
@@ -31,6 +39,8 @@ import {
     loadLastSessionConfig,
     loadPreferredAgent,
     loadPreferredCustomModel,
+    loadPreferredExecutionBackend,
+    loadPreferredRuntimeKind,
     loadPreferredModel,
     loadPreferredSessionType,
     loadPreferredServiceTier,
@@ -39,7 +49,9 @@ import {
     saveLastSessionConfig,
     savePreferredAgent,
     savePreferredCustomModel,
+    savePreferredExecutionBackend,
     savePreferredModel,
+    savePreferredRuntimeKind,
     savePreferredSessionType,
     savePreferredServiceTier,
     savePreferredThinkEffort,
@@ -106,6 +118,17 @@ export function NewSession(props: {
     const [sessionType, setSessionType] = useState<SessionType>(() => lastSessionConfig?.sessionType ?? loadPreferredSessionType())
     const [worktreeName, setWorktreeName] = useState(() => lastSessionConfig?.worktreeName ?? '')
     const [previewUrlInput, setPreviewUrlInput] = useState(() => lastSessionConfig?.previewUrl ?? '')
+    const [executionBackend, setExecutionBackend] = useState<ExecutionBackend>(() => lastSessionConfig?.executionBackend ?? loadPreferredExecutionBackend())
+    const [runtimeKind, setRuntimeKind] = useState<RuntimeKind>(() => lastSessionConfig?.runtimeKind ?? loadPreferredRuntimeKind())
+    const [environmentId, setEnvironmentId] = useState(() => lastSessionConfig?.environmentId ?? '')
+    const [repositoryUrl, setRepositoryUrl] = useState(() => lastSessionConfig?.repositoryUrl ?? '')
+    const [repositoryBranch, setRepositoryBranch] = useState(() => lastSessionConfig?.repositoryBranch ?? '')
+    const [workspaceMode, setWorkspaceMode] = useState<'ephemeral' | 'persistent' | 'snapshot-derived'>(() => lastSessionConfig?.workspaceMode ?? 'ephemeral')
+    const persistentWorkspace = workspaceMode === 'persistent'
+    const setPersistentWorkspace = useCallback((value: boolean) => {
+        setWorkspaceMode(value ? 'persistent' : 'ephemeral')
+    }, [])
+    const [ttlMinutes, setTtlMinutes] = useState(() => lastSessionConfig?.ttlMinutes ?? '')
     const [error, setError] = useState<string | null>(null)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
     const hasPresetDirectory = Boolean(props.initialDirectory?.trim())
@@ -314,7 +337,12 @@ export function NewSession(props: {
     }, [suggestions, selectedIndex, moveUp, moveDown, clearSuggestions, handleSuggestionSelect])
 
     async function handleCreate() {
-        if (!machineId || !directory.trim()) return
+        const trimmedDirectory = directory.trim()
+        const trimmedRepositoryUrl = repositoryUrl.trim()
+
+        if (!machineId) return
+        if (executionBackend === 'local' && !trimmedDirectory) return
+        if (executionBackend !== 'local' && !trimmedDirectory && !trimmedRepositoryUrl) return
 
         setError(null)
         try {
@@ -333,9 +361,43 @@ export function NewSession(props: {
                 worktreeName,
                 normalizedPreviewUrl.value ?? ''
             )
+            const workspaceSource: WorkspaceSource | undefined = executionBackend === 'local'
+                ? undefined
+                : trimmedRepositoryUrl
+                    ? {
+                        type: 'repo',
+                        repository: {
+                            url: trimmedRepositoryUrl,
+                            ref: repositoryBranch.trim() ? { branch: repositoryBranch.trim() } : undefined
+                        }
+                    }
+                    : trimmedDirectory
+                        ? {
+                            type: 'path',
+                            directory: trimmedDirectory
+                        }
+                        : undefined
+            const workspace: WorkspaceSpec | undefined = executionBackend === 'local'
+                ? undefined
+                : { mode: workspaceMode }
+            const ttlValue = ttlMinutes.trim() ? Number(ttlMinutes.trim()) : undefined
+            const cloudEnvironment: EnvironmentTemplate | undefined = environmentId.trim()
+                ? {
+                    id: environmentId.trim(),
+                    runtime: {
+                        kind: runtimeKind
+                    }
+                }
+                : runtimeKind !== 'host-process'
+                    ? {
+                        runtime: {
+                            kind: runtimeKind
+                        }
+                    }
+                    : undefined
             const result = await spawnSession({
                 machineId,
-                directory: directory.trim(),
+                directory: trimmedDirectory || undefined,
                 agent,
                 model: resolvedModel,
                 thinkEffort: resolvedThinkEffort,
@@ -343,7 +405,13 @@ export function NewSession(props: {
                 yolo: yoloMode,
                 sessionType: sessionSettings.sessionType,
                 worktreeName: sessionSettings.worktreeName,
-                previewUrl: sessionSettings.previewUrl
+                previewUrl: sessionSettings.previewUrl,
+                runtimeKind,
+                environmentId: environmentId.trim() || undefined,
+                environment: cloudEnvironment,
+                workspaceSource,
+                workspace,
+                ttlMinutes: typeof ttlValue === 'number' && Number.isFinite(ttlValue) && ttlValue > 0 ? ttlValue : undefined
             })
 
             if (result.type === 'success') {
@@ -357,6 +425,8 @@ export function NewSession(props: {
                 savePreferredServiceTier(agent, serviceTier)
                 savePreferredYoloMode(yoloMode)
                 savePreferredSessionType(sessionType)
+                savePreferredExecutionBackend(executionBackend)
+                savePreferredRuntimeKind(runtimeKind)
                 saveLastSessionConfig({
                     agent,
                     model,
@@ -366,7 +436,14 @@ export function NewSession(props: {
                     yoloMode,
                     sessionType,
                     worktreeName: worktreeName.trim(),
-                    previewUrl: normalizedPreviewUrl.value ?? ''
+                    previewUrl: normalizedPreviewUrl.value ?? '',
+                    executionBackend,
+                    runtimeKind,
+                    environmentId: environmentId.trim(),
+                    repositoryUrl: trimmedRepositoryUrl,
+                    repositoryBranch: repositoryBranch.trim(),
+                    workspaceMode,
+                    ttlMinutes: ttlMinutes.trim()
                 })
                 props.onSuccess(result.sessionId)
                 return
@@ -382,7 +459,14 @@ export function NewSession(props: {
         }
     }
 
-    const canCreate = Boolean(machineId && directory.trim() && !isFormDisabled)
+    const canCreate = Boolean(
+        machineId
+        && !isFormDisabled
+        && (
+            (executionBackend === 'local' && directory.trim())
+            || (executionBackend !== 'local' && (directory.trim() || repositoryUrl.trim()))
+        )
+    )
 
     const handleSubmit = (event: ReactFormEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -431,6 +515,25 @@ export function NewSession(props: {
                 onDirectoryKeyDown={handleDirectoryKeyDown}
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
+            />
+            <CloudSettingsSection
+                executionBackend={executionBackend}
+                runtimeKind={runtimeKind}
+                environmentId={environmentId}
+                repositoryUrl={repositoryUrl}
+                repositoryBranch={repositoryBranch}
+                workspaceMode={workspaceMode}
+                persistentWorkspace={persistentWorkspace}
+                ttlMinutes={ttlMinutes}
+                isDisabled={isFormDisabled}
+                onExecutionBackendChange={setExecutionBackend}
+                onRuntimeKindChange={setRuntimeKind}
+                onEnvironmentIdChange={setEnvironmentId}
+                onRepositoryUrlChange={setRepositoryUrl}
+                onRepositoryBranchChange={setRepositoryBranch}
+                onWorkspaceModeChange={setWorkspaceMode}
+                onPersistentWorkspaceChange={setPersistentWorkspace}
+                onTtlMinutesChange={setTtlMinutes}
             />
             <div className="flex flex-col gap-1.5 px-3 py-3">
                 <label className="text-xs font-medium text-[var(--app-hint)]">

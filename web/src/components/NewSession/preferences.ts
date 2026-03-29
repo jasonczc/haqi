@@ -1,5 +1,6 @@
 import type { AgentType, ServiceTier, SessionType, ThinkEffort } from './types'
 import { CODEX_SERVICE_TIER_OPTIONS, MODEL_OPTIONS, getThinkEffortOptions } from './types'
+import type { ExecutionBackend, RuntimeKind, WorkspaceMode } from '@/types/api'
 
 const AGENT_STORAGE_KEY = 'hapi:newSession:agent'
 const YOLO_STORAGE_KEY = 'hapi:newSession:yolo'
@@ -8,6 +9,8 @@ const THINK_EFFORT_STORAGE_KEY = 'hapi:newSession:thinkEffortByAgent'
 const SERVICE_TIER_STORAGE_KEY = 'hapi:newSession:serviceTierByAgent'
 const MODEL_STORAGE_KEY = 'hapi:newSession:modelByAgent'
 const CUSTOM_MODEL_STORAGE_KEY = 'hapi:newSession:customModelByAgent'
+const EXECUTION_BACKEND_STORAGE_KEY = 'hapi:newSession:executionBackend'
+const RUNTIME_KIND_STORAGE_KEY = 'hapi:newSession:runtimeKind'
 const LAST_CONFIG_STORAGE_KEY = 'hapi:newSession:lastConfig'
 
 const VALID_AGENTS: AgentType[] = ['claude', 'codex', 'cursor', 'gemini', 'opencode']
@@ -24,6 +27,16 @@ export type LastSessionConfig = {
     sessionType?: SessionType
     worktreeName?: string
     previewUrl?: string
+    runtimeKind?: RuntimeKind
+    executionBackend?: ExecutionBackend
+    workspaceMode?: WorkspaceMode
+    repositoryUrl?: string
+    repositoryBranch?: string
+    environmentId?: string
+    ttlMinutes?: string
+    workspaceName?: string
+    labels?: string
+    secrets?: string
 }
 
 function loadAgentPreferenceMap(storageKey: string): AgentPreferenceMap {
@@ -112,6 +125,46 @@ export function loadPreferredSessionType(): SessionType {
 export function savePreferredSessionType(value: SessionType): void {
     try {
         localStorage.setItem(SESSION_TYPE_STORAGE_KEY, value)
+    } catch {
+        // Ignore storage errors
+    }
+}
+
+export function loadPreferredExecutionBackend(): ExecutionBackend {
+    try {
+        const stored = localStorage.getItem(EXECUTION_BACKEND_STORAGE_KEY)
+        if (stored === 'local' || stored === 'cloud-self-hosted' || stored === 'cloud-managed') {
+            return stored
+        }
+    } catch {
+        // Ignore storage errors
+    }
+    return 'local'
+}
+
+export function savePreferredExecutionBackend(value: ExecutionBackend): void {
+    try {
+        localStorage.setItem(EXECUTION_BACKEND_STORAGE_KEY, value)
+    } catch {
+        // Ignore storage errors
+    }
+}
+
+export function loadPreferredRuntimeKind(): RuntimeKind {
+    try {
+        const stored = localStorage.getItem(RUNTIME_KIND_STORAGE_KEY)
+        if (stored === 'host-process' || stored === 'docker-session') {
+            return stored
+        }
+    } catch {
+        // Ignore storage errors
+    }
+    return 'host-process'
+}
+
+export function savePreferredRuntimeKind(value: RuntimeKind): void {
+    try {
+        localStorage.setItem(RUNTIME_KIND_STORAGE_KEY, value)
     } catch {
         // Ignore storage errors
     }
@@ -247,6 +300,36 @@ export function loadLastSessionConfig(): LastSessionConfig | null {
         }
         if (typeof parsed.previewUrl === 'string') {
             config.previewUrl = parsed.previewUrl
+        }
+        if (parsed.executionBackend === 'local' || parsed.executionBackend === 'cloud-self-hosted' || parsed.executionBackend === 'cloud-managed') {
+            config.executionBackend = parsed.executionBackend
+        }
+        if (parsed.runtimeKind === 'host-process' || parsed.runtimeKind === 'docker-session') {
+            config.runtimeKind = parsed.runtimeKind
+        }
+        if (parsed.workspaceMode === 'ephemeral' || parsed.workspaceMode === 'persistent' || parsed.workspaceMode === 'snapshot-derived') {
+            config.workspaceMode = parsed.workspaceMode
+        }
+        if (typeof parsed.repositoryUrl === 'string') {
+            config.repositoryUrl = parsed.repositoryUrl
+        }
+        if (typeof parsed.repositoryBranch === 'string') {
+            config.repositoryBranch = parsed.repositoryBranch
+        }
+        if (typeof parsed.environmentId === 'string') {
+            config.environmentId = parsed.environmentId
+        }
+        if (typeof parsed.ttlMinutes === 'string') {
+            config.ttlMinutes = parsed.ttlMinutes
+        }
+        if (typeof parsed.workspaceName === 'string') {
+            config.workspaceName = parsed.workspaceName
+        }
+        if (typeof parsed.labels === 'string') {
+            config.labels = parsed.labels
+        }
+        if (typeof parsed.secrets === 'string') {
+            config.secrets = parsed.secrets
         }
 
         return Object.keys(config).length > 0 ? config : null

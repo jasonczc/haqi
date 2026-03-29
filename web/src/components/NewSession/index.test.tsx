@@ -246,4 +246,105 @@ describe('NewSession initial directory preset', () => {
         expect(screen.getByRole('radio', { name: 'codex' })).toBeChecked()
         expect(screen.getByPlaceholderText('http://localhost:3000')).toHaveValue('http://localhost:4173/')
     })
+
+    it('submits cloud runtime settings and persists them', async () => {
+        const getSessions = vi.fn(async () => ({ sessions: [] }))
+        const checkMachinePathsExists = vi.fn(async (_machineId: string, paths: string[]) => ({
+            exists: Object.fromEntries(paths.map((path) => [path, true]))
+        }))
+        const spawnSession = vi.fn(async (_machineId: string, request: unknown) => ({
+            type: 'success',
+            sessionId: 'session-cloud' as const,
+            request
+        }))
+
+        const api = {
+            getSessions,
+            checkMachinePathsExists,
+            spawnSession
+        } as unknown as ApiClient
+
+        const machines: Machine[] = [
+            {
+                id: 'machine-1',
+                seq: 1,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                active: true,
+                activeAt: Date.now(),
+                metadata: {
+                    host: 'cloudbox',
+                    platform: 'linux',
+                    happyCliVersion: '0.15.2',
+                    homeDir: '/home/test',
+                    happyHomeDir: '/home/test/.hapi',
+                    happyLibDir: '/opt/haqi',
+                    executorType: 'cloud-self-hosted',
+                    capabilities: {
+                        docker: true,
+                        serviceContainers: true,
+                        dockerSession: true
+                    }
+                },
+                metadataVersion: 1,
+                runnerState: null,
+                runnerStateVersion: 1
+            }
+        ]
+
+        renderWithProviders(
+            <NewSession
+                api={api}
+                machines={machines}
+                onSuccess={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('radio', { name: 'newSession.executionBackend.cloudSelfHosted' }))
+        fireEvent.change(screen.getByPlaceholderText('/path/to/project'), { target: { value: '/tmp/project' } })
+        fireEvent.click(screen.getByRole('radio', { name: 'newSession.runtimeKind.dockerSession' }))
+        const environmentInput = screen.getAllByRole('textbox').find((element) => {
+            return (element as HTMLInputElement).placeholder === 'newSession.environmentIdPlaceholder'
+        })
+        expect(environmentInput).toBeDefined()
+        fireEvent.change(environmentInput as HTMLInputElement, { target: { value: 'node-dev' } })
+        fireEvent.change(screen.getByPlaceholderText('https://github.com/org/repo.git'), { target: { value: 'https://github.com/acme/demo.git' } })
+        fireEvent.change(screen.getByPlaceholderText('main'), { target: { value: 'feature/cloud' } })
+        fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'persistent' } })
+        fireEvent.change(screen.getByPlaceholderText('120'), { target: { value: '120' } })
+        fireEvent.keyDown(screen.getByPlaceholderText('/path/to/project'), { key: 'Enter', metaKey: true })
+
+        await waitFor(() => {
+            expect(spawnSession).toHaveBeenCalledTimes(1)
+        })
+
+        const [, request] = spawnSession.mock.calls[0]
+        expect(request).toEqual(expect.objectContaining({
+            directory: '/tmp/project',
+            runtimeKind: 'docker-session',
+            environmentId: 'node-dev',
+            workspaceSource: expect.objectContaining({
+                type: 'repo',
+                repository: expect.objectContaining({
+                    url: 'https://github.com/acme/demo.git',
+                    ref: expect.objectContaining({ branch: 'feature/cloud' })
+                })
+            }),
+            workspace: expect.objectContaining({
+                mode: 'persistent'
+            }),
+            ttlMinutes: 120,
+        }))
+
+        const savedRaw = localStorage.getItem('hapi:newSession:lastConfig')
+        expect(savedRaw).not.toBeNull()
+        const saved = JSON.parse(savedRaw ?? '{}')
+        expect(saved.runtimeKind).toBe('docker-session')
+        expect(saved.environmentId).toBe('node-dev')
+        expect(saved.repositoryUrl).toBe('https://github.com/acme/demo.git')
+        expect(saved.repositoryBranch).toBe('feature/cloud')
+        expect(saved.workspaceMode).toBe('persistent')
+        expect(saved.ttlMinutes).toBe('120')
+    })
 })

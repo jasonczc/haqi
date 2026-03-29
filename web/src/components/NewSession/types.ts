@@ -1,5 +1,7 @@
 export type AgentType = 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
 export type SessionType = 'simple' | 'worktree'
+export type ExecutionTarget = 'local' | 'cloud'
+export type RuntimeKind = 'host-process' | 'docker-session'
 export type ThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 export type ModelOption = { value: string; label: string }
 export type CodexThinkEffort = ThinkEffort

@@ -7,6 +7,22 @@ function getMachineTitle(machine: Machine): string {
     return machine.id.slice(0, 8)
 }
 
+function getMachineSubtitle(machine: Machine): string {
+    const platform = machine.metadata?.platform ?? 'Unknown platform'
+    const executorType = machine.metadata?.executorType
+    const lifecycle = machine.runnerState?.lifecycle ?? machine.runnerState?.status
+    const parts = [platform]
+
+    if (executorType) {
+        parts.push(executorType)
+    }
+    if (lifecycle) {
+        parts.push(lifecycle)
+    }
+
+    return parts.join(' · ')
+}
+
 export function MachineList(props: {
     machines: Machine[]
     onSelect: (machineId: string) => void
@@ -27,7 +43,7 @@ export function MachineList(props: {
                         <CardHeader className="pb-2">
                             <CardTitle className="truncate">{getMachineTitle(m)}</CardTitle>
                             <CardDescription className="truncate">
-                                {m.metadata?.platform ? m.metadata.platform : 'Unknown platform'}
+                                {getMachineSubtitle(m)}
                             </CardDescription>
                         </CardHeader>
                     </Card>
