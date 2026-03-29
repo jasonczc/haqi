@@ -99,4 +99,84 @@ describe('registerAppServerPermissionHandlers', () => {
             }
         });
     });
+
+    it('maps mcpServer elicitation approval requests to MCP tool permissions', async () => {
+        const handlers = new Map<string, (params: unknown) => Promise<unknown>>();
+        const handleToolCall = vi.fn(async () => ({
+            decision: 'approved'
+        }));
+
+        registerAppServerPermissionHandlers({
+            client: {
+                registerRequestHandler(method: string, handler: (params: unknown) => Promise<unknown>) {
+                    handlers.set(method, handler);
+                }
+            } as never,
+            permissionHandler: {
+                handleToolCall
+            } as never
+        });
+
+        const handler = handlers.get('mcpServer/elicitation/request');
+        expect(handler).toBeTypeOf('function');
+
+        const result = await handler?.({
+            threadId: 'thread-1',
+            turnId: 'turn-1',
+            serverName: 'haqi',
+            message: 'Allow the haqi MCP server to run tool "change_title"?',
+            requestedSchema: {
+                type: 'object',
+                properties: {}
+            }
+        });
+
+        expect(handleToolCall).toHaveBeenCalledWith(
+            'turn-1',
+            'mcp__haqi__change_title',
+            {
+                message: 'Allow the haqi MCP server to run tool "change_title"?'
+            }
+        );
+        expect(result).toEqual({
+            action: 'accept',
+            decision: 'approved'
+        });
+    });
+
+    it('preserves deny decisions for mcpServer elicitation approval requests', async () => {
+        const handlers = new Map<string, (params: unknown) => Promise<unknown>>();
+        const handleToolCall = vi.fn(async () => ({
+            decision: 'denied',
+            reason: 'Need manual confirmation'
+        }));
+
+        registerAppServerPermissionHandlers({
+            client: {
+                registerRequestHandler(method: string, handler: (params: unknown) => Promise<unknown>) {
+                    handlers.set(method, handler);
+                }
+            } as never,
+            permissionHandler: {
+                handleToolCall
+            } as never
+        });
+
+        const handler = handlers.get('mcpServer/elicitation/request');
+        const result = await handler?.({
+            threadId: 'thread-1',
+            serverName: 'haqi',
+            message: 'Allow the haqi MCP server to run tool "report_list"?',
+            requestedSchema: {
+                type: 'object',
+                properties: {}
+            }
+        });
+
+        expect(result).toEqual({
+            action: 'decline',
+            decision: 'denied',
+            reason: 'Need manual confirmation'
+        });
+    });
 });
