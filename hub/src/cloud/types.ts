@@ -31,3 +31,15 @@ export type WorkerSummary = {
     resources?: WorkerResources
     updatedAt: number
 }
+
+export type CloudWorkerProvider = {
+    id: string
+    type: 'self-hosted' | 'managed'
+    machineId: string
+    namespace?: string
+    labels: string[]
+    lifecycle?: WorkerLifecycle
+    capabilities?: WorkerCapabilities
+    resources?: WorkerResources
+    updatedAt: number
+}
