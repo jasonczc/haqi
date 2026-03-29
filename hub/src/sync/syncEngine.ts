@@ -1765,34 +1765,67 @@ ${note.content}
 
     async spawnSession(
         machineId: string,
-        directory: string,
-        agent: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode' = 'claude',
-        model?: string,
-        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh',
-        serviceTier?: 'fast' | 'flex',
-        yolo?: boolean,
-        sessionType?: 'simple' | 'worktree',
-        worktreeName?: string,
-        resumeSessionId?: string,
-        previewUrl?: string | null
-    ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
-        const resolvedAgent = agent ?? this.inferSpawnFlavor(machineId, directory)
-        const result = await this.rpcGateway.spawnSession(
-            machineId,
-            directory,
-            resolvedAgent,
-            model,
-            thinkEffort,
-            serviceTier,
-            yolo,
-            sessionType,
-            worktreeName,
-            resumeSessionId
-        )
+        request: {
+            directory?: string
+            agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
+            model?: string
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
+            serviceTier?: 'fast' | 'flex'
+            yolo?: boolean
+            sessionType?: 'simple' | 'worktree'
+            worktreeName?: string
+            resumeSessionId?: string
+            previewUrl?: string | null
+            runtimeKind?: 'host-process' | 'docker-session'
+            environmentId?: string
+            environment?: import('@hapi/protocol/types').EnvironmentTemplate
+            workspaceSource?: import('@hapi/protocol/types').WorkspaceSource
+            workspace?: import('@hapi/protocol/types').WorkspaceSpec
+            resources?: import('@hapi/protocol/types').WorkerResources
+            networkPolicy?: import('@hapi/protocol/types').NetworkMode
+            ttlMinutes?: number
+            persistentWorkspace?: boolean
+            secrets?: string[]
+            labels?: string[]
+            preview?: {
+                autoDetect?: boolean
+                preferredPort?: number
+            }
+        }
+    ): Promise<
+        | { type: 'success'; sessionId: string; requestId?: string }
+        | { type: 'error'; message: string; code?: string }
+        | { type: 'requestToApproveDirectoryCreation'; directory: string }
+    > {
+        const directory = request.directory ?? request.workspaceSource?.directory ?? request.workspaceSource?.repository?.url ?? ''
+        const resolvedAgent = request.agent ?? (directory ? this.inferSpawnFlavor(machineId, directory) : 'claude')
+        const result = await this.rpcGateway.spawnSession(machineId, {
+            directory: request.directory,
+            agent: resolvedAgent,
+            model: request.model,
+            thinkEffort: request.thinkEffort,
+            serviceTier: request.serviceTier,
+            yolo: request.yolo,
+            sessionType: request.sessionType,
+            worktreeName: request.worktreeName,
+            resumeSessionId: request.resumeSessionId,
+            runtimeKind: request.runtimeKind,
+            environmentId: request.environmentId,
+            environment: request.environment,
+            workspaceSource: request.workspaceSource,
+            workspace: request.workspace,
+            resources: request.resources,
+            networkPolicy: request.networkPolicy,
+            ttlMinutes: request.ttlMinutes,
+            persistentWorkspace: request.persistentWorkspace,
+            secrets: request.secrets,
+            labels: request.labels,
+            preview: request.preview
+        })
 
-        if (result.type === 'success' && previewUrl) {
+        if (result.type === 'success' && request.previewUrl) {
             try {
-                await this.persistSessionPreviewUrlWithRetry(result.sessionId, previewUrl)
+                await this.persistSessionPreviewUrlWithRetry(result.sessionId, request.previewUrl)
             } catch (error) {
                 const message = error instanceof Error ? error.message : String(error)
                 console.warn(`[SyncEngine] Failed to persist preview URL for ${result.sessionId}: ${message}`)
@@ -1887,19 +1920,16 @@ ${note.content}
             : undefined
         const duplicatedName = this.buildDuplicateSessionName(sourceSession)
 
-        const spawn = async (resumeSessionId?: string) => await this.spawnSession(
-            machine.id,
+        const spawn = async (resumeSessionId?: string) => await this.spawnSession(machine.id, {
             directory,
-            flavor,
+            agent: flavor,
             model,
             thinkEffort,
             serviceTier,
-            undefined,
             sessionType,
-            undefined,
             resumeSessionId,
             previewUrl
-        )
+        })
 
         let spawnResult = await spawn(resumeToken)
         if (spawnResult.type !== 'success' && resumeToken) {
@@ -1907,7 +1937,10 @@ ${note.content}
         }
 
         if (spawnResult.type !== 'success') {
-            return { type: 'error', message: spawnResult.message, code: 'spawn_failed' }
+            if (spawnResult.type === 'error') {
+                return { type: 'error', message: spawnResult.message, code: 'spawn_failed' }
+            }
+            return { type: 'error', message: `Directory creation requires approval: ${spawnResult.directory}`, code: 'spawn_failed' }
         }
 
         const becameAvailable = await this.waitForSessionAvailable(spawnResult.sessionId)
@@ -2154,21 +2187,17 @@ ${note.content}
             return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
         }
 
-        const spawnResult = await this.rpcGateway.spawnSession(
-            targetMachine.id,
-            metadata.path,
-            flavor,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            resumeToken
-        )
+        const spawnResult = await this.rpcGateway.spawnSession(targetMachine.id, {
+            directory: metadata.path,
+            agent: flavor,
+            resumeSessionId: resumeToken
+        })
 
         if (spawnResult.type !== 'success') {
-            return { type: 'error', message: spawnResult.message, code: 'resume_failed' }
+            if (spawnResult.type === 'error') {
+                return { type: 'error', message: spawnResult.message, code: 'resume_failed' }
+            }
+            return { type: 'error', message: `Directory creation requires approval: ${spawnResult.directory}`, code: 'resume_failed' }
         }
 
         const becameActive = await this.waitForSessionActive(spawnResult.sessionId)

@@ -633,6 +633,7 @@ export type Machine = z.infer<typeof MachineSchema>
 
 export const MachineSpawnRequestSchema = z.object({
     directory: z.string().min(1).optional(),
+    resumeSessionId: z.string().min(1).optional(),
     agent: AgentFlavorSchema.optional(),
     model: z.string().optional(),
     thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'max', 'xhigh']).optional(),

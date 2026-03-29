@@ -160,12 +160,20 @@ export class ApiMachineClient {
                 yolo,
                 token,
                 sessionType,
-                worktreeName
+                worktreeName,
+                runtimeKind,
+                environmentId,
+                environment,
+                workspaceSource,
+                workspace,
+                resources,
+                networkPolicy,
+                ttlMinutes,
+                persistentWorkspace,
+                secrets,
+                labels,
+                preview
             } = params || {}
-
-            if (!directory) {
-                throw new Error('Directory is required')
-            }
 
             const result = await spawnSession({
                 directory,
@@ -180,16 +188,28 @@ export class ApiMachineClient {
                 yolo,
                 token,
                 sessionType,
-                worktreeName
+                worktreeName,
+                runtimeKind,
+                environmentId,
+                environment,
+                workspaceSource,
+                workspace,
+                resources,
+                networkPolicy,
+                ttlMinutes,
+                persistentWorkspace,
+                secrets,
+                labels,
+                preview
             })
 
             switch (result.type) {
                 case 'success':
-                    return { type: 'success', sessionId: result.sessionId }
+                    return { type: 'success', sessionId: result.sessionId, requestId: result.requestId }
                 case 'requestToApproveDirectoryCreation':
                     return { type: 'requestToApproveDirectoryCreation', directory: result.directory }
                 case 'error':
-                    return { type: 'error', errorMessage: result.errorMessage }
+                    return { type: 'error', errorMessage: result.errorMessage, errorCode: result.errorCode }
             }
         })
 

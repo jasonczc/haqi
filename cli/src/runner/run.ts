@@ -20,8 +20,12 @@ import { isBunCompiled, projectPath } from '@/projectPath';
 import { cleanupRunnerState, getInstalledCliMtimeMs, isRunnerRunningCurrentlyInstalledHappyVersion, stopRunner } from './controlClient';
 import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
-import { join } from 'path';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
+import { prepareWorkspace } from '@/cloud/workspace/prepareWorkspace';
+import { resolveEnvironmentTemplate } from '@/cloud/environment/resolveEnvironment';
+import { DockerServiceOrchestrator } from '@/cloud/docker/serviceOrchestrator';
+import { buildSpawnEnvironment, startHostProcessExecutor } from '@/cloud/executors/HostProcessExecutor';
+import type { PreparedWorkspace, PreparedWorkspaceCleanup, ResolvedEnvironmentTemplate } from '@/cloud/types';
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -197,40 +201,42 @@ export async function startRunner(): Promise<void> {
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
       logger.debugLargeJson('[RUNNER RUN] Spawning session', options);
 
-      const { directory, sessionId, machineId, approvedNewDirectoryCreation = true } = options;
+      const { directory, approvedNewDirectoryCreation = true } = options;
       const agent = options.agent ?? 'claude';
-      const thinkEffort = options.thinkEffort;
-      const serviceTier = options.serviceTier;
-      const yolo = options.yolo === true;
       const sessionType = options.sessionType ?? 'simple';
       const worktreeName = options.worktreeName;
       let directoryCreated = false;
-      let spawnDirectory = directory;
+      let spawnDirectory = directory ?? options.workspaceSource?.directory;
       let worktreeInfo: WorktreeInfo | null = null;
       let happyProcess: ReturnType<typeof spawnHappyCLI> | null = null;
+      let preparedWorkspace: PreparedWorkspace | null = null;
+      let preparedWorkspaceCleanup: PreparedWorkspaceCleanup | null = null;
+      let resolvedEnvironment: ResolvedEnvironmentTemplate | null = null;
+      let startedServices: Awaited<ReturnType<DockerServiceOrchestrator['startServices']>> = [];
+      let dockerServiceOrchestrator: DockerServiceOrchestrator | null = null;
 
-      if (sessionType === 'simple') {
+      if (sessionType === 'simple' && spawnDirectory) {
         try {
-          await fs.access(directory);
-          logger.debug(`[RUNNER RUN] Directory exists: ${directory}`);
+          await fs.access(spawnDirectory);
+          logger.debug(`[RUNNER RUN] Directory exists: ${spawnDirectory}`);
         } catch (error) {
-          logger.debug(`[RUNNER RUN] Directory doesn't exist, creating: ${directory}`);
+          logger.debug(`[RUNNER RUN] Directory doesn't exist, creating: ${spawnDirectory}`);
 
           // Check if directory creation is approved
           if (!approvedNewDirectoryCreation) {
-            logger.debug(`[RUNNER RUN] Directory creation not approved for: ${directory}`);
+            logger.debug(`[RUNNER RUN] Directory creation not approved for: ${spawnDirectory}`);
             return {
               type: 'requestToApproveDirectoryCreation',
-              directory
+              directory: spawnDirectory
             };
           }
 
           try {
-            await fs.mkdir(directory, { recursive: true });
-            logger.debug(`[RUNNER RUN] Successfully created directory: ${directory}`);
+            await fs.mkdir(spawnDirectory, { recursive: true });
+            logger.debug(`[RUNNER RUN] Successfully created directory: ${spawnDirectory}`);
             directoryCreated = true;
           } catch (mkdirError: any) {
-            let errorMessage = `Unable to create directory at '${directory}'. `;
+            let errorMessage = `Unable to create directory at '${spawnDirectory}'. `;
 
             // Provide more helpful error messages based on the error code
             if (mkdirError.code === 'EACCES') {
@@ -252,22 +258,22 @@ export async function startRunner(): Promise<void> {
             };
           }
         }
-      } else {
+      } else if (sessionType !== 'simple' && spawnDirectory) {
         try {
-          await fs.access(directory);
-          logger.debug(`[RUNNER RUN] Worktree base directory exists: ${directory}`);
+          await fs.access(spawnDirectory);
+          logger.debug(`[RUNNER RUN] Worktree base directory exists: ${spawnDirectory}`);
         } catch (error) {
-          logger.debug(`[RUNNER RUN] Worktree base directory missing: ${directory}`);
+          logger.debug(`[RUNNER RUN] Worktree base directory missing: ${spawnDirectory}`);
           return {
             type: 'error',
-            errorMessage: `Worktree sessions require an existing Git repository. Directory not found: ${directory}`
+            errorMessage: `Worktree sessions require an existing Git repository. Directory not found: ${spawnDirectory}`
           };
         }
       }
 
-      if (sessionType === 'worktree') {
+      if (sessionType === 'worktree' && spawnDirectory) {
         const worktreeResult = await createWorktree({
-          basePath: directory,
+          basePath: spawnDirectory,
           nameHint: worktreeName
         });
         if (!worktreeResult.ok) {
@@ -308,89 +314,49 @@ export async function startRunner(): Promise<void> {
         }
         await cleanupWorktree();
       };
+      const cleanupPreparedWorkspace = async () => {
+        for (const cleanupPath of preparedWorkspaceCleanup?.cleanupPaths ?? preparedWorkspace?.cleanupPaths ?? []) {
+          await fs.rm(cleanupPath, { recursive: true, force: true }).catch(() => undefined);
+        }
+      };
+      const stopStartedServices = async () => {
+        if (!dockerServiceOrchestrator || startedServices.length === 0) {
+          return;
+        }
+        await dockerServiceOrchestrator.stopServices(startedServices);
+      };
 
       try {
+        preparedWorkspace = await prepareWorkspace({
+          directory: spawnDirectory,
+          workspaceSource: options.workspaceSource,
+          workspace: options.workspace
+        });
+        preparedWorkspaceCleanup = {
+          cleanupPaths: preparedWorkspace.cleanupPaths
+        };
+        spawnDirectory = preparedWorkspace.workingDirectory;
 
-        // Resolve authentication token if provided
-        let extraEnv: Record<string, string> = {};
-        if (options.token) {
-          if (options.agent === 'codex') {
+        resolvedEnvironment = resolveEnvironmentTemplate({
+          runtimeKind: options.runtimeKind,
+          environmentId: options.environmentId,
+          environment: options.environment,
+          workspaceSource: options.workspaceSource
+        });
 
-            // Create a temporary directory for Codex
-            const codexHomeDir = await fs.mkdtemp(join(os.tmpdir(), 'hapi-codex-'));
-
-            // Write the token to the temporary directory
-            await fs.writeFile(join(codexHomeDir, 'auth.json'), options.token);
-
-            // Set the environment variable for Codex
-            extraEnv = {
-              CODEX_HOME: codexHomeDir
-            };
-          } else if (options.agent === 'claude' || !options.agent) {
-            extraEnv = {
-              CLAUDE_CODE_OAUTH_TOKEN: options.token
-            };
-          }
+        if (resolvedEnvironment.services.length > 0) {
+          dockerServiceOrchestrator = new DockerServiceOrchestrator(new (await import('@/cloud/docker/dockerCli')).DockerCliRuntime());
+          startedServices = await dockerServiceOrchestrator.startServices({
+            services: resolvedEnvironment.services,
+            sessionId: options.sessionId ?? 'pending-session',
+            workspaceDir: preparedWorkspace.workspacePath
+          });
         }
-
-        if (worktreeInfo) {
-          extraEnv = {
-            ...extraEnv,
-            HAPI_WORKTREE_BASE_PATH: worktreeInfo.basePath,
-            HAPI_WORKTREE_BRANCH: worktreeInfo.branch,
-            HAPI_WORKTREE_NAME: worktreeInfo.name,
-            HAPI_WORKTREE_PATH: worktreeInfo.worktreePath,
-            HAPI_WORKTREE_CREATED_AT: String(worktreeInfo.createdAt)
-          };
-        }
-
-        if (agent === 'claude' && thinkEffort && thinkEffort !== 'auto' && thinkEffort !== 'xhigh' && thinkEffort !== 'max') {
-          extraEnv = {
-            ...extraEnv,
-            CLAUDE_CODE_EFFORT_LEVEL: thinkEffort
-          };
-        }
-
-        // Construct arguments for the CLI
-        const agentCommand = agent === 'codex'
-          ? 'codex'
-          : agent === 'cursor'
-            ? 'cursor'
-            : agent === 'gemini'
-              ? 'gemini'
-              : agent === 'opencode'
-                ? 'opencode'
-                : 'claude';
-        const args = [agentCommand];
-        if (options.resumeSessionId) {
-            if (agent === 'codex') {
-                args.push('resume', options.resumeSessionId);
-            } else if (agent === 'cursor') {
-                args.push('--resume', options.resumeSessionId);
-            } else {
-                args.push('--resume', options.resumeSessionId);
-            }
-        }
-        args.push('--hapi-starting-mode', 'remote', '--started-by', 'runner');
-        if (options.model && agent !== 'opencode') {
-          args.push('--model', options.model);
-        }
-        if (agent === 'codex' && thinkEffort) {
-          args.push('--effort', thinkEffort);
-        }
-        if (agent === 'codex' && serviceTier) {
-          args.push('--service-tier', serviceTier);
-        }
-        if (agent === 'claude' && (thinkEffort === 'low' || thinkEffort === 'medium' || thinkEffort === 'high' || thinkEffort === 'max')) {
-          args.push('--effort', thinkEffort);
-        }
-        if (yolo) {
-          if (agent === 'codex') {
-            args.push('--auto-approve');
-          } else {
-            args.push('--yolo');
-          }
-        }
+        const serviceEnv = Object.assign({}, ...startedServices.map((service) => service.env));
+        const extraEnv = await buildSpawnEnvironment(options, {
+          worktreeInfo,
+          serviceEnv
+        });
 
         // sessionId reserved for future use
         const MAX_TAIL_CHARS = 4000;
@@ -415,16 +381,13 @@ export async function startRunner(): Promise<void> {
         // Keep actual target directory in HAPI_WORKING_DIRECTORY to preserve session behavior.
         const executionCwd = isBunCompiled() ? spawnDirectory : projectPath();
 
-        happyProcess = spawnHappyCLI(args, {
-          cwd: executionCwd,
-          detached: true,  // Sessions stay alive when runner stops
-          stdio: ['ignore', 'pipe', 'pipe'],  // Capture stdout/stderr for debugging
-          env: {
-            ...process.env,
-            ...extraEnv,
-            HAPI_WORKING_DIRECTORY: spawnDirectory
-          }
+        const execution = startHostProcessExecutor({
+          executionCwd,
+          workingDirectory: spawnDirectory,
+          env: extraEnv,
+          options
         });
+        happyProcess = execution.childProcess;
 
         happyProcess.stderr?.on('data', (data) => {
           stderrTail = appendTail(stderrTail, data);
@@ -494,9 +457,12 @@ export async function startRunner(): Promise<void> {
         const trackedSession: TrackedSession = {
           startedBy: 'runner',
           pid,
+          runtimeKind: execution.runtimeKind,
+          workspaceId: preparedWorkspace.workspaceId,
+          serviceContainerIds: startedServices.map((service) => service.containerId),
           childProcess: happyProcess,
           directoryCreated,
-          message: directoryCreated ? `The path '${directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
+          message: directoryCreated && options.directory ? `The path '${options.directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
         };
 
         pidToTrackedSession.set(pid, trackedSession);
@@ -574,6 +540,8 @@ export async function startRunner(): Promise<void> {
               signal: observedExitSignal
             }
           });
+          await stopStartedServices();
+          await cleanupPreparedWorkspace();
           await maybeCleanupWorktree('spawn-error');
         } else {
           reportSpawnOutcomeToHub?.({ type: 'success' });
@@ -582,6 +550,8 @@ export async function startRunner(): Promise<void> {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.debug('[RUNNER RUN] Failed to spawn session:', error);
+        await stopStartedServices();
+        await cleanupPreparedWorkspace();
         await maybeCleanupWorktree('exception');
         reportSpawnOutcomeToHub?.({
           type: 'error',

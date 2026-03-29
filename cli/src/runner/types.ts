@@ -4,6 +4,7 @@
 
 import { Metadata } from '@/api/types';
 import { ChildProcess } from 'child_process';
+import type { RuntimeKind } from '@hapi/protocol/types';
 
 /**
  * Session tracking for runner
@@ -13,6 +14,11 @@ export interface TrackedSession {
   happySessionId?: string;
   happySessionMetadataFromLocalWebhook?: Metadata;
   pid: number;
+  runtimeKind?: RuntimeKind;
+  spawnRequestId?: string;
+  workspaceId?: string;
+  serviceContainerIds?: string[];
+  containerId?: string;
   childProcess?: ChildProcess;
   error?: string;
   directoryCreated?: boolean;

@@ -3,23 +3,12 @@ import { z } from 'zod'
 import {
     CodexCredentialActivateRequestSchema,
     CodexCredentialImportRequestSchema,
+    MachineSpawnRequestSchema,
     CodexCredentialSaveCurrentRequestSchema
 } from '@hapi/protocol/schemas'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireMachine } from './guards'
-
-const spawnBodySchema = z.object({
-    directory: z.string().min(1),
-    agent: z.enum(['claude', 'codex', 'cursor', 'gemini', 'opencode']).optional(),
-    model: z.string().optional(),
-    thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'max', 'xhigh']).optional(),
-    serviceTier: z.enum(['fast', 'flex']).optional(),
-    yolo: z.boolean().optional(),
-    sessionType: z.enum(['simple', 'worktree']).optional(),
-    worktreeName: z.string().optional(),
-    previewUrl: z.string().optional()
-})
 
 const pathsExistsSchema = z.object({
     paths: z.array(z.string().min(1)).max(1000)
@@ -73,7 +62,7 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         const body = await c.req.json().catch(() => null)
-        const parsed = spawnBodySchema.safeParse(body)
+        const parsed = MachineSpawnRequestSchema.safeParse(body)
         if (!parsed.success) {
             return c.json({ error: 'Invalid body' }, 400)
         }
@@ -87,19 +76,7 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Claude thinkEffort does not support xhigh (expected low/medium/high)' }, 400)
         }
 
-        const result = await engine.spawnSession(
-            machineId,
-            parsed.data.directory,
-            parsed.data.agent,
-            parsed.data.model,
-            parsed.data.thinkEffort,
-            parsed.data.serviceTier,
-            parsed.data.yolo,
-            parsed.data.sessionType,
-            parsed.data.worktreeName,
-            undefined,
-            previewUrl.value
-        )
+        const result = await engine.spawnSession(machineId, parsed.data)
         return c.json(result)
     })
 
@@ -121,7 +98,7 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Invalid body' }, 400)
         }
 
-        const uniquePaths = Array.from(new Set(parsed.data.paths.map((path) => path.trim()).filter(Boolean)))
+        const uniquePaths = Array.from(new Set(parsed.data.paths.map((path: string) => path.trim()).filter(Boolean)))
         if (uniquePaths.length === 0) {
             return c.json({ exists: {} })
         }

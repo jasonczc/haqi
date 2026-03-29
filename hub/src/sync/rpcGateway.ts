@@ -1,7 +1,9 @@
 import type {
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
+    MachineSpawnRequest,
     ModelMode,
+    SpawnResponse,
     PermissionMode
 } from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
@@ -182,32 +184,32 @@ export class RpcGateway {
 
     async spawnSession(
         machineId: string,
-        directory: string,
-        agent: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode' = 'claude',
-        model?: string,
-        thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh',
-        serviceTier?: 'fast' | 'flex',
-        yolo?: boolean,
-        sessionType?: 'simple' | 'worktree',
-        worktreeName?: string,
-        resumeSessionId?: string
-    ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
+        request: MachineSpawnRequest
+    ): Promise<SpawnResponse> {
         try {
             const result = await this.machineRpc(
                 machineId,
                 'spawn-happy-session',
-                { type: 'spawn-in-directory', directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, resumeSessionId }
+                request
             )
             if (result && typeof result === 'object') {
                 const obj = result as Record<string, unknown>
                 if (obj.type === 'success' && typeof obj.sessionId === 'string') {
-                    return { type: 'success', sessionId: obj.sessionId }
+                    return {
+                        type: 'success',
+                        sessionId: obj.sessionId,
+                        requestId: typeof obj.requestId === 'string' ? obj.requestId : undefined
+                    }
                 }
                 if (obj.type === 'error' && typeof obj.errorMessage === 'string') {
-                    return { type: 'error', message: obj.errorMessage }
+                    return {
+                        type: 'error',
+                        message: obj.errorMessage,
+                        code: typeof obj.errorCode === 'string' ? obj.errorCode : undefined
+                    }
                 }
                 if (obj.type === 'requestToApproveDirectoryCreation' && typeof obj.directory === 'string') {
-                    return { type: 'error', message: `Directory creation requires approval: ${obj.directory}` }
+                    return { type: 'requestToApproveDirectoryCreation', directory: obj.directory }
                 }
                 if (typeof obj.error === 'string') {
                     return { type: 'error', message: obj.error }
