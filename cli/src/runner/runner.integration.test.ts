@@ -254,6 +254,49 @@ describe.skipIf(!await isServerHealthy())('Runner Integration Tests', { timeout:
     await stopRunnerSession(spawnResponse.sessionId);
   });
 
+  it('tracks cloud metadata for terminal reported sessions', async () => {
+    const mockMetadata: Metadata = {
+      path: '/cloud/workspace',
+      host: 'cloud-host',
+      homeDir: '/cloud/home',
+      happyHomeDir: '/cloud/home/.hapi',
+      happyLibDir: '/cloud/lib',
+      happyToolsDir: '/cloud/tools',
+      startedBy: 'terminal',
+      machineId: 'cloud-machine-1',
+      runtimeKind: 'docker-session',
+      executionBackend: 'cloud-self-hosted',
+      environmentId: 'node-dev',
+      workspaceId: 'ws-cloud-1',
+      repositoryUrl: 'https://github.com/acme/demo.git',
+      repositoryProvider: 'github',
+      repositoryRef: { branch: 'main', commit: 'abcdef1234567890' },
+      previewUrls: [
+        {
+          id: 'preview-1',
+          port: 4173,
+          url: 'http://127.0.0.1:4173',
+          visibility: 'private'
+        }
+      ],
+      spawnRequestId: 'spawn-cloud-1'
+    };
+
+    await notifyRunnerSessionStarted('cloud-session-123', mockMetadata);
+
+    const sessions = await listRunnerSessions();
+    const tracked = sessions.find((session: any) => session.happySessionId === 'cloud-session-123');
+    expect(tracked).toBeDefined();
+    expect(tracked.runtimeKind).toBe('docker-session');
+    expect(tracked.workspaceId).toBe('ws-cloud-1');
+    expect(tracked.previewUrls).toEqual([
+      expect.objectContaining({
+        id: 'preview-1',
+        port: 4173
+      })
+    ]);
+  });
+
   it('should not allow starting a second runner', async () => {
     // Runner is already running from beforeEach
     // Try to start another runner
