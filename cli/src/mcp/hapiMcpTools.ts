@@ -18,7 +18,6 @@ export const reportCreateInputSchema: z.ZodTypeAny = z.object({
     status: z.string().min(1).max(40).optional(),
     markdown: z.string().max(400_000).optional(),
     metadata: z.unknown().optional(),
-    create_share: z.boolean().optional(),
     share_expires_in_hours: z.number().positive().max(24 * 365).optional()
 })
 
@@ -117,7 +116,7 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     {
         name: 'report_create',
         title: 'Create Report',
-        description: 'Create a markdown report and optionally create a public share link',
+        description: 'Create a markdown report and a public share link. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq).',
         inputSchema: reportCreateInputSchema
     },
     {
@@ -147,7 +146,7 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     {
         name: 'report_create_share',
         title: 'Create Report Share',
-        description: 'Create a public share link for a report',
+        description: 'Create a public share link for a report. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq).',
         inputSchema: reportCreateShareInputSchema
     },
     {
@@ -163,4 +162,3 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         inputSchema: reviewLoopReviewerSubmitInputSchema
     }
 ]
-

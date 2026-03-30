@@ -82,7 +82,7 @@ See `src/configuration.ts` for all options.
 - `HAPI_EXPERIMENTAL` - Enable experimental features (true/1/yes).
 - `HAPI_CLAUDE_PATH` - Path to a specific `claude` executable.
 - `HAPI_HTTP_MCP_URL` - Default MCP target for `haqi mcp`.
-- `HAPI_CODEX_ENABLE_REPORT_PROMPT` - Enable the extra Codex developer prompt section that teaches report MCP usage (default: disabled).
+- `HAPI_CODEX_ENABLE_REPORT_PROMPT` - Enable the extra Codex developer prompt section that teaches report MCP usage, including default report share creation and public share link format like `<report-public-base-url>/share/r/<token>` (default: disabled).
 - `HAPI_GEMINI_PROMPT_TIMEOUT_MS` - Gemini ACP prompt timeout in milliseconds (default: 1800000; set `0` or negative to disable).
 
 ### Runner

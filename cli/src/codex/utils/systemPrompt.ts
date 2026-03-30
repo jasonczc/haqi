@@ -35,7 +35,7 @@ export const REPORT_INSTRUCTION = trimIdent(`
       - E2E/browser/UI testing tasks where image evidence (screenshots) is useful.
     - For routine code edits, simple Q&A, or lightweight checks, do NOT create a report by default.
     - Preferred flow:
-      1) functions.haqi__report_create (set create_share=true),
+      1) functions.haqi__report_create (it creates a public share by default),
       2) functions.haqi__report_add_asset (attach screenshots/log images when available),
       3) functions.haqi__report_update (final markdown polish).
     - Screenshot/file hygiene for report assets:
@@ -45,7 +45,10 @@ export const REPORT_INSTRUCTION = trimIdent(`
         - ~/.hapi/tmp/report-assets/<session-or-task-id>/ (fallback).
       - When screenshot tools support "filename"/"save_as", pass the full path explicitly.
       - After successful upload via report_add_asset, clean up temporary local files when possible.
-    - If no public link exists yet, call functions.haqi__report_create_share.
+    - report_create creates a public share by default; use functions.haqi__report_create_share only when you need an additional/new share.
+    - Public share URLs use the /share/r/<token> form, for example:
+      - <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq
+      - The domain can vary, but the public path format stays /share/r/<token>.
     - If a report is created, include the public share URL in your final answer.
     - If the user explicitly asks to skip report creation, follow that request.
 `);

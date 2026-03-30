@@ -205,7 +205,7 @@ export async function startHappyServer(client: ApiSessionClient) {
     });
 
     mcp.registerTool<any, any>('report_create', {
-        description: 'Create a markdown report and optionally create a public share link',
+        description: 'Create a markdown report and a public share link. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq).',
         title: 'Create Report',
         inputSchema: reportCreateInputSchema
     }, async (args: {
@@ -215,7 +215,6 @@ export async function startHappyServer(client: ApiSessionClient) {
         status?: string
         markdown?: string
         metadata?: unknown
-        create_share?: boolean
         share_expires_in_hours?: number
     }) => {
         try {
@@ -228,7 +227,7 @@ export async function startHappyServer(client: ApiSessionClient) {
                     status: args.status,
                     markdown: args.markdown,
                     metadata: args.metadata,
-                    createShare: args.create_share,
+                    createShare: true,
                     shareExpiresInHours: args.share_expires_in_hours
                 })
             });
@@ -338,7 +337,7 @@ export async function startHappyServer(client: ApiSessionClient) {
     });
 
     mcp.registerTool<any, any>('report_create_share', {
-        description: 'Create a public share link for a report',
+        description: 'Create a public share link for a report. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq).',
         title: 'Create Report Share',
         inputSchema: reportCreateShareInputSchema
     }, async (args: { report_id: string; expires_in_hours?: number; created_by?: string }) => {

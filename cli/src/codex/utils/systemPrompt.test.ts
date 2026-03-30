@@ -46,9 +46,12 @@ describe('systemPrompt', () => {
 
         const prompt = getCodexSystemPrompt();
         expect(prompt).toContain(REPORT_INSTRUCTION);
+        expect(prompt).toContain('report_create (it creates a public share by default)');
         expect(prompt).toContain('Never save screenshots under the project/workspace directory.');
         expect(prompt).toContain('$HAPI_HOME/tmp/report-assets/<session-or-task-id>/');
         expect(prompt).toContain('When screenshot tools support "filename"/"save_as", pass the full path explicitly.');
+        expect(prompt).toContain('<report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq');
+        expect(prompt).toContain('/share/r/<token>');
     });
 
     it('reads report prompt switch from settings.json when env is unset', () => {
