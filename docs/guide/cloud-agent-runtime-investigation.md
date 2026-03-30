@@ -616,7 +616,131 @@ VNC_SETUP_FAILURE_MAX_CONSECUTIVE=3
 | 密钥管理 | `SecretBroker` + 物化 | 环境变量注入 + **JWT token**（`trace-auth-token`） |
 | 构件产出 | 无标准路径 | `/opt/cursor/artifacts/`（全局可写） |
 
-### 7.11 局限与未验证项
+### 7.11 远程控制为何顺滑：全链路技术剖析
+
+Cursor Cloud Agent 的远程操作（终端命令、桌面操作、屏幕录制）体验异常流畅，原因是多个层面的工程优化协同作用。
+
+#### A. 有状态 Shell — 零开销环境延续
+
+传统远程执行每次命令都是新 shell 进程，需要重新加载环境。Cursor 的 `@anysphere/shell-exec` 实现了 **有状态 bash session**：
+
+```
+命令执行流程（从 index.js 提取）：
+
+1. 启动 bash 时通过 fd3 注入上一次的 shell 快照：
+   snap=$(command cat <&3)
+   builtin shopt -s extglob
+   builtin eval -- "$snap"
+
+2. 恢复沙箱环境变量：
+   builtin eval "${__CURSOR_SANDBOX_ENV_RESTORE:-}"
+   builtin export PWD="$(builtin pwd)"
+   builtin shopt -s expand_aliases
+
+3. 执行用户命令
+
+4. 命令结束后导出完整 shell 状态到 fd4：
+   COMMAND_EXIT_CODE=$?
+   dump_bash_state >&4
+   builtin exit $COMMAND_EXIT_CODE
+```
+
+`dump_bash_state()` 捕获的状态包括：
+- 所有环境变量
+- `shopt -p` 选项状态
+- 当前工作目录
+- 别名定义
+
+**效果**：每次命令执行都继承上一次的完整 shell 状态（`cd`、`export`、`alias` 等），用户感知上如同一个连续的终端会话，但实际上每个命令在隔离的沙箱进程中执行。**既保证了安全隔离，又消除了环境重建开销**。
+
+#### B. Computer Use — 原生 X11 操控
+
+桌面操控不走 VNC 协议转发，而是 **exec-daemon 直接操作 X11**：
+
+```
+class X11ComputerUseExecutor:
+  - mouseMove:  xdotool mousemove --sync {x} {y}
+  - click:      xdotool click --repeat {count} --delay 50 {buttonNum}
+  - typeText:   xdotool type --delay {typingDelayMs} -- {text}
+  - keyPress:   xdotool key -- {key}
+  - scroll:     xdotool mousedown/mouseup
+  - screenshot: (X11 直接截屏，非 VNC 帧缓冲)
+  - drag:       mousemove --sync → mousedown → mousemove path → mouseup
+```
+
+**关键优化**：
+- `--sync` 标志确保鼠标移动完成后才返回，避免竞态
+- 拖拽走贝塞尔插值路径（`bezierInterpolation`），轨迹平滑
+- `screenshotDelayMs` — 每次操作后等待 UI 渲染完成再截图
+- 截图使用 X11 native 方法而非 VNC 帧缓冲，速度更快、质量更高
+
+#### C. 屏幕录制 — FFmpeg x11grab + Polished 后处理
+
+录屏分两层：
+
+**实时捕获层**（FFmpeg）：
+```
+ffmpeg -f x11grab -display :1 -framerate {detected_refresh_rate}
+       -video_size {resolution} -probesize ... → raw recording
+```
+
+**后处理层**（polished-renderer, Rust native Node 模块）：
+```
+1. generateRenderPlan()     → 分析录制数据，生成渲染计划
+2. renderFromPlanNative()   → Rust 调用 libavcodec 解码 + resvg 渲染
+3. smoothstep 插值          → progress * progress * (3 - 2 * progress)
+4. 输出精修视频              → 光标动画、帧率标准化
+```
+
+**效果**：
+- 录制时用 x11grab 直接从 X11 采帧，零拷贝
+- `DEFAULT_REFRESH_RATE` 探测实际刷新率，适配 `anyos.conf` 的 120fps 配置
+- 后处理用 Rust native 模块（而非 JS），解码/渲染性能接近原生
+- smoothstep 插值让光标移动和界面转换看起来流畅自然
+
+#### D. 通信链路 — 全程在同机
+
+```
+exec-daemon (:26053 HTTP / :26054 PTY WS)
+    ↕ localhost，零网络延迟
+cursorsandbox（进程级沙箱）
+    ↕ 直接 fork/exec
+bash / xdotool / ffmpeg（X11 native）
+    ↕ 本地 X11 socket
+TigerVNC (:5901)
+    ↕ localhost
+websockify (:26058) → noVNC → 用户浏览器（仅用于人类观看）
+```
+
+**关键**：Agent 操作（命令执行、鼠标点击、截图）**不走 VNC 协议**。VNC/noVNC 仅供人类远程观看桌面。Agent 的所有操作都是：
+- 终端命令 → exec-daemon HTTP API → shell-exec → bash
+- 桌面操作 → exec-daemon HTTP API → xdotool → X11
+- 截图 → exec-daemon → X11 native screenshot
+- 录屏 → ffmpeg x11grab → polished-renderer
+
+全部在 **同一容器内 localhost 通信**，零网络延迟。
+
+#### E. Connect-RPC — 控制面双向流
+
+exec-daemon 与 Cursor 云端控制面之间使用 **Connect-RPC over WebSocket**：
+- 支持 ServerStreaming（流式返回命令输出）
+- 支持 Unary（单次请求/响应）
+- WebSocket 长连接，避免 HTTP 轮询
+- Protobuf 序列化，比 JSON 更紧凑
+
+#### F. 总结：顺滑的本质
+
+| 层 | 技术 | 效果 |
+|----|------|------|
+| Shell | 有状态 bash（fd3/fd4 快照传输） | 命令间状态连续，无环境重建 |
+| 桌面操控 | xdotool 直连 X11 + `--sync` | 低延迟、精确同步 |
+| 截图 | X11 native（非 VNC 帧缓冲） | 快速、全分辨率 |
+| 录屏 | ffmpeg x11grab + Rust polished-renderer | 原生采帧 + 后处理平滑 |
+| 通信 | localhost HTTP/WebSocket + Protobuf | 零网络跳转 |
+| 沙箱 | cursorsandbox 进程级（非容器级） | 隔离开销极小 |
+| 控制面 | Connect-RPC over WebSocket | 双向流、长连接 |
+
+### 7.12 局限与未验证项
 
 - **Protobuf 完整定义**：仅从二进制 strings 提取方法名和字段名，不含完整 schema。
 - **端口 26500 / 50052**：无法确认具体用途（进程不在容器内，从宿主机监听）。
