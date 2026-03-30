@@ -1,0 +1,3 @@
+total 54M
+-rwxr-xr-x 1 ubuntu ubuntu 39M Mar 18 18:33 gopls
+-rwxr-xr-x 1 ubuntu ubuntu 16M Mar 18 18:33 staticcheck

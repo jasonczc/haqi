@@ -1,0 +1,23 @@
+total 12
+drwxr-xr-x  3 ubuntu ubuntu 4096 Mar 30 04:33 .
+drwxr-x--- 18 ubuntu ubuntu 4096 Mar 30 05:41 ..
+drwxr-xr-x  2 ubuntu ubuntu 4096 Mar 30 04:33 logs
+total 88
+drwxr-xr-x 2 ubuntu ubuntu  4096 Mar 30 04:33 .
+drwxr-xr-x 3 ubuntu ubuntu  4096 Mar 30 04:33 ..
+-rw-r--r-- 1 ubuntu ubuntu 15797 Mar 29 13:12 2026-03-29-13-12-31-pid-5363.log
+-rw-r--r-- 1 ubuntu ubuntu   117 Mar 29 13:12 2026-03-29-13-12-31-pid-5364.log
+-rw-r--r-- 1 ubuntu ubuntu  2777 Mar 29 13:12 2026-03-29-13-12-31-pid-5385.log
+-rw-r--r-- 1 ubuntu ubuntu   434 Mar 29 13:12 2026-03-29-13-12-32-pid-5413.log
+-rw-r--r-- 1 ubuntu ubuntu   523 Mar 29 13:12 2026-03-29-13-12-32-pid-5446.log
+-rw-r--r-- 1 ubuntu ubuntu  4687 Mar 29 13:12 2026-03-29-13-12-32-pid-5453.log
+-rw-r--r-- 1 ubuntu ubuntu  1686 Mar 29 13:12 2026-03-29-13-12-32-pid-5480.log
+-rw-r--r-- 1 ubuntu ubuntu   756 Mar 29 13:12 2026-03-29-13-12-34-pid-5604.log
+-rw-r--r-- 1 ubuntu ubuntu   855 Mar 29 13:12 2026-03-29-13-12-34-pid-5615.log
+-rw-r--r-- 1 ubuntu ubuntu   166 Mar 29 13:12 2026-03-29-13-12-34-pid-5622.log
+-rw-r--r-- 1 ubuntu ubuntu  1065 Mar 29 13:12 2026-03-29-13-12-34-pid-5653.log
+-rw-r--r-- 1 ubuntu ubuntu   252 Mar 29 13:12 2026-03-29-13-12-34-pid-5702.log
+-rw-r--r-- 1 ubuntu ubuntu    80 Mar 29 13:12 2026-03-29-13-12-34-pid-5709.log
+-rw-r--r-- 1 ubuntu ubuntu   502 Mar 29 13:12 2026-03-29-13-12-35-pid-5786.log
+-rw-r--r-- 1 ubuntu ubuntu   308 Mar 29 13:12 2026-03-29-13-12-35-pid-5795.log
+-rw-r--r-- 1 ubuntu ubuntu    88 Mar 29 13:12 2026-03-29-13-12-35-pid-5819.log
