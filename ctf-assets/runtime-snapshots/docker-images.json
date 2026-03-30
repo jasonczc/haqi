@@ -1,0 +1,28 @@
+[
+    {
+        "Containers": 1,
+        "Created": 1774717416,
+        "Id": "sha256:f9c7f847f60e2a05ca6cf89cbb86965415a618a1b132c15d0217e4db8d800917",
+        "Labels": null,
+        "ParentId": "",
+        "RepoDigests": [],
+        "RepoTags": [
+            "anyrun-empty:latest"
+        ],
+        "SharedSize": -1,
+        "Size": 5
+    },
+    {
+        "Containers": 0,
+        "Created": 1774380752,
+        "Id": "sha256:43c2b77c97a0b5ac929909540928291bcd0356920237cfb236fe95f444502441",
+        "Labels": null,
+        "ParentId": "",
+        "RepoDigests": [],
+        "RepoTags": [
+            "946207870883.dkr.ecr.us-east-1.amazonaws.com/anyrun-utils:util-a237115"
+        ],
+        "SharedSize": -1,
+        "Size": 245561857
+    }
+]

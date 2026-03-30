@@ -1,0 +1,12 @@
+(Not all processes could be identified, non-owned process info
+ will not be shown, you would have to be root to see it all.)
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 127.0.0.1:5901          0.0.0.0:*               LISTEN      3140/Xtigervnc      
+tcp        0      0 0.0.0.0:2375            0.0.0.0:*               LISTEN      -                   
+tcp        0      0 0.0.0.0:26500           0.0.0.0:*               LISTEN      -                   
+tcp        0      0 0.0.0.0:26058           0.0.0.0:*               LISTEN      3544/python3        
+tcp        0      0 0.0.0.0:50052           0.0.0.0:*               LISTEN      -                   
+tcp6       0      0 :::26054                :::*                    LISTEN      2563/node           
+tcp6       0      0 :::26053                :::*                    LISTEN      2563/node           
+tcp6       0      0 ::1:5901                :::*                    LISTEN      3140/Xtigervnc      

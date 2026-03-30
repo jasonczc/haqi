@@ -1,0 +1,18 @@
+#!/bin/bash
+# Load X resources (Xft.dpi for font rendering)
+[ -f ~/.Xresources ] && xrdb -merge ~/.Xresources
+
+# GTK/Qt environment (from anyos.conf)
+export GDK_SCALE=1
+export GDK_DPI_SCALE=1
+export QT_SCALE_FACTOR=1
+export XCURSOR_SIZE=24
+# Electron apps
+export ELECTRON_FORCE_IS_PACKAGED=0
+export ELECTRON_FORCE_DEVICE_SCALE_FACTOR=1
+
+# Software rendering for WebGL support in VNC (no hardware GPU)
+export LIBGL_ALWAYS_SOFTWARE=1
+export GALLIUM_DRIVER=llvmpipe
+
+exec /usr/bin/startxfce4

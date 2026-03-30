@@ -1,0 +1,35 @@
+total 12
+drwxr-xr-x 3 ubuntu ubuntu 4096 Mar 30 04:33 .
+drwxr-xr-x 5 ubuntu ubuntu 4096 Mar 30 04:33 ..
+drwxr-xr-x 2 ubuntu ubuntu 4096 Mar 30 05:00 L3dvcmtzcGFjZQ
+/home/ubuntu/.cursor/agent-hooks/:
+total 12
+drwxr-xr-x 3 ubuntu ubuntu 4096 Mar 30 04:33 .
+drwxr-xr-x 5 ubuntu ubuntu 4096 Mar 30 04:33 ..
+drwxr-xr-x 2 ubuntu ubuntu 4096 Mar 30 05:00 L3dvcmtzcGFjZQ
+
+/home/ubuntu/.cursor/agent-hooks/L3dvcmtzcGFjZQ:
+total 32
+drwxr-xr-x 2 ubuntu ubuntu 4096 Mar 30 05:00 .
+drwxr-xr-x 3 ubuntu ubuntu 4096 Mar 30 04:33 ..
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 applypatch-msg.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 30 05:00 commit-msg -> .dispatcher
+-rwxr-xr-x 1 ubuntu ubuntu 2460 Mar 30 05:00 commit-msg.cursor
+-rwxr-xr-x 1 ubuntu ubuntu  297 Mar 30 05:00 commit-msg.cursor.co-author
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 commit-msg.sample -> .dispatcher
+-rw-r--r-- 1 ubuntu ubuntu   21 Mar 29 13:05 .cursor-original-hooks-path
+-rwxr-xr-x 1 ubuntu ubuntu  706 Mar 29 13:05 .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 fsmonitor-watchman.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 post-update.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 pre-applypatch.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 30 05:00 pre-commit -> .dispatcher
+-rwxr-xr-x 1 ubuntu ubuntu 6363 Mar 30 05:00 pre-commit.cursor
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 pre-commit.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 pre-merge-commit.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 prepare-commit-msg.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 pre-push.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 pre-rebase.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 pre-receive.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 push-to-checkout.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 sendemail-validate.sample -> .dispatcher
+lrwxrwxrwx 1 ubuntu ubuntu   11 Mar 29 13:05 update.sample -> .dispatcher

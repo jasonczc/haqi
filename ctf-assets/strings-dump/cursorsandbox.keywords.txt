@@ -1,0 +1,469 @@
+$Error: Failed to parse policy file: 
+$failed to apply bubblewrap sandbox: 
+$Failed to run Bubblewrap preflight: 
+$failed to set environment variable `
+$Step 1-2/7 (user namespace) failed: 
+$Step 2.5/7 (loopback setup) failed: 
+$, trying mount_setattr clear RDONLY
+0123456789ABCDEFpool is disabledfield identifiersandbox_metadatao
+=0BodyWriteAbortedUnexpectedHeaderconnection errorh2::Error::is_iocontent-encodingcontent-languagecontent-locationwww-authenticatex-xss-protectionproxy-connectionInvalidRecursiveNestedAlternatesEscapeHexInvalidFlagUnrecognizedGroupNameInvalidInvalid argumentNot a typewriterInvalid exchangeObject is remoteMessage too longNo route to hostRemote I/O errorReverseDFAEngineUnsupportedEmptyvisited_capacityLazyStateIDErrorWordStartUnicodeWordEndHalfAsciicase_insensitiveTryFromCharError{invalid syntax}1 element in map0123456789abcdef
+0Error: Failed to resolve Linux sandbox backend: 
+0Error: Failed to run Linux inner sandbox stage: 
+[0mhelp    typealseERR port/tmpPATH/devzero.sshautodenyOpenGonehttpPOSTHEADSizeUserdateetaghostlinkvaryIdleInitBodyfrom.gitWordspanlineGlobglobHashcallhashEDOMEADVinfoCorecoreutf8QuitbytemodeTextbitsFAIL(
+0sandbox: cleaning up partial blackhole setup at 
+0sandbox: failed at step 1-2/7 (user namespace): 
+0sandbox: failed at step 2.5/7 (loopback setup): 
+0sandbox: failed to make blackhole dir read-only 
+100101102103104105106107108109110111112113114115116117118119120121122123124125126127128129130131132133134135136137138139140141142143144145146147148149150151152153154155156157158159160161162163164165166167168169170171172173174175176177178179180181182183184185186187188189190191192193194195196197198199200201202203204205206207208209210211212213214215216217218219220221222223224225226227228229230231232233234235236237238239240241242243244245246247248249250251252253254255256257258259260261262263264265266267268269270271272273274275276277278279280281282283284285286287288289290291292293294295296297298299300301302303304305306307308309310311312313314315316317318319320321322323324325326327328329330331332333334335336337338339340341342343344345346347348349350351352353354355356357358359360361362363364365366367368369370371372373374375376377378379380381382383384385386387388389390391392393394395396397398399400401402403404405406407408409410411412413414415416417418419420421422423424425426427428429430431432433434435436437438439440441442443444445446447448449450451452453454455456457458459460461462463464465466467468469470471472473474475476477478479480481482483484485486487488489490491492493494495496497498499500501502503504505506507508509510511512513514515516517518519520521522523524525526527528529530531532533534535536537538539540541542543544545546547548549550551552553554555556557558559560561562563564565566567568569570571572573574575576577578579580581582583584585586587588589590591592593594595596597598599600601602603604605606607608609610611612613614615616617618619620621622623624625626627628629630631632633634635636637638639640641642643644645646647648649650651652653654655656657658659660661662663664665666667668669670671672673674675676677678679680681682683684685686687688689690691692693694695696697698699700701702703704705706707708709710711712713714715716717718719720721722723724725726727728729730731732733734735736737738739740741742743744745746747748749750751752753754755756757758759760761762763764765766767768769770771772773774775776777778779780781782783784785786787788789790791792793794795796797798799800801802803804805806807808809810811812813814815816817818819820821822823824825826827828829830831832833834835836837838839840841842843844845846847848849850851852853854855856857858859860861862863864865866867868869870871872873874875876877878879880881882883884885886887888889890891892893894895896897898899900901902903904905906907908909910911912913914915916917918919920921922923924925926927928929930931932933934935936937938939940941942943944945946947948949950951952953954955956957958959960961962963964965966967968969970971972973974975976977978979980981982983984985986987988989990991992993994995996997998999<none>invalid URL, scheme is not httpinvalid URL, host is missinginvalid URL, scheme is missingtcp bind local errortcp set_nonblocking errorConnectErrorchecked out connection was closedDate format should be valid HeaderValuestatechunk_lenextensions_cntEofSizeLwsExtensionSizeLfBodyCrBodyLfTrailerTrailerLfEndCrEndLfend of file before message length reachedbuffer space exhausted; sending this messages would overflow the stateassertion failed: (*tail).value.is_none()assertion failed: (*next).value.is_some()upgrade expected but not completedcannot clone `Sender` -- too many outstanding senderspong received implies ping_sent_atbdp enabled implies byteskeep_alive expects last_read_atkeep-alive timed outInvalidUriCharInvalidSchemeInvalidPortInvalidFormatSchemeMissingPathAndQueryMissingTooLongSchemeTooLongInvalidUrislash is a valid pathscheme is validpath is valid uridomain is valid Uriauthority is validhttpsInvalidUriPartsUnexpectedFrameTypePayloadTooBigReleaseCapacityTooBigOverflowedStreamIdMissingUriSchemeAndAuthorityPollResetAfterSendResponseSendPingWhilePendingSendSettingsWhilePendingPeerDisabledServerPushLibraryRemoteUpgradeExpectedKeepAliveTimedOutReady polled after completionResetGoAwayReasonIncompleteMessageUnexpectedMessageChannelClosedConnectListenAcceptHeaderTimeoutBodyWriteHttp2MakeServiceServiceUnsupportedVersionUnsupportedRequestMethodUnsupportedStatusCodeAbsoluteUriRequiredNoUpgradeManualUpgradeWithoutShutdownNonHttp1DispatchGonehyper::ErrorMethodVersionVersionH2UriUriTooLongHeaderStatusTokenContentLengthInvalidTransferEncodingInvalidTransferEncodingUnexpectedinvalid HTTP method parsedinvalid HTTP version parsedinvalid HTTP version parsed (found HTTP2 preface)invalid URIURI too longinvalid HTTP header parsedinvalid content-length parsedunexpected transfer-encoding parsedmessage head is too largeinvalid HTTP status-code parsedinternal error inside Hyper and/or its dependencies, please reporterror from user's HttpBody streamuser body write abortederror from user's MakeServiceerror from user's Serviceuser sent unexpected headerrequest has unsupported HTTP versionrequest has unsupported HTTP methodresponse has 1xx status code, not supported by serverclient requires absolute-form URIsno upgrade availableupgrade expected but low level API in usewithout_shutdown() called on a non-HTTP/1 connectiondispatch task is goneconnection closed before message completedreceived unexpected message from connectionoperation was canceledchannel closederror trying to connecterror creating server listenererror accepting connectionread header from client timeouterror reading a body from connectionerror writing a body to connectionerror shutting down connectionhttp2 erroroperation timed outjust sent Okacceptaccept-charsetaccept-encodingaccept-languageaccept-rangesaccess-control-allow-headersaccess-control-allow-methodsaccess-control-allow-originaccess-control-expose-headersaccess-control-max-ageaccess-control-request-headersaccess-control-request-methodageallowalt-svcauthorizationcache-controlcache-statuscdn-cache-controlconnectioncontent-dispositioncontent-lengthcontent-rangecontent-security-policycontent-security-policy-report-onlycontent-typecookiedntexpectexpiresforwardedif-modified-sinceif-none-matchif-unmodified-sincelast-modifiedmax-forwardsoriginpragmaproxy-authenticateproxy-authorizationpublic-key-pinspublic-key-pins-report-onlyrangerefererreferrer-policyrefreshretry-aftersec-websocket-acceptsec-websocket-extensionssec-websocket-keysec-websocket-protocolsec-websocket-versionserverset-cookiestrict-transport-securitytetrailertransfer-encodinguser-agentupgradeupgrade-insecure-requestsviawarningx-content-type-optionsx-dns-prefetch-controlx-frame-options
+1 element in sequenceu32one of , byte arrayOption valuenewtype structmapunit variantnewtype varianttuple variantstruct varianta booleanpath stringinfNaN at line a Display implementation returned an error unexpectedlyassertion failed: self.is_char_boundary(new_len)EOF while parsing a listEOF while parsing an objectEOF while parsing a stringEOF while parsing a valueexpected `:`expected `,` or `]`expected `,` or `}`expected identexpected valueexpected `"`invalid escapeinvalid numbernumber out of rangeinvalid unicode code pointcontrol character (\u0000-\u001F) found while parsing a stringkey must be a stringinvalid value: expected key to be a number in quotesfloat key must be finite (got NaN or +/-inf)lone leading surrogate in hex escapetrailing commatrailing charactersunexpected end of hex escaperecursion limit exceeded
+1Landlock preflight failed with unexpected status 
+1sandbox: failed to serialize decision log entry: 
+1sandbox: helper: newgidmap returned non-zero
+1sandbox: network decision log unavailable (label=
+1sandbox: step 7/7: changing to working directory 
+1Seccomp filter synchronization failed in thread `
+2sandbox: landlock: CURSOR_SANDBOX_LANDLOCK_STATUS=
+3Bubblewrap inner dangerous syscall seccomp failed: 
+3Bubblewrap preflight failed with unexpected status 
+3sandbox: CONNECT target connection failed (session=
+3sandbox: failed at step 6.5/7 (drop capabilities): 
+3sandbox: landlock: restrict_self() returned status=
+4sandbox: file-suffix rules (pre-discovered) applied=
+4sandbox: glob denies (pre-discovered) applied_total=
+5Bubblewrap inner failed to drop bypass capabilities: 
+5Failed to resolve current executable for Bubblewrap: 
+5Failed to set blackhole file permissions to 000, got 
+5Failed to write /proc/self/gid_map (mapping GID 0 -> 
+5Failed to write /proc/self/uid_map (mapping UID 0 -> 
+5fatal runtime error: failed to initiate panic, error 
+5Linux auto backend selection failed. Landlock error: 
+5sandbox: failed at step 6/7 (seccomp network block): 
+5sandbox: pre-discovery: filtered ignore mapping from 
+5Step 5.5/7 (seccomp dangerous syscall block) failed: 
+6sandbox: landlock: ruleset fully enforced (effective: 
+7CRITICAL: Failed to make blackhole mount read-only for 
+7The seccomp filter contains too many BPF instructions: 
+8sandbox: failed at step 3/7 (remount MS_PRIVATE): errno 
+8sandbox: warning: failed to write /proc/self/setgroups: 
+[97mb"\n\r\tLayoutErrorsystem time before Unix epoch
+9Failed to drop CAP_DAC_OVERRIDE from bounding set: errno 
+9internal error: entered unreachable code: str::from_utf8(
+9internal error: entered unreachable code: unknown state: 
+9internal error: entered unreachable code: want_rx value: 
+, allow_rules=
+ allow_rw=
+Asandbox: failed at step 5.5/7 (seccomp dangerous syscall block): 
+a sequencea mapassertion failed: val <= frame::MAX_MAX_FRAME_SIZE as usizeassertion failed: self.remote.is_none()invalid settings frameconn.ping_pongMaybeDone polled after value taken
+assertion failed: b2 <= 256no quit in start without look-behindassertion failed: id.is_match()no in-progress search to finishno in-progress search to updateinternal error: entered unreachable code: sid being unknown is a bugAhoCorasick::try_find is not expected to failTried to shrink to a larger capacitypatternGroupInfoSmallIndexErrorTooManyPatternsTooManyGroupsminimumMissingGroupsFirstMustBeUnnamedDuplicateadding one state after cache clear must workcannot save sentinel statestate saver does not have saved state IDassertion failed: self.as_ref().is_valid(id)attempted to search for a specific pattern without enabling starts_for_each_patterncannot build lazy DFAs for regexes with Unicode word boundaries; switch to ASCII word boundaries, or heuristically enable Unicode word boundaries or use a different regex engineOwnedNonWordByteLineLFLineCRCustomLineTerminatorLeftmostFirstLeftmostLongestLazyStateIDCacheErrorStartByteMap{attemptedaho-corasick DFA should never failinvalid match spanconfignfastride2start_mapclassesquitsetcache_capacityDFAmatch_kindprestarts_for_each_patternbyte_classesunicode_word_boundaryspecialize_start_statesskip_cache_capacity_checkminimum_cache_clear_countminimum_bytes_per_stateConfigRegexforwardreverseMatchErrorByteSetthompson::NFA(
+assertion failed: edge.height == self.node.height - 1assertion failed: self.bump().map_or(true, is_separator)assertion failed: bump == Some('!') || bump == Some('^')assertion failed: start <= self.branches.len()|invalid use of **; must be one path componentunclosed character class; missing ']'unopened alternate group; missing '{' (maybe escape '}' with '[}]'?)unclosed alternate group; missing '}' (maybe escape '{' with '[{]'?)nested alternate groups are not alloweddangling '\'AhoCorasick::try_find_overlapping_iter is not expected to failalready checked that no match error can occur hereStateIDOverflowrequested_maxPatternIDOverflowPatternTooLongSize of table != 0, but no headers left!too_many_resetsserver stream queue must start with Headerspoll_response called after response returnedassertion failed: self.refused.is_none()assertion failed: self.max_stream_id >= last_processed_idassertion failed: sz <= MAX_WINDOW_SIZE as usizetoo_many_continuationsassertion failed: N::next(&stream).is_none()assertion failed: self.ids.insert(id, index).is_none()assertion failed: payload_len_be[0..5].iter().all(|b| *b == 0)assertion failed: self.num_recv_streams > 0assertion failed: self.num_send_streams > 0assertion failed: self.can_inc_num_recv_streams()assertion failed: !stream.is_countedassertion failed: self.can_inc_num_send_streams()assertion failed: self.num_local_reset_streams > 0assertion failed: self.can_inc_num_local_error_resets()assertion failed: self.num_remote_reset_streams > 0assertion failed: self.ref_count > 0assertion failed: self.ref_count < usize::MAXindex not found
+}assertion failed: new_left_len <= CAPACITY.debug_abbrev.debug_addr.debug_aranges.debug_info.debug_line.debug_line_str.debug_loc.debug_loclists.debug_macinfo.debug_macro.debug_ranges.debug_rnglists.debug_str.debug_str_offsets.debug_typesinvalid port valueinvalid socket addressConnectionRefusedConnectionResetHostUnreachableNetworkUnreachableConnectionAbortedNotConnectedAddrInUseNetworkDownBrokenPipeAlreadyExistsNotADirectoryIsADirectoryDirectoryNotEmptyReadOnlyFilesystemFilesystemLoopStaleNetworkFileHandleInvalidInputInvalidDataWriteZeroStorageFullNotSeekableQuotaExceededFileTooLargeResourceBusyExecutableFileBusyCrossesDevicesTooManyLinksInvalidFilenameArgumentListTooLongInterruptedUnsupportedUnexpectedEofOutOfMemoryInProgressOtherUncategorizedAccessErrorOkErrcannot panic during the backtrace functionoverflow when adding duration to instantoverflow when subtracting duration from instant
+assertion failed: out_pos + 3 < out_slice.len()assertion failed: (source_pos + 3) & out_buf_size_mask < out_slice.len()assertion failed: out_pos + 1 < out_slice.len()assertion failed: (source_pos + 1) & out_buf_size_mask < out_slice.len()assertion failed: out_pos + 2 < out_slice.len()assertion failed: (source_pos + 2) & out_buf_size_mask < out_slice.len()dest is out of boundsUnknown errnoOperation not permittedNo such file or directoryNo such processInterrupted system callI/O errorNo such device or addressArgument list too longExec format errorBad file numberNo child processesTry againOut of memoryPermission deniedBad addressBlock device requiredDevice or resource busyFile existsCross-device linkNo such deviceNot a directoryIs a directoryFile table overflowToo many open filesText file busyFile too largeNo space left on deviceIllegal seekRead-only file systemToo many linksBroken pipeMath argument out of domain of funcMath result not representableResource deadlock would occurFile name too longNo record locks availableFunction not implementedDirectory not emptyToo many symbolic links encounteredNo message of desired typeIdentifier removedChannel number out of rangeLevel 2 not synchronizedLevel 3 haltedLevel 3 resetLink number out of rangeProtocol driver not attachedNo CSI structure availableLevel 2 haltedInvalid request descriptorExchange fullInvalid request codeInvalid slotBad font file formatDevice not a streamNo data availableTimer expiredOut of streams resourcesMachine is not on the networkPackage not installedLink has been severedAdvertise errorSrmount errorCommunication error on sendProtocol errorMultihop attemptedRFS specific errorNot a data messageValue too large for defined data typeName not unique on networkFile descriptor in bad stateRemote address changedCan not access a needed shared libraryAccessing a corrupted shared library.lib section in a.out corruptedAttempting to link in too many shared librariesCannot exec a shared library directlyIllegal byte sequenceInterrupted system call should be restartedStreams pipe errorToo many usersSocket operation on non-socketDestination address requiredProtocol wrong type for socketProtocol not availableProtocol not supportedSocket type not supportedOperation not supported on transport endpointProtocol family not supportedAddress family not supported by protocolAddress already in useCannot assign requested addressNetwork is downNetwork is unreachableNetwork dropped connection because of resetConnection reset by peerNo buffer space availableTransport endpoint is already connectedTransport endpoint is not connectedCannot send after transport endpoint shutdownToo many references: cannot spliceConnection timed outConnection refusedHost is downOperation already in progressOperation now in progressStale file handleStructure needs cleaningNot a XENIX named type fileNo XENIX semaphores availableIs a named type fileQuota exceededNo medium foundWrong medium typeOperation canceledRequired key not availableKey has expiredKey has been revokedKey was rejected by serviceOwner diedState not recoverableOperation not possible due to RF-killMemory page has hardware errorUnknownErrnoEPERMENOENTESRCHEINTREIOENXIOE2BIGENOEXECEBADFECHILDEAGAINENOMEMEACCESEFAULTENOTBLKEBUSYEEXISTEXDEVENODEVENOTDIREISDIREINVALENFILEEMFILEENOTTYETXTBSYEFBIGENOSPCESPIPEEROFSEMLINKEPIPEERANGEEDEADLKENAMETOOLONGENOLCKENOSYSENOTEMPTYELOOPENOMSGEIDRMECHRNGEL3HLTEL3RSTELNRNGEUNATCHENOCSIEL2HLTEBADEEBADREXFULLENOANOEBADRQCEBADSLTEBFONTENOSTRENODATAETIMEENOSRENONETENOPKGEREMOTEENOLINKESRMNTECOMMEPROTOEMULTIHOPEDOTDOTEBADMSGEOVERFLOWEBADFDEREMCHGELIBACCELIBBADELIBSCNELIBMAXEILSEQEUSERSEDESTADDRREQEPROTOTYPEENOPROTOOPTEPROTONOSUPPORTESOCKTNOSUPPORTEOPNOTSUPPEPFNOSUPPORTEAFNOSUPPORTEADDRINUSEEADDRNOTAVAILENETUNREACHENETRESETECONNABORTEDECONNRESETENOBUFSEISCONNESHUTDOWNETOOMANYREFSETIMEDOUTECONNREFUSEDEHOSTDOWNEHOSTUNREACHEINPROGRESSESTALEEUCLEANENOTNAMENAVAILEISNAMEREMOTEIOEDQUOTENOMEDIUMEMEDIUMTYPEECANCELEDENOKEYEKEYEXPIREDEKEYREVOKEDEKEYREJECTEDEOWNERDEADENOTRECOVERABLEERFKILLEHWPOISONassertion failed: continued(status)internal error: entered unreachable code: suffix match plus reverse match implies there must be a matchinternal error: entered unreachable code: ReverseInner always has a DFAinternal error: entered unreachable code: ReverseSuffix always has a DFAinternal error: entered unreachable code: ReverseAnchored always has a DFAreverse search must match if forward search doesnfarevpikevmRegexInfoHybridOnePassPregroup_infoReverseInnerReverseSuffixReverseHybridGroupInfoErrorReverseAnchoredshould find a matchmultiple epsilon transitions to same stateinvalid StateID valuematch states should be a proper subset of all statesassertion failed: self.dfa.starts.is_empty()assertion failed: self.dfa.starts.len() == pid.one_more()conflicting transitionmultiple epsilon transitions to match statetoo many explicit capturing groups (max is 16)onepass::DFA(
+assertion failed: self.inner.semaphore.is_idle()
+assertion failed: !self.ranges[a].is_intersection_empty(&other.ranges[b])assertion failed: !self.ranges.is_empty()IntervalSetrangesfolded (exhausted)FromUtf8ErrorbytesUtf8Errorvalid_up_toerror_len0stri8i16i32i64isizeu8u16u64usizef32f64!_...[]{recursion limit reached}?::::{closure:#}<>& *const ; (,) + Cunsafe " -fn(false{ {  }:  = 0x`fmt::Error`s should be impossible without a `fmt::Formatter`'> ..= | !null.llvm.{size limit reached}`fmt::Error` from `SizeLimitedFmtAdapter` was discardedpunycode{EmptyInvalidDigitPosOverflowNegOverflowParseIntErrorSizeLimitExhausted@.assertion failed: result.len() <= CONDITION_MAX_LEN as usizeCannot install empty filter.The condition vector of a rule cannot be empty.`match_action` and `mismatch_action` are equal.
+assertion failed: seq1.len().map_or(true, |x| x <= self.limit_total)internal error: entered unreachable code: expected expr or alt, got Unicode classinternal error: entered unreachable code: expected expr or alt, got byte classinternal error: entered unreachable code: expected expr or alt, got repetitioninternal error: entered unreachable code: expected expr or alt, got groupinternal error: entered unreachable code: expected expr or alt, got concat markerinternal error: entered unreachable code: expected expr or alt, got alt branch markerinternal error: entered unreachable code: expected expr or concat, got Unicode classinternal error: entered unreachable code: expected expr or concat, got byte classinternal error: entered unreachable code: expected expr or concat, got repetitioninternal error: entered unreachable code: expected expr or concat, got groupinternal error: entered unreachable code: expected expr or concat, got alt markerinternal error: entered unreachable code: expected expr or concat, got alt branch markerassertion failed: !self.flags().unicode()assertion failed: self.flags().unicode()09AZaz
+Assertion failed: %s (%s: %s: %d)
+authority_form with relative uriinvalid transfer-encoding parsedaccess-control-allow-credentials
+authority implies hosturi host is valid header valueassertion failed: self.has_capacity()chunk not fully encodednot implementedfailed to write frame to socketmutex poisonedreceived unexpected shutdown pingunexpected EOF during chunk size lineInvalid chunk size line: missing size digitinvalid chunk size: overflowInvalid chunk end LFInvalid chunk body CRInvalid chunk body LFInvalid chunk size LFInvalid chunk size linear white spaceinvalid chunk extension contains newlinechunk extensions over limitInvalid trailer end LFInvalid chunk size line: Invalid Size
+Backend error: 
+BCRITICAL: Landlock ruleset only partially enforced (effective ABI 
+bdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdbdinternal error: entered unreachable code: `to_long` always has the flag specified
+Blackhole file 
+blackholesandbox: /dev does not exist, skipping device restrictions
+;Bubblewrap backend requested but no root-owned executable '
+. Bubblewrap error: 
+)Bubblewrap inner network seccomp failed: 
+"Bubblewrap loopback setup failed: 
+#Bubblewrap namespace setup failed: 
+!Bubblewrap pre-discovery failed: 
++Bubblewrap preflight failed with exit code 
+BUG: stack should be non-emptyBUG: called is_same_file_system without root deviceBUG: list/path stacks out of syncdescription() is deprecated; use DisplayErrordepthinnerfile system loop foundIoerrchildmid > len
+ bytes failed
+bytes remaining on streamFatal internal error. Please consider filing a bug report at https://github.com/clap-rs/clap/issuespolled after errorrequest has been canceledassertion failed: Pin::new(&mut rx).poll(cx).is_pending()interval assumes timeoutvalue already sentALPN upgraded to HTTP/2not dropped/dev/nullError: Failed to get proxy forwarder pipe flags
+called after completeThe Tokio context thread-local variable has been destroyed.reached max `enter` depththere is no reactor running, must be called from the context of a Tokio 1.x runtimequeue not emptyinner should already be initialized by `self.reset()`Timer already firedmark_pending called when the timer entry is in an invalid stateexplicit panicassertion failed: actual_state == EMPTY || actual_state == NOTIFIED
+**/*.code-workspace.cursorignore**/.git/configattributesconfig.worktree/etc/ssl/cert.pem/etc/ssl/certs/ca-certificates.crt/etc/ssl/ca-bundle.pem/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pemNetwork unreachabletcp connect errorUnshareErrorLandlockErrorSeccompErrorIoErrorMountLimitExceeded`len` greater than remainingsend stream capacity unexpectedly closedMap must not be polled after it returned `Poll::Ready`Upgrade expects h1invalid framewasn't expecting a frame to reclaimassertion failed: DEFAULT_MAX_FRAME_SIZE as usize <= val && val <= MAX_MAX_FRAME_SIZE as usizeinvalid SETTINGS frameassertion failed: size <= proto::MAX_WINDOW_SIZEconnection was not readydispatch dropped without returning errorupgrade_h2 with Fallback::Http1Onlyh2 cannot into_innerHandshaking::poll() called again after handshaking was completeconnection closed before reading prefacePRI * HTTP/2.0
+connectiH
+Connection aborted
+connection error detected: 
+connection error received: 
+connection error sent by user: 
+Connection refused
+Connection reset by network
+Connection reset by peer
+Content-Typetext/plainBlocked by sandbox network policy
+could not resolve to any addressesHTTP/2 connection in progressenvelope not droppeda spawned task panicked and the runtime is configured to shut down on unhandled paniccannot poll Select twiceslim128slim256SlimSSSE3FatAVX2fat256patterns longer than SmallIndex::MAX are not allowedstate must not be dense yetassertion failed: old_start_uid < old_start_aidanchored start state should be at index 3noncontiguous::NFA(
+*CRITICAL: Failed to add optional rule for 
+current header nametransfer-encoding: OPTIONSGETPUTDELETETRACECONNECTPATCHHTTP/1.1 200 OK
+CURSOR_SANDBOX_LINUX_BACKENDsandbox: bubblewrap inner applying dangerous syscall seccomp
+debugeventtimestampsession_idsbx_debugfull_policylinux_backendlinux_backend_errordecision.logurlhost_hashresolved_ipsmatched_rulematched_rule_hashdeny_listallow_listdefault_denydefault_allowpolicy_invalidunsupported_protocolwrite zero byte into writer
+decisionH1
+ denied by policy
+dense(impmemory_usageminimum_lenStateIDErrorassertion failed: self.parser().octalassertion failed: '0' <= self.char() && self.char() <= '7'valid octal numberUnicode scalar valueassertion failed: self.bump_if("&&")assertion failed: self.bump_if("--")assertion failed: self.bump_if("~~")!=assertion failed: self.char() == 'p' || self.char() == 'P'parser can only be used onceno open character class foundassertion failed: self.char() == '{'assertion failed: self.char() == '?' || self.char() == '*' || self.char() == '+'assertion failed: self.char() == 'x' || self.char() == 'u' || self.char() == 'U'unexpected empty character class stackunexpected ClassState::Opassertion failed: add_lower || add_upperStartEndStartLFEndLFStartCRLFEndCRLFWordAsciiWordAsciiNegateWordUnicodeWordUnicodeNegateWordStartAsciiWordEndAsciiWordEndUnicodeWordStartHalfAsciiWordStartHalfUnicodeWordEndHalfUnicodeCaptureindexsubClass
+>deny
+@/denyH
+deny listnot on allow listallowed by defaultpolicy invalidunsupported protocolinvalid IPv6 hostmissing host headerproxy startup handshake failedfailed to spawn thread--run-proxy--policy-jsonproxy startup timeoutproxy stdout unavailableexpected completed futuresandbox: failed to write network decision log entry
+, deny_rules=
+?denyu#
+/dev/zero/dev/randomsandbox: landlock: calling restrict_self() to enforce rules
+--die-with-parentCURSOR_SANDBOXnativeCURSOR_SANDBOX_LANDLOCK_STATUSbubblewrap--run-linux-inner--linux-network-mode--forwarder-socket--forwarder-socks-socket--forwarder-http-port--forwarder-socks-portBubblewrap backend requested but PATH is not set/usr/bin/newuidmap/usr/bin/newgidmapsandbox: newuidmap/newgidmap not found, using setgroups deny method
+Dinternal error: entered unreachable code: write_body invalid state: 
+D *    (MW)SN/Aassertion failed: self.state.uncompiled[last].last.is_none()non-empty nodesassertion failed: prefix_len < ranges.len()assertion failed: self.state.uncompiled[0].last.is_none()assertion failed: !ranges.is_empty()too many sequences added to range triePropertiesEOIDFAEngineReverseDFAByteClasses({singletons})ByteClasses(HybridEnginePikeVMEngineOnePassEngineReverseHybridEngineBoundedBacktrackerEngineassertion failed: stack.is_empty()expected number of patterns to match pattern IDmaximum_lenlook_set_prefixlook_set_suffixlook_set_prefix_anylook_set_suffix_anyexplicit_captures_lenstatic_explicit_captures_lenliteralalternation_literalPropertiesIutf8_emptyautoprewhich_capturesnfa_size_limitonepass_size_limithybrid_cache_capacityhybriddfadfa_size_limitdfa_state_limitonepassbacktrackline_terminatorby_idordertotal_pattern_bytesRegexInfoIpropsprops_unionInvalidInputAnchoredInvalidInputUnanchoredUnsupportedStreamgotUnsupportedOverlappingoffsetGaveUpHaystackTooLonglenUnsupportedAnchoredGroupInfoInnerslot_rangesname_to_indexindex_to_namememory_extramust call 'start_pattern' firstinvalid capture indexa small enough slotcannot patch from a sparse NFA stateFinderneedlebyte slice lengths must be less than usize MAXslot table length doesn't overflowPatternSet should have sufficient capacityNoYesPatternAllerror building NFAStateIDunanchored searches are not supported or enabledanchored searches are not supported or enabledPatternIDSmallIndexPikeVMPatternIDErrorPatternSetInsertErrorUnicodeWordBoundaryErrorBoundedBacktrackerattempt to join into collection with len > usize::MAXrabinkarpsearch_kindTeddyRabinKarpbucketshash_2powPrefilteris_fastmax_needle_lenanchored_acMemchrMemmemfinderMemchr2Memchr3AhoCorasickac
+Domain error
+Dsandbox: creating namespaces (setgroups deny mode, network_isolated=
+en errorI
+EPERM - Operation not permittedEINVAL - Invalid argumentEFAULT - Bad addressUnknown errorCURSOR_SANDBOX_MOUNT_CAPsandbox: applying device restrictions
+ERR missing_policy
+error:
+Error(
+Error: 
+Error calling `prctl`: 
+Error calling `seccomp`: 
+ Error: Failed to apply sandbox: 
+.Error: Failed to create proxy forwarder pipe: 
+'Error: Failed to fork proxy forwarder: 
++Error: Failed to read from forwarder pipe: 
+"Error: Failed to read policy file 
+Error: Failed to set proxy forwarder pipe non-blocking
+&Error: Failed to start network proxy: 
+Error: Failed to start proxy: 
+Error: Forwarder closed pipe without signaling ready
+-Error: Forwarder did not signal ready within 
+Error: --forwarder-http-port is required in socket forwarder mode
+Error: --forwarder-socket is required in socket forwarder mode
+error parsing glob '
+error parsing pattern 
+Error: --policy is required
+Error: --policy-json is required in proxy mode
+ Error: Socket forwarder failed: 
+Exec format error
+) failed: 
+failed printing to 
+failed to access request headerscould not resolve to any address/etc/pki/tls/certs/ca-bundle.crtassertion failed: idx < CAPACITYreset_at must be set if in queuesplit always has at least 1 itemparsing should validate brackets
+failed to add a rule: 
+Failed to add rule for 
+)failed to allocate an alternative stack: 
+Failed to apply filter: 
+Failed to apply Landlock: 
+"failed to apply landlock sandbox: 
+Failed to apply seccomp: 
+Failed to bind blackhole to 
+"Failed to bind SOCKS UNIX socket: 
+Failed to bind UNIX socket: 
+&failed to check file descriptor type: 
+/Failed to clean up partial blackhole directory 
+Failed to compile filter: 
+failed to connect to 
+Failed to connect to target: 
+!Failed to connect to UNIX socket 
+failed to create a ruleset: 
+,Failed to create Bubblewrap preflight pipe: 
+Failed to create done pipe: 
+*Failed to create Landlock preflight pipe: 
+Failed to create ready pipe: 
+failed to create UnixStreamfatal runtime error: thread result panicked on drop, aborting
+.Failed to drop capabilities via capset: errno 
+<Failed to drop CAP_DAC_READ_SEARCH from bounding set: errno 
+Failed to exec 
+&Failed to execute Bubblewrap sandbox: 
++Failed to fork Bubblewrap preflight child: 
+Failed to fork helper process: 
+)Failed to fork Landlock preflight child: 
+Failed to hide directory 
+failed to join thread: 
+&failed to lookup address information: 
+-Failed to make blackhole directory read-only 
+Failed to mount 
+Failed to mount CWD 
+Failed to mount symlink target 
+.Failed to mount tmpfs for blackhole directory 
+failed to open "
+Failed to open path 
+Failed to recreate ruleset: 
+)failed to resolve linux sandbox backend: 
+Failed to restrict self: 
+'failed to restrict the calling thread: 
+failed to set no_new_privs: 
+"Failed to set no_new_privs: errno 
+;Failed to setresgid(0,0,0): Operation not permitted (errno 
+;Failed to setresuid(0,0,0): Operation not permitted (errno 
+/failed to set up alternative stack guard page: 
+Failed to signal helper child: 
+failed to start network proxy: 
+Failed to unshare namespaces: 
+/Failed to wait for Bubblewrap preflight child: 
+!Failed to wait for helper child: 
+-Failed to wait for Landlock preflight child: 
+failed to wake I/O driverassertion failed: !handle.is_shutdown()RUST_MIN_STACKthreads should not terminate unexpectedlyTOKIO_WORKER_THREADSFailed to register signal handler
+fatal runtime error: assertion failed: key as usize != KEY_SENTVAL, aborting
+fatal runtime error: current thread handle already set during thread spawn, aborting
+fatal runtime error: drop of the panic payload panicked, aborting
+@fatal runtime error: failed to communicate with parent process. 
+fatal runtime error: out of TLS keys, aborting
+fatal runtime error: Rust cannot catch foreign exceptions, aborting
+FORWARDER_READYsandbox: warning - proxy without UNIX socket; network isolation may not be enforced
+fully_enforcedsandbox: landlock: filesystem write restrictions are now ACTIVE
+gai background task failed: 
+G bytes failed
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clap_builder-4.5.58/src/error/format.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clap_builder-4.5.58/src/parser/error.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/h2-0.3.27/src/proto/connection.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hyper-0.14.32/src/client/connect/dns.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hyper-0.14.32/src/client/connect/http.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hyper-0.14.32/src/error.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ipnetwork-0.20.0/src/common.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-automata-0.4.14/src/meta/error.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/seccompiler-0.4.0/src/backend/condition.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/seccompiler-0.4.0/src/backend/filter.rs
+/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.149/src/error.rs
+Helper child failed to set up UID/GID mappings/proc/self/setgroups/proc/self/uid_map/proc/self/gid_mapCURSOR_SANDBOX_SESSION_IDPidfailed to park threadFailed to `Enter::block_on`SIGHUPSIGINTSIGQUITSIGILLSIGTRAPSIGABRTSIGBUSSIGFPESIGKILLSIGUSR1SIGSEGVSIGUSR2SIGPIPESIGALRMSIGTERMSIGSTKFLTSIGCHLDSIGCONTSIGSTOPSIGTSTPSIGTTINSIGTTOUSIGURGSIGXCPUSIGXFSZSIGVTALRMSIGPROFSIGIOSIGPWRSIGSYSExitedStoppedPtraceEventPtraceSyscallContinuedStillAlive`Ready` polled after completion
+Hinternal error: entered unreachable code: poll_read_body invalid state: 
+i1"A             at .debug_macro.dwo.debug_types.dwoentity not foundconnection resethost unreachableno storage spaceinvalid filenameinvalid argumentcpu.cfs_quota_usPermissionDeniedAddrNotAvailableStripPrefixErrorsignal too large
+inconsistent state in unparkassertion failed: fd >= 0assertion failed: sharded_size.is_power_of_two()A Tokio 1.x context was found, but it is being shutdown.num_idle_threads underflowed on thread exitassertion failed: shared.shutdown_tx.is_some()Cannot drop a runtime in a context where blocking is not allowed. This happens when a runtime is dropped from within an asynchronous context.[internal exception] blocking task ran twice.signal sender went awayinternal error: entered unreachable code: unexpected stagewaker missingtask was cancelledtask panickedsignal driver goneIdRecvErrorCannot start a runtime from within a runtime. This happens because a function (like `block_on`) attempted to block the current thread while the thread is being used to drive asynchronous tasks.`EnterGuard` values dropped out of order. Guards returned by `tokio::runtime::Handle::enter()` must be dropped in the reverse order as they were acquired.assertion failed: c.runtime.get().is_entered()early eof`period` must be non-zero.too much time has elapsed since the interval was supposed to tickRNG seed generator is internally corruptpark missingTryFromIntErrorJoinHandle polled after completionassertion failed: snapshot.is_complete()assertion failed: curr.is_join_interested()assertion failed: curr.is_join_waker_set()assertion failed: prev.ref_count() >= 2assertion failed: !curr.is_join_waker_set()assertion failed: curr.is_running()assertion failed: next.is_notified()assertion failed: prev.is_running()assertion failed: !prev.is_complete()assertion failed: prev.is_complete()assertion failed: prev.is_join_waker_set()assertion failed: snapshot.ref_count() > 0assertion failed: snapshot.is_join_interested()assertion failed: prev.ref_count() >= 1assertion failed: self.ref_count() > 0assertion failed: self.0 <= isize::MAX as usizea formatting trait implementation returned an error when the underlying stream did notfilled must not become larger than initializedfilled overflowthe timer is shutdown, must be called from the context of Tokio runtimetimer is at capacity and cannot create a new entrytimer duration exceeds maximum durationdeadline has elapsedinternal error: entered unreachable code()assertion failed: self.tail.is_none()A Tokio 1.x context was found, but IO is disabled. Call `enable_io` on the runtime builder to enable IO.A Tokio 1.x context was found, but timers are disabled. Call `enable_time` on the runtime builder to enable timers.there is no signal driver running, must be called from the context of Tokio runtimetokio-runtime-workerexpected MultiThread schedulerOh no! We never placed the Core back, this is a bug!driver missingcore missingassertion failed: handle.shared.owned.is_empty()not a CurrentThread handleexpected `MultiThread::Context`expected `CurrentThread::Context`frame size too bigprovided length would overflow after adjustmentLengthDelimitedCodecErrorPoisonErrorcalled `Result::unwrap()` on an `Err` valueArc counter overflowfailed to write whole bufferfatal runtime error: thread local panicked on drop, aborting
+*internal error: entered unreachable code: 
+@internal error: entered unreachable code: expected literal, got 
+internal error: entered unreachable code: the thread info setup logic isn't recursivefatal runtime error: stack overflow, aborting
+InvalidHeaderNameinvalid HTTP header nameinvalid uri characterinvalid schemeinvalid authorityinvalid portinvalid formatscheme missingauthority missingpath missinguri too longempty stringscheme too longSwitching ProtocolsProcessingOKCreatedNon Authoritative InformationNo ContentReset ContentPartial ContentMulti-StatusIM UsedMoved PermanentlyFoundSee OtherNot ModifiedUse ProxyTemporary RedirectPermanent RedirectBad RequestUnauthorizedForbiddenNot FoundMethod Not AllowedNot AcceptableProxy Authentication RequiredRequest TimeoutLength RequiredPrecondition FailedPayload Too LargeURI Too LongUnsupported Media TypeRange Not SatisfiableExpectation FailedI'm a teapotMisdirected RequestUnprocessable EntityLockedFailed DependencyPrecondition RequiredToo Many RequestsRequest Header Fields Too LargeUnavailable For Legal ReasonsInternal Server ErrorNot ImplementedBad GatewayService UnavailableGateway TimeoutHTTP Version Not SupportedVariant Also NegotiatesInsufficient StorageLoop DetectedNot ExtendedNetwork Authentication Requiredhttp::ErrorInvalidMethodinvalid HTTP methodInvalidStatusCodeinvalid status code
+invalid timestampinternal error: entered unreachable code: waitid with WEXITED should not return NoneOnce instance has previously been poisonedtoo many active read locks on RwLockassertion failed: is_unlocked(state)failed to generate random data/dev/urandomthe number of hardware threads is not known for the target platforminvalid stack size/proc/self/mountinfo/proc/self/cgroupcpu.cfs_period_us/sys/fs/cgroup/cpu/sys/fs/cgroup/cpu,cpuacct/sys/fs/cgroupcgroup.controllersfile name contained an unexpected NUL byteinternal error: entered unreachable code: waitid() should only return the above codessanity checkpidfd_spawnp succeeded but the child's PID could not be obtainednul byte found in provided datafatal runtime error: assertion failed: output.write(&bytes).is_ok(), aborting
+I/O error
+IO error: 
+IO error for operation on 
+Jinternal error: entered unreachable code: expected literal or concat, got 
+JoinError::Cancelled(
+JoinError::Panic(
+JStep 3/7 (remount / as MS_PRIVATE) failed: Operation not permitted (errno 
+JThe seccomp rule contains an invalid argument index. Maximum index value: 
+keep-aliveToStrError_privChunkedLengthCloseDelimitedKeepAliveClosedEncoderis_lastruntime dropped the dispatch taskuser code panickedconnection closedCHUNK_SIZE_MAX_BYTES should fit any usizechunkedoriginal header value plus ascii is validsize overflows MAX_SIZE&mut [u8].write() cannot error~
+landlockI9
+Landlock preflight failedBubblewrap preflight failedCURSOR_ORIG_UIDCURSOR_ORIG_GIDsandbox: landlock: ruleset created successfully (V3 required)
+landlockprotocol
+:Landlock V3 filesystem restrictions not supported. Error: 
+libunwind: _lock.lock() failed in %s
+libunwind: _lock.lock_shared() failed in %s
+libunwind: _lock.unlock() failed in %s
+libunwind: _lock.unlock_shared() failed in %s
+libunwind: unwind_phase1(ex_obj=%p): __unw_get_proc_info failed => _URC_FATAL_PHASE1_ERROR
+libunwind: unwind_phase1(ex_obj=%p): __unw_step failed => _URC_FATAL_PHASE1_ERROR
+libunwind: unwind_phase1(ex_obj=%p): __unw_step() reached bottom => _URC_END_OF_STACK
+libunwind: unwind_phase1(ex_obj=%p): _URC_FATAL_PHASE1_ERROR
+libunwind: unwind_phase2(ex_obj=%p): __unw_get_proc_info failed => _URC_FATAL_PHASE1_ERROR
+libunwind: unwind_phase2(ex_obj=%p): __unw_step_stage2 failed => _URC_FATAL_PHASE1_ERROR
+libunwind: unwind_phase2(ex_obj=%p): __unw_step_stage2() reached bottom => _URC_END_OF_STACK
+libunwind: unwind_phase2_forced(ex_obj=%p): personality returned %d, _URC_FATAL_PHASE2_ERROR
+libunwind: unwind_phase2_forced(ex_obj=%p): __unw_get_proc_info failed => _URC_END_OF_STACK
+libunwind: __unw_step(cursor=%p)
+libunwind: __unw_step_stage2(cursor=%p)
+loopback: failed RTM_NEWADDR: 
+loopback: failed RTM_NEWLINK: 
+MCRITICAL: Landlock V3 not supported. Cannot apply write restrictions. Error: 
+Missing CONNECT authorityconnectInitiator::User should not error sending resetconnection closed because of a broken pipeassertion failed: sz <= super::MAX_WINDOW_SIZE as usize
+MonTueWedThuFriSatSunJanFebMarAprMayJunJulAugSepOctNovDec   , 00     0000 00:00:00 GMTSystemTimeErrorall times should be after the epochdate must be before year 9999BodyLength::Unknown would set chunkedcontent-length: 0
+Mount count limit reached (
+	 mounts)
+, mount_setattr errno: 
+ mounts_total=
+" must be usize, error: 
+ " must be valid unicode, error: 
+must specify at least one of read, write, or append accesscreating or truncating a file requires write or append accessstrerror_r failureassertion failed: len >= size_of::<c::sockaddr_in>()assertion failed: len >= size_of::<c::sockaddr_in6>()deadlock in SIGSEGV handlerfatal runtime error: a thread received SIGSEGV while modifying its stack overflow information, aborting
+netlink: pid mismatchnetlink: sequence number mismatchloopback: failed to look up lo interfaceloopback: failed to bind NETLINK_ROUTE socketloopback: failed to create NETLINK_ROUTE socketCURSOR_RIPGREP_PATH/usr/bin/rg/usr/local/bin/rg/home/linuxbrew/.linuxbrew/bin/rg127.0.0.1__CURSOR_SANDBOX_ENV_RESTORE://*.unsupported wildcard patterninvalid wildcard patternempty domain patternIgnore::add_parents called on non-root matcherinternal error: entered unreachable code: invalid Once state
+networkAH1
+networkAH3
+Network is down
+ network_mode=
+networkPH1
+network policy provided while sandbox network_access=falsepolicy pathinternal error: entered unreachable code: auto is resolved before dispatchError: --linux-network-mode is required in Linux inner mode
+!network proxy started (http_port=
+Network unreachable
+No error information
+Non-recoverable error
+no /proc/self/exe available. Is /proc mounted?fatal runtime error: assertion failed: signal(libc::SIGPIPE, handler) != libc::SIG_ERR, aborting
+no_proxyI
+NO_PROXYI
+ (os error 
+packages/sandbox-helper/native/sandbox/src/linux/mod.rs
+packages/sandbox-helper/native/sandbox/src/linux/mount.rs
+packages/sandbox-helper/native/sandbox/src/linux/planning.rs
+packages/sandbox-helper/native/sandbox/src/main.rs
+packages/sandbox-helper/native/sandbox/src/network/forwarder.rs
+packages/sandbox-helper/native/sandbox/src/network/logging.rs
+packages/sandbox-helper/native/sandbox/src/network/matcher.rs
+packages/sandbox-helper/native/sandbox/src/network/proxy.rs
+packages/sandbox-helper/native/sandbox/src/network/socks.rs
+packages/sandbox-helper/native/sandbox/src/network/util.rs
+partially_enforcedCRITICAL: Landlock ruleset was NOT enforced! This means filesystem write restrictions are NOT active. The kernel may not support Landlock or there was a configuration issue.not_enforcedinternally tagged enum SandboxPolicySandboxPolicyInsecureNonejsonlstruct PolicyFilestruct variant SandboxPolicy::WorkspaceReadonlystruct variant SandboxPolicy::WorkspaceReadwritecwdadditionalReadonlyPathsnetworkAccessignoreMappingadditionalReadwritePathsdisableTmpWriteblockGitWritesstruct variant SandboxPolicy::WorkspaceReadonly with 4 elementsstruct variant SandboxPolicy::WorkspaceReadwrite with 7 elementsvariant identifierinsecure_noneworkspace_readwriteworkspace_readonlystruct LoggingConfigstruct NetworkPolicyV1V2V3V4V5V6NotEnabledNotImplementedAvailableeffective_abikernel_abiFullyEnforcedPartiallyEnforcedNotEnforcedRestrictionStatusrulesetno_new_privsullrueMapAccess::next_value called before next_key
+--policyH
+--policyI
+policy parse error (
+policy strict disabled; falling back to direct network accesssandbox: policy strict enabled; network access disabled
+policy strict enabled; forcing network mode to denysandbox: network policy provided but network_access is false
+policy validation error (
+polling StreamFuture twiceSBX_DEBUGbwrapnetworkPolicyloggingdecisionLogPathError: No command specified to execute
+--preflight-onlyFORWARDER_READY
+protocol error: 
+Protocol error
+proxy-coH1
+proxy io error: 
+proxy policy error: 
+proxy request error: 
+proxysandboxnetworkPolicyStrictstruct PolicyFile with 3 elementslogFormatversiondefaultClipolicypolicy_jsonrun_proxyrun_socket_forwarderforwarder_socks_socketforwarder_http_portforwarder_socks_portrun_linux_innerlinux_network_modecommandpreflight_onlyPOLICYPath to the unified policy file (JSON). The file contains the sandbox filesystem policy, optional network filtering policy, and the network-strict flagPOLICY_JSONNetwork policy as inline JSON string (internal, used by --run-proxy)policy-jsonRUN_PROXYRun in proxy-only mode (internal)run-proxyRUN_SOCKET_FORWARDERRun as socket forwarder (internal, runs inside sandbox)run-socket-forwarderUNIX socket path to forward to (for socket forwarder mode)FORWARDER_SOCKS_SOCKETUNIX SOCKS socket path to forward to (for socket forwarder mode)forwarder-socks-socketFORWARDER_HTTP_PORTHTTP port to listen on inside sandbox (for socket forwarder mode)forwarder-http-portFORWARDER_SOCKS_PORTSOCKS port to listen on inside sandbox (for socket forwarder mode)forwarder-socks-portRUN_LINUX_INNERRun as the Bubblewrap inner helper stage (internal)run-linux-innerLINUX_NETWORK_MODELinux network mode for the inner helper stage (internal)linux-network-modeCOMMANDCommand to execute under sandbox (everything after --)PREFLIGHT_ONLYOnly perform sandbox preflight (no exec); exits 0 on success, 2 if unsupportedpreflight-onlySandboxing helper for Everysphere shell-execcursorsandboxthe following required argument was not provided: run_proxythe following required argument was not provided: run_socket_forwarderthe following required argument was not provided: run_linux_innerthe following required argument was not provided: preflight_only
+proxy server ready (http_port=
+"proxy server starting (session_id=
+proxy startup failed: 
+PS_PROXYH
+Qinternal error: entered unreachable code: found impossible error in meta engine: 
+randomurandomttymode=755,size=64kstdin/proc/self/fd/0/proc/self/fd/1/proc/self/fd/2fd/proc/self/fdptsshm.vscode.cursorrulesworktreesskillsagentshooks--files--no-ignore--no-ignore-vcs--no-config--color=never--max-depth6-g**/.git/HEADsandbox: pre-discovering files before namespace creation
+reasongzip, deflate/index.htmlcannot resolve indexOut of bounds access:authority:method:scheme:path:protocol:statusassertion failed: max <= std::u32::MAX as usizeassertion failed: !id.is_zero()assertion failed: self.pending_ping.is_none()assertion failed: self.pending_pong.is_none()pending_ping should be for shutdownassertion failed: slot.next.is_none()inactive streamunexpected frame typepayload too bigrelease capacity too bigstream ID overflowedmalformed headersrequest URI missing scheme and authoritypoll_reset after send_response is illegalsend_ping before received previous pongsending SETTINGS before received previous ACKsending PUSH_PROMISE to peer who disabled server pushPROTOCOL_ERRORINTERNAL_ERRORFLOW_CONTROL_ERRORSTREAM_CLOSEDREFUSED_STREAMCANCELCOMPRESSION_ERRORCONNECT_ERRORENHANCE_YOUR_CALMINADEQUATE_SECURITYHTTP_1_1_REQUIREDnot a result of an errorunspecific protocol error detectedunexpected internal error encounteredflow-control protocol violatedsettings ACK not received in timely mannerreceived frame when stream half-closedframe with invalid sizerefused stream before processing any application logicstream no longer neededunable to maintain the header compression contextconnection established in response to a CONNECT request was reset or abnormally closeddetected excessive load generating behaviorsecurity properties do not meet minimum requirementsendpoint requires HTTP/1.1unknown reasonassertion failed: cnt <= self.limitstream closed because of a broken pipeAwaitingHeadersStreamingEndStreamScheduledLibraryResetReservedLocalReservedRemotelocalremoteHalfClosedLocalassertion failed: DEFAULT_MAX_FRAME_SIZE <= val && val <= MAX_MAX_FRAME_SIZEassertion failed: !header.is_sensitive()encoding header without name, but no previous index to use for nameassertion failed: self.window_size.0 >= sz as i32negative WindowStreamRef::drop; mutex poisonedinvalid keyHash table capacity overflowfailed to convert header to a strInvalidHeaderValuefailed to parse header value
+reentrant initoverflow in Duration::newWouldBlockassertion failed: edge.height == self.height - 1internal error: entered unreachable code: empty internal nodeassertion failed: self.height > 0assertion failed: src.len() == dst.len()assertion failed: old_right_len + count <= CAPACITYassertion failed: old_left_len >= countassertion failed: old_left_len + count <= CAPACITYassertion failed: old_right_len >= countassertion failed: match track_edge_idx {
+/. Refusing to continue with writable blackhole.
+Remote I/O error
+remount /dev with nodev: 
+. remount error: 
+ right` failed
+ right` failed: 
+ripgrep exec failed (binary: 
+"ripgrep execution failed (binary: 
+ripgrep failed with exit code 
+rkPolicyH1
+RUST_BACKTRACEfailed to generate unique thread ID: bitspace exhaustedtoo many running threads in thread scopeuse of std::thread::current() is not possible after the thread's local data has been destroyedfatal runtime error: init_current() was re-entrant, which indicates a bug in the Rust threading implementation, aborting
+/rustc/e408947bfd200af42db322daf0fadfe7e26d3bd1/library/std/src/sys/io/error/unix.rs
+/rustc/e408947bfd200af42db322daf0fadfe7e26d3bd1/library/std/src/sys/net/connection/socket/mod.rs
+	sandbox: 
+sandbox: bind blackhole 
+sandbox: bind RO 
+sandbox: bind RW 
+-sandbox: blackhole setup failed, cleaning up 
+ sandbox: blocked git hooks dir: 
+!sandbox: blocked symlink target: 
+)sandbox: bubblewrap backend using binary=
+sandbox: bubblewrap inner applying network seccomp deny
+sandbox: bubblewrap inner dropping bypass capabilities
+;sandbox: compute_glob_deny_actions (walker): planned_total=
+'sandbox: CONNECT tunnel error (session=
+sandbox: created minimal /dev (
+<sandbox: creating namespaces (helper mode, network_isolated=
+-sandbox: device restrictions applied, mounts=
+-sandbox: failed at step 0/7 (pre-discovery): 
+,sandbox: failed at step 4/7 (mount denies): 
+(sandbox: failed at step 5/7 (landlock): 
+&sandbox: failed at step 7/7 (chdir to 
+sandbox: failed to acquire network decision log lock
++sandbox: forwarder child starting on ports 
+sandbox: forwarder error: 
+&sandbox-forwarder: HTTP accept error: 
+'sandbox-forwarder: HTTP forward error: 
+ sandbox-forwarder: listening on 
+'sandbox-forwarder: SOCKS accept error: 
+(sandbox-forwarder: SOCKS forward error: 
+"sandbox: found protected symlink: 
+!sandbox: git hooks rules applied=
+sandbox)H
+_SANDBOXH
+sandbox: helper child completed successfully
+?sandbox: helper method failed, falling back to setgroups deny: 
+.sandbox: helper: newgidmap failed to execute: 
+.sandbox: helper: newuidmap failed to execute: 
+sandbox: helper: newuidmap returned non-zero
+%sandbox: hiding directory with tmpfs 
+_SANDBOXI
+sandbox: landlock: 
+/sandbox: landlock: adding write-allow rule for 
+sandbox: landlock: cannot open 
+sandbox: landlock: CRITICAL - 
+'sandbox: landlock: file-only access_rw=
+&sandbox: landlock: preparing rule for 
+)sandbox: landlock: required V3 access_rw=
+.sandbox: landlock: skipping optional rule for 
+/sandbox: landlock: successfully added rule for 
+sandbox: landlock: writes allowed ONLY to paths added above
+sandbox: mount bind failed for 
+sandbox: mount CWD as readonly 
++sandbox: mount denies summary mounts_total=
+/sandbox: mount_setattr clear RDONLY failed for 
+%sandbox: mount_setattr RO failed for 
+sandbox: original UID=
+(sandbox: pre-discovery: allowlist_paths=
+.sandbox: pre-discovery complete: suffix_files=
+sandbox: pre-discovery: computing glob deny actions
+sandbox: pre-discovery: computing read-only deny actions
+!sandbox: pre-discovery: scanning 
+sandbox: pre-discovery: scanning git-backed workspace root
+sandbox: pre-discovery: scanning workspace root for git hooks
+'sandbox: pre-discovery: workspace root 
+sandbox: remount RO failed for 
+sandbox: remount RW failed for 
+sandbox: ripgrep binary: 
+sandbox: sandbox application completed successfully
+sandbox: skipping sandbox (insecure_none policy)
+sandbox: SOCKS5 accept error: 
+sandbox: SOCKS5 client error: 
+sandbox: staged /dev/
+sandbox: starting sandbox application
+sandbox: step 0/7: pre-discovering files (before namespace)
+sandbox: step 0/7: skipping pre-discovery (preflight mode)
+;sandbox: step 1-2/7: creating namespaces (network_isolated=
+sandbox: step 2.5/7: setting up loopback interface
+sandbox: step 3/7: remounting / as MS_PRIVATE
+sandbox: step 4/7: applying mount denies
+sandbox: step 5.5/7: applying seccomp dangerous syscall block
+sandbox: step 5/7: applying landlock
+sandbox: step 6.5/7: dropping bypass capabilities
+sandbox: step 6/7: applying seccomp network block
+sandbox: step 6/7: skipping seccomp network block (network access allowed)
+sandbox: switching to root in namespace (setresgid)
+sandbox: switching to root in namespace (setresuid)
+&sandbox: symlink target rules applied=
+ sandbox: tmpfs mount failed for 
+.sandbox: tmpfs mount for blackhole dir failed 
+#sandbox: UNIX socket accept error: 
+'sandbox: UNIX socket connection error: 
+*sandbox: UNIX SOCKS bridge connect error: 
+-sandbox: UNIX SOCKS bridge connection error: 
+)sandbox: UNIX SOCKS socket accept error: 
+sandbox: using newuidmap/newgidmap helpers (nested namespaces supported)
+%sandbox: workspace suffix rules root=
+sandbox: writing gid_map: 
+sandbox: writing uid_map: 
+SlimMaskBuilderFatteddymasksPackedRareBytesOnebyte1RareBytesTwooffsetsbyte2StartBytesOneStartBytesTwoRareByteOffsetRareBytesThreebyte3RareByteOffsetsStartBytesThree__m128i__m256iByteClasses(<one-class-per-byte>)assertion failed: patterns.len() >= 1assertion failed: hash_len >= 1assertion failed: self.by_id.len() <= u16::MAX as usizeCLICOLOR_FORCECIDIMMEDITALICUNDERLINE
+Socket is connected
+Socket not connected
+socks5no authentication methodsno acceptable authentication methodsandbox-forwarder: SOCKS connection rejected - no SOCKS socket path configured
+SOCKS IO error: 
+SOCKS policy denied: 
+SOCKS protocol error: 
+Software caused connection abortmust call 'finish_pattern' first
+                                																																~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!state must have zero transitionsPrint help for the subcommand(s)Formatting argument out of rangeRefCell already mutably borrowedassertion failed: slot.is_none()assertion failed: i < self.len()assertion failed: j < self.len()g
+std::process::exit called re-entrantlyfatal runtime error: the System allocator may not use TLS with destructors, aborting
+!Step 0/7 (pre-discovery) failed: 
+ Step 4/7 (mount denies) failed: 
+Step 5/7 (landlock) failed: 
+'Step 6.5/7 (drop capabilities) failed: 
+)Step 6/7 (seccomp network block) failed: 
+Step 7/7 (chdir to 
+stepWithDwarf
+stream error detected: 
+stream error received: 
+stream error sent by user: 
+System error
+ Tforwarder_socketFORWARDER_SOCKETforwarder-socketSETTINGS_TIMEOUTFRAME_SIZE_ERRORHalfClosedRemote
+the CLOEXEC pipe failed: 
+timer error: 
+/tmp/sandbox-proxy-http-
+/tmp/sandbox-proxy-socks-
+TP_PROXYH
+TrejectedNO_ERRORAcceptedConflictHTTP/0.9HTTP/1.0HTTP/1.1HTTP/2.0HTTP/3.0RejectedCanceledShutdownTooLargeInternalStreamIdif-matchif-rangelocationtrailersContinuegitdir: originalCapturesWithPathReadFileMakeCharMakeSockMakeFifoTruncateIoctlDev
+, trying mount_setattr
+"unexpected error during closedir: 
+.unexpected error when polling the I/O driver: 
+Unknown error
+ Unsupported Linux network mode '
+#Unsupported Linux sandbox backend '
+unsupported policy version 
+#Unsupported sandbox configuration: 
+url_hashdecisionNO_PROXY/var/tmpSIGWINCHSignaled
+user error: 
+/usr/lib/debug/.build-id//usr/lib/debug/.debug_abbrev.dwo.debug_cu_index.debug_info.dwo.debug_line.dwo.debug_loc.dwo.debug_loclists.dwo.debug_macinfo.dwo.debug_rnglists.dwo.debug_str.dwo.debug_str_offsets.dwo.debug_tu_index.gnu_debuglinkstream did not contain valid UTF-8failed to fill whole bufferOsmessageCustomerrorpermission deniedconnection refusednetwork unreachableconnection abortednot connectedaddress in useaddress not availablenetwork downbroken pipeentity already existsoperation would blocknot a directoryis a directorydirectory not emptyread-only filesystem or storage mediumfilesystem loop or indirection limit (e.g. symlink loop)stale network file handleinvalid input parameterinvalid datatimed outwrite zeroseek on unseekable filequota exceededfile too largeresource busyexecutable file busycross-device link or renametoo many linksargument list too longoperation interruptedunsupportedunexpected end of fileout of memoryin progressother erroruncategorized errorstdoutstderradvancing io slices beyond their lengthadvancing IoSlice beyond its lengthfailed to allocate read bufferfailed to write the buffered datapaths must not contain interior null bytespath must be shorter than SUN_LENfatal runtime error: initialization or cleanup bug, aborting
+'Validation on the CLOEXEC pipe failed: 
+We shall be set up alreadyassertion failed: old.is_null()assertion failed: slot.actions.insert(id, action).is_none()Platform broken, got NULL as siginfo to signal handler. Abortingtried to create a `Socket` with an invalid fdfatal runtime error: Rust panics must be rethrown, aborting
+workPolicyStrictnetworkPolicyStrworkspace_readonly
+writing rfc3339 datetime to string should never fail`Extensions` tracks values by typeassertion failed: dst.remaining_mut() >= lenassertion failed: !stream_id.is_zero()invalid GOAWAY frameinvalid RST_STREAM frameinvalid WINDOW_UPDATE frameunexpected flow control stateassertion failed: stream.state.is_closed()too_many_internal_resetsinvalid ping frameinvalid pong frameElapsedNotEofIncompleteBodyCheckoutIsClosedErrorpolled after completetmpfssize=1ksandbox: successfully dropped capabilities
+XDG_CONFIG_HOMEgit/ignore.configgit/config.gitconfig<stdin><stdin> has no metadatacommondir.jj.ignore.gitignoreinfo/excluderegex: thread ID allocation space exhaustedUnclosedClassInvalidRangeUnopenedAlternatesUnclosedAlternatesDanglingEscapeCaptureLimitExceededClassEscapeInvalidClassRangeInvalidClassRangeLiteralClassUnclosedDecimalEmptyDecimalInvalidEscapeHexEmptyEscapeHexInvalidDigitEscapeUnexpectedEofEscapeUnrecognizedFlagDanglingNegationFlagDuplicateFlagRepeatedNegationFlagUnexpectedEofGroupNameDuplicateGroupNameEmptyGroupNameUnexpectedEofGroupUnclosedGroupUnopenedNestLimitExceededRepetitionCountInvalidRepetitionCountDecimalEmptyRepetitionCountUnclosedRepetitionMissingSpecialWordBoundaryUnclosedSpecialWordBoundaryUnrecognizedSpecialWordOrRepetitionUnexpectedEofUnicodeClassInvalidUnsupportedBackreferenceUnsupportedLookAround(?im-u)^\s*excludesfile\s*=\s*"?\s*(\S+?)\s*"?\s*$BuildErrorgivenlimitTooManyStatesExceededSizeLimitInvalidCaptureIndexUnsupportedCapturesSyntaxpidNFAParseTranslateUnicodeNotAllowedInvalidUtf8InvalidLineTerminatorUnicodePropertyNotFoundUnicodePropertyValueNotFoundUnicodePerlClassNotFoundUnicodeCaseUnavailablePartialWithLineNumberWithDepthUnrecognizedFileTypeInvalidDefinition..missing accessempty access-rightBitFlags<Scope>flagsBitFlags<AccessFs>BitFlags<AccessNet>ExecuteWriteFileReadDirRemoveDirRemoveFileMakeDirMakeRegMakeBlockMakeSymReferAbstractUnixSocketSignalBindTcpConnectTcp<empty><searcher function><searcher kind union>
+.zdebug_deadlockfd != -1NotFoundTimedOutDeadlockNulError
+Z. Ensure Landlock LSM is enabled (CONFIG_SECURITY_LANDLOCK=y) on a kernel with V3 support.

@@ -1,0 +1,45 @@
+[
+    {
+        "Id": "d2b00756ecb5f92433487b7bd2214fce03544401f3a64feb0b4ae8fd5cca3f0b",
+        "Names": [
+            "/pod-4gsef3w6w5asrl6ng76xer7ota-e18a9cc7"
+        ],
+        "Image": "anyrun-empty",
+        "ImageID": "sha256:f9c7f847f60e2a05ca6cf89cbb86965415a618a1b132c15d0217e4db8d800917",
+        "Command": "/pod-daemon --ssh-auth-sock-path /run/host-services/ssh-auth.sock --ssh-auth-vsock-port 52",
+        "Created": 1774845193,
+        "Ports": [],
+        "Labels": {},
+        "State": "running",
+        "Status": "Up 42 minutes",
+        "HostConfig": {
+            "NetworkMode": "host"
+        },
+        "Health": {
+            "Status": "none",
+            "FailingStreak": 0
+        },
+        "NetworkSettings": {
+            "Networks": {
+                "host": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "8db809acfd270c9002733c0a11097d6c71d2259cde74e6dfcb9b457e2ae69bb6",
+                    "EndpointID": "337fea8215a6dd8a34a58463787f0b3f2d903d5ac89f560a84978be179155e28",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": null
+                }
+            }
+        },
+        "Mounts": []
+    }
+]

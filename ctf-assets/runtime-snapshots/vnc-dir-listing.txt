@@ -1,0 +1,5 @@
+total 36
+drwxr-xr-x  2 ubuntu ubuntu  4096 Mar 30 05:00 .
+drwxr-x--- 17 ubuntu ubuntu  4096 Mar 30 05:00 ..
+-rw-r--r--  1 ubuntu ubuntu 21969 Mar 30 05:15 cursor:1.log
+-rw-r--r--  1 ubuntu ubuntu     5 Mar 30 05:00 cursor:1.pid

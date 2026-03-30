@@ -1,0 +1,4 @@
+total 8
+drwxr-xr-x  2 root root 4096 Mar 30 04:33 .
+drwxr-xr-x 11 root root 4096 Mar 30 04:33 ..
+srw-rw-rw-  1 root root    0 Mar 30 04:33 ssh-auth.sock

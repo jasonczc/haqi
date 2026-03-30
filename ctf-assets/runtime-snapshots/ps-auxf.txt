@@ -1,0 +1,57 @@
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.0  0.0  15276  4140 ?        Ssl  04:33   0:00 /pod-daemon --ssh-auth-sock-path /run/host-services/ssh-auth.sock --ssh-auth-vsock-port 52
+ubuntu      2563  0.4  1.6 22976996 264320 ?     SLl  05:00   0:03 /exec-daemon/node /exec-daemon/index.js serve --port 26053 --pty-websocket-port 26054 --auth-token 2d93c5cb1549217dfe77d991f9103a77712dad95d9a4ebbf0e07c7711faa783e --rg-path /exec-daemon/rg --cloud-rules-enabled --computer-use-enabled --trace-endpoint https://api2.cursor.sh --trace-auth-token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJnb29nbGUtb2F1dGgyfHVzZXJfMDFKODdBVlk5SkhFOTc0OEVaSjhXV0FNREYiLCJ0aW1lIjoiMTc3NDg0Njc5MiIsInJhbmRvbW5lc3MiOiI4MzFmOGU4ZS0xOTc3LTQ3NjEiLCJleHAiOjE3NzU0NTE1OTIsImlzcyI6Imh0dHBzOi8vYXV0aGVudGljYXRpb24uY3Vyc29yLnNoIiwic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCBvZmZsaW5lX2FjY2VzcyIsImF1ZCI6Imh0dHBzOi8vY3Vyc29yLmNvbSIsInR5cGUiOiJleGVjX2RhZW1vbiJ9.AAJxmJIsF7Q2xDwhxRR3cWlHyHTKtc6mwGLEMzTbSwM --ghost-mode true --browser-enabled --record-screen-enabled
+ubuntu      3701  0.0  0.0  11692  8464 pts/0    Ss+  05:00   0:00  \_ /bin/bash
+ubuntu     15529 17.6  0.0  14644 10928 ?        Ss   05:15   0:00  \_ /bin/bash -O extglob -c snap=$(command cat <&3) && builtin shopt -s extglob && builtin eval -- "$snap" && { builtin set +u 2>/dev/null || true; builtin eval "${__CURSOR_SANDBOX_ENV_RESTORE:-}" 2>/dev/null; builtin export PWD="$(builtin pwd)"; builtin shopt -s expand_aliases 2>/dev/null; builtin eval "$1"; }; COMMAND_EXIT_CODE=$?; dump_bash_state >&4; builtin exit $COMMAND_EXIT_CODE -- # ss 没成功因为不在 PATH，用 netstat 代替 netstat -tlnp > /workspace/ctf-assets/runtime-snapshots/netstat-tlnp.txt 2>&1 && ps auxf > /workspace/ctf-assets/runtime-snapshots/ps-auxf.txt 2>&1 && env | sort > /workspace/ctf-assets/runtime-snapshots/env.txt 2>&1 && echo "basic snapshots done"
+ubuntu     15684  0.0  0.0  10884  4464 ?        R    05:15   0:00      \_ ps auxf
+ubuntu      3025  0.0  0.0   7988  4384 ?        S    05:00   0:00 /bin/bash /usr/local/share/desktop-init.sh
+ubuntu      3516  0.0  0.0   7340  3784 ?        S    05:00   0:00  \_ bash /usr/local/novnc/noVNC-1.2.0/utils/launch.sh --listen 26058 --vnc localhost:5901
+ubuntu      3544  0.0  0.2 239852 38316 ?        S    05:00   0:00  |   \_ python3 -m websockify --web /usr/local/novnc/noVNC-1.2.0/utils/../ 26058 localhost:5901
+ubuntu     14290  0.3  0.1 239852 28968 ?        S    05:15   0:00  |       \_ python3 -m websockify --web /usr/local/novnc/noVNC-1.2.0/utils/../ 26058 localhost:5901
+ubuntu      3520  0.0  0.0   7472  2352 ?        S    05:00   0:00  \_ /bin/bash /usr/local/share/desktop-init.sh
+ubuntu      3546  0.0  0.2 568824 39828 ?        Sl   05:00   0:00  |   \_ plank
+ubuntu      3602  0.0  0.0   5716  1048 ?        S    05:00   0:00  \_ tail -f /dev/null
+message+    3061  0.0  0.0   8132  2928 ?        Ss   05:00   0:00 /usr/bin/dbus-daemon --system
+ubuntu      3139  0.0  0.0  19392 12420 ?        Ss   05:00   0:00 /usr/bin/perl /usr/bin/tigervncserver :1 -geometry 1920x1200 -depth 24 -rfbport 5901 -dpi 96 -localhost -desktop AnyOS -SecurityTypes None -xstartup /tmp/anyos-xstartup
+ubuntu      3140  0.4  0.6 246216 108628 ?       Ss   05:00   0:04  \_ /usr/bin/Xtigervnc :1 -localhost=1 -desktop AnyOS -rfbport 5901 -SecurityTypes None -auth /home/ubuntu/.Xauthority -geometry 1920x1200 -depth 24 -dpi 96
+ubuntu      3143  0.0  0.5 566548 84236 ?        Ssl  05:00   0:00  \_ xfce4-session
+ubuntu      3194  0.2  0.6 1256672 113208 ?      Sl   05:00   0:02      \_ xfwm4
+ubuntu      3454  0.0  0.1 304744 30656 ?        Sl   05:00   0:00      \_ xfsettingsd
+ubuntu      3461  0.0  0.2 419556 37808 ?        Sl   05:00   0:00      \_ xfce4-panel
+ubuntu      3467  0.0  0.1 415272 26800 ?        Sl   05:00   0:00      \_ Thunar --daemon
+ubuntu      3475  0.0  0.4 504716 69060 ?        Sl   05:00   0:00      \_ xfdesktop
+ubuntu      3158  0.0  0.0   8160  2236 ?        S    05:00   0:00 dbus-launch --autolaunch d2f4710cc974468697e70cc5ee699bc3 --binary-syntax --close-stderr
+ubuntu      3159  0.0  0.0   8128  2724 ?        Ss   05:00   0:00 /usr/bin/dbus-daemon --syslog-only --fork --print-pid 5 --print-address 7 --session
+ubuntu      3161  0.0  0.0 382832  7688 ?        Sl   05:00   0:00 /usr/libexec/at-spi-bus-launcher
+ubuntu      3167  0.0  0.0   8124  4320 ?        S    05:00   0:00  \_ /usr/bin/dbus-daemon --config-file=/usr/share/defaults/at-spi2/accessibility.conf --nofork --print-address 11 --address=unix:path=/home/ubuntu/.cache/at-spi/bus_1
+ubuntu      3173  0.0  0.0      0     0 ?        Z    05:00   0:00 [xfconfd] <defunct>
+ubuntu      3180  0.0  0.0 236044  7488 ?        Sl   05:00   0:00 /usr/libexec/at-spi2-registryd --use-gnome-session
+ubuntu      3187  0.0  0.0   8304   764 ?        Ss   05:00   0:00 /usr/bin/ssh-agent -s
+ubuntu      3193  0.0  0.0   7648   276 ?        Ss   05:00   0:00 /usr/bin/gpg-agent --sh --daemon
+ubuntu      3606  0.0  0.0   7340  3564 ?        S    05:00   0:00 /bin/bash /usr/lib/x86_64-linux-gnu/bamf/bamfdaemon-dbus-runner
+ubuntu      3607  0.0  0.1 340896 27512 ?        Sl   05:00   0:00  \_ /usr/lib/x86_64-linux-gnu/bamf/bamfdaemon
+ubuntu      3629  0.0  0.0 230108  5528 ?        Sl   05:00   0:00 /usr/libexec/dconf-service
+ubuntu      4744  0.0  0.0      0     0 ?        Z    05:02   0:00 [git] <defunct>
+ubuntu     10938  0.3  0.0      0     0 ?        Z    05:09   0:01 [chrome] <defunct>
+ubuntu     10944  0.0  0.0      0     0 ?        Z    05:09   0:00 [cat] <defunct>
+ubuntu     10945  0.0  0.0      0     0 ?        Z    05:09   0:00 [cat] <defunct>
+ubuntu     10947  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome_crashpad] <defunct>
+ubuntu     10949  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome_crashpad] <defunct>
+ubuntu     10954  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome] <defunct>
+ubuntu     10955  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome] <defunct>
+ubuntu     11022  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome] <defunct>
+ubuntu     11059  0.0  0.0      0     0 ?        Z    05:09   0:00 [cat] <defunct>
+ubuntu     11060  0.0  0.0      0     0 ?        Z    05:09   0:00 [cat] <defunct>
+ubuntu     11064  0.2  0.0      0     0 ?        Z    05:09   0:00 [chrome] <defunct>
+ubuntu     11069  0.0  0.0      0     0 ?        Z    05:09   0:00 [cat] <defunct>
+ubuntu     11070  0.0  0.0      0     0 ?        Z    05:09   0:00 [cat] <defunct>
+ubuntu     11072  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome_crashpad] <defunct>
+ubuntu     11074  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome_crashpad] <defunct>
+ubuntu     11079  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome] <defunct>
+ubuntu     11080  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome] <defunct>
+ubuntu     11163  0.0  0.0      0     0 ?        Z    05:09   0:00 [chrome] <defunct>
+ubuntu     11177  0.0  0.0      0     0 ?        Z    05:09   0:00 [cat] <defunct>
+ubuntu     11178  0.0  0.0      0     0 ?        Z    05:09   0:00 [cat] <defunct>
+ubuntu     11607  0.0  0.0 306940  6340 ?        Sl   05:10   0:00 /usr/lib/x86_64-linux-gnu/xfce4/xfconf/xfconfd
+ubuntu     14292  0.3  0.0      0     0 ?        Z    05:15   0:00 [xfce4-terminal] <defunct>
+ubuntu     14302  0.0  0.0      0     0 ?        Zs   05:15   0:00 [bash] <defunct>

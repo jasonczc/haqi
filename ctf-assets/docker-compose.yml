@@ -1,0 +1,45 @@
+services:
+    # ── 完整复刻模式（VNC 桌面 + exec-daemon + pod-daemon） ──────────
+    cursor-agent-replica:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: cursor-ctf
+        hostname: cursor
+        privileged: true
+        network_mode: host
+        environment:
+            - CURSOR_AGENT=1
+            - START_POD_DAEMON=false
+            - START_EXEC_DAEMON=false
+            - VNC_USER=ubuntu
+        volumes:
+            # 挂载工作区
+            - ./workspace:/workspace
+            # 挂载 SSH agent（如果宿主机有）
+            - ${SSH_AUTH_SOCK:-/dev/null}:/run/host-services/ssh-auth.sock
+        extra_hosts:
+            - "cursor:127.0.0.1"
+            - "host.docker.internal:host-gateway"
+        # ports 在 host 网络模式下不需要显式映射
+        # 如果改为 bridge 模式，取消注释以下行：
+        # ports:
+        #     - "5901:5901"     # VNC raw
+        #     - "26053:26053"   # exec-daemon HTTP
+        #     - "26054:26054"   # exec-daemon PTY WS
+        #     - "26058:26058"   # noVNC web
+
+    # ── 轻量分析模式（仅 shell，不启桌面） ───────────────────────────
+    cursor-agent-shell:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: cursor-ctf-shell
+        hostname: cursor
+        entrypoint: /bin/bash
+        stdin_open: true
+        tty: true
+        volumes:
+            - ./workspace:/workspace
+        profiles:
+            - shell

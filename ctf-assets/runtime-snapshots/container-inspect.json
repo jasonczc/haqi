@@ -1,0 +1,189 @@
+{
+    "Id": "d2b00756ecb5f92433487b7bd2214fce03544401f3a64feb0b4ae8fd5cca3f0b",
+    "Created": "2026-03-30T04:33:13.968487004Z",
+    "Path": "/pod-daemon",
+    "Args": [
+        "--ssh-auth-sock-path",
+        "/run/host-services/ssh-auth.sock",
+        "--ssh-auth-vsock-port",
+        "52"
+    ],
+    "State": {
+        "Status": "running",
+        "Running": true,
+        "Paused": false,
+        "Restarting": false,
+        "OOMKilled": false,
+        "Dead": false,
+        "Pid": 1300,
+        "ExitCode": 0,
+        "Error": "",
+        "StartedAt": "2026-03-30T04:33:32.507783661Z",
+        "FinishedAt": "0001-01-01T00:00:00Z"
+    },
+    "Image": "sha256:f9c7f847f60e2a05ca6cf89cbb86965415a618a1b132c15d0217e4db8d800917",
+    "ResolvConfPath": "/var/lib/docker/containers/d2b00756ecb5f92433487b7bd2214fce03544401f3a64feb0b4ae8fd5cca3f0b/resolv.conf",
+    "HostnamePath": "/var/lib/docker/containers/d2b00756ecb5f92433487b7bd2214fce03544401f3a64feb0b4ae8fd5cca3f0b/hostname",
+    "HostsPath": "/var/lib/docker/containers/d2b00756ecb5f92433487b7bd2214fce03544401f3a64feb0b4ae8fd5cca3f0b/hosts",
+    "LogPath": "",
+    "Name": "/pod-4gsef3w6w5asrl6ng76xer7ota-e18a9cc7",
+    "RestartCount": 0,
+    "Driver": "overlay2",
+    "Platform": "linux",
+    "MountLabel": "",
+    "ProcessLabel": "",
+    "AppArmorProfile": "",
+    "ExecIDs": null,
+    "HostConfig": {
+        "Binds": [],
+        "ContainerIDFile": "",
+        "LogConfig": {
+            "Type": "journald",
+            "Config": {}
+        },
+        "NetworkMode": "host",
+        "PortBindings": {},
+        "RestartPolicy": {
+            "Name": "no",
+            "MaximumRetryCount": 0
+        },
+        "AutoRemove": false,
+        "VolumeDriver": "",
+        "VolumesFrom": null,
+        "ConsoleSize": [
+            0,
+            0
+        ],
+        "CapAdd": null,
+        "CapDrop": null,
+        "CgroupnsMode": "private",
+        "Dns": null,
+        "DnsOptions": null,
+        "DnsSearch": null,
+        "ExtraHosts": [
+            "cursor:127.0.0.1",
+            "host.docker.internal:host-gateway"
+        ],
+        "GroupAdd": null,
+        "IpcMode": "private",
+        "Cgroup": "",
+        "Links": null,
+        "OomScoreAdj": 0,
+        "PidMode": "",
+        "Privileged": true,
+        "PublishAllPorts": false,
+        "ReadonlyRootfs": false,
+        "SecurityOpt": [
+            "label=disable"
+        ],
+        "UTSMode": "",
+        "UsernsMode": "",
+        "ShmSize": 67108864,
+        "Runtime": "runc",
+        "Isolation": "",
+        "CpuShares": 0,
+        "Memory": 17179869184,
+        "NanoCpus": 4000000000,
+        "CgroupParent": "",
+        "BlkioWeight": 0,
+        "BlkioWeightDevice": null,
+        "BlkioDeviceReadBps": null,
+        "BlkioDeviceWriteBps": null,
+        "BlkioDeviceReadIOps": null,
+        "BlkioDeviceWriteIOps": null,
+        "CpuPeriod": 0,
+        "CpuQuota": 0,
+        "CpuRealtimePeriod": 0,
+        "CpuRealtimeRuntime": 0,
+        "CpusetCpus": "",
+        "CpusetMems": "",
+        "Devices": null,
+        "DeviceCgroupRules": null,
+        "DeviceRequests": null,
+        "MemoryReservation": 0,
+        "MemorySwap": 34359738368,
+        "MemorySwappiness": null,
+        "OomKillDisable": null,
+        "PidsLimit": null,
+        "Ulimits": null,
+        "CpuCount": 0,
+        "CpuPercent": 0,
+        "IOMaximumIOps": 0,
+        "IOMaximumBandwidth": 0,
+        "MaskedPaths": null,
+        "ReadonlyPaths": null
+    },
+    "GraphDriver": {
+        "Data": {
+            "ID": "d2b00756ecb5f92433487b7bd2214fce03544401f3a64feb0b4ae8fd5cca3f0b",
+            "LowerDir": "/var/lib/docker/overlay2/ead14d34b6c66ad0ad7261803607a9bd4e7fa84ce8e39ef099545fcd5380f998-init/diff:/var/lib/docker/overlay2/a09dd7fcb628539fd9b0458e901e8850cef76c5edf0b2c0d1e9697361e8bf6e9/diff",
+            "MergedDir": "/var/lib/docker/overlay2/ead14d34b6c66ad0ad7261803607a9bd4e7fa84ce8e39ef099545fcd5380f998/merged",
+            "UpperDir": "/var/lib/docker/overlay2/ead14d34b6c66ad0ad7261803607a9bd4e7fa84ce8e39ef099545fcd5380f998/diff",
+            "WorkDir": "/var/lib/docker/overlay2/ead14d34b6c66ad0ad7261803607a9bd4e7fa84ce8e39ef099545fcd5380f998/work"
+        },
+        "Name": "overlay2"
+    },
+    "Mounts": [],
+    "Config": {
+        "Hostname": "cursor",
+        "Domainname": "",
+        "User": "root",
+        "AttachStdin": false,
+        "AttachStdout": false,
+        "AttachStderr": false,
+        "Tty": false,
+        "OpenStdin": false,
+        "StdinOnce": false,
+        "Env": [
+            "CARGO_HOME=/usr/local/cargo",
+            "DISPLAY=:1",
+            "GIT_DISCOVERY_ACROSS_FILESYSTEM=0",
+            "GIT_LFS_SKIP_SMUDGE=1",
+            "LANG=en_US.UTF-8",
+            "LC_ALL=en_US.UTF-8",
+            "PATH=/usr/local/cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "RUSTUP_HOME=/usr/local/rustup",
+            "RUST_VERSION=1.83.0",
+            "TERM=xterm-256color",
+            "VNC_DPI=96",
+            "VNC_RESOLUTION=1920x1200x24"
+        ],
+        "Cmd": [
+            "--ssh-auth-sock-path",
+            "/run/host-services/ssh-auth.sock",
+            "--ssh-auth-vsock-port",
+            "52"
+        ],
+        "Image": "anyrun-empty",
+        "Volumes": null,
+        "WorkingDir": "/",
+        "Entrypoint": [
+            "/pod-daemon"
+        ],
+        "Labels": {}
+    },
+    "NetworkSettings": {
+        "SandboxID": "3dd28e1248675c9ae4648b6e6bd3f6aa2ac451763bc6462468c7b37f5c81b928",
+        "SandboxKey": "/var/run/docker/netns/default",
+        "Ports": {},
+        "Networks": {
+            "host": {
+                "IPAMConfig": null,
+                "Links": null,
+                "Aliases": null,
+                "DriverOpts": null,
+                "GwPriority": 0,
+                "NetworkID": "8db809acfd270c9002733c0a11097d6c71d2259cde74e6dfcb9b457e2ae69bb6",
+                "EndpointID": "337fea8215a6dd8a34a58463787f0b3f2d903d5ac89f560a84978be179155e28",
+                "Gateway": "",
+                "IPAddress": "",
+                "MacAddress": "",
+                "IPPrefixLen": 0,
+                "IPv6Gateway": "",
+                "GlobalIPv6Address": "",
+                "GlobalIPv6PrefixLen": 0,
+                "DNSNames": null
+            }
+        }
+    }
+}

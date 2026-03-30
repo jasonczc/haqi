@@ -1,0 +1,13 @@
+total 0
+dr-x--x--x 2 ubuntu ubuntu 0 Mar 30 05:15 .
+dr-xr-xr-x 9 ubuntu ubuntu 0 Mar 30 05:15 ..
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 cgroup -> cgroup:[4026532073]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 ipc -> ipc:[4026532071]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 mnt -> mnt:[4026532069]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 net -> net:[4026531840]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 pid -> pid:[4026532072]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 pid_for_children -> pid:[4026532072]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 time -> time:[4026531834]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 time_for_children -> time:[4026531834]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 user -> user:[4026531837]
+lrwxrwxrwx 1 ubuntu ubuntu 0 Mar 30 05:15 uts -> uts:[4026532070]

@@ -1,0 +1,11 @@
+overlay / overlay rw,relatime,lowerdir=/var/lib/docker/overlay2/l/B5PNHQI6CVE4TNITO7RDLW6IZY:/var/lib/docker/overlay2/l/EHCXKRBFH5M2EG5LAJT5TS65BZ,upperdir=/var/lib/docker/overlay2/ead14d34b6c66ad0ad7261803607a9bd4e7fa84ce8e39ef099545fcd5380f998/diff,workdir=/var/lib/docker/overlay2/ead14d34b6c66ad0ad7261803607a9bd4e7fa84ce8e39ef099545fcd5380f998/work 0 0
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+tmpfs /dev tmpfs rw,nosuid,size=65536k,mode=755 0 0
+devpts /dev/pts devpts rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=666 0 0
+sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0
+cgroup /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot 0 0
+mqueue /dev/mqueue mqueue rw,nosuid,nodev,noexec,relatime 0 0
+shm /dev/shm tmpfs rw,nosuid,nodev,noexec,relatime,size=65536k 0 0
+/dev/root /etc/resolv.conf ext4 rw,relatime 0 0
+/dev/root /etc/hostname ext4 rw,relatime 0 0
+/dev/root /etc/hosts ext4 rw,relatime 0 0

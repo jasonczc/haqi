@@ -1,0 +1,6 @@
+#!/bin/bash
+# Use a fixed user-data-dir to ensure --remote-debugging-port is always respected
+# (Chrome ignores this flag if joining an existing instance)
+# --class=google-chrome forces WMClass so Plank dock recognizes this as the same app
+# --use-gl=angle --use-angle=swiftshader-webgl enables software WebGL via SwiftShader
+exec /usr/bin/google-chrome-stable --no-sandbox --test-type --disable-dev-shm-usage --use-gl=angle --use-angle=swiftshader-webgl --password-store=basic --no-first-run --no-default-browser-check --remote-debugging-port=9222 --user-data-dir=/home/ubuntu/.config/google-chrome --class=google-chrome --window-size=1820,1100 --window-position=50,50 "$@"

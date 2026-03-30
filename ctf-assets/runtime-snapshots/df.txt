@@ -1,0 +1,5 @@
+Filesystem      Size  Used Avail Use% Mounted on
+overlay         126G   11G  109G   9% /
+tmpfs            64M     0   64M   0% /dev
+shm              64M     0   64M   0% /dev/shm
+/dev/root       126G   11G  109G   9% /etc/hosts
