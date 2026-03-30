@@ -113,4 +113,32 @@ describe('selectWorker', () => {
 
         expect(worker).toBeNull()
     })
+
+    const rejectedStates: Array<[string, Record<string, unknown>]> = [
+        ['provisioning', { lifecycle: 'provisioning' }],
+        ['booting', { lifecycle: 'booting' }],
+        ['draining', { lifecycle: 'draining' }],
+        ['stopped', { lifecycle: 'stopped' }],
+        ['failed', { lifecycle: 'failed' }],
+        ['shutting-down', { status: 'shutting-down' }]
+    ]
+
+    for (const [label, runnerState] of rejectedStates) {
+        it(`rejects workers in ${label} state`, () => {
+            const worker = selectWorker([
+                makeMachine('a', {
+                    runnerState: {
+                        ...runnerState,
+                        capacity: {
+                            total: 1,
+                            used: 0
+                        }
+                    }
+                }),
+                makeMachine('b')
+            ])
+
+            expect(worker?.id).toBe('b')
+        })
+    }
 })

@@ -1,5 +1,6 @@
 import type { Machine } from '@/types/api'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useTranslation } from '@/lib/use-translation'
 
 function getMachineTitle(machine: Machine): string {
     if (machine.metadata?.displayName) return machine.metadata.displayName
@@ -23,14 +24,46 @@ function getMachineSubtitle(machine: Machine): string {
     return parts.join(' · ')
 }
 
+function getMachineDetailChips(machine: Machine): string[] {
+    const chips: string[] = []
+    const metadata = machine.metadata
+    const runnerState = machine.runnerState
+
+    if (metadata?.provider) {
+        chips.push(`provider: ${metadata.provider}`)
+    }
+    if (metadata?.region) {
+        chips.push(`region: ${metadata.region}`)
+    }
+    if (metadata?.environmentId) {
+        chips.push(`env: ${metadata.environmentId}`)
+    }
+    if (metadata?.workerVersion) {
+        chips.push(`worker: ${metadata.workerVersion}`)
+    }
+    if (metadata?.labels?.length) {
+        chips.push(`labels: ${metadata.labels.join(', ')}`)
+    }
+    if (runnerState?.capacity) {
+        chips.push(`capacity: ${runnerState.capacity.used}/${runnerState.capacity.total}`)
+    }
+    if (runnerState?.publicPreviewBaseUrl) {
+        chips.push('preview: public')
+    }
+
+    return chips
+}
+
 export function MachineList(props: {
     machines: Machine[]
     onSelect: (machineId: string) => void
 }) {
+    const { t } = useTranslation()
+
     return (
         <div className="flex flex-col gap-3 p-3">
             <div className="text-xs text-[var(--app-hint)]">
-                {props.machines.length} online
+                {props.machines.length} {t('machine.list.online')}
             </div>
 
             <div className="flex flex-col gap-3">
@@ -46,6 +79,45 @@ export function MachineList(props: {
                                 {getMachineSubtitle(m)}
                             </CardDescription>
                         </CardHeader>
+                        <CardContent className="flex flex-col gap-2 pt-0">
+                            <div className="flex flex-wrap gap-1 text-[11px] text-[var(--app-hint)]">
+                                {getMachineDetailChips(m).map((chip) => (
+                                    <span
+                                        key={chip}
+                                        className="rounded-full bg-[var(--app-bg)] px-2 py-1"
+                                    >
+                                        {chip}
+                                    </span>
+                                ))}
+                                {!m.active ? (
+                                    <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-700">
+                                        inactive
+                                    </span>
+                                ) : null}
+                            </div>
+                            {m.runnerState?.workspacePreparation ? (
+                                <div className="text-xs text-[var(--app-hint)]">
+                                    workspace: {m.runnerState.workspacePreparation.phase}
+                                    {typeof m.runnerState.workspacePreparation.progress === 'number' ? ` · ${m.runnerState.workspacePreparation.progress}%` : ''}
+                                    {m.runnerState.workspacePreparation.repo ? ` · ${m.runnerState.workspacePreparation.repo}` : ''}
+                                </div>
+                            ) : null}
+                            {m.runnerState?.lastProvisionError ? (
+                                <div className="text-xs text-red-600">
+                                    provision: {m.runnerState.lastProvisionError.message}
+                                </div>
+                            ) : null}
+                            {m.runnerState?.lastWorkspaceError ? (
+                                <div className="text-xs text-red-600">
+                                    workspace: {m.runnerState.lastWorkspaceError.message}
+                                </div>
+                            ) : null}
+                            {m.runnerState?.lastSpawnError ? (
+                                <div className="text-xs text-red-600">
+                                    spawn: {m.runnerState.lastSpawnError.message}
+                                </div>
+                            ) : null}
+                        </CardContent>
                     </Card>
                 ))}
             </div>

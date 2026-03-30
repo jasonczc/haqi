@@ -176,7 +176,10 @@ export function useSessionActions(
             if (result.type === 'error') {
                 throw new Error(result.message || 'Failed to spawn session from existing')
             }
-            throw new Error(`Directory creation requires approval: ${result.directory}`)
+            if (result.type === 'requestToApproveDirectoryCreation') {
+                throw new Error(`Directory creation requires approval: ${result.directory}`)
+            }
+            throw new Error('Cloud async spawn is not supported for this action')
         }
         return result.sessionId
     }

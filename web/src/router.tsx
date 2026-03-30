@@ -64,10 +64,14 @@ import DebugDiffPage from '@/routes/debug/diff'
 import GroupDetailPage from '@/routes/groups/detail'
 import ReviewLoopsIndexPage from '@/routes/review-loops/index'
 import ReviewLoopDetailPage from '@/routes/review-loops/detail'
+import CloudRequestDetailPage from '@/routes/cloud/request'
+import CloudWorkspaceDetailPage from '@/routes/cloud/workspace'
+import CloudSecretsPage from '@/routes/cloud/secrets'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
 import { ReviewLoopStatusBadge, CreateLoopModal, type CreateLoopData } from '@/components/ReviewLoop'
+import type { SpawnResponse } from '@/types/api'
 
 function BackIcon(props: { className?: string }) {
     return (
@@ -824,15 +828,26 @@ function NewSessionPage() {
         navigate({ to: '/sessions' })
     }, [navigate])
 
-    const handleSuccess = useCallback((sessionId: string) => {
+    const handleSuccess = useCallback((result: SpawnResponse) => {
+        if (result.type === 'accepted') {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequests })
+            navigate({
+                to: '/cloud/requests/$requestId',
+                params: { requestId: result.requestId }
+            })
+            return
+        }
+
+        if (result.type !== 'success') {
+            return
+        }
+
         void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
-        // Replace current page with /sessions to clear spawn flow from history
         navigate({ to: '/sessions', replace: true })
-        // Then navigate to new session
         requestAnimationFrame(() => {
             navigate({
                 to: '/sessions/$sessionId',
-                params: { sessionId },
+                params: { sessionId: result.sessionId },
             })
         })
     }, [navigate, queryClient])
@@ -1994,6 +2009,24 @@ const debugDiffRoute = createRoute({
     component: DebugDiffPage,
 })
 
+const cloudRequestDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/cloud/requests/$requestId',
+    component: CloudRequestDetailPage,
+})
+
+const cloudWorkspaceDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/cloud/workspaces/$workspaceId',
+    component: CloudWorkspaceDetailPage,
+})
+
+const cloudSecretsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/cloud/secrets',
+    component: CloudSecretsPage,
+})
+
 const groupsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/groups',
@@ -2033,6 +2066,9 @@ const reviewLoopDetailRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
     indexRoute,
     debugDiffRoute,
+    cloudRequestDetailRoute,
+    cloudWorkspaceDetailRoute,
+    cloudSecretsRoute,
     sessionsRoute.addChildren([
         sessionsIndexRoute,
         newSessionRoute,

@@ -1,10 +1,9 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
-import { configuration } from '../../configuration'
-import { constantTimeEquals } from '../../utils/crypto'
-import { parseAccessToken } from '../../utils/accessToken'
 import type { Machine, Session, SyncEngine } from '../../sync/syncEngine'
+import type { Store } from '../../store'
+import { resolveCliAuthToken } from '../../cloud/resolveCliAuthToken'
 
 const bearerSchema = z.string().regex(/^Bearer\s+(.+)$/i)
 
@@ -28,6 +27,8 @@ const getMessagesQuerySchema = z.object({
 type CliEnv = {
     Variables: {
         namespace: string
+        cliAuthKind: 'legacy' | 'worker-session' | 'enrollment'
+        cliAuthMachineId?: string
     }
 }
 
@@ -62,7 +63,7 @@ function resolveMachineForNamespace(
     return { ok: false, status: 404, error: 'Machine not found' }
 }
 
-export function createCliRoutes(getSyncEngine: () => SyncEngine | null): Hono<CliEnv> {
+export function createCliRoutes(getSyncEngine: () => SyncEngine | null, store: Store): Hono<CliEnv> {
     const app = new Hono<CliEnv>()
 
     app.use('*', async (c, next) => {
@@ -79,12 +80,19 @@ export function createCliRoutes(getSyncEngine: () => SyncEngine | null): Hono<Cl
         }
 
         const token = parsed.data.replace(/^Bearer\s+/i, '')
-        const parsedToken = parseAccessToken(token)
-        if (!parsedToken || !constantTimeEquals(parsedToken.baseToken, configuration.cliApiToken)) {
+        const auth = resolveCliAuthToken(store, token)
+        if (!auth) {
             return c.json({ error: 'Invalid token' }, 401)
         }
 
-        c.set('namespace', parsedToken.namespace)
+        c.set('namespace', auth.namespace)
+        c.set('cliAuthKind', auth.kind)
+        if (auth.machineId) {
+            c.set('cliAuthMachineId', auth.machineId)
+        }
+        if (auth.kind === 'enrollment') {
+            c.header('X-Hapi-Worker-Session-Token', auth.workerSessionToken)
+        }
         return await next()
     })
 
@@ -152,6 +160,10 @@ export function createCliRoutes(getSyncEngine: () => SyncEngine | null): Hono<Cl
         }
 
         const namespace = c.get('namespace')
+        const cliAuthMachineId = c.get('cliAuthMachineId')
+        if (cliAuthMachineId && parsed.data.id !== cliAuthMachineId) {
+            return c.json({ error: 'Machine access denied' }, 403)
+        }
         const existing = engine.getMachine(parsed.data.id)
         if (existing && existing.namespace !== namespace) {
             return c.json({ error: 'Machine access denied' }, 403)
@@ -166,6 +178,10 @@ export function createCliRoutes(getSyncEngine: () => SyncEngine | null): Hono<Cl
             return c.json({ error: 'Not ready' }, 503)
         }
         const machineId = c.req.param('id')
+        const cliAuthMachineId = c.get('cliAuthMachineId')
+        if (cliAuthMachineId && machineId !== cliAuthMachineId) {
+            return c.json({ error: 'Machine access denied' }, 403)
+        }
         const namespace = c.get('namespace')
         const resolved = resolveMachineForNamespace(engine, machineId, namespace)
         if (!resolved.ok) {

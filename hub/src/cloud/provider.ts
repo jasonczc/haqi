@@ -1,7 +1,7 @@
 import { selectWorker, type SelectWorkerOptions } from './scheduler'
 import type { Machine } from '../sync/machineCache'
 import type { ProviderSummary, WorkerSummary } from './types'
-import type { WorkerLifecycle } from '@hapi/protocol/types'
+import { isRunnerStateSelectable, summarizeRunnerState } from './workerState'
 
 export const CLOUD_PROVIDER_NAMES = [
     'auto',
@@ -57,26 +57,41 @@ export function filterWorkersByProvider(
     return cloudMachines.filter((machine) => normalizeProvider(machine.metadata?.provider) === provider)
 }
 
-export function buildWorkerSummaries(machines: Machine[]): WorkerSummary[] {
-    return machines.filter(isCloudWorker).map((machine) => ({
-        machineId: machine.id,
-        provider: normalizeProvider(machine.metadata?.provider),
-        active: machine.active,
-        environmentId: machine.metadata?.environmentId,
-        executorType: machine.metadata?.executorType,
-        lifecycle: (() => {
-            if (!machine.runnerState || typeof machine.runnerState !== 'object') {
-                return undefined
-            }
-            const value = (machine.runnerState as { lifecycle?: unknown }).lifecycle
-            return typeof value === 'string' ? value as WorkerLifecycle : undefined
-        })(),
-        region: machine.metadata?.region,
-        labels: machine.metadata?.labels,
-        capabilities: machine.metadata?.capabilities as WorkerSummary['capabilities'],
-        resources: machine.metadata?.resources as WorkerSummary['resources'],
-        updatedAt: machine.updatedAt
-    }))
+export function buildWorkerSummaries(
+    machines: Machine[],
+    getActiveRequestCount?: (machineId: string, namespace: string) => number
+): WorkerSummary[] {
+    return machines.filter(isCloudWorker).map((machine) => {
+        const runnerState = summarizeRunnerState(machine.runnerState)
+        return {
+            machineId: machine.id,
+            provider: normalizeProvider(machine.metadata?.provider),
+            active: machine.active,
+            selectable: machine.active && isRunnerStateSelectable(runnerState),
+            activeRequestsCount: getActiveRequestCount?.(machine.id, machine.namespace),
+            environmentId: machine.metadata?.environmentId,
+            executorType: machine.metadata?.executorType,
+            lifecycle: runnerState?.lifecycle,
+            region: machine.metadata?.region,
+            workerVersion: machine.metadata?.workerVersion,
+            labels: machine.metadata?.labels,
+            capabilities: machine.metadata?.capabilities as WorkerSummary['capabilities'],
+            resources: machine.metadata?.resources as WorkerSummary['resources'],
+            runnerState,
+            updatedAt: machine.updatedAt
+        }
+    })
+}
+
+function buildProviderSummary(machine: Machine): ProviderSummary {
+    const runnerState = summarizeRunnerState(machine.runnerState)
+    return {
+        id: normalizeProvider(machine.metadata?.provider),
+        type: resolveProviderType(machine),
+        count: 1,
+        activeCount: machine.active ? 1 : 0,
+        availableCount: machine.active && isRunnerStateSelectable(runnerState) ? 1 : 0
+    }
 }
 
 export function buildProviderSummaries(machines: Machine[]): ProviderSummary[] {
@@ -85,8 +100,16 @@ export function buildProviderSummaries(machines: Machine[]): ProviderSummary[] {
 
     counts.set('auto', {
         id: 'auto',
-        type: cloudMachines.every((machine) => resolveProviderType(machine) === 'managed') ? 'managed' : 'self-hosted',
-        count: cloudMachines.length
+        type:
+            cloudMachines.length > 0 && cloudMachines.every((machine) => resolveProviderType(machine) === 'managed')
+                ? 'managed'
+                : 'self-hosted',
+        count: cloudMachines.length,
+        activeCount: cloudMachines.filter((machine) => machine.active).length,
+        availableCount: cloudMachines.filter((machine) => {
+            const runnerState = summarizeRunnerState(machine.runnerState)
+            return machine.active && isRunnerStateSelectable(runnerState)
+        }).length
     })
 
     for (const machine of cloudMachines) {
@@ -94,13 +117,16 @@ export function buildProviderSummaries(machines: Machine[]): ProviderSummary[] {
         const current = counts.get(provider)
         if (current) {
             current.count += 1
+            if (machine.active) {
+                current.activeCount += 1
+            }
+            const runnerState = summarizeRunnerState(machine.runnerState)
+            if (machine.active && isRunnerStateSelectable(runnerState)) {
+                current.availableCount += 1
+            }
             continue
         }
-        counts.set(provider, {
-            id: provider,
-            type: resolveProviderType(machine),
-            count: 1
-        })
+        counts.set(provider, buildProviderSummary(machine))
     }
 
     return [...counts.values()].sort((a, b) => a.id.localeCompare(b.id))

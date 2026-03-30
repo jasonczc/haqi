@@ -4,8 +4,7 @@ import { jwtVerify } from 'jose'
 import { z } from 'zod'
 import type { Store } from '../store'
 import { configuration } from '../configuration'
-import { constantTimeEquals } from '../utils/crypto'
-import { parseAccessToken } from '../utils/accessToken'
+import { resolveCliAuthToken } from '../cloud/resolveCliAuthToken'
 import { registerCliHandlers } from './handlers/cli'
 import { registerTerminalHandlers } from './handlers/terminal'
 import { RpcRegistry } from './rpcRegistry'
@@ -156,11 +155,25 @@ export function createSocketServer(deps: SocketServerDeps): {
     cliNs.use((socket, next) => {
         const auth = socket.handshake.auth as Record<string, unknown> | undefined
         const token = typeof auth?.token === 'string' ? auth.token : null
-        const parsedToken = token ? parseAccessToken(token) : null
-        if (!parsedToken || !constantTimeEquals(parsedToken.baseToken, configuration.cliApiToken)) {
+        if (!token) {
+            return next(new Error('Missing token'))
+        }
+
+        const resolved = resolveCliAuthToken(deps.store, token)
+        if (!resolved) {
             return next(new Error('Invalid token'))
         }
-        socket.data.namespace = parsedToken.namespace
+
+        const handshakeMachineId = typeof auth?.machineId === 'string' ? auth.machineId.trim() : ''
+        if (resolved.machineId && handshakeMachineId && handshakeMachineId !== resolved.machineId) {
+            return next(new Error('Machine access denied'))
+        }
+
+        socket.data.namespace = resolved.namespace
+        socket.data.cliAuthKind = resolved.kind
+        if (resolved.machineId) {
+            socket.data.machineId = resolved.machineId
+        }
         next()
     })
     cliNs.on('connection', (socket) => registerCliHandlers(socket as CliSocketWithData, {

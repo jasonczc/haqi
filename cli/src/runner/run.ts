@@ -27,8 +27,12 @@ import { DockerCliRuntime } from '@/cloud/docker/dockerCli';
 import { DockerServiceOrchestrator } from '@/cloud/docker/serviceOrchestrator';
 import { buildSpawnEnvironment, startHostProcessExecutor } from '@/cloud/executors/HostProcessExecutor';
 import { startDockerSessionExecutor } from '@/cloud/executors/DockerSessionExecutor';
-import { createPreviewTargetsFromBindings } from '@/cloud/preview/previewReporter';
+import { mergePreviewTargets } from '@/cloud/preview/previewReporter';
 import type { PreparedWorkspace, PreparedWorkspaceCleanup, ResolvedEnvironmentTemplate } from '@/cloud/types';
+import { runEnvironmentCommands } from '@/cloud/environment/runEnvironmentCommands';
+import { buildCloudRunnerStateSnapshot } from './cloudRunnerState';
+import type { WorkerLifecycle } from '@hapi/protocol/types';
+import { materializeResolvedSecrets } from '@/cloud/secrets/materializeSecrets';
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -214,6 +218,14 @@ export async function startRunner(): Promise<void> {
             logger.debug(`[RUNNER RUN] Resolved session awaiter for requestId ${requestId}`);
           }
         }
+
+        syncCloudRunnerState({
+          currentSessionId: sessionId,
+          workspacePreparation: null,
+          lastWorkspaceError: null,
+          status: 'running',
+          lifecycle: 'busy'
+        });
       } else if (!existingSession) {
         if (!pid) {
           logger.debug(`[RUNNER RUN] Session webhook missing hostPid and no matching requestId for sessionId: ${sessionId}`);
@@ -230,6 +242,13 @@ export async function startRunner(): Promise<void> {
           runtimeKind: sessionMetadata.runtimeKind
         };
         pidToTrackedSession.set(pid, trackedSession);
+        syncCloudRunnerState({
+          currentSessionId: sessionId,
+          workspacePreparation: null,
+          lastWorkspaceError: null,
+          status: 'running',
+          lifecycle: 'busy'
+        });
         logger.debug(`[RUNNER RUN] Registered externally-started session ${sessionId}`);
       }
     };
@@ -239,10 +258,11 @@ export async function startRunner(): Promise<void> {
       logger.debugLargeJson('[RUNNER RUN] Spawning session', options);
 
       const { directory, approvedNewDirectoryCreation = true } = options;
-      const spawnRequestId = options.resumeSessionId ?? options.sessionId ?? `spawn-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-      const agent = options.agent ?? 'claude';
+      const spawnRequestId = options.spawnRequestId ?? options.resumeSessionId ?? options.sessionId ?? `spawn-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
       const sessionType = options.sessionType ?? 'simple';
       const worktreeName = options.worktreeName;
+      const repository = options.workspaceSource?.repository;
+      const workspacePreparationStartedAt = Date.now();
       let directoryCreated = false;
       let spawnDirectory = directory ?? options.workspaceSource?.directory;
       let worktreeInfo: WorktreeInfo | null = null;
@@ -252,79 +272,61 @@ export async function startRunner(): Promise<void> {
       let resolvedEnvironment: ResolvedEnvironmentTemplate | null = null;
       let startedServices: Awaited<ReturnType<DockerServiceOrchestrator['startServices']>> = [];
       let dockerServiceOrchestrator: DockerServiceOrchestrator | null = null;
+      let extraEnv: Record<string, string> = {};
+      let secretCleanupPaths: string[] = [];
+      let serviceEndpoints: ReturnType<DockerServiceOrchestrator['collectServiceEndpoints']> = [];
+      let setupStatusMessage = 'preparing-workspace';
+      let spawnResult: SpawnSessionResult | null = null;
+      let spawnFailed = false;
 
-      if (sessionType === 'simple' && spawnDirectory) {
-        try {
-          await fs.access(spawnDirectory);
-          logger.debug(`[RUNNER RUN] Directory exists: ${spawnDirectory}`);
-        } catch (error) {
-          logger.debug(`[RUNNER RUN] Directory doesn't exist, creating: ${spawnDirectory}`);
-
-          // Check if directory creation is approved
-          if (!approvedNewDirectoryCreation) {
-            logger.debug(`[RUNNER RUN] Directory creation not approved for: ${spawnDirectory}`);
-            return {
-              type: 'requestToApproveDirectoryCreation',
-              directory: spawnDirectory
-            };
-          }
-
-          try {
-            await fs.mkdir(spawnDirectory, { recursive: true });
-            logger.debug(`[RUNNER RUN] Successfully created directory: ${spawnDirectory}`);
-            directoryCreated = true;
-          } catch (mkdirError: any) {
-            let errorMessage = `Unable to create directory at '${spawnDirectory}'. `;
-
-            // Provide more helpful error messages based on the error code
-            if (mkdirError.code === 'EACCES') {
-              errorMessage += `Permission denied. You don't have write access to create a folder at this location. Try using a different path or check your permissions.`;
-            } else if (mkdirError.code === 'ENOTDIR') {
-              errorMessage += `A file already exists at this path or in the parent path. Cannot create a directory here. Please choose a different location.`;
-            } else if (mkdirError.code === 'ENOSPC') {
-              errorMessage += `No space left on device. Your disk is full. Please free up some space and try again.`;
-            } else if (mkdirError.code === 'EROFS') {
-              errorMessage += `The file system is read-only. Cannot create directories here. Please choose a writable location.`;
-            } else {
-              errorMessage += `System error: ${mkdirError.message || mkdirError}. Please verify the path is valid and you have the necessary permissions.`;
-            }
-
-            logger.debug(`[RUNNER RUN] Directory creation failed: ${errorMessage}`);
-            return {
-              type: 'error',
-              errorMessage
-            };
-          }
+      const describeRepositoryRef = (): string | undefined => {
+        const branch = repository?.ref?.branch?.trim();
+        if (branch) {
+          return branch;
         }
-      } else if (sessionType !== 'simple' && spawnDirectory) {
-        try {
-          await fs.access(spawnDirectory);
-          logger.debug(`[RUNNER RUN] Worktree base directory exists: ${spawnDirectory}`);
-        } catch (error) {
-          logger.debug(`[RUNNER RUN] Worktree base directory missing: ${spawnDirectory}`);
-          return {
-            type: 'error',
-            errorMessage: `Worktree sessions require an existing Git repository. Directory not found: ${spawnDirectory}`
-          };
+        const tag = repository?.ref?.tag?.trim();
+        if (tag) {
+          return `tag:${tag}`;
         }
-      }
+        const commit = repository?.ref?.commit?.trim();
+        if (commit) {
+          return `commit:${commit.slice(0, 12)}`;
+        }
+        const pr = repository?.ref?.pr?.trim();
+        if (pr) {
+          return `pr:${pr}`;
+        }
+        return undefined;
+      };
 
-      if (sessionType === 'worktree' && spawnDirectory) {
-        const worktreeResult = await createWorktree({
-          basePath: spawnDirectory,
-          nameHint: worktreeName
+      const buildWorkspacePreparationState = (phase: string, progress?: number): NonNullable<RunnerState['workspacePreparation']> => ({
+        phase,
+        repo: repository?.url,
+        ref: describeRepositoryRef(),
+        progress,
+        startedAt: workspacePreparationStartedAt,
+        updatedAt: Date.now()
+      });
+
+      const updateWorkspacePreparation = (phase: string, progress?: number, status?: string) => {
+        setupStatusMessage = phase;
+        setSetupStatus(phase, status ?? phase);
+        syncCloudRunnerState({
+          currentSessionId: spawnRequestId,
+          lifecycle: 'preparing-workspace',
+          status: status ?? phase,
+          workspacePreparation: buildWorkspacePreparationState(phase, progress)
         });
-        if (!worktreeResult.ok) {
-          logger.debug(`[RUNNER RUN] Worktree creation failed: ${worktreeResult.error}`);
-          return {
-            type: 'error',
-            errorMessage: worktreeResult.error
-          };
-        }
-        worktreeInfo = worktreeResult.info;
-        spawnDirectory = worktreeInfo.worktreePath;
-        logger.debug(`[RUNNER RUN] Created worktree ${worktreeInfo.worktreePath} (branch ${worktreeInfo.branch})`);
-      }
+      };
+
+      const clearPendingSpawnState = () => {
+        syncCloudRunnerState({
+          currentSessionId: null,
+          workspacePreparation: null,
+          status: pidToTrackedSession.size > 0 ? 'running' : 'idle',
+          lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+        });
+      };
 
       const cleanupWorktree = async () => {
         if (!worktreeInfo) {
@@ -338,6 +340,7 @@ export async function startRunner(): Promise<void> {
           logger.debug(`[RUNNER RUN] Failed to remove worktree ${worktreeInfo.worktreePath}: ${result.error}`);
         }
       };
+
       const maybeCleanupWorktree = async (reason: string) => {
         if (!worktreeInfo) {
           return;
@@ -352,17 +355,17 @@ export async function startRunner(): Promise<void> {
         }
         await cleanupWorktree();
       };
+
       const cleanupPreparedWorkspace = async () => {
-        for (const cleanupPath of preparedWorkspaceCleanup?.cleanupPaths ?? preparedWorkspace?.cleanupPaths ?? []) {
+        const cleanupPaths = [
+          ...(preparedWorkspaceCleanup?.cleanupPaths ?? preparedWorkspace?.cleanupPaths ?? []),
+          ...secretCleanupPaths
+        ];
+        for (const cleanupPath of cleanupPaths) {
           await fs.rm(cleanupPath, { recursive: true, force: true }).catch(() => undefined);
         }
       };
-      const applyPreparedMetadata = (trackedSession: TrackedSession) => {
-        trackedSession.spawnRequestId = options.resumeSessionId ?? options.sessionId;
-        trackedSession.workspaceId = preparedWorkspace?.workspaceId;
-        trackedSession.runtimeKind = resolvedEnvironment?.runtimeKind ?? trackedSession.runtimeKind;
-        trackedSession.executionBackend = options.executionBackend ?? trackedSession.executionBackend;
-      };
+
       const stopStartedServices = async () => {
         if (!dockerServiceOrchestrator || startedServices.length === 0) {
           return;
@@ -370,90 +373,302 @@ export async function startRunner(): Promise<void> {
         await dockerServiceOrchestrator.stopServices(startedServices);
       };
 
+      const applyPreparedMetadata = (trackedSession: TrackedSession) => {
+        trackedSession.spawnRequestId = spawnRequestId;
+        trackedSession.workspaceId = preparedWorkspace?.workspaceId;
+        trackedSession.runtimeKind = resolvedEnvironment?.runtimeKind ?? trackedSession.runtimeKind;
+        trackedSession.executionBackend = options.executionBackend ?? trackedSession.executionBackend;
+      };
+
+      const setSetupStatus = (phase: string, message?: string) => {
+        extraEnv.HAPI_SETUP_STATUS_JSON = JSON.stringify({
+          phase,
+          message,
+          updatedAt: Date.now()
+        });
+      };
+
+      activeSpawnCount += 1;
+      updateWorkspacePreparation('requested', 0);
+
       try {
+        if (sessionType === 'simple' && spawnDirectory) {
+          try {
+            await fs.access(spawnDirectory);
+            logger.debug(`[RUNNER RUN] Directory exists: ${spawnDirectory}`);
+          } catch {
+            logger.debug(`[RUNNER RUN] Directory doesn't exist, creating: ${spawnDirectory}`);
+
+            if (!approvedNewDirectoryCreation) {
+              clearPendingSpawnState();
+              return {
+                type: 'requestToApproveDirectoryCreation',
+                directory: spawnDirectory
+              };
+            }
+
+            try {
+              await fs.mkdir(spawnDirectory, { recursive: true });
+              logger.debug(`[RUNNER RUN] Successfully created directory: ${spawnDirectory}`);
+              directoryCreated = true;
+            } catch (mkdirError: any) {
+              let errorMessage = `Unable to create directory at '${spawnDirectory}'. `;
+
+              if (mkdirError.code === 'EACCES') {
+                errorMessage += `Permission denied. You don't have write access to create a folder at this location. Try using a different path or check your permissions.`;
+              } else if (mkdirError.code === 'ENOTDIR') {
+                errorMessage += `A file already exists at this path or in the parent path. Cannot create a directory here. Please choose a different location.`;
+              } else if (mkdirError.code === 'ENOSPC') {
+                errorMessage += `No space left on device. Your disk is full. Please free up some space and try again.`;
+              } else if (mkdirError.code === 'EROFS') {
+                errorMessage += `The file system is read-only. Cannot create directories here. Please choose a writable location.`;
+              } else {
+                errorMessage += `System error: ${mkdirError.message || mkdirError}. Please verify the path is valid and you have the necessary permissions.`;
+              }
+
+              syncCloudRunnerState({
+                currentSessionId: null,
+                workspacePreparation: buildWorkspacePreparationState('failed'),
+                lastWorkspaceError: {
+                  message: errorMessage,
+                  code: mkdirError.code,
+                  at: Date.now()
+                },
+                status: 'failed',
+                lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+              });
+              spawnFailed = true;
+              logger.debug(`[RUNNER RUN] Directory creation failed: ${errorMessage}`);
+              return {
+                type: 'error',
+                errorMessage
+              };
+            }
+          }
+        } else if (sessionType === 'simple' && !spawnDirectory) {
+          spawnFailed = true;
+          syncCloudRunnerState({
+            currentSessionId: null,
+            workspacePreparation: buildWorkspacePreparationState('failed'),
+            lastWorkspaceError: {
+              message: 'Directory is required for simple sessions',
+              at: Date.now()
+            },
+            status: 'failed',
+            lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+          });
+          return {
+            type: 'error',
+            errorMessage: 'Directory is required for simple sessions'
+          };
+        } else if (sessionType !== 'simple' && spawnDirectory) {
+          await fs.access(spawnDirectory);
+          logger.debug(`[RUNNER RUN] Worktree base directory exists: ${spawnDirectory}`);
+        } else if (sessionType !== 'simple' && !spawnDirectory) {
+          spawnFailed = true;
+          syncCloudRunnerState({
+            currentSessionId: null,
+            workspacePreparation: buildWorkspacePreparationState('failed'),
+            lastWorkspaceError: {
+              message: 'Worktree sessions require an existing Git repository directory',
+              at: Date.now()
+            },
+            status: 'failed',
+            lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+          });
+          return {
+            type: 'error',
+            errorMessage: 'Worktree sessions require an existing Git repository directory'
+          };
+        }
+
+        if (sessionType === 'worktree' && spawnDirectory) {
+          const worktreeResult = await createWorktree({
+            basePath: spawnDirectory,
+            nameHint: worktreeName
+          });
+          if (!worktreeResult.ok) {
+            spawnFailed = true;
+            syncCloudRunnerState({
+              currentSessionId: null,
+              workspacePreparation: buildWorkspacePreparationState('failed'),
+              lastWorkspaceError: {
+                message: worktreeResult.error,
+                at: Date.now()
+              },
+              status: 'failed',
+              lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+            });
+            logger.debug(`[RUNNER RUN] Worktree creation failed: ${worktreeResult.error}`);
+            return {
+              type: 'error',
+              errorMessage: worktreeResult.error
+            };
+          }
+          worktreeInfo = worktreeResult.info;
+          spawnDirectory = worktreeInfo.worktreePath;
+          logger.debug(`[RUNNER RUN] Created worktree ${worktreeInfo.worktreePath} (branch ${worktreeInfo.branch})`);
+        }
+
+        updateWorkspacePreparation('preparing-workspace', 10);
+        const repositoryCredentialSecretName = options.workspaceSource?.repository?.credentialsSecretRef?.trim();
+        const repositoryCredential = repositoryCredentialSecretName
+          ? options.resolvedSecrets?.find((secret) => secret.secretName === repositoryCredentialSecretName)
+          : undefined;
         preparedWorkspace = await prepareWorkspace({
           directory: spawnDirectory,
           workspaceSource: options.workspaceSource,
-          workspace: options.workspace
+          workspace: options.workspace,
+          workspaceLease: options.workspaceLease,
+          repositoryCredential
         });
         preparedWorkspaceCleanup = {
           cleanupPaths: preparedWorkspace.cleanupPaths
         };
         spawnDirectory = preparedWorkspace.workingDirectory;
+        updateWorkspacePreparation('workspace-ready', 30);
 
         resolvedEnvironment = resolveEnvironmentTemplate({
           runtimeKind: options.runtimeKind,
           environmentId: options.environmentId,
           environment: options.environment,
-          workspaceSource: options.workspaceSource
+          resolvedEnvironment: options.resolvedEnvironment,
+          workspaceEnvironment: preparedWorkspace.environment ?? null,
+          workspaceSource: options.workspaceSource,
+          workspacePath: preparedWorkspace.workingDirectory
         });
+        updateWorkspacePreparation('environment-ready', 45);
 
         if (resolvedEnvironment.services.length > 0) {
+          updateWorkspacePreparation('starting-services', 55);
           dockerServiceOrchestrator = new DockerServiceOrchestrator(new (await import('@/cloud/docker/dockerCli')).DockerCliRuntime());
           startedServices = await dockerServiceOrchestrator.startServices({
             services: resolvedEnvironment.services,
-            sessionId: options.sessionId ?? 'pending-session',
+            sessionId: spawnRequestId,
             workspaceDir: preparedWorkspace.workspacePath
           });
+          serviceEndpoints = dockerServiceOrchestrator.collectServiceEndpoints(startedServices);
         }
+
         const serviceEnv = Object.assign({}, ...startedServices.map((service) => service.env));
-        const extraEnv = await buildSpawnEnvironment(options, {
+        extraEnv = await buildSpawnEnvironment(options, {
           worktreeInfo,
           serviceEnv
         });
-        extraEnv.HAPI_SPAWN_REQUEST_ID = spawnRequestId;
-        if (options.executionBackend) {
-          extraEnv.HAPI_EXECUTION_BACKEND = options.executionBackend;
-        }
-        extraEnv.HAPI_RUNTIME_KIND = resolvedEnvironment.runtimeKind;
-        if (preparedWorkspace?.workspaceId) {
-          extraEnv.HAPI_WORKSPACE_ID = preparedWorkspace.workspaceId;
-        }
-        if (resolvedEnvironment?.environmentId) {
-          extraEnv.HAPI_ENVIRONMENT_ID = resolvedEnvironment.environmentId;
-        }
-        if (preparedWorkspace?.source?.repository?.url) {
-          extraEnv.HAPI_REPOSITORY_URL = preparedWorkspace.source.repository.url;
-          if (preparedWorkspace.source.repository.provider) {
-            extraEnv.HAPI_REPOSITORY_PROVIDER = preparedWorkspace.source.repository.provider;
+
+        const runtimeSecrets = (options.resolvedSecrets ?? []).filter((secret) => {
+          if (!repositoryCredentialSecretName) {
+            return true;
           }
-          const repositoryRef = preparedWorkspace.source.repository.ref;
-          if (repositoryRef?.branch) {
-            extraEnv.HAPI_REPOSITORY_BRANCH = repositoryRef.branch;
-          }
-          if (repositoryRef?.tag) {
-            extraEnv.HAPI_REPOSITORY_TAG = repositoryRef.tag;
-          }
-          if (repositoryRef?.commit) {
-            extraEnv.HAPI_REPOSITORY_COMMIT = repositoryRef.commit;
-          }
-          if (repositoryRef?.pr) {
-            extraEnv.HAPI_REPOSITORY_PR = repositoryRef.pr;
-          }
-        }
-        if (resolvedEnvironment?.runtimeKind) {
-          extraEnv.HAPI_RUNTIME_KIND = resolvedEnvironment.runtimeKind;
-        }
-        if (options.workspaceSource?.repository?.url) {
-          extraEnv.HAPI_REPOSITORY_URL = options.workspaceSource.repository.url;
-        }
-        if (options.workspaceSource?.repository?.provider) {
-          extraEnv.HAPI_REPOSITORY_PROVIDER = options.workspaceSource.repository.provider;
-        }
-        if (options.workspaceSource?.repository?.ref?.branch) {
-          extraEnv.HAPI_REPOSITORY_BRANCH = options.workspaceSource.repository.ref.branch;
-        }
-        if (options.workspaceSource?.repository?.ref?.tag) {
-          extraEnv.HAPI_REPOSITORY_TAG = options.workspaceSource.repository.ref.tag;
-        }
-        if (options.workspaceSource?.repository?.ref?.commit) {
-          extraEnv.HAPI_REPOSITORY_COMMIT = options.workspaceSource.repository.ref.commit;
-        }
-        if (options.workspaceSource?.repository?.ref?.pr) {
-          extraEnv.HAPI_REPOSITORY_PR = options.workspaceSource.repository.ref.pr;
+          return secret.secretName !== repositoryCredentialSecretName;
+        });
+        if (runtimeSecrets.length > 0) {
+          const materializedSecrets = await materializeResolvedSecrets({
+            secrets: runtimeSecrets,
+            workspacePath: preparedWorkspace.workspacePath,
+            requestId: spawnRequestId
+          });
+          extraEnv = {
+            ...extraEnv,
+            ...materializedSecrets.env
+          };
+          secretCleanupPaths = materializedSecrets.cleanupPaths;
         }
 
-        // sessionId reserved for future use
+        extraEnv.HAPI_SPAWN_REQUEST_ID = spawnRequestId;
+        extraEnv.HAPI_RUNTIME_KIND = resolvedEnvironment.runtimeKind;
+        setSetupStatus('preparing-session', 'workspace and environment prepared');
+
+        const workspaceMode = preparedWorkspace.mode ?? options.workspace?.mode;
+        if (workspaceMode) {
+          extraEnv.HAPI_WORKSPACE_MODE = workspaceMode;
+        }
+        if (preparedWorkspace.workspaceId) {
+          extraEnv.HAPI_WORKSPACE_ID = preparedWorkspace.workspaceId;
+        }
+        if (preparedWorkspace.source) {
+          extraEnv.HAPI_WORKSPACE_SOURCE_JSON = JSON.stringify(preparedWorkspace.source);
+        }
+        if (resolvedEnvironment.environmentId) {
+          extraEnv.HAPI_ENVIRONMENT_ID = resolvedEnvironment.environmentId;
+        }
+        if (resolvedEnvironment.environment?.version) {
+          extraEnv.HAPI_ENVIRONMENT_VERSION = resolvedEnvironment.environment.version;
+        }
+
+        const repositorySource = preparedWorkspace.source?.repository ?? options.workspaceSource?.repository;
+        if (repositorySource?.url) {
+          extraEnv.HAPI_REPOSITORY_URL = repositorySource.url;
+        }
+        if (repositorySource?.provider) {
+          extraEnv.HAPI_REPOSITORY_PROVIDER = repositorySource.provider;
+        }
+        if (repositorySource?.ref?.branch) {
+          extraEnv.HAPI_REPOSITORY_BRANCH = repositorySource.ref.branch;
+        }
+        if (repositorySource?.ref?.tag) {
+          extraEnv.HAPI_REPOSITORY_TAG = repositorySource.ref.tag;
+        }
+        if (repositorySource?.ref?.commit) {
+          extraEnv.HAPI_REPOSITORY_COMMIT = repositorySource.ref.commit;
+        }
+        if (repositorySource?.ref?.pr) {
+          extraEnv.HAPI_REPOSITORY_PR = repositorySource.ref.pr;
+        }
+        if (serviceEndpoints.length > 0) {
+          extraEnv.HAPI_SERVICE_ENDPOINTS_JSON = JSON.stringify(serviceEndpoints);
+        }
+
+        const servicePreviewTargets = startedServices.flatMap((service) => service.previews);
+        if (servicePreviewTargets.length > 0) {
+          extraEnv.HAPI_PREVIEW_TARGETS_JSON = JSON.stringify(servicePreviewTargets);
+        }
+
+        if (resolvedEnvironment.environment?.install) {
+          updateWorkspacePreparation('running-install-hooks', 65);
+          if (resolvedEnvironment.runtimeKind !== 'docker-session') {
+            await runEnvironmentCommands({
+              commands: resolvedEnvironment.environment.install,
+              cwd: preparedWorkspace.workingDirectory,
+              env: extraEnv,
+              label: 'install'
+            });
+          }
+        }
+
+        if (resolvedEnvironment.environment?.start) {
+          updateWorkspacePreparation('running-start-hooks', 75);
+          if (resolvedEnvironment.runtimeKind !== 'docker-session') {
+            await runEnvironmentCommands({
+              commands: resolvedEnvironment.environment.start,
+              cwd: preparedWorkspace.workingDirectory,
+              env: extraEnv,
+              label: 'start'
+            });
+          }
+        }
+
+        updateWorkspacePreparation('starting-session', 90, 'starting agent process');
+
+        // In development mode, Bun path aliases only resolve reliably when cwd is cli project root.
+        // Keep actual target directory in HAPI_WORKING_DIRECTORY to preserve session behavior.
+        const executionCwd = isBunCompiled() ? spawnDirectory : projectPath();
+        const execution = resolvedEnvironment.runtimeKind === 'docker-session'
+          ? await startDockerSessionExecutor({
+              runtime: new DockerCliRuntime(),
+              workspace: preparedWorkspace,
+              environment: resolvedEnvironment,
+              env: extraEnv,
+              options,
+              sessionLabel: spawnRequestId
+            })
+          : startHostProcessExecutor({
+              executionCwd,
+              workingDirectory: spawnDirectory,
+              env: extraEnv,
+              options
+            });
+
         const MAX_TAIL_CHARS = 4000;
         let stderrTail = '';
         const appendTail = (current: string, chunk: Buffer | string): string => {
@@ -471,26 +686,6 @@ export async function startRunner(): Promise<void> {
           }
           logger.debug('[RUNNER RUN] Child stderr tail', trimmed);
         };
-
-        // In development mode, Bun path aliases only resolve reliably when cwd is cli project root.
-        // Keep actual target directory in HAPI_WORKING_DIRECTORY to preserve session behavior.
-        const executionCwd = isBunCompiled() ? spawnDirectory : projectPath();
-
-        const execution = resolvedEnvironment.runtimeKind === 'docker-session'
-          ? await startDockerSessionExecutor({
-              runtime: new DockerCliRuntime(),
-              workspace: preparedWorkspace,
-              environment: resolvedEnvironment,
-              env: extraEnv,
-              options,
-              sessionLabel: spawnRequestId
-            })
-          : startHostProcessExecutor({
-              executionCwd,
-              workingDirectory: spawnDirectory,
-              env: extraEnv,
-              options
-            });
 
         if ('childProcess' in execution) {
           happyProcess = execution.childProcess;
@@ -512,12 +707,17 @@ export async function startRunner(): Promise<void> {
             }
             const errorMessage = `Failed to spawn HAPI process - no PID returned (${details.join('; ')})`;
             logger.debug('[RUNNER RUN] Failed to spawn process - no PID returned', spawnErrorBeforePidCheck ?? null);
-            reportSpawnOutcomeToHub?.({
-              type: 'error',
-              details: {
-                message: errorMessage
-              }
+            syncCloudRunnerState({
+              currentSessionId: null,
+              workspacePreparation: buildWorkspacePreparationState('failed'),
+              lastWorkspaceError: {
+                message: errorMessage,
+                at: Date.now()
+              },
+              status: 'failed',
+              lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
             });
+            spawnFailed = true;
             await stopStartedServices();
             await cleanupPreparedWorkspace();
             await maybeCleanupWorktree('no-pid');
@@ -571,13 +771,19 @@ export async function startRunner(): Promise<void> {
           serviceContainerIds: startedServices.map((service) => service.containerId),
           childProcess: 'childProcess' in execution ? execution.childProcess : undefined,
           containerId: 'containerId' in execution ? execution.containerId : undefined,
-          cleanupPaths: preparedWorkspace.cleanupPaths,
+          cleanupPaths: [...preparedWorkspace.cleanupPaths, ...secretCleanupPaths],
           directoryCreated,
           message: directoryCreated && options.directory ? `The path '${options.directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
         };
         applyPreparedMetadata(trackedSession);
 
         pidToTrackedSession.set(pid, trackedSession);
+        syncCloudRunnerState({
+          currentSessionId: spawnRequestId,
+          lifecycle: 'busy',
+          status: 'running',
+          workspacePreparation: buildWorkspacePreparationState('starting-session', 100)
+        });
 
         if (happyProcess) {
           happyProcess.on('exit', (code, signal) => {
@@ -608,11 +814,8 @@ export async function startRunner(): Promise<void> {
           });
         }
 
-        // Wait for webhook to populate session with happySessionId
         logger.debug(`[RUNNER RUN] Waiting for session webhook for PID ${pid}`);
-
-        const spawnResult = await new Promise<SpawnSessionResult>((resolve) => {
-          // Set timeout for webhook
+        spawnResult = await new Promise<SpawnSessionResult>((resolve) => {
           const timeout = setTimeout(() => {
             pidToAwaiter.delete(pid);
             pidToErrorAwaiter.delete(pid);
@@ -624,11 +827,8 @@ export async function startRunner(): Promise<void> {
               type: 'error',
               errorMessage: buildWebhookFailureMessage('timeout')
             });
-            // 15 second timeout - I have seen timeouts on 10 seconds
-            // even though session was still created successfully in ~2 more seconds
           }, 15_000);
 
-          // Register awaiter
           pidToAwaiter.set(pid, (completedSession) => {
             clearTimeout(timeout);
             pidToErrorAwaiter.delete(pid);
@@ -668,7 +868,19 @@ export async function startRunner(): Promise<void> {
             });
           });
         });
+
         if (spawnResult.type === 'error') {
+          spawnFailed = true;
+          syncCloudRunnerState({
+            currentSessionId: null,
+            workspacePreparation: buildWorkspacePreparationState('failed'),
+            lastWorkspaceError: {
+              message: spawnResult.errorMessage,
+              at: Date.now()
+            },
+            status: 'failed',
+            lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+          });
           reportSpawnOutcomeToHub?.({
             type: 'error',
             details: {
@@ -685,12 +897,12 @@ export async function startRunner(): Promise<void> {
           }
           await maybeCleanupWorktree('spawn-error');
         } else {
-          const previewTargets = [
-            ...startedServices.flatMap((service) => service.previews),
-            ...('previewTargets' in execution ? execution.previewTargets : [])
-          ];
+          const previewTargets = mergePreviewTargets(
+            servicePreviewTargets.length > 0 ? servicePreviewTargets : undefined,
+            'previewTargets' in execution ? execution.previewTargets : undefined
+          );
           const repositorySource = preparedWorkspace.source?.repository;
-          if (previewTargets.length > 0 || repositorySource || resolvedEnvironment.environmentId) {
+          if (previewTargets || repositorySource || resolvedEnvironment.environmentId) {
             const metadata = trackedSession.happySessionMetadataFromLocalWebhook ?? {
               path: spawnDirectory,
               host: process.env.HAPI_HOSTNAME || os.hostname()
@@ -702,19 +914,45 @@ export async function startRunner(): Promise<void> {
               spawnRequestId,
               workspaceId: preparedWorkspace.workspaceId,
               environmentId: resolvedEnvironment.environmentId,
-              previewUrls: previewTargets.length > 0 ? previewTargets : metadata.previewUrls,
+              environmentVersion: resolvedEnvironment.environment?.version ?? metadata.environmentVersion,
+              workspaceMode: workspaceMode ?? metadata.workspaceMode,
+              serviceEndpoints: serviceEndpoints.length > 0 ? serviceEndpoints : metadata.serviceEndpoints,
+              setupStatus: {
+                phase: setupStatusMessage,
+                updatedAt: Date.now()
+              },
+              previewUrls: previewTargets ? mergePreviewTargets(metadata.previewUrls, previewTargets) : metadata.previewUrls,
               repositoryUrl: repositorySource?.url ?? metadata.repositoryUrl,
               repositoryProvider: repositorySource?.provider ?? metadata.repositoryProvider,
-              repositoryRef: repositorySource?.ref ?? metadata.repositoryRef
+              repositoryRef: repositorySource?.ref ?? metadata.repositoryRef,
+              repositoryCommit: repositorySource?.ref?.commit ?? metadata.repositoryCommit
             };
             trackedSession.happySessionMetadataFromLocalWebhook = nextMetadata;
           }
+          syncCloudRunnerState({
+            workspacePreparation: null,
+            lastWorkspaceError: null,
+            status: 'running',
+            lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+          });
           reportSpawnOutcomeToHub?.({ type: 'success' });
         }
+
         return spawnResult;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         logger.debug('[RUNNER RUN] Failed to spawn session:', error);
+        spawnFailed = true;
+        syncCloudRunnerState({
+          currentSessionId: null,
+          workspacePreparation: buildWorkspacePreparationState('failed'),
+          lastWorkspaceError: {
+            message: errorMessage,
+            at: Date.now()
+          },
+          status: 'failed',
+          lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+        });
         await stopStartedServices();
         await cleanupPreparedWorkspace();
         await maybeCleanupWorktree('exception');
@@ -728,6 +966,14 @@ export async function startRunner(): Promise<void> {
           type: 'error',
           errorMessage: `Failed to spawn session: ${errorMessage}`
         };
+      } finally {
+        activeSpawnCount = Math.max(0, activeSpawnCount - 1);
+        syncCloudRunnerState({
+          status: spawnFailed
+            ? (pidToTrackedSession.size > 0 ? 'running' : 'failed')
+            : (pidToTrackedSession.size > 0 ? 'running' : 'idle'),
+          lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+        });
       }
     };
 
@@ -773,6 +1019,12 @@ export async function startRunner(): Promise<void> {
           }
 
           pidToTrackedSession.delete(pid);
+          syncCloudRunnerState({
+            currentSessionId: null,
+            workspacePreparation: null,
+            status: pidToTrackedSession.size > 0 ? 'running' : 'idle',
+            lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+          });
           logger.debug(`[RUNNER RUN] Removed session ${sessionId} from tracking`);
           return true;
         }
@@ -793,6 +1045,12 @@ export async function startRunner(): Promise<void> {
       pidToTrackedSession.delete(pid);
       pidToAwaiter.delete(pid);
       pidToErrorAwaiter.delete(pid);
+      syncCloudRunnerState({
+        currentSessionId: null,
+        workspacePreparation: null,
+        status: pidToTrackedSession.size > 0 ? 'running' : 'idle',
+        lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
+      });
     };
 
     // Start control server
@@ -867,41 +1125,101 @@ export async function startRunner(): Promise<void> {
     // Connect to server
     apiMachine.connect();
 
+    const configuredCapacityTotal = Math.max(
+      1,
+      Number.parseInt(process.env.HAPI_RUNNER_CAPACITY_TOTAL ?? '1', 10) || 1
+    );
+    let activeSpawnCount = 0;
+    let cloudRunnerCurrentSessionId: string | null | undefined = undefined;
+    let cloudRunnerWorkspacePreparation: RunnerState['workspacePreparation'] | null | undefined = undefined;
+    let cloudRunnerLastWorkspaceError: RunnerState['lastWorkspaceError'] | null | undefined = undefined;
+    let cloudRunnerLastSpawnError: RunnerState['lastSpawnError'] | null | undefined = undefined;
+    let cloudRunnerLifecycle: WorkerLifecycle | undefined = undefined;
+    let cloudRunnerStatus: string | undefined = undefined;
+
+    const getCurrentTrackedSessionId = (): string | null | undefined => {
+      if (cloudRunnerCurrentSessionId !== undefined && cloudRunnerCurrentSessionId !== null) {
+        return cloudRunnerCurrentSessionId
+      }
+
+      for (const session of pidToTrackedSession.values()) {
+        if (session.happySessionId) {
+          return session.happySessionId
+        }
+        if (session.spawnRequestId) {
+          return session.spawnRequestId
+        }
+      }
+
+      return undefined
+    };
+
+    const syncCloudRunnerState = (patch: {
+      currentSessionId?: string | null
+      workspacePreparation?: RunnerState['workspacePreparation'] | null
+      lastWorkspaceError?: RunnerState['lastWorkspaceError'] | null
+      lastSpawnError?: RunnerState['lastSpawnError'] | null
+      lifecycle?: WorkerLifecycle
+      status?: string
+      shutdownRequestedAt?: number
+      shutdownSource?: string
+    } = {}) => {
+      if (patch.currentSessionId !== undefined) {
+        cloudRunnerCurrentSessionId = patch.currentSessionId
+      }
+      if (patch.workspacePreparation !== undefined) {
+        cloudRunnerWorkspacePreparation = patch.workspacePreparation
+      }
+      if (patch.lastWorkspaceError !== undefined) {
+        cloudRunnerLastWorkspaceError = patch.lastWorkspaceError
+      }
+      if (patch.lastSpawnError !== undefined) {
+        cloudRunnerLastSpawnError = patch.lastSpawnError
+      }
+      if (patch.lifecycle !== undefined) {
+        cloudRunnerLifecycle = patch.lifecycle
+      }
+      if (patch.status !== undefined) {
+        cloudRunnerStatus = patch.status
+      }
+
+      void apiMachine.updateRunnerState((state: RunnerState | null) => buildCloudRunnerStateSnapshot({
+        baseState: state,
+        pid: process.pid,
+        httpPort: controlPort,
+        usedSessions: pidToTrackedSession.size + activeSpawnCount,
+        startedAt: state?.startedAt,
+        currentSessionId: getCurrentTrackedSessionId(),
+        status: cloudRunnerStatus,
+        lifecycle: cloudRunnerLifecycle,
+        workspacePreparation: cloudRunnerWorkspacePreparation,
+        lastWorkspaceError: cloudRunnerLastWorkspaceError,
+        lastSpawnError: cloudRunnerLastSpawnError,
+        lastHeartbeatAt: Date.now(),
+        shutdownRequestedAt: patch.shutdownRequestedAt,
+        shutdownSource: patch.shutdownSource,
+        capacityTotal: configuredCapacityTotal
+      })).catch((error) => {
+        logger.debug('[RUNNER RUN] Failed to update runner state', error);
+      });
+    };
+
     reportSpawnOutcomeToHub = (outcome) => {
-      void apiMachine.updateRunnerState((state: RunnerState | null) => {
-        const baseState: RunnerState = state
-          ? { ...state }
-          : { status: 'running' };
+      if (outcome.type === 'success') {
+        syncCloudRunnerState({
+          lastSpawnError: null
+        });
+        return;
+      }
 
-        if (typeof baseState.pid !== 'number') {
-          baseState.pid = process.pid;
+      syncCloudRunnerState({
+        lastSpawnError: {
+          message: outcome.details.message,
+          pid: outcome.details.pid,
+          exitCode: outcome.details.exitCode ?? null,
+          signal: outcome.details.signal ?? null,
+          at: Date.now()
         }
-        if (typeof baseState.httpPort !== 'number') {
-          baseState.httpPort = controlPort;
-        }
-        if (typeof baseState.startedAt !== 'number') {
-          baseState.startedAt = Date.now();
-        }
-
-        if (outcome.type === 'success') {
-          return {
-            ...baseState,
-            lastSpawnError: null
-          };
-        }
-
-        return {
-          ...baseState,
-          lastSpawnError: {
-            message: outcome.details.message,
-            pid: outcome.details.pid,
-            exitCode: outcome.details.exitCode ?? null,
-            signal: outcome.details.signal ?? null,
-            at: Date.now()
-          }
-        };
-      }).catch((error) => {
-        logger.debug('[RUNNER RUN] Failed to update runner state with spawn outcome', error);
       });
     };
 

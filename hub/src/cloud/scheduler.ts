@@ -1,4 +1,5 @@
 import type { Machine } from '../sync/machineCache'
+import { getRunnerStateCapacity, isRunnerStateSelectable, summarizeRunnerState } from './workerState'
 
 export type SelectWorkerOptions = {
     labels?: string[]
@@ -19,25 +20,7 @@ function hasAllLabels(machine: Machine, labels: string[]): boolean {
 }
 
 function runnerLoad(machine: Machine): { used: number; total: number } {
-    const used = machine.runnerState && typeof machine.runnerState === 'object' && machine.runnerState !== null
-        && 'capacity' in machine.runnerState
-        && typeof machine.runnerState.capacity === 'object'
-        && machine.runnerState.capacity !== null
-        && 'used' in machine.runnerState.capacity
-        && typeof machine.runnerState.capacity.used === 'number'
-        ? machine.runnerState.capacity.used
-        : 0
-
-    const total = machine.runnerState && typeof machine.runnerState === 'object' && machine.runnerState !== null
-        && 'capacity' in machine.runnerState
-        && typeof machine.runnerState.capacity === 'object'
-        && machine.runnerState.capacity !== null
-        && 'total' in machine.runnerState.capacity
-        && typeof machine.runnerState.capacity.total === 'number'
-        ? machine.runnerState.capacity.total
-        : Number.POSITIVE_INFINITY
-
-    return { used, total }
+    return getRunnerStateCapacity(summarizeRunnerState(machine.runnerState))
 }
 
 export function selectWorker(
@@ -48,6 +31,11 @@ export function selectWorker(
 
     const filtered = machines.filter((machine) => {
         if (!machine.active) {
+            return false
+        }
+
+        const runnerState = summarizeRunnerState(machine.runnerState)
+        if (!isRunnerStateSelectable(runnerState)) {
             return false
         }
 

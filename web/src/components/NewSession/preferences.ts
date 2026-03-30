@@ -1,6 +1,6 @@
 import type { AgentType, ServiceTier, SessionType, ThinkEffort } from './types'
 import { CODEX_SERVICE_TIER_OPTIONS, MODEL_OPTIONS, getThinkEffortOptions } from './types'
-import type { ExecutionBackend, RuntimeKind, WorkspaceMode } from '@/types/api'
+import type { ExecutionBackend, NetworkMode, RuntimeKind, WorkspaceMode } from '@/types/api'
 
 const AGENT_STORAGE_KEY = 'hapi:newSession:agent'
 const YOLO_STORAGE_KEY = 'hapi:newSession:yolo'
@@ -30,6 +30,7 @@ export type LastSessionConfig = {
     runtimeKind?: RuntimeKind
     executionBackend?: ExecutionBackend
     workspaceMode?: WorkspaceMode
+    networkPolicy?: NetworkMode
     repositoryUrl?: string
     repositoryBranch?: string
     environmentId?: string
@@ -37,6 +38,8 @@ export type LastSessionConfig = {
     workspaceName?: string
     labels?: string
     secrets?: string
+    previewAutoDetect?: boolean
+    previewPreferredPort?: string
 }
 
 function loadAgentPreferenceMap(storageKey: string): AgentPreferenceMap {
@@ -310,6 +313,9 @@ export function loadLastSessionConfig(): LastSessionConfig | null {
         if (parsed.workspaceMode === 'ephemeral' || parsed.workspaceMode === 'persistent' || parsed.workspaceMode === 'snapshot-derived') {
             config.workspaceMode = parsed.workspaceMode
         }
+        if (parsed.networkPolicy === 'default' || parsed.networkPolicy === 'restricted' || parsed.networkPolicy === 'off') {
+            config.networkPolicy = parsed.networkPolicy
+        }
         if (typeof parsed.repositoryUrl === 'string') {
             config.repositoryUrl = parsed.repositoryUrl
         }
@@ -330,6 +336,12 @@ export function loadLastSessionConfig(): LastSessionConfig | null {
         }
         if (typeof parsed.secrets === 'string') {
             config.secrets = parsed.secrets
+        }
+        if (typeof parsed.previewAutoDetect === 'boolean') {
+            config.previewAutoDetect = parsed.previewAutoDetect
+        }
+        if (typeof parsed.previewPreferredPort === 'string') {
+            config.previewPreferredPort = parsed.previewPreferredPort
         }
 
         return Object.keys(config).length > 0 ? config : null

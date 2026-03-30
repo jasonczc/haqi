@@ -124,7 +124,19 @@ describe('NewSession preferences', () => {
             yoloMode: true,
             sessionType: 'worktree',
             worktreeName: 'feat-branch',
-            previewUrl: 'http://localhost:3000'
+            previewUrl: 'http://localhost:3000',
+            runtimeKind: 'docker-session',
+            executionBackend: 'cloud-self-hosted',
+            workspaceMode: 'persistent',
+            networkPolicy: 'restricted',
+            repositoryUrl: 'https://github.com/acme/demo.git',
+            repositoryBranch: 'feature/cloud',
+            environmentId: 'fullstack-node',
+            ttlMinutes: '120',
+            labels: 'cloud, docker',
+            secrets: 'github-app, claude-main',
+            previewAutoDetect: true,
+            previewPreferredPort: '4173'
         })
 
         expect(loadLastSessionConfig()).toEqual({
@@ -136,7 +148,19 @@ describe('NewSession preferences', () => {
             yoloMode: true,
             sessionType: 'worktree',
             worktreeName: 'feat-branch',
-            previewUrl: 'http://localhost:3000'
+            previewUrl: 'http://localhost:3000',
+            runtimeKind: 'docker-session',
+            executionBackend: 'cloud-self-hosted',
+            workspaceMode: 'persistent',
+            networkPolicy: 'restricted',
+            repositoryUrl: 'https://github.com/acme/demo.git',
+            repositoryBranch: 'feature/cloud',
+            environmentId: 'fullstack-node',
+            ttlMinutes: '120',
+            labels: 'cloud, docker',
+            secrets: 'github-app, claude-main',
+            previewAutoDetect: true,
+            previewPreferredPort: '4173'
         })
     })
 })

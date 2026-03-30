@@ -161,6 +161,7 @@ export class ApiMachineClient {
                 token,
                 sessionType,
                 worktreeName,
+                executionBackend,
                 runtimeKind,
                 environmentId,
                 environment,
@@ -172,7 +173,11 @@ export class ApiMachineClient {
                 persistentWorkspace,
                 secrets,
                 labels,
-                preview
+                preview,
+                spawnRequestId,
+                resolvedEnvironment,
+                workspaceLease,
+                resolvedSecrets
             } = params || {}
 
             const result = await spawnSession({
@@ -189,6 +194,7 @@ export class ApiMachineClient {
                 token,
                 sessionType,
                 worktreeName,
+                executionBackend,
                 runtimeKind,
                 environmentId,
                 environment,
@@ -200,7 +206,11 @@ export class ApiMachineClient {
                 persistentWorkspace,
                 secrets,
                 labels,
-                preview
+                preview,
+                spawnRequestId,
+                resolvedEnvironment,
+                workspaceLease,
+                resolvedSecrets
             })
 
             switch (result.type) {
@@ -319,9 +329,13 @@ export class ApiMachineClient {
             this.updateRunnerState((state) => ({
                 ...(state ?? {}),
                 status: 'running',
+                lifecycle: state?.lifecycle ?? 'idle',
                 pid: process.pid,
                 httpPort: this.machine.runnerState?.httpPort,
-                startedAt: Date.now()
+                startedAt: state?.startedAt ?? Date.now(),
+                currentSessionId: state?.currentSessionId ?? null,
+                capacity: state?.capacity ?? { total: 1, used: 0 },
+                lastHeartbeatAt: Date.now()
             })).catch((error) => {
                 logger.debug('[API MACHINE] Failed to update runner state on connect', error)
             })

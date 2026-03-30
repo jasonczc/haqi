@@ -3,6 +3,7 @@ import type { AgentState, CreateMachineResponse, CreateSessionResponse, RunnerSt
 import { AgentStateSchema, CreateMachineResponseSchema, CreateSessionResponseSchema, RunnerStateSchema, MachineMetadataSchema, MetadataSchema } from '@/api/types'
 import { configuration } from '@/configuration'
 import { getAuthToken } from '@/api/auth'
+import { updateSettings } from '@/persistence'
 import { apiValidationError } from '@/utils/errorUtils'
 import { ApiMachineClient } from './apiMachine'
 import { ApiSessionClient } from './apiSession'
@@ -12,7 +13,20 @@ export class ApiClient {
         return new ApiClient(getAuthToken())
     }
 
-    private constructor(private readonly token: string) { }
+    private constructor(private token: string) { }
+
+    private async applyAuthUpgrade(nextToken: string | undefined): Promise<void> {
+        const normalized = typeof nextToken === 'string' ? nextToken.trim() : ''
+        if (!normalized || normalized === this.token) {
+            return
+        }
+        this.token = normalized
+        configuration._setCliApiToken(normalized)
+        await updateSettings((current) => ({
+            ...current,
+            cliApiToken: normalized
+        }))
+    }
 
     async getOrCreateSession(opts: {
         tag: string
@@ -34,6 +48,7 @@ export class ApiClient {
                 timeout: 60_000
             }
         )
+        await this.applyAuthUpgrade(response.headers['x-hapi-worker-session-token'])
 
         const parsed = CreateSessionResponseSchema.safeParse(response.data)
         if (!parsed.success) {
@@ -94,6 +109,7 @@ export class ApiClient {
                 timeout: 60_000
             }
         )
+        await this.applyAuthUpgrade(response.headers['x-hapi-worker-session-token'])
 
         const parsed = CreateMachineResponseSchema.safeParse(response.data)
         if (!parsed.success) {

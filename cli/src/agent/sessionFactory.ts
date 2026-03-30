@@ -26,9 +26,15 @@ export type SessionBootstrapOptions = {
     runtimeKind?: Metadata['runtimeKind']
     executionBackend?: Metadata['executionBackend']
     environmentId?: string
+    environmentVersion?: string
     repositoryUrl?: string
     repositoryProvider?: string
     repositoryRef?: Metadata['repositoryRef']
+    repositoryCommit?: string
+    workspaceSource?: Metadata['workspaceSource']
+    workspaceMode?: Metadata['workspaceMode']
+    serviceEndpoints?: Metadata['serviceEndpoints']
+    setupStatus?: Metadata['setupStatus']
     previewUrls?: Metadata['previewUrls']
 }
 
@@ -64,9 +70,15 @@ export function buildSessionMetadata(options: {
     runtimeKind?: Metadata['runtimeKind']
     executionBackend?: Metadata['executionBackend']
     environmentId?: string
+    environmentVersion?: string
     repositoryUrl?: string
     repositoryProvider?: string
     repositoryRef?: Metadata['repositoryRef']
+    repositoryCommit?: string
+    workspaceSource?: Metadata['workspaceSource']
+    workspaceMode?: Metadata['workspaceMode']
+    serviceEndpoints?: Metadata['serviceEndpoints']
+    setupStatus?: Metadata['setupStatus']
     previewUrls?: Metadata['previewUrls']
 }): Metadata {
     const happyLibDir = runtimePath()
@@ -79,6 +91,7 @@ export function buildSessionMetadata(options: {
         version: packageJson.version,
         os: os.platform(),
         machineId: options.machineId,
+        workerId: options.machineId,
         homeDir: os.homedir(),
         happyHomeDir: configuration.happyHomeDir,
         happyLibDir,
@@ -92,12 +105,18 @@ export function buildSessionMetadata(options: {
         worktree: worktreeInfo ?? undefined,
         spawnRequestId: options.spawnRequestId,
         workspaceId: options.workspaceId,
+        workspaceSource: options.workspaceSource,
         runtimeKind: options.runtimeKind,
         executionBackend: options.executionBackend,
         environmentId: options.environmentId,
+        environmentVersion: options.environmentVersion,
         repositoryUrl: options.repositoryUrl,
         repositoryProvider: options.repositoryProvider,
         repositoryRef: options.repositoryRef,
+        repositoryCommit: options.repositoryCommit,
+        workspaceMode: options.workspaceMode,
+        serviceEndpoints: options.serviceEndpoints,
+        setupStatus: options.setupStatus,
         previewUrls: options.previewUrls
     }
 }
@@ -147,8 +166,29 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
             : undefined
     )
     const environmentId = options.environmentId ?? process.env.HAPI_ENVIRONMENT_ID
+    const environmentVersion = options.environmentVersion ?? process.env.HAPI_ENVIRONMENT_VERSION
     const repositoryUrl = options.repositoryUrl ?? process.env.HAPI_REPOSITORY_URL
     const repositoryProvider = options.repositoryProvider ?? process.env.HAPI_REPOSITORY_PROVIDER
+    const repositoryCommit = options.repositoryCommit ?? process.env.HAPI_REPOSITORY_COMMIT
+    const workspaceSource = options.workspaceSource ?? (() => {
+        const raw = process.env.HAPI_WORKSPACE_SOURCE_JSON
+        if (!raw) {
+            return undefined
+        }
+        try {
+            const parsed = JSON.parse(raw)
+            return parsed && typeof parsed === 'object' ? parsed as Metadata['workspaceSource'] : undefined
+        } catch {
+            return undefined
+        }
+    })()
+    const workspaceMode = options.workspaceMode ?? (() => {
+        const raw = process.env.HAPI_WORKSPACE_MODE
+        if (raw === 'ephemeral' || raw === 'persistent' || raw === 'snapshot-derived') {
+            return raw
+        }
+        return undefined
+    })()
     const repositoryRef = options.repositoryRef ?? (() => {
         const branch = process.env.HAPI_REPOSITORY_BRANCH?.trim()
         const tag = process.env.HAPI_REPOSITORY_TAG?.trim()
@@ -162,6 +202,47 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
             tag: tag || undefined,
             commit: commit || undefined,
             pr: pr || undefined
+        }
+    })()
+    const serviceEndpoints = options.serviceEndpoints ?? (() => {
+        const raw = process.env.HAPI_SERVICE_ENDPOINTS_JSON
+        if (!raw) {
+            return undefined
+        }
+        try {
+            const parsed = JSON.parse(raw)
+            return Array.isArray(parsed) ? parsed as Metadata['serviceEndpoints'] : undefined
+        } catch {
+            return undefined
+        }
+    })()
+    const setupStatus = options.setupStatus ?? (() => {
+        const raw = process.env.HAPI_SETUP_STATUS_JSON
+        if (!raw) {
+            return undefined
+        }
+        try {
+            const parsed = JSON.parse(raw)
+            if (!parsed || typeof parsed !== 'object') {
+                return undefined
+            }
+            const phase = typeof (parsed as { phase?: unknown }).phase === 'string'
+                ? (parsed as { phase: string }).phase
+                : undefined
+            if (!phase) {
+                return undefined
+            }
+            return {
+                phase,
+                message: typeof (parsed as { message?: unknown }).message === 'string'
+                    ? (parsed as { message: string }).message
+                    : undefined,
+                updatedAt: typeof (parsed as { updatedAt?: unknown }).updatedAt === 'number'
+                    ? (parsed as { updatedAt: number }).updatedAt
+                    : Date.now()
+            }
+        } catch {
+            return undefined
         }
     })()
     const previewUrls = options.previewUrls ?? (() => {
@@ -195,9 +276,15 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         runtimeKind,
         executionBackend,
         environmentId,
+        environmentVersion,
         repositoryUrl,
         repositoryProvider,
         repositoryRef,
+        repositoryCommit,
+        workspaceSource,
+        workspaceMode,
+        serviceEndpoints,
+        setupStatus,
         previewUrls
     })
 

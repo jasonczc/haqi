@@ -79,8 +79,11 @@ export function useSpawnSession(api: ApiClient | null): {
                 preview: input.preview
             })
         },
-        onSuccess: () => {
+        onSuccess: (result) => {
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+            if (result.type === 'accepted') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequests })
+            }
         },
     })
 

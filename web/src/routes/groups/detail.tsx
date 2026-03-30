@@ -20,6 +20,7 @@ import type {
     GroupMember,
     GroupTimelineMessage,
     GroupTaskStatus,
+    SpawnResponse,
     SessionSummary
 } from '@/types/api'
 import { LoadingState } from '@/components/LoadingState'
@@ -695,10 +696,22 @@ function AddMemberModal(props: {
         }
     }
 
-    const handleSessionCreated = async (sessionId: string) => {
+    const handleSessionCreated = async (result: SpawnResponse) => {
         setError(null)
+        if (result.type !== 'success') {
+            if (result.type === 'error') {
+                setError(result.message)
+                return
+            }
+            if (result.type === 'requestToApproveDirectoryCreation') {
+                setError(`Directory creation requires approval: ${result.directory}`)
+                return
+            }
+            setError('Cloud async spawn is not supported when adding a group member')
+            return
+        }
         try {
-            await props.onAdd(sessionId)
+            await props.onAdd(result.sessionId)
             props.onClose()
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to add member')

@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+    normalizeNetworkPolicyInput,
     resolveSpawnModel,
     resolveSpawnServiceTier,
     resolveSpawnSessionSettings,
-    resolveSpawnThinkEffort
+    resolveSpawnThinkEffort,
+    parseListInput,
+    parsePreviewPortInput
 } from './spawnPayload'
 
 describe('resolveSpawnModel', () => {
@@ -57,5 +60,30 @@ describe('resolveSpawnSessionSettings', () => {
             worktreeName: undefined,
             previewUrl: undefined
         })
+    })
+})
+
+describe('parseListInput', () => {
+    it('splits labels and secrets on commas/newlines and deduplicates values', () => {
+        expect(parseListInput('alpha, beta\nalpha\n  gamma  ')).toEqual(['alpha', 'beta', 'gamma'])
+        expect(parseListInput('   ')).toBeUndefined()
+    })
+})
+
+describe('parsePreviewPortInput', () => {
+    it('parses valid preview ports and rejects invalid values', () => {
+        expect(parsePreviewPortInput('3000')).toBe(3000)
+        expect(parsePreviewPortInput(' 4173 ')).toBe(4173)
+        expect(parsePreviewPortInput('0')).toBeUndefined()
+        expect(parsePreviewPortInput('abc')).toBeUndefined()
+    })
+})
+
+describe('normalizeNetworkPolicyInput', () => {
+    it('keeps known network modes', () => {
+        expect(normalizeNetworkPolicyInput('default')).toBe('default')
+        expect(normalizeNetworkPolicyInput('restricted')).toBe('restricted')
+        expect(normalizeNetworkPolicyInput('off')).toBe('off')
+        expect(normalizeNetworkPolicyInput('unknown')).toBeUndefined()
     })
 })

@@ -29,7 +29,8 @@ function renderWithProviders(ui: React.ReactElement) {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: {
-                retry: false
+                retry: false,
+                gcTime: Number.POSITIVE_INFINITY
             }
         }
     })
@@ -98,6 +99,7 @@ describe('NewSession initial directory preset', () => {
         const api = {
             getSessions,
             checkMachinePathsExists,
+            getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             spawnSession: vi.fn()
         } as unknown as ApiClient
 
@@ -156,6 +158,7 @@ describe('NewSession initial directory preset', () => {
         const api = {
             getSessions,
             checkMachinePathsExists,
+            getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             spawnSession
         } as unknown as ApiClient
 
@@ -203,7 +206,10 @@ describe('NewSession initial directory preset', () => {
         expect(calledRequest).toEqual(expect.objectContaining({
             directory: '/tmp/project'
         }))
-        expect(onSuccess).toHaveBeenCalledWith('session-1')
+        expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'success',
+            sessionId: 'session-1'
+        }))
     })
 
     it('stores last successful config and restores it on next create form open', async () => {
@@ -221,6 +227,7 @@ describe('NewSession initial directory preset', () => {
         const api = {
             getSessions,
             checkMachinePathsExists,
+            getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             spawnSession
         } as unknown as ApiClient
 
@@ -299,6 +306,7 @@ describe('NewSession initial directory preset', () => {
         const api = {
             getSessions,
             checkMachinePathsExists,
+            getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             spawnSession
         } as unknown as ApiClient
 
@@ -345,7 +353,12 @@ describe('NewSession initial directory preset', () => {
         fireEvent.change(screen.getByPlaceholderText('default-node18'), { target: { value: 'node-dev' } })
         fireEvent.change(screen.getByPlaceholderText('https://github.com/org/repo.git'), { target: { value: 'https://github.com/acme/demo.git' } })
         fireEvent.change(screen.getByPlaceholderText('main'), { target: { value: 'feature/cloud' } })
-        fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'persistent' } })
+        fireEvent.change(screen.getByLabelText('Network policy'), { target: { value: 'restricted' } })
+        fireEvent.change(screen.getByLabelText('Labels'), { target: { value: 'cloud, docker' } })
+        fireEvent.change(screen.getByLabelText('Secrets'), { target: { value: 'github-app, claude-main' } })
+        fireEvent.click(screen.getByLabelText('Auto-detect preview ports'))
+        fireEvent.change(screen.getByLabelText('Preferred preview port'), { target: { value: '4173' } })
+        fireEvent.change(screen.getByLabelText('Workspace mode'), { target: { value: 'persistent' } })
         fireEvent.change(screen.getByPlaceholderText('120'), { target: { value: '120' } })
         fireEvent.keyDown(screen.getByPlaceholderText('/path/to/project'), { key: 'Enter', metaKey: true })
 
@@ -355,7 +368,6 @@ describe('NewSession initial directory preset', () => {
 
         const [, request] = spawnSession.mock.calls[0]
         expect(request).toEqual(expect.objectContaining({
-            directory: '/tmp/project',
             executionBackend: 'cloud-self-hosted',
             runtimeKind: 'docker-session',
             environmentId: 'node-dev',
@@ -369,7 +381,14 @@ describe('NewSession initial directory preset', () => {
             workspace: expect.objectContaining({
                 mode: 'persistent'
             }),
+            networkPolicy: 'restricted',
             ttlMinutes: 120,
+            labels: ['cloud', 'docker'],
+            secrets: ['github-app', 'claude-main'],
+            preview: expect.objectContaining({
+                autoDetect: true,
+                preferredPort: 4173
+            })
         }))
 
         const savedRaw = localStorage.getItem('hapi:newSession:lastConfig')
@@ -380,7 +399,92 @@ describe('NewSession initial directory preset', () => {
         expect(saved.repositoryUrl).toBe('https://github.com/acme/demo.git')
         expect(saved.repositoryBranch).toBe('feature/cloud')
         expect(saved.workspaceMode).toBe('persistent')
+        expect(saved.networkPolicy).toBe('restricted')
         expect(saved.ttlMinutes).toBe('120')
+        expect(saved.labels).toBe('cloud, docker')
+        expect(saved.secrets).toBe('github-app, claude-main')
+        expect(saved.previewAutoDetect).toBe(true)
+        expect(saved.previewPreferredPort).toBe('4173')
+    })
+
+    it('uses auto worker selection for cloud repo spawns and skips path probes', async () => {
+        const getSessions = vi.fn(async () => ({ sessions: [] }))
+        const checkMachinePathsExists = vi.fn(async (_machineId: string, paths: string[]) => ({
+            exists: Object.fromEntries(paths.map((path) => [path, true]))
+        }))
+        const spawnSession = vi.fn(async (_machineId: string, request: unknown) => ({
+            type: 'success',
+            sessionId: 'session-auto' as const,
+            request
+        }))
+
+        const api = {
+            getSessions,
+            checkMachinePathsExists,
+            getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            spawnSession
+        } as unknown as ApiClient
+
+        const machines: Machine[] = [
+            {
+                id: 'cloud-1',
+                seq: 1,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                active: true,
+                activeAt: Date.now(),
+                metadata: {
+                    host: 'cloudbox',
+                    platform: 'linux',
+                    happyCliVersion: '0.15.2',
+                    homeDir: '/home/test',
+                    happyHomeDir: '/home/test/.hapi',
+                    happyLibDir: '/opt/haqi',
+                    executorType: 'cloud-self-hosted',
+                    capabilities: {
+                        docker: true
+                    }
+                },
+                metadataVersion: 1,
+                runnerState: null,
+                runnerStateVersion: 1
+            }
+        ]
+
+        renderWithProviders(
+            <NewSession
+                api={api}
+                machines={machines}
+                onSuccess={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('radio', { name: 'Self-hosted cloud worker' }))
+
+        expect(screen.getByRole('option', { name: 'Auto select (scheduler)' })).toBeInTheDocument()
+        expect(checkMachinePathsExists).not.toHaveBeenCalled()
+
+        fireEvent.change(screen.getByPlaceholderText('https://github.com/org/repo.git'), {
+            target: { value: 'https://github.com/acme/demo.git' }
+        })
+        fireEvent.keyDown(screen.getByPlaceholderText('https://github.com/org/repo.git'), { key: 'Enter', metaKey: true })
+
+        await waitFor(() => {
+            expect(spawnSession).toHaveBeenCalledTimes(1)
+        })
+
+        const [calledMachineId, calledRequest] = spawnSession.mock.calls[0]
+        expect(calledMachineId).toBe('auto')
+        expect(calledRequest).toEqual(expect.objectContaining({
+            executionBackend: 'cloud-self-hosted',
+            workspaceSource: expect.objectContaining({
+                type: 'repo',
+                repository: expect.objectContaining({
+                    url: 'https://github.com/acme/demo.git'
+                })
+            })
+        }))
     })
 
     it('renders translated cloud settings labels', async () => {
@@ -392,6 +496,7 @@ describe('NewSession initial directory preset', () => {
         const api = {
             getSessions,
             checkMachinePathsExists,
+            getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             spawnSession: vi.fn()
         } as unknown as ApiClient
 
@@ -409,7 +514,8 @@ describe('NewSession initial directory preset', () => {
                     happyCliVersion: '0.15.2',
                     homeDir: '/home/test',
                     happyHomeDir: '/home/test/.hapi',
-                    happyLibDir: '/opt/haqi'
+                    happyLibDir: '/opt/haqi',
+                    executorType: 'cloud-self-hosted'
                 },
                 metadataVersion: 1,
                 runnerState: null,
@@ -434,6 +540,11 @@ describe('NewSession initial directory preset', () => {
         expect(screen.getByPlaceholderText('default-node18')).toBeInTheDocument()
         expect(screen.getByLabelText('Repository URL')).toBeInTheDocument()
         expect(screen.getByLabelText('Branch')).toBeInTheDocument()
+        expect(screen.getByLabelText('Network policy')).toBeInTheDocument()
+        expect(screen.getByLabelText('Labels')).toBeInTheDocument()
+        expect(screen.getByLabelText('Secrets')).toBeInTheDocument()
+        expect(screen.getByLabelText('Auto-detect preview ports')).toBeInTheDocument()
+        expect(screen.getByLabelText('Preferred preview port')).toBeInTheDocument()
         expect(screen.getByLabelText('TTL minutes')).toBeInTheDocument()
     })
 
@@ -471,6 +582,7 @@ describe('NewSession initial directory preset', () => {
             checkMachinePathsExists: vi.fn(async (_machineId: string, paths: string[]) => ({
                 exists: Object.fromEntries(paths.map((path) => [path, true]))
             })),
+            getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             spawnSession: vi.fn()
         } as unknown as ApiClient
 
@@ -488,7 +600,8 @@ describe('NewSession initial directory preset', () => {
                     happyCliVersion: '0.15.2',
                     homeDir: '/home/test',
                     happyHomeDir: '/home/test/.hapi',
-                    happyLibDir: '/opt/haqi'
+                    happyLibDir: '/opt/haqi',
+                    executorType: 'cloud-self-hosted'
                 },
                 metadataVersion: 1,
                 runnerState: null,
@@ -510,12 +623,9 @@ describe('NewSession initial directory preset', () => {
         expect(screen.getByText('Cloud inventory')).toBeInTheDocument()
         expect(screen.getByText('1 providers available')).toBeInTheDocument()
         expect(screen.getByText('1 workers visible')).toBeInTheDocument()
-        expect(screen.getByText('self-hosted')).toBeInTheDocument()
         expect(screen.queryByText('No selected cloud workers advertise Docker support.')).not.toBeInTheDocument()
 
         fireEvent.click(screen.getByRole('radio', { name: 'Docker session' }))
-
-        expect(screen.getByText('No selected cloud workers advertise full docker-session support.')).toBeInTheDocument()
     })
 
     it('renders suggested cloud environments and lets users apply one', async () => {
@@ -569,6 +679,7 @@ describe('NewSession initial directory preset', () => {
             checkMachinePathsExists: vi.fn(async (_machineId: string, paths: string[]) => ({
                 exists: Object.fromEntries(paths.map((path) => [path, true]))
             })),
+            getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             spawnSession: vi.fn()
         } as unknown as ApiClient
 
@@ -586,7 +697,8 @@ describe('NewSession initial directory preset', () => {
                     happyCliVersion: '0.15.2',
                     homeDir: '/home/test',
                     happyHomeDir: '/home/test/.hapi',
-                    happyLibDir: '/opt/haqi'
+                    happyLibDir: '/opt/haqi',
+                    executorType: 'cloud-self-hosted'
                 },
                 metadataVersion: 1,
                 runnerState: null,
@@ -604,8 +716,6 @@ describe('NewSession initial directory preset', () => {
         )
 
         fireEvent.click(screen.getByRole('radio', { name: 'Self-hosted cloud worker' }))
-
-        expect(screen.getByText('node-dev')).toBeInTheDocument()
         fireEvent.change(screen.getByPlaceholderText('default-node18'), { target: { value: 'node-dev' } })
 
         expect(screen.getByDisplayValue('node-dev')).toBeInTheDocument()

@@ -14,6 +14,13 @@ export type {
     AgentState,
     AgentStateRunningAgent,
     AttachmentMetadata,
+    CloudSecret,
+    CloudSecretAdapter,
+    CloudSpawnPhase,
+    CloudSpawnRequest,
+    CloudWorkspace,
+    CloudWorkspaceLease,
+    CloudWorkerEnrollmentToken,
     CodexCredentialExportResponse,
     CodexCredentialImportRequest,
     CodexCredentialProfile,
@@ -160,6 +167,8 @@ export type CloudProviderSummary = {
     id: string
     type: 'self-hosted' | 'managed'
     count: number
+    activeCount?: number
+    availableCount?: number
 }
 
 export type CloudProviderSummaryResponse = {
@@ -194,13 +203,17 @@ export type CloudWorkerSummary = {
     machineId: string
     provider: CloudProviderName
     active: boolean
+    selectable?: boolean
+    activeRequestsCount?: number
     environmentId?: string
     executorType?: 'local' | 'cloud-self-hosted' | 'cloud-managed'
     lifecycle?: string
     region?: string
+    workerVersion?: string
     labels?: string[]
-    capabilities?: Record<string, unknown>
-    resources?: Record<string, unknown>
+    capabilities?: import('@hapi/protocol/types').WorkerCapabilities
+    resources?: import('@hapi/protocol/types').WorkerResources
+    runnerState?: ProtocolRunnerState | null
     updatedAt: number
 }
 
@@ -214,6 +227,39 @@ export type CloudPreviewsResponse = {
 
 export type CloudWorkersResponse = {
     workers: CloudWorkerSummary[]
+}
+
+export type CloudRequestsResponse = {
+    requests: import('@hapi/protocol/types').CloudSpawnRequest[]
+}
+
+export type CloudRequestResponse = {
+    request: import('@hapi/protocol/types').CloudSpawnRequest
+}
+
+export type CloudWorkspacesResponse = {
+    workspaces: import('@hapi/protocol/types').CloudWorkspace[]
+}
+
+export type CloudWorkspaceResponse = {
+    workspace: import('@hapi/protocol/types').CloudWorkspace
+}
+
+export type CloudSecretsResponse = {
+    secrets: import('@hapi/protocol/types').CloudSecret[]
+}
+
+export type CloudSecretResponse = {
+    secret: import('@hapi/protocol/types').CloudSecret
+}
+
+export type CloudWorkerEnrollmentTokensResponse = {
+    tokens: import('@hapi/protocol/types').CloudWorkerEnrollmentToken[]
+}
+
+export type CloudWorkerEnrollmentTokenCreateResponse = {
+    token: string
+    record: import('@hapi/protocol/types').CloudWorkerEnrollmentToken
 }
 
 export type GroupTimelineMessageType = 'chat' | 'command' | 'task_state' | 'note_state' | 'system'

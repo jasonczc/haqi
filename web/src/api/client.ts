@@ -2,6 +2,14 @@ import type {
     AttachmentMetadata,
     AuthResponse,
     CloudProviderSummaryResponse,
+    CloudRequestResponse,
+    CloudRequestsResponse,
+    CloudSecretResponse,
+    CloudSecretsResponse,
+    CloudWorkerEnrollmentTokenCreateResponse,
+    CloudWorkerEnrollmentTokensResponse,
+    CloudWorkspaceResponse,
+    CloudWorkspacesResponse,
     CloudWorkersResponse,
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
@@ -858,6 +866,112 @@ export class ApiClient {
         }
         const qs = params.toString()
         return await this.request<CloudWorkersResponse>(`/api/cloud/workers${qs ? `?${qs}` : ''}`)
+    }
+
+    async getCloudRequests(limit?: number): Promise<CloudRequestsResponse> {
+        const params = new URLSearchParams()
+        if (typeof limit === 'number' && Number.isFinite(limit)) {
+            params.set('limit', `${Math.max(1, Math.floor(limit))}`)
+        }
+        const qs = params.toString()
+        return await this.request<CloudRequestsResponse>(`/api/cloud/requests${qs ? `?${qs}` : ''}`)
+    }
+
+    async getCloudRequest(requestId: string): Promise<CloudRequestResponse> {
+        return await this.request<CloudRequestResponse>(`/api/cloud/requests/${encodeURIComponent(requestId)}`)
+    }
+
+    async cancelCloudRequest(requestId: string): Promise<CloudRequestResponse> {
+        return await this.request<CloudRequestResponse>(`/api/cloud/requests/${encodeURIComponent(requestId)}/cancel`, {
+            method: 'POST'
+        })
+    }
+
+    async retryCloudRequest(requestId: string): Promise<CloudRequestResponse> {
+        return await this.request<CloudRequestResponse>(`/api/cloud/requests/${encodeURIComponent(requestId)}/retry`, {
+            method: 'POST'
+        })
+    }
+
+    async getCloudWorkspaces(limit?: number): Promise<CloudWorkspacesResponse> {
+        const params = new URLSearchParams()
+        if (typeof limit === 'number' && Number.isFinite(limit)) {
+            params.set('limit', `${Math.max(1, Math.floor(limit))}`)
+        }
+        const qs = params.toString()
+        return await this.request<CloudWorkspacesResponse>(`/api/cloud/workspaces${qs ? `?${qs}` : ''}`)
+    }
+
+    async getCloudWorkspace(workspaceId: string): Promise<CloudWorkspaceResponse> {
+        return await this.request<CloudWorkspaceResponse>(`/api/cloud/workspaces/${encodeURIComponent(workspaceId)}`)
+    }
+
+    async getCloudSecrets(): Promise<CloudSecretsResponse> {
+        return await this.request<CloudSecretsResponse>('/api/cloud/secrets')
+    }
+
+    async getCloudSecret(secretId: string): Promise<CloudSecretResponse> {
+        return await this.request<CloudSecretResponse>(`/api/cloud/secrets/${encodeURIComponent(secretId)}`)
+    }
+
+    async createCloudSecret(payload: {
+        name: string
+        value: string
+        description?: string | null
+        mountAs?: 'env' | 'file' | null
+        envName?: string | null
+        filePath?: string | null
+        adapter?: 'generic' | 'git' | 'claude' | 'gemini' | 'codex' | null
+    }): Promise<CloudSecretResponse> {
+        return await this.request<CloudSecretResponse>('/api/cloud/secrets', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async updateCloudSecret(secretId: string, payload: {
+        name?: string
+        value?: string
+        description?: string | null
+        mountAs?: 'env' | 'file' | null
+        envName?: string | null
+        filePath?: string | null
+        adapter?: 'generic' | 'git' | 'claude' | 'gemini' | 'codex' | null
+    }): Promise<CloudSecretResponse> {
+        return await this.request<CloudSecretResponse>(`/api/cloud/secrets/${encodeURIComponent(secretId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async deleteCloudSecret(secretId: string): Promise<{ ok: true }> {
+        return await this.request<{ ok: true }>(`/api/cloud/secrets/${encodeURIComponent(secretId)}`, {
+            method: 'DELETE'
+        })
+    }
+
+    async getCloudWorkerEnrollmentTokens(): Promise<CloudWorkerEnrollmentTokensResponse> {
+        return await this.request<CloudWorkerEnrollmentTokensResponse>('/api/cloud/worker-enrollment-tokens')
+    }
+
+    async createCloudWorkerEnrollmentToken(payload?: {
+        label?: string
+        machineId?: string
+        ttlMinutes?: number
+    }): Promise<CloudWorkerEnrollmentTokenCreateResponse> {
+        return await this.request<CloudWorkerEnrollmentTokenCreateResponse>('/api/cloud/worker-enrollment-tokens', {
+            method: 'POST',
+            body: JSON.stringify(payload ?? {})
+        })
+    }
+
+    async revokeCloudWorkerEnrollmentToken(tokenId: string): Promise<{ token: import('@/types/api').CloudWorkerEnrollmentToken }> {
+        return await this.request<{ token: import('@/types/api').CloudWorkerEnrollmentToken }>(
+            `/api/cloud/worker-enrollment-tokens/${encodeURIComponent(tokenId)}`,
+            {
+                method: 'DELETE'
+            }
+        )
     }
 
     async getCloudEnvironments(): Promise<import('@/types/api').CloudEnvironmentsResponse> {

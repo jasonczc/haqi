@@ -10,6 +10,11 @@ export function CloudSettingsSection(props: {
     repositoryBranch: string
     workspaceMode: 'ephemeral' | 'persistent' | 'snapshot-derived'
     persistentWorkspace: boolean
+    networkPolicy: 'default' | 'restricted' | 'off'
+    labelsInput: string
+    secretsInput: string
+    previewAutoDetect: boolean
+    previewPreferredPort: string
     ttlMinutes: string
     cloudInventorySummary: CloudInventorySummary
     cloudEnvironments: CloudEnvironmentSummary[]
@@ -27,10 +32,29 @@ export function CloudSettingsSection(props: {
     onRepositoryBranchChange: (value: string) => void
     onWorkspaceModeChange: (value: 'ephemeral' | 'persistent' | 'snapshot-derived') => void
     onPersistentWorkspaceChange: (value: boolean) => void
+    onNetworkPolicyChange: (value: 'default' | 'restricted' | 'off') => void
+    onLabelsInputChange: (value: string) => void
+    onSecretsInputChange: (value: string) => void
+    onPreviewAutoDetectChange: (value: boolean) => void
+    onPreviewPreferredPortChange: (value: string) => void
     onTtlMinutesChange: (value: string) => void
 }) {
     const { t } = useTranslation()
     const isCloud = props.executionBackend !== 'local'
+    const selectedEnvironmentMissing = Boolean(props.environmentId.trim())
+        && !props.selectedEnvironmentSummary
+        && !props.cloudEnvironmentsLoading
+        && !props.cloudEnvironmentsError
+
+    const environmentRuntimeLabel = (environment: CloudEnvironmentSummary) => {
+        if (environment.runtimeKind === 'docker-session') {
+            return t('newSession.cloudEnvironment.runtime.dockerSession')
+        }
+        if (environment.runtimeKind === 'host-process' || !environment.runtimeKind) {
+            return t('newSession.cloudEnvironment.runtime.hostProcess')
+        }
+        return t('newSession.cloudEnvironment.runtime.unknown')
+    }
 
     return (
         <div className="flex flex-col gap-3 px-3 py-3">
@@ -106,7 +130,7 @@ export function CloudSettingsSection(props: {
                         {props.selectedEnvironmentSummary ? (
                             <div className="mt-1">
                                 {t('newSession.cloudInventory.environmentSummary', {
-                                    runtime: props.selectedEnvironmentSummary.runtimeKind ?? 'host-process',
+                                    runtime: environmentRuntimeLabel(props.selectedEnvironmentSummary),
                                     services: props.selectedEnvironmentSummary.serviceCount,
                                     dependencies: props.selectedEnvironmentSummary.repositoryDependenciesCount
                                 })}
@@ -179,7 +203,7 @@ export function CloudSettingsSection(props: {
                                         className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)]"
                                         title={`${environment.runtimeKind ?? 'host-process'} · ${environment.serviceCount} services`}
                                     >
-                                        {environment.id}
+                                        {environment.id} · {environmentRuntimeLabel(environment)} · {environment.serviceCount}
                                     </span>
                                 ))}
                             </div>
@@ -187,6 +211,12 @@ export function CloudSettingsSection(props: {
                         {props.selectedEnvironmentSummary ? (
                             <div className="pt-1 text-[11px] text-[var(--app-hint)]">
                                 {t('newSession.cloudEnvironment.selected', { id: props.selectedEnvironmentSummary.id })}
+                                {props.selectedEnvironmentSummary.runtimeKind ? ` · ${environmentRuntimeLabel(props.selectedEnvironmentSummary)}` : ''}
+                                {props.selectedEnvironmentSummary.hasPreviewPorts ? ` · ${t('newSession.cloudEnvironment.previewPorts')}` : ''}
+                            </div>
+                        ) : selectedEnvironmentMissing ? (
+                            <div className="pt-1 text-[11px] text-amber-600">
+                                {t('newSession.cloudEnvironment.selectedMissing')}
                             </div>
                         ) : null}
                     </div>
@@ -222,6 +252,67 @@ export function CloudSettingsSection(props: {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-network-policy">
+                            {t('newSession.networkPolicy')}
+                        </label>
+                        <select
+                            id="new-session-network-policy"
+                            value={props.networkPolicy}
+                            onChange={(event) => props.onNetworkPolicyChange(event.target.value as 'default' | 'restricted' | 'off')}
+                            disabled={props.isDisabled}
+                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                        >
+                            <option value="default">{t('newSession.networkPolicy.default')}</option>
+                            <option value="restricted">{t('newSession.networkPolicy.restricted')}</option>
+                            <option value="off">{t('newSession.networkPolicy.off')}</option>
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-labels">
+                            {t('newSession.labels')}
+                        </label>
+                        <textarea
+                            id="new-session-labels"
+                            placeholder={t('newSession.labelsPlaceholder')}
+                            value={props.labelsInput}
+                            onChange={(event) => props.onLabelsInputChange(event.target.value)}
+                            disabled={props.isDisabled}
+                            rows={2}
+                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                        />
+                        <div className="text-[11px] text-[var(--app-hint)]">
+                            {t('newSession.labelsHint')}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                            <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-secrets">
+                                {t('newSession.secrets')}
+                            </label>
+                            <a
+                                href="/cloud/secrets"
+                                className="text-[11px] text-[var(--app-link)] hover:underline"
+                            >
+                                Manage secrets
+                            </a>
+                        </div>
+                        <textarea
+                            id="new-session-secrets"
+                            placeholder={t('newSession.secretsPlaceholder')}
+                            value={props.secretsInput}
+                            onChange={(event) => props.onSecretsInputChange(event.target.value)}
+                            disabled={props.isDisabled}
+                            rows={2}
+                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                        />
+                        <div className="text-[11px] text-[var(--app-hint)]">
+                            {t('newSession.secretsHint')}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-workspace-mode">
                             {t('newSession.workspaceMode')}
                         </label>
@@ -248,6 +339,38 @@ export function CloudSettingsSection(props: {
                         />
                         <span>{t('newSession.persistentWorkspace')}</span>
                     </label>
+
+                    <div className="flex flex-col gap-2 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 px-3 py-2">
+                        <div className="text-xs font-medium text-[var(--app-hint)]">
+                            {t('newSession.previewPolicy')}
+                        </div>
+                        <label className="flex items-center gap-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={props.previewAutoDetect}
+                                onChange={(event) => props.onPreviewAutoDetectChange(event.target.checked)}
+                                disabled={props.isDisabled}
+                                className="accent-[var(--app-link)]"
+                            />
+                            <span>{t('newSession.previewPolicy.autoDetect')}</span>
+                        </label>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-preview-port">
+                                {t('newSession.previewPolicy.preferredPort')}
+                            </label>
+                            <input
+                                id="new-session-preview-port"
+                                type="number"
+                                min={1}
+                                step={1}
+                                placeholder="3000"
+                                value={props.previewPreferredPort}
+                                onChange={(event) => props.onPreviewPreferredPortChange(event.target.value)}
+                                disabled={props.isDisabled}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                            />
+                        </div>
+                    </div>
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-ttl-minutes">

@@ -9,6 +9,7 @@ import type {
     EnvironmentTemplate,
     Machine,
     RuntimeKind,
+    SpawnResponse,
     WorkspaceSource,
     WorkspaceSpec
 } from '@/types/api'
@@ -65,9 +66,24 @@ import {
 } from './preferences'
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
-import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
+import {
+    normalizeNetworkPolicyInput,
+    parseListInput,
+    parsePreviewPortInput,
+    resolveSpawnModel,
+    resolveSpawnServiceTier,
+    resolveSpawnSessionSettings,
+    resolveSpawnThinkEffort
+} from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 import { getCloudInventorySummary, getCloudRuntimeWarning } from './cloudInventory'
+
+const AUTO_CLOUD_MACHINE_ID = 'auto'
+
+function isCloudMachine(machine: Machine): boolean {
+    return machine.metadata?.executorType === 'cloud-self-hosted'
+        || machine.metadata?.executorType === 'cloud-managed'
+}
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -86,7 +102,7 @@ export function NewSession(props: {
     initialDirectory?: string
     initialMachineId?: string
     formId?: string
-    onSuccess: (sessionId: string) => void
+    onSuccess: (result: SpawnResponse) => void
     onCancel: () => void
 }) {
     const { haptic } = usePlatform()
@@ -135,6 +151,11 @@ export function NewSession(props: {
     const setPersistentWorkspace = useCallback((value: boolean) => {
         setWorkspaceMode(value ? 'persistent' : 'ephemeral')
     }, [])
+    const [networkPolicy, setNetworkPolicy] = useState<'default' | 'restricted' | 'off'>(() => lastSessionConfig?.networkPolicy ?? 'default')
+    const [labelsInput, setLabelsInput] = useState(() => lastSessionConfig?.labels ?? '')
+    const [secretsInput, setSecretsInput] = useState(() => lastSessionConfig?.secrets ?? '')
+    const [previewAutoDetect, setPreviewAutoDetect] = useState(() => lastSessionConfig?.previewAutoDetect ?? false)
+    const [previewPreferredPort, setPreviewPreferredPort] = useState(() => lastSessionConfig?.previewPreferredPort ?? '')
     const [ttlMinutes, setTtlMinutes] = useState(() => lastSessionConfig?.ttlMinutes ?? '')
     const [error, setError] = useState<string | null>(null)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
@@ -161,12 +182,39 @@ export function NewSession(props: {
         setServiceTier(loadPreferredServiceTier(agent) ?? 'auto')
     }, [agent])
 
+    const selectableMachines = useMemo(() => {
+        if (executionBackend === 'cloud-self-hosted') {
+            return props.machines.filter((machine) => machine.metadata?.executorType === 'cloud-self-hosted')
+        }
+        if (executionBackend === 'cloud-managed') {
+            return props.machines.filter((machine) => machine.metadata?.executorType === 'cloud-managed')
+        }
+        return props.machines.filter((machine) => !isCloudMachine(machine))
+    }, [executionBackend, props.machines])
+
+    const isAutoCloudMachine = executionBackend !== 'local' && machineId === AUTO_CLOUD_MACHINE_ID
+    const machineIdForPathQueries = useMemo(() => {
+        if (!machineId || machineId === AUTO_CLOUD_MACHINE_ID) {
+            return null
+        }
+        return selectableMachines.some((machine) => machine.id === machineId)
+            ? machineId
+            : null
+    }, [machineId, selectableMachines])
+
     useEffect(() => {
-        if (props.machines.length === 0) return
-        if (machineId && props.machines.find((m) => m.id === machineId)) return
+        if (executionBackend !== 'local') {
+            if (machineId === AUTO_CLOUD_MACHINE_ID) return
+            if (machineId && selectableMachines.find((machine) => machine.id === machineId)) return
+            setMachineId(AUTO_CLOUD_MACHINE_ID)
+            return
+        }
+
+        if (selectableMachines.length === 0) return
+        if (machineId && selectableMachines.find((machine) => machine.id === machineId)) return
 
         const lastUsed = getLastUsedMachineId()
-        const foundLast = lastUsed ? props.machines.find((m) => m.id === lastUsed) : null
+        const foundLast = lastUsed ? selectableMachines.find((machine) => machine.id === lastUsed) : null
 
         if (foundLast) {
             setMachineId(foundLast.id)
@@ -174,14 +222,14 @@ export function NewSession(props: {
                 const paths = getRecentPaths(foundLast.id)
                 if (paths[0]) setDirectory(paths[0])
             }
-        } else if (props.machines[0]) {
-            setMachineId(props.machines[0].id)
+        } else if (selectableMachines[0]) {
+            setMachineId(selectableMachines[0].id)
         }
-    }, [props.machines, machineId, getLastUsedMachineId, getRecentPaths, hasPresetDirectory])
+    }, [executionBackend, getLastUsedMachineId, getRecentPaths, hasPresetDirectory, machineId, selectableMachines])
 
     const selectedMachine = useMemo(
-        () => (machineId ? props.machines.find((machine) => machine.id === machineId) ?? null : null),
-        [machineId, props.machines]
+        () => (machineIdForPathQueries ? selectableMachines.find((machine) => machine.id === machineIdForPathQueries) ?? null : null),
+        [machineIdForPathQueries, selectableMachines]
     )
     const runnerSpawnError = useMemo(
         () => formatRunnerSpawnError(selectedMachine),
@@ -189,8 +237,8 @@ export function NewSession(props: {
     )
 
     const recentPaths = useMemo(
-        () => getRecentPaths(machineId),
-        [getRecentPaths, machineId]
+        () => getRecentPaths(machineIdForPathQueries),
+        [getRecentPaths, machineIdForPathQueries]
     )
 
     const modelOptions = useMemo(() => {
@@ -237,7 +285,7 @@ export function NewSession(props: {
         error: cloudEnvironmentsError
     } = useCloudEnvironments(props.api, executionBackend !== 'local')
 
-    const allPaths = useDirectorySuggestions(machineId, sessions, recentPaths)
+    const allPaths = useDirectorySuggestions(machineIdForPathQueries, sessions, recentPaths)
 
     const pathsToCheck = useMemo(
         () => Array.from(new Set(allPaths)).slice(0, 1000),
@@ -247,12 +295,12 @@ export function NewSession(props: {
     useEffect(() => {
         let cancelled = false
 
-        if (!machineId || pathsToCheck.length === 0) {
-            setPathExistence({})
+        if (!machineIdForPathQueries || pathsToCheck.length === 0) {
+            setPathExistence((previous) => Object.keys(previous).length === 0 ? previous : {})
             return () => { cancelled = true }
         }
 
-        void props.api.checkMachinePathsExists(machineId, pathsToCheck)
+        void props.api.checkMachinePathsExists(machineIdForPathQueries, pathsToCheck)
             .then((result) => {
                 if (cancelled) return
                 setPathExistence(result.exists ?? {})
@@ -265,7 +313,7 @@ export function NewSession(props: {
         return () => {
             cancelled = true
         }
-    }, [machineId, pathsToCheck, props.api])
+    }, [machineIdForPathQueries, pathsToCheck, props.api])
 
     const verifiedPaths = useMemo(
         () => allPaths.filter((path) => pathExistence[path]),
@@ -274,19 +322,21 @@ export function NewSession(props: {
     const cloudInventorySummary = useMemo(
         () => getCloudInventorySummary({
             backend: executionBackend,
-            selectedMachineId: machineId,
+            selectedMachineId: machineIdForPathQueries,
             environmentId,
             providers: cloudProviders,
             workers: cloudWorkers,
             environments: cloudEnvironments
         }),
-        [cloudEnvironments, cloudProviders, cloudWorkers, environmentId, executionBackend, machineId]
+        [cloudEnvironments, cloudProviders, cloudWorkers, environmentId, executionBackend, machineIdForPathQueries]
     )
     const selectedCloudWorker = useMemo<CloudWorkerSummary | null>(
         () => executionBackend === 'local'
             ? null
-            : cloudWorkers.find((worker) => worker.machineId === machineId) ?? null,
-        [cloudWorkers, executionBackend, machineId]
+            : machineIdForPathQueries
+                ? cloudWorkers.find((worker) => worker.machineId === machineIdForPathQueries) ?? null
+                : null,
+        [cloudWorkers, executionBackend, machineIdForPathQueries]
     )
     const selectedCloudProvider = useMemo<CloudProviderSummary | null>(
         () => selectedCloudWorker
@@ -330,7 +380,7 @@ export function NewSession(props: {
 
     const handleMachineChange = useCallback((newMachineId: string) => {
         setMachineId(newMachineId)
-        const paths = getRecentPaths(newMachineId)
+        const paths = newMachineId === AUTO_CLOUD_MACHINE_ID ? [] : getRecentPaths(newMachineId)
         if (paths[0]) {
             setDirectory(paths[0])
         } else {
@@ -400,7 +450,7 @@ export function NewSession(props: {
 
         if (!machineId) return
         if (executionBackend === 'local' && !trimmedDirectory) return
-        if (executionBackend !== 'local' && !trimmedDirectory && !trimmedRepositoryUrl) return
+        if (executionBackend !== 'local' && !trimmedRepositoryUrl && (!trimmedDirectory || isAutoCloudMachine)) return
 
         setError(null)
         try {
@@ -414,6 +464,10 @@ export function NewSession(props: {
             const resolvedModel = resolveSpawnModel(agent, model, customModelValue)
             const resolvedThinkEffort = resolveSpawnThinkEffort(agent, thinkEffort)
             const resolvedServiceTier = resolveSpawnServiceTier(agent, serviceTier)
+            const parsedNetworkPolicy = normalizeNetworkPolicyInput(networkPolicy)
+            const parsedLabels = parseListInput(labelsInput)
+            const parsedSecrets = parseListInput(secretsInput)
+            const parsedPreviewPort = parsePreviewPortInput(previewPreferredPort)
             const sessionSettings = resolveSpawnSessionSettings(
                 sessionType,
                 worktreeName,
@@ -429,7 +483,7 @@ export function NewSession(props: {
                             ref: repositoryBranch.trim() ? { branch: repositoryBranch.trim() } : undefined
                         }
                     }
-                    : trimmedDirectory
+                    : (trimmedDirectory && !isAutoCloudMachine)
                         ? {
                             type: 'path',
                             directory: trimmedDirectory
@@ -438,6 +492,9 @@ export function NewSession(props: {
             const workspace: WorkspaceSpec | undefined = executionBackend === 'local'
                 ? undefined
                 : { mode: workspaceMode }
+            const spawnDirectory = workspaceSource?.type === 'repo'
+                ? undefined
+                : trimmedDirectory || undefined
             const ttlValue = ttlMinutes.trim() ? Number(ttlMinutes.trim()) : undefined
             const cloudEnvironment: EnvironmentTemplate | undefined = environmentId.trim()
                 ? {
@@ -455,7 +512,7 @@ export function NewSession(props: {
                     : undefined
             const result = await spawnSession({
                 machineId,
-                directory: trimmedDirectory || undefined,
+                directory: spawnDirectory,
                 agent,
                 model: resolvedModel,
                 thinkEffort: resolvedThinkEffort,
@@ -470,13 +527,25 @@ export function NewSession(props: {
                 environment: cloudEnvironment,
                 workspaceSource,
                 workspace,
-                ttlMinutes: typeof ttlValue === 'number' && Number.isFinite(ttlValue) && ttlValue > 0 ? ttlValue : undefined
+                networkPolicy: parsedNetworkPolicy,
+                ttlMinutes: typeof ttlValue === 'number' && Number.isFinite(ttlValue) && ttlValue > 0 ? ttlValue : undefined,
+                persistentWorkspace,
+                labels: parsedLabels,
+                secrets: parsedSecrets,
+                preview: {
+                    autoDetect: previewAutoDetect,
+                    preferredPort: parsedPreviewPort
+                }
             })
 
-            if (result.type === 'success') {
+            if (result.type === 'success' || result.type === 'accepted') {
                 haptic.notification('success')
-                setLastUsedMachineId(machineId)
-                addRecentPath(machineId, directory.trim())
+                if (machineId !== AUTO_CLOUD_MACHINE_ID) {
+                    setLastUsedMachineId(machineId)
+                    if (spawnDirectory) {
+                        addRecentPath(machineId, spawnDirectory)
+                    }
+                }
                 savePreferredAgent(agent)
                 savePreferredModel(agent, model)
                 savePreferredCustomModel(agent, customModelValue)
@@ -502,9 +571,14 @@ export function NewSession(props: {
                     repositoryUrl: trimmedRepositoryUrl,
                     repositoryBranch: repositoryBranch.trim(),
                     workspaceMode,
-                    ttlMinutes: ttlMinutes.trim()
+                    networkPolicy,
+                    ttlMinutes: ttlMinutes.trim(),
+                    labels: labelsInput.trim(),
+                    secrets: secretsInput.trim(),
+                    previewAutoDetect,
+                    previewPreferredPort: previewPreferredPort.trim()
                 })
-                props.onSuccess(result.sessionId)
+                props.onSuccess(result)
                 return
             }
 
@@ -523,7 +597,10 @@ export function NewSession(props: {
         && !isFormDisabled
         && (
             (executionBackend === 'local' && directory.trim())
-            || (executionBackend !== 'local' && (directory.trim() || repositoryUrl.trim()))
+            || (executionBackend !== 'local' && (
+                repositoryUrl.trim()
+                || (!isAutoCloudMachine && directory.trim())
+            ))
         )
     )
 
@@ -551,8 +628,9 @@ export function NewSession(props: {
             onSubmit={handleSubmit}
         >
             <MachineSelector
-                machines={props.machines}
+                machines={selectableMachines}
                 machineId={machineId}
+                showAutoOption={executionBackend !== 'local'}
                 isLoading={props.isLoading}
                 isDisabled={isFormDisabled}
                 onChange={handleMachineChange}
@@ -583,6 +661,11 @@ export function NewSession(props: {
                 repositoryBranch={repositoryBranch}
                 workspaceMode={workspaceMode}
                 persistentWorkspace={persistentWorkspace}
+                networkPolicy={networkPolicy}
+                labelsInput={labelsInput}
+                secretsInput={secretsInput}
+                previewAutoDetect={previewAutoDetect}
+                previewPreferredPort={previewPreferredPort}
                 ttlMinutes={ttlMinutes}
                 cloudInventorySummary={cloudInventorySummary}
                 selectedProviderType={selectedCloudProvider?.type}
@@ -600,6 +683,11 @@ export function NewSession(props: {
                 onRepositoryBranchChange={setRepositoryBranch}
                 onWorkspaceModeChange={setWorkspaceMode}
                 onPersistentWorkspaceChange={setPersistentWorkspace}
+                onNetworkPolicyChange={setNetworkPolicy}
+                onLabelsInputChange={setLabelsInput}
+                onSecretsInputChange={setSecretsInput}
+                onPreviewAutoDetectChange={setPreviewAutoDetect}
+                onPreviewPreferredPortChange={setPreviewPreferredPort}
                 onTtlMinutesChange={setTtlMinutes}
             />
             <div className="flex flex-col gap-1.5 px-3 py-3">

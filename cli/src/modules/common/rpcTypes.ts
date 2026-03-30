@@ -1,8 +1,10 @@
 import type {
     AgentFlavor,
+    CloudWorkspaceLeaseBinding,
     EnvironmentTemplate,
     ExecutionBackend,
     NetworkMode,
+    ResolvedSecret,
     RuntimeKind,
     WorkerResources,
     WorkspaceSource,
@@ -39,6 +41,10 @@ export interface SpawnSessionOptions {
         autoDetect?: boolean
         preferredPort?: number
     }
+    spawnRequestId?: string
+    resolvedEnvironment?: EnvironmentTemplate
+    workspaceLease?: CloudWorkspaceLeaseBinding
+    resolvedSecrets?: ResolvedSecret[]
 }
 
 export type SpawnSessionResult =

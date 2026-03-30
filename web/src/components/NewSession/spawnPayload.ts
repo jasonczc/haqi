@@ -1,3 +1,4 @@
+import type { NetworkMode } from '@hapi/protocol/schemas'
 import type { AgentType, ServiceTier, SessionType, ThinkEffort } from './types'
 
 export function resolveSpawnModel(
@@ -75,4 +76,34 @@ export function resolveSpawnSessionSettings(
         worktreeName: sessionType === 'worktree' ? (trimmedWorktreeName || undefined) : undefined,
         previewUrl: trimmedPreviewUrl || undefined
     }
+}
+
+export function parseListInput(raw: string): string[] | undefined {
+    const values = raw
+        .split(/[\n,]/)
+        .map((value) => value.trim())
+        .filter(Boolean)
+
+    return values.length > 0 ? Array.from(new Set(values)) : undefined
+}
+
+export function parsePreviewPortInput(raw: string): number | undefined {
+    const trimmed = raw.trim()
+    if (!trimmed) {
+        return undefined
+    }
+
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+        return undefined
+    }
+
+    return parsed
+}
+
+export function normalizeNetworkPolicyInput(value: string): NetworkMode | undefined {
+    if (value === 'default' || value === 'restricted' || value === 'off') {
+        return value
+    }
+    return undefined
 }

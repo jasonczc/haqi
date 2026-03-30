@@ -8,7 +8,19 @@
  */
 
 import { inferClaudeModelModeFromModel, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
-import type { DecryptedMessage, ModelMode, PermissionMode, Session, SyncEvent } from '@hapi/protocol/types'
+import type {
+    CloudSecret,
+    CloudSpawnRequest,
+    CloudWorkspace,
+    CloudWorkerEnrollmentToken,
+    DecryptedMessage,
+    EnvironmentTemplate,
+    MachineSpawnRequest,
+    ModelMode,
+    PermissionMode,
+    Session,
+    SyncEvent
+} from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
 import type { PreviewUrlHistoryEntry, Store } from '../store'
 import type { RpcRegistry } from '../socket/rpcRegistry'
@@ -42,6 +54,9 @@ import {
     filterWorkersByProvider
 } from '../cloud/provider'
 import { PreviewRegistry } from '../cloud/previewRegistry'
+import { SecretBroker } from '../cloud/secretBroker'
+import { WorkspaceManager } from '../cloud/workspaceManager'
+import { SpawnCoordinator } from '../cloud/spawnCoordinator'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
@@ -475,6 +490,9 @@ export class SyncEngine {
     private readonly rpcGateway: RpcGateway
     private readonly cloudEnvironmentRegistry: CloudEnvironmentRegistry
     private readonly previewRegistry: PreviewRegistry
+    private readonly secretBroker: SecretBroker
+    private readonly workspaceManager: WorkspaceManager
+    private readonly spawnCoordinator: SpawnCoordinator
     private readonly autoApprovalInFlight: Set<string> = new Set()
     private readonly activeGroupRoutesBySession: Map<string, GroupRouteContext> = new Map()
     // Routes registered at queue-dispatch time for flavors (claude/gemini) that don't
@@ -522,6 +540,23 @@ export class SyncEngine {
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
         this.cloudEnvironmentRegistry = new CloudEnvironmentRegistry()
         this.previewRegistry = new PreviewRegistry()
+        this.secretBroker = new SecretBroker(store)
+        this.workspaceManager = new WorkspaceManager(store, (machineId) => {
+            const machine = this.machineCache.getMachine(machineId)
+            return Boolean(machine?.active)
+        })
+        this.spawnCoordinator = new SpawnCoordinator({
+            store,
+            machineCache: this.machineCache,
+            rpcGateway: this.rpcGateway,
+            publisher: this.eventPublisher,
+            environmentRegistry: this.cloudEnvironmentRegistry,
+            workspaceManager: this.workspaceManager,
+            secretBroker: this.secretBroker,
+            persistPreviewUrl: async (sessionId, previewUrl) => {
+                await this.persistSessionPreviewUrlWithRetry(sessionId, previewUrl)
+            }
+        })
         this.reloadAll()
         this.syncGroupNoteMarkdownFiles()
         this.inactivityTimer = setInterval(() => this.expireInactive(), 5_000)
@@ -578,14 +613,101 @@ export class SyncEngine {
         return this.previewRegistry.list()
     }
 
-    listCloudWorkers(provider: CloudProviderName = 'auto') {
+    listCloudWorkers(provider: CloudProviderName = 'auto', namespace?: string) {
+        const machines = namespace
+            ? this.machineCache.getMachinesByNamespace(namespace)
+            : this.machineCache.getMachines()
         return buildWorkerSummaries(
-            filterWorkersByProvider(this.machineCache.getOnlineMachines(), provider)
+            filterWorkersByProvider(machines, provider),
+            (machineId, workerNamespace) => this.store.cloud.countActiveSpawnRequestsByMachine(workerNamespace, machineId)
         )
     }
 
-    listCloudProviders() {
-        return buildProviderSummaries(this.machineCache.getMachines())
+    listCloudProviders(namespace?: string) {
+        const machines = namespace
+            ? this.machineCache.getMachinesByNamespace(namespace)
+            : this.machineCache.getMachines()
+        return buildProviderSummaries(machines)
+    }
+
+    listCloudRequests(namespace: string, limit?: number): CloudSpawnRequest[] {
+        return this.spawnCoordinator.listRequests(namespace, limit)
+    }
+
+    getCloudRequestByNamespace(requestId: string, namespace: string): CloudSpawnRequest | null {
+        return this.spawnCoordinator.getRequest(namespace, requestId)
+    }
+
+    cancelCloudRequest(requestId: string, namespace: string): CloudSpawnRequest | null {
+        return this.spawnCoordinator.cancel(namespace, requestId)
+    }
+
+    retryCloudRequest(requestId: string, namespace: string): CloudSpawnRequest | null {
+        return this.spawnCoordinator.retry(namespace, requestId)
+    }
+
+    listCloudWorkspaces(namespace: string, limit?: number): CloudWorkspace[] {
+        return this.spawnCoordinator.listWorkspaces(namespace, limit)
+    }
+
+    getCloudWorkspaceByNamespace(workspaceId: string, namespace: string): CloudWorkspace | null {
+        return this.spawnCoordinator.getWorkspace(namespace, workspaceId)
+    }
+
+    listCloudSecrets(namespace: string): CloudSecret[] {
+        return this.spawnCoordinator.listSecrets(namespace)
+    }
+
+    getCloudSecretByNamespace(secretId: string, namespace: string): CloudSecret | null {
+        return this.spawnCoordinator.getSecret(namespace, secretId)
+    }
+
+    createCloudSecret(options: {
+        namespace: string
+        name: string
+        value: string
+        description?: string | null
+        mountAs?: 'env' | 'file' | null
+        envName?: string | null
+        filePath?: string | null
+        adapter?: import('@hapi/protocol/types').CloudSecretAdapter | null
+    }): CloudSecret {
+        return this.spawnCoordinator.createSecret(options)
+    }
+
+    updateCloudSecret(options: {
+        namespace: string
+        id: string
+        name?: string
+        value?: string
+        description?: string | null
+        mountAs?: 'env' | 'file' | null
+        envName?: string | null
+        filePath?: string | null
+        adapter?: import('@hapi/protocol/types').CloudSecretAdapter | null
+    }): CloudSecret | null {
+        return this.spawnCoordinator.updateSecret(options)
+    }
+
+    deleteCloudSecret(secretId: string, namespace: string): boolean {
+        return this.spawnCoordinator.deleteSecret(namespace, secretId)
+    }
+
+    createCloudWorkerEnrollmentToken(options: {
+        namespace: string
+        label?: string | null
+        machineId?: string | null
+        ttlMinutes?: number | null
+    }): { token: string; record: CloudWorkerEnrollmentToken } {
+        return this.spawnCoordinator.createEnrollmentToken(options)
+    }
+
+    listCloudWorkerEnrollmentTokens(namespace: string): CloudWorkerEnrollmentToken[] {
+        return this.spawnCoordinator.listEnrollmentTokens(namespace)
+    }
+
+    revokeCloudWorkerEnrollmentToken(tokenId: string, namespace: string): CloudWorkerEnrollmentToken | null {
+        return this.spawnCoordinator.revokeEnrollmentToken(namespace, tokenId)
     }
 
     private resolveNamespace(event: SyncEvent): string | undefined {
@@ -597,6 +719,15 @@ export class SyncEngine {
         }
         if ('machineId' in event) {
             return this.machineCache.getMachine(event.machineId)?.namespace
+        }
+        if ('requestId' in event) {
+            return this.store.cloud.getSpawnRequest(event.requestId)?.namespace
+        }
+        if ('workspaceId' in event) {
+            return this.store.cloud.getWorkspace(event.workspaceId)?.namespace
+        }
+        if ('secretId' in event) {
+            return this.store.cloud.getSecret(event.secretId)?.namespace
         }
         if ('groupId' in event) {
             return this.store.groups.getGroup(event.groupId)?.namespace
@@ -1875,39 +2006,26 @@ ${note.content}
 
     async spawnSession(
         machineId: string,
-        request: {
-            directory?: string
-            agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
-            model?: string
-            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
-            serviceTier?: 'fast' | 'flex'
-            yolo?: boolean
-            sessionType?: 'simple' | 'worktree'
-            worktreeName?: string
-            resumeSessionId?: string
-            previewUrl?: string | null
-            executionBackend?: 'local' | 'cloud-self-hosted' | 'cloud-managed'
-            runtimeKind?: 'host-process' | 'docker-session'
-            environmentId?: string
-            environment?: import('@hapi/protocol/types').EnvironmentTemplate
-            workspaceSource?: import('@hapi/protocol/types').WorkspaceSource
-            workspace?: import('@hapi/protocol/types').WorkspaceSpec
-            resources?: import('@hapi/protocol/types').WorkerResources
-            networkPolicy?: import('@hapi/protocol/types').NetworkMode
-            ttlMinutes?: number
-            persistentWorkspace?: boolean
-            secrets?: string[]
-            labels?: string[]
-            preview?: {
-                autoDetect?: boolean
-                preferredPort?: number
+        request: MachineSpawnRequest
+    ): Promise<import('@hapi/protocol/types').SpawnResponse> {
+        if (request.executionBackend === 'cloud-self-hosted' || request.executionBackend === 'cloud-managed') {
+            const machine = this.machineCache.getMachine(machineId)
+            if (!machine) {
+                return {
+                    type: 'error',
+                    message: 'Machine not found',
+                    code: 'machine_not_found'
+                }
+            }
+            const accepted = this.spawnCoordinator.enqueue(machine.namespace, machineId, request)
+            return {
+                type: 'accepted',
+                requestId: accepted.id,
+                phase: accepted.phase,
+                selectedMachineId: accepted.selectedMachineId
             }
         }
-    ): Promise<
-        | { type: 'success'; sessionId: string; requestId?: string }
-        | { type: 'error'; message: string; code?: string }
-        | { type: 'requestToApproveDirectoryCreation'; directory: string }
-    > {
+
         const directory = request.directory ?? request.workspaceSource?.directory ?? request.workspaceSource?.repository?.url ?? ''
         const resolvedAgent = request.agent ?? (directory ? this.inferSpawnFlavor(machineId, directory) : 'claude')
         const result = await this.rpcGateway.spawnSession(machineId, {
@@ -1945,6 +2063,28 @@ ${note.content}
         }
 
         return result
+    }
+
+    async spawnSessionOnAutoCloudWorker(
+        namespace: string,
+        request: MachineSpawnRequest
+    ): Promise<import('@hapi/protocol/types').SpawnResponse> {
+        const backend = request.executionBackend
+        if (backend !== 'cloud-self-hosted' && backend !== 'cloud-managed') {
+            return {
+                type: 'error',
+                message: 'Auto machine selection requires a cloud execution backend',
+                code: 'invalid_execution_backend'
+            }
+        }
+
+        const accepted = this.spawnCoordinator.enqueue(namespace, 'auto', request)
+        return {
+            type: 'accepted',
+            requestId: accepted.id,
+            phase: accepted.phase,
+            selectedMachineId: accepted.selectedMachineId
+        }
     }
 
     async spawnSessionFromExisting(
@@ -2052,7 +2192,10 @@ ${note.content}
             if (spawnResult.type === 'error') {
                 return { type: 'error', message: spawnResult.message, code: 'spawn_failed' }
             }
-            return { type: 'error', message: `Directory creation requires approval: ${spawnResult.directory}`, code: 'spawn_failed' }
+            if (spawnResult.type === 'requestToApproveDirectoryCreation') {
+                return { type: 'error', message: `Directory creation requires approval: ${spawnResult.directory}`, code: 'spawn_failed' }
+            }
+            return { type: 'error', message: 'Async cloud spawn is not supported for duplicate session', code: 'spawn_failed' }
         }
 
         const becameAvailable = await this.waitForSessionAvailable(spawnResult.sessionId)
@@ -2309,7 +2452,10 @@ ${note.content}
             if (spawnResult.type === 'error') {
                 return { type: 'error', message: spawnResult.message, code: 'resume_failed' }
             }
-            return { type: 'error', message: `Directory creation requires approval: ${spawnResult.directory}`, code: 'resume_failed' }
+            if (spawnResult.type === 'requestToApproveDirectoryCreation') {
+                return { type: 'error', message: `Directory creation requires approval: ${spawnResult.directory}`, code: 'resume_failed' }
+            }
+            return { type: 'error', message: 'Async cloud spawn is not supported for resume', code: 'resume_failed' }
         }
 
         const becameActive = await this.waitForSessionActive(spawnResult.sessionId)

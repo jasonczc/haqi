@@ -55,7 +55,15 @@ export function SpawnSession(props: {
                 return
             }
             haptic.notification('error')
-            setError(result.type === 'error' ? result.message : `Directory creation requires approval: ${result.directory}`)
+            if (result.type === 'error') {
+                setError(result.message)
+                return
+            }
+            if (result.type === 'requestToApproveDirectoryCreation') {
+                setError(`Directory creation requires approval: ${result.directory}`)
+                return
+            }
+            setError('Cloud async spawn is not supported in this dialog')
         } catch (e) {
             haptic.notification('error')
             setError(e instanceof Error ? e.message : 'Failed to spawn session')

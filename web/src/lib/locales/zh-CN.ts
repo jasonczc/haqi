@@ -113,6 +113,7 @@ export default {
 
   // New session form
   'newSession.machine': '机器',
+  'newSession.machine.auto': '自动选择（调度器）',
   'newSession.directory': '目录',
   'newSession.placeholder': '/path/to/project',
   'newSession.recent': '最近路径',
@@ -140,6 +141,7 @@ export default {
   'newSession.cloudInventory.type.selfHosted': 'Provider 类型：自托管',
   'newSession.cloudInventory.type.managed': 'Provider 类型：托管',
   'newSession.cloudInventory.lifecycle': 'Worker 状态',
+  'newSession.cloudInventory.environmentSummary': '运行时：{runtime} · 服务数：{services} · 仓库依赖：{dependencies}',
   'newSession.cloudEnvironment.title': '环境模板',
   'newSession.cloudEnvironment.loading': '正在加载环境模板…',
   'newSession.cloudEnvironment.empty': '当前没有可用环境模板，可手动填写环境模板 ID。',
@@ -157,10 +159,23 @@ export default {
   'newSession.environmentIdPlaceholder': 'fullstack-node',
   'newSession.repositoryUrl': '仓库地址',
   'newSession.repositoryBranch': '分支',
+  'newSession.networkPolicy': '网络策略',
+  'newSession.networkPolicy.default': '默认',
+  'newSession.networkPolicy.restricted': '受限',
+  'newSession.networkPolicy.off': '关闭',
+  'newSession.labels': '标签',
+  'newSession.labelsPlaceholder': 'cloud, docker, gpu',
+  'newSession.labelsHint': '用逗号或换行分隔 worker 标签。',
+  'newSession.secrets': '密钥引用',
+  'newSession.secretsPlaceholder': 'github-app, claude-main',
+  'newSession.secretsHint': '用逗号或换行分隔 secret 引用。',
   'newSession.workspaceMode': '工作区模式',
   'newSession.workspaceMode.ephemeral': '临时',
   'newSession.workspaceMode.persistent': '持久',
   'newSession.workspaceMode.snapshotDerived': '基于快照',
+  'newSession.previewPolicy': '预览策略',
+  'newSession.previewPolicy.autoDetect': '自动探测预览端口',
+  'newSession.previewPolicy.preferredPort': '首选预览端口',
   'newSession.ttlMinutes': 'TTL（分钟）',
   'newSession.persistentWorkspace': '保留工作区',
   'newSession.yolo': 'YOLO 模式',
@@ -181,6 +196,7 @@ export default {
 
   // Machine
   'machine.unknown': '未知平台',
+  'machine.list.online': '在线',
 
   // Chat
   'chat.placeholder': '输入消息…',

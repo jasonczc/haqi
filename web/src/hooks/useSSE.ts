@@ -186,8 +186,26 @@ export function useSSE(options: {
     const pendingInvalidationsRef = useRef<{
         sessions: boolean
         machines: boolean
+        cloudRequests: boolean
+        cloudWorkspaces: boolean
+        cloudSecrets: boolean
+        cloudWorkerEnrollmentTokens: boolean
         sessionIds: Set<string>
-    }>({ sessions: false, machines: false, sessionIds: new Set() })
+        requestIds: Set<string>
+        workspaceIds: Set<string>
+        secretIds: Set<string>
+    }>({
+        sessions: false,
+        machines: false,
+        cloudRequests: false,
+        cloudWorkspaces: false,
+        cloudSecrets: false,
+        cloudWorkerEnrollmentTokens: false,
+        sessionIds: new Set(),
+        requestIds: new Set(),
+        workspaceIds: new Set(),
+        secretIds: new Set()
+    })
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const reconnectAttemptRef = useRef(0)
     const lastActivityAtRef = useRef(0)
@@ -230,7 +248,14 @@ export function useSSE(options: {
             }
             pendingInvalidationsRef.current.sessions = false
             pendingInvalidationsRef.current.machines = false
+            pendingInvalidationsRef.current.cloudRequests = false
+            pendingInvalidationsRef.current.cloudWorkspaces = false
+            pendingInvalidationsRef.current.cloudSecrets = false
+            pendingInvalidationsRef.current.cloudWorkerEnrollmentTokens = false
             pendingInvalidationsRef.current.sessionIds.clear()
+            pendingInvalidationsRef.current.requestIds.clear()
+            pendingInvalidationsRef.current.workspaceIds.clear()
+            pendingInvalidationsRef.current.secretIds.clear()
             if (reconnectTimerRef.current) {
                 clearTimeout(reconnectTimerRef.current)
                 reconnectTimerRef.current = null
@@ -289,17 +314,42 @@ export function useSSE(options: {
 
         const flushInvalidations = () => {
             const pending = pendingInvalidationsRef.current
-            if (!pending.sessions && !pending.machines && pending.sessionIds.size === 0) {
+            if (
+                !pending.sessions
+                && !pending.machines
+                && !pending.cloudRequests
+                && !pending.cloudWorkspaces
+                && !pending.cloudSecrets
+                && !pending.cloudWorkerEnrollmentTokens
+                && pending.sessionIds.size === 0
+                && pending.requestIds.size === 0
+                && pending.workspaceIds.size === 0
+                && pending.secretIds.size === 0
+            ) {
                 return
             }
 
             const shouldInvalidateSessions = pending.sessions
             const shouldInvalidateMachines = pending.machines
+            const shouldInvalidateCloudRequests = pending.cloudRequests
+            const shouldInvalidateCloudWorkspaces = pending.cloudWorkspaces
+            const shouldInvalidateCloudSecrets = pending.cloudSecrets
+            const shouldInvalidateCloudWorkerEnrollmentTokens = pending.cloudWorkerEnrollmentTokens
             const sessionIds = Array.from(pending.sessionIds)
+            const requestIds = Array.from(pending.requestIds)
+            const workspaceIds = Array.from(pending.workspaceIds)
+            const secretIds = Array.from(pending.secretIds)
 
             pending.sessions = false
             pending.machines = false
+            pending.cloudRequests = false
+            pending.cloudWorkspaces = false
+            pending.cloudSecrets = false
+            pending.cloudWorkerEnrollmentTokens = false
             pending.sessionIds.clear()
+            pending.requestIds.clear()
+            pending.workspaceIds.clear()
+            pending.secretIds.clear()
 
             const tasks: Array<Promise<unknown>> = []
             if (shouldInvalidateSessions) {
@@ -310,6 +360,27 @@ export function useSSE(options: {
             }
             if (shouldInvalidateMachines) {
                 tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.machines }))
+            }
+            if (shouldInvalidateCloudRequests) {
+                tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequests }))
+            }
+            for (const requestId of requestIds) {
+                tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequest(requestId) }))
+            }
+            if (shouldInvalidateCloudWorkspaces) {
+                tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkspaces }))
+            }
+            for (const workspaceId of workspaceIds) {
+                tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkspace(workspaceId) }))
+            }
+            if (shouldInvalidateCloudSecrets) {
+                tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.cloudSecrets }))
+            }
+            for (const secretId of secretIds) {
+                tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.cloudSecret(secretId) }))
+            }
+            if (shouldInvalidateCloudWorkerEnrollmentTokens) {
+                tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkerEnrollmentTokens }))
             }
 
             if (tasks.length === 0) {
@@ -340,6 +411,41 @@ export function useSSE(options: {
 
         const queueMachinesInvalidation = () => {
             pendingInvalidationsRef.current.machines = true
+            scheduleInvalidationFlush()
+        }
+
+        const queueCloudRequestsInvalidation = () => {
+            pendingInvalidationsRef.current.cloudRequests = true
+            scheduleInvalidationFlush()
+        }
+
+        const queueCloudRequestDetailInvalidation = (requestId: string) => {
+            pendingInvalidationsRef.current.requestIds.add(requestId)
+            scheduleInvalidationFlush()
+        }
+
+        const queueCloudWorkspacesInvalidation = () => {
+            pendingInvalidationsRef.current.cloudWorkspaces = true
+            scheduleInvalidationFlush()
+        }
+
+        const queueCloudWorkspaceDetailInvalidation = (workspaceId: string) => {
+            pendingInvalidationsRef.current.workspaceIds.add(workspaceId)
+            scheduleInvalidationFlush()
+        }
+
+        const queueCloudSecretsInvalidation = () => {
+            pendingInvalidationsRef.current.cloudSecrets = true
+            scheduleInvalidationFlush()
+        }
+
+        const queueCloudSecretDetailInvalidation = (secretId: string) => {
+            pendingInvalidationsRef.current.secretIds.add(secretId)
+            scheduleInvalidationFlush()
+        }
+
+        const queueCloudWorkerEnrollmentTokensInvalidation = () => {
+            pendingInvalidationsRef.current.cloudWorkerEnrollmentTokens = true
             scheduleInvalidationFlush()
         }
 
@@ -533,6 +639,23 @@ export function useSSE(options: {
                 } else if (!hasRecordShape(event.data) || typeof event.data.activeAt !== 'number') {
                     queueMachinesInvalidation()
                 }
+            }
+
+            if (event.type === 'cloud-spawn-request-updated') {
+                queueCloudRequestsInvalidation()
+                queueCloudRequestDetailInvalidation(event.requestId)
+                queueMachinesInvalidation()
+            }
+
+            if (event.type === 'cloud-workspace-updated') {
+                queueCloudWorkspacesInvalidation()
+                queueCloudWorkspaceDetailInvalidation(event.workspaceId)
+            }
+
+            if (event.type === 'cloud-secret-updated') {
+                queueCloudSecretsInvalidation()
+                queueCloudSecretDetailInvalidation(event.secretId)
+                queueCloudWorkerEnrollmentTokensInvalidation()
             }
 
             if (event.type === 'group-added' || event.type === 'group-updated' || event.type === 'group-removed') {

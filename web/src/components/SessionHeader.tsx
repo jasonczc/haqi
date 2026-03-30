@@ -143,8 +143,15 @@ export function SessionHeader(props: {
     const executionBackend = session.metadata?.executionBackend
     const runtimeKind = session.metadata?.runtimeKind
     const workspaceId = session.metadata?.workspaceId
+    const spawnRequestId = session.metadata?.spawnRequestId
+    const workspaceMode = session.metadata?.workspaceMode
+    const workerId = session.metadata?.workerId
     const environmentId = session.metadata?.environmentId
+    const environmentVersion = session.metadata?.environmentVersion
     const repositoryRef = session.metadata?.repositoryRef
+    const repositoryProvider = session.metadata?.repositoryProvider
+    const setupStatus = session.metadata?.setupStatus
+    const serviceEndpointCount = session.metadata?.serviceEndpoints?.length ?? 0
     const previewCount = session.metadata?.previewUrls?.length ?? 0
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
     const displayThinkEffort = session.metadata?.thinkEffort?.trim()
@@ -281,8 +288,17 @@ export function SessionHeader(props: {
                             {executionBackend ? (
                                 <span>{executionBackend}{runtimeKind ? ` · ${runtimeKind}` : ''}</span>
                             ) : null}
+                            {workerId ? (
+                                <span>worker: {workerId}</span>
+                            ) : null}
                             {environmentId ? (
-                                <span>env: {environmentId}</span>
+                                <span>env: {environmentId}{environmentVersion ? ` @ ${environmentVersion}` : ''}</span>
+                            ) : null}
+                            {workspaceMode ? (
+                                <span>workspace: {workspaceMode}</span>
+                            ) : null}
+                            {repositoryProvider ? (
+                                <span>repo: {repositoryProvider}</span>
                             ) : null}
                             {repositoryRef?.branch ? (
                                 <span>branch: {repositoryRef.branch}</span>
@@ -290,8 +306,27 @@ export function SessionHeader(props: {
                             {repositoryRef?.commit ? (
                                 <span>commit: {repositoryRef.commit.slice(0, 12)}</span>
                             ) : null}
+                            {spawnRequestId ? (
+                                <span>
+                                    request:{' '}
+                                    <a href={`/cloud/requests/${encodeURIComponent(spawnRequestId)}`} className="text-[var(--app-link)] hover:underline">
+                                        {spawnRequestId}
+                                    </a>
+                                </span>
+                            ) : null}
                             {workspaceId ? (
-                                <span>workspace: {workspaceId}</span>
+                                <span>
+                                    workspace:{' '}
+                                    <a href={`/cloud/workspaces/${encodeURIComponent(workspaceId)}`} className="text-[var(--app-link)] hover:underline">
+                                        {workspaceId}
+                                    </a>
+                                </span>
+                            ) : null}
+                            {serviceEndpointCount > 0 ? (
+                                <span>services: {serviceEndpointCount}</span>
+                            ) : null}
+                            {setupStatus ? (
+                                <span>setup: {setupStatus.phase}</span>
                             ) : null}
                             {worktreeBranch ? (
                                 <span>{t('session.item.worktree')}: {worktreeBranch}</span>

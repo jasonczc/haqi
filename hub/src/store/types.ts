@@ -1,3 +1,11 @@
+import type {
+    CloudSecretAdapter,
+    CloudSpawnPhase,
+    CloudWorkspaceLeaseStatus,
+    CloudWorkspaceStatus,
+    WorkspaceMode
+} from '@hapi/protocol/types'
+
 export type StoredSession = {
     id: string
     tag: string | null
@@ -37,6 +45,110 @@ export type StoredMachine = {
     active: boolean
     activeAt: number | null
     seq: number
+}
+
+export type StoredCloudSpawnRequest = {
+    id: string
+    namespace: string
+    requestedMachineId: string | null
+    selectedMachineId: string | null
+    phase: CloudSpawnPhase
+    request: unknown
+    workspaceId: string | null
+    sessionId: string | null
+    reusedWorkspace: boolean
+    createdAt: number
+    updatedAt: number
+    startedAt: number | null
+    completedAt: number | null
+    error: unknown | null
+}
+
+export type StoredCloudWorkspace = {
+    id: string
+    namespace: string
+    machineId: string | null
+    key: string | null
+    name: string | null
+    mode: WorkspaceMode | null
+    status: CloudWorkspaceStatus
+    source: unknown | null
+    path: string | null
+    environmentId: string | null
+    environmentVersion: string | null
+    environment: unknown | null
+    reused: boolean
+    lastLeaseId: string | null
+    lastUsedAt: number | null
+    createdAt: number
+    updatedAt: number
+    error: unknown | null
+}
+
+export type StoredCloudWorkspaceLease = {
+    id: string
+    namespace: string
+    workspaceId: string
+    requestId: string | null
+    machineId: string
+    sessionId: string | null
+    status: CloudWorkspaceLeaseStatus
+    createdAt: number
+    updatedAt: number
+    expiresAt: number | null
+    releasedAt: number | null
+}
+
+export type StoredCloudSecret = {
+    id: string
+    namespace: string
+    name: string
+    description: string | null
+    mountAs: 'env' | 'file' | null
+    envName: string | null
+    filePath: string | null
+    adapter: CloudSecretAdapter | null
+    encryptedValue: string
+    createdAt: number
+    updatedAt: number
+    lastAccessedAt: number | null
+}
+
+export type StoredCloudSecretAccessEvent = {
+    id: string
+    namespace: string
+    secretId: string
+    secretName: string
+    requestId: string | null
+    machineId: string | null
+    sessionId: string | null
+    createdAt: number
+}
+
+export type StoredCloudWorkerEnrollmentToken = {
+    id: string
+    namespace: string
+    label: string | null
+    machineId: string | null
+    tokenHash: string
+    tokenPreview: string
+    createdAt: number
+    expiresAt: number | null
+    revokedAt: number | null
+}
+
+export type StoredCloudWorkerSessionToken = {
+    id: string
+    namespace: string
+    machineId: string | null
+    enrollmentTokenId: string | null
+    tokenHash: string
+    tokenPreview: string
+    createdAt: number
+    updatedAt: number
+    expiresAt: number | null
+    revokedAt: number | null
+    lastUsedAt: number | null
 }
 
 export type StoredMessage = {

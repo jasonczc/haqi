@@ -14,6 +14,8 @@ import { ReportStore } from './reportStore'
 import { ReviewLoopStore } from './reviewLoopStore'
 import { createConversationTurnsSchema } from './turns'
 import { createGroupConversationTurnsSchema } from './groupTurns'
+import { createCloudTablesSchema } from './cloudTables'
+import { CloudStore } from './cloudStore'
 
 export type {
     PreviewUrlHistoryEntry,
@@ -25,6 +27,13 @@ export type {
     StoredGroupTask,
     StoredMachine,
     StoredConversationTurn,
+    StoredCloudSecret,
+    StoredCloudSecretAccessEvent,
+    StoredCloudSpawnRequest,
+    StoredCloudWorkerEnrollmentToken,
+    StoredCloudWorkerSessionToken,
+    StoredCloudWorkspace,
+    StoredCloudWorkspaceLease,
     StoredMessage,
     StoredPushSubscription,
     StoredReport,
@@ -49,8 +58,9 @@ export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 export { ReviewLoopStore } from './reviewLoopStore'
+export { CloudStore } from './cloudStore'
 
-const SCHEMA_VERSION: number = 12
+const SCHEMA_VERSION: number = 14
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -70,7 +80,14 @@ const REQUIRED_TABLES = [
     'report_assets',
     'report_shares',
     'review_loops',
-    'review_rounds'
+    'review_rounds',
+    'cloud_spawn_requests',
+    'cloud_workspaces',
+    'cloud_workspace_leases',
+    'cloud_secrets',
+    'cloud_secret_access_events',
+    'cloud_worker_enrollment_tokens',
+    'cloud_worker_sessions'
 ] as const
 
 export class Store {
@@ -87,6 +104,7 @@ export class Store {
     readonly groups: GroupStore
     readonly reports: ReportStore
     readonly reviewLoops: ReviewLoopStore
+    readonly cloud: CloudStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -133,6 +151,7 @@ export class Store {
         this.groups = new GroupStore(this.db)
         this.reports = new ReportStore(this.db)
         this.reviewLoops = new ReviewLoopStore(this.db)
+        this.cloud = new CloudStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -227,6 +246,20 @@ export class Store {
         if (currentVersion === 11 && SCHEMA_VERSION >= 12) {
             this.migrateFromV11ToV12()
             this.setUserVersion(12)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 12 && SCHEMA_VERSION >= 13) {
+            this.migrateFromV12ToV13()
+            this.setUserVersion(13)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 13 && SCHEMA_VERSION >= 14) {
+            this.migrateFromV13ToV14()
+            this.setUserVersion(14)
             this.initSchema()
             return
         }
@@ -574,6 +607,7 @@ export class Store {
             CREATE UNIQUE INDEX IF NOT EXISTS idx_review_rounds_loop_round
                 ON review_rounds(loop_id, round);
         `)
+        createCloudTablesSchema(this.db)
     }
 
     private migrateLegacySchemaIfNeeded(): void {
@@ -1046,6 +1080,30 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v11->v12 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV12ToV13(): void {
+        try {
+            this.db.exec('BEGIN')
+            createCloudTablesSchema(this.db)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v12->v13 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV13ToV14(): void {
+        try {
+            this.db.exec('BEGIN')
+            createCloudTablesSchema(this.db)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v13->v14 failed: ${message}`)
         }
     }
 

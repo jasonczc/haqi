@@ -82,8 +82,12 @@ describe('cloud provider helpers', () => {
                 provider: 'kubernetes'
             },
             runnerState: {
-                lifecycle: 'busy',
-                environmentId: 'env-1'
+                lifecycle: 'draining',
+                environmentId: 'env-1',
+                capacity: {
+                    total: 2,
+                    used: 1
+                }
             }
         })
 
@@ -92,9 +96,17 @@ describe('cloud provider helpers', () => {
             expect.objectContaining({
                 machineId: 'provider-1',
                 provider: 'kubernetes' satisfies CloudProviderName,
-                lifecycle: 'busy',
+                lifecycle: 'draining',
                 active: true,
-                executorType: 'cloud-self-hosted'
+                selectable: false,
+                executorType: 'cloud-self-hosted',
+                runnerState: expect.objectContaining({
+                    lifecycle: 'draining',
+                    capacity: {
+                        total: 2,
+                        used: 1
+                    }
+                })
             })
         ])
     })
@@ -115,15 +127,47 @@ describe('cloud provider helpers', () => {
                 metadata: {
                     ...createMachine({}).metadata!,
                     provider: 'something-custom'
+                },
+                runnerState: {
+                    lifecycle: 'failed'
                 }
             })
         ]
 
         expect(buildProviderSummaries(workers)).toEqual([
-            { id: 'auto', type: 'self-hosted', count: 3 },
-            { id: 'docker', type: 'self-hosted', count: 1 },
-            { id: 'managed', type: 'managed', count: 1 },
-            { id: 'unknown', type: 'self-hosted', count: 1 }
+            { id: 'auto', type: 'self-hosted', count: 3, activeCount: 3, availableCount: 2 },
+            { id: 'docker', type: 'self-hosted', count: 1, activeCount: 1, availableCount: 1 },
+            { id: 'managed', type: 'managed', count: 1, activeCount: 1, availableCount: 1 },
+            { id: 'unknown', type: 'self-hosted', count: 1, activeCount: 1, availableCount: 0 }
+        ])
+    })
+
+    it('marks inactive and terminal workers as unavailable', () => {
+        const summaries = buildWorkerSummaries([
+            createMachine({
+                id: 'inactive-1',
+                active: false,
+                runnerState: {
+                    lifecycle: 'idle'
+                }
+            }),
+            createMachine({
+                id: 'failed-1',
+                runnerState: {
+                    lifecycle: 'failed'
+                }
+            })
+        ])
+
+        expect(summaries).toEqual([
+            expect.objectContaining({
+                machineId: 'inactive-1',
+                selectable: false
+            }),
+            expect.objectContaining({
+                machineId: 'failed-1',
+                selectable: false
+            })
         ])
     })
 })

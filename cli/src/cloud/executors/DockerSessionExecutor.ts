@@ -2,6 +2,7 @@ import type { PreviewTarget } from '@hapi/protocol/types'
 import type { SpawnSessionOptions } from '@/modules/common/rpcTypes'
 import type { DockerCliRuntime, DockerRunSpec } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
+import { buildBootstrapScript } from '@/cloud/environment/runEnvironmentCommands'
 
 function resolveAgentCommand(options: SpawnSessionOptions): string[] {
     const agent = options.agent ?? 'claude'
@@ -68,10 +69,29 @@ export async function startDockerSessionExecutor(params: {
         protocol: port.protocol
     }))
 
+    const agentCommand = resolveAgentCommand(params.options)
+    const hasHooks = Boolean(
+        params.environment?.environment?.install
+        || params.environment?.environment?.start
+    )
+    const command = hasHooks
+        ? [
+            'sh',
+            '-lc',
+            buildBootstrapScript({
+                commands: [
+                    params.environment?.environment?.install,
+                    params.environment?.environment?.start
+                ],
+                agentCommand
+            })
+        ]
+        : agentCommand
+
     const spec: DockerRunSpec = {
         image,
         name: `haqi-session-${params.sessionLabel}`,
-        command: resolveAgentCommand(params.options),
+        command,
         env: Object.entries(params.env).map(([key, value]) => `${key}=${value}`),
         workingDir: params.workspace.workingDirectory,
         mounts: [`${params.workspace.workspacePath}:${params.workspace.workspacePath}`],

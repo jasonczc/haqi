@@ -125,7 +125,8 @@ export const RepositorySpecSchema = z.object({
     subdirectory: z.string().optional(),
     cloneDepth: z.number().int().positive().optional(),
     withSubmodules: z.boolean().optional(),
-    withLfs: z.boolean().optional()
+    withLfs: z.boolean().optional(),
+    credentialsSecretRef: z.string().min(1).optional()
 })
 
 export type RepositorySpec = z.infer<typeof RepositorySpecSchema>
@@ -261,6 +262,88 @@ export const EnvironmentTemplateSchema = z.object({
 })
 
 export type EnvironmentTemplate = z.infer<typeof EnvironmentTemplateSchema>
+
+export const CloudSpawnPhaseSchema = z.enum([
+    'queued',
+    'selecting-worker',
+    'acquiring-workspace',
+    'preparing-workspace',
+    'materializing-secrets',
+    'starting-session',
+    'succeeded',
+    'failed',
+    'canceled'
+])
+
+export type CloudSpawnPhase = z.infer<typeof CloudSpawnPhaseSchema>
+
+export const CloudWorkspaceStatusSchema = z.enum([
+    'creating',
+    'ready',
+    'leased',
+    'released',
+    'expired',
+    'failed'
+])
+
+export type CloudWorkspaceStatus = z.infer<typeof CloudWorkspaceStatusSchema>
+
+export const CloudWorkspaceLeaseStatusSchema = z.enum([
+    'active',
+    'released',
+    'expired'
+])
+
+export type CloudWorkspaceLeaseStatus = z.infer<typeof CloudWorkspaceLeaseStatusSchema>
+
+export const CloudSecretAdapterSchema = z.enum([
+    'generic',
+    'git',
+    'claude',
+    'gemini',
+    'codex'
+])
+
+export type CloudSecretAdapter = z.infer<typeof CloudSecretAdapterSchema>
+
+export const CloudRequestErrorSchema = z.object({
+    phase: CloudSpawnPhaseSchema,
+    message: z.string(),
+    code: z.string().optional(),
+    retryable: z.boolean().optional(),
+    at: z.number()
+})
+
+export type CloudRequestError = z.infer<typeof CloudRequestErrorSchema>
+
+export const ResolvedSecretSchema = z.object({
+    secretId: z.string(),
+    secretName: z.string(),
+    mountAs: z.enum(['env', 'file']),
+    envName: z.string().optional(),
+    filePath: z.string().optional(),
+    value: z.string(),
+    adapter: CloudSecretAdapterSchema.optional()
+})
+
+export type ResolvedSecret = z.infer<typeof ResolvedSecretSchema>
+
+export const CloudWorkspaceLeaseBindingSchema = z.object({
+    leaseId: z.string(),
+    workspaceId: z.string(),
+    workspaceKey: z.string().optional(),
+    machineId: z.string(),
+    mode: WorkspaceModeSchema.optional(),
+    name: z.string().optional(),
+    path: z.string().optional(),
+    baseDir: z.string().optional(),
+    source: WorkspaceSourceSchema.optional(),
+    environmentId: z.string().optional(),
+    environmentVersion: z.string().optional(),
+    expiresAt: z.number().optional()
+})
+
+export type CloudWorkspaceLeaseBinding = z.infer<typeof CloudWorkspaceLeaseBindingSchema>
 
 export const PreviewTargetSchema = z.object({
     id: z.string(),
@@ -665,7 +748,11 @@ export const MachineSpawnRequestSchema = z.object({
     preview: z.object({
         autoDetect: z.boolean().optional(),
         preferredPort: z.number().int().positive().optional()
-    }).optional()
+    }).optional(),
+    spawnRequestId: z.string().optional(),
+    resolvedEnvironment: EnvironmentTemplateSchema.optional(),
+    workspaceLease: CloudWorkspaceLeaseBindingSchema.optional(),
+    resolvedSecrets: z.array(ResolvedSecretSchema).optional()
 })
 
 export type MachineSpawnRequest = z.infer<typeof MachineSpawnRequestSchema>
@@ -675,6 +762,12 @@ export const SpawnResponseSchema = z.discriminatedUnion('type', [
         type: z.literal('success'),
         sessionId: z.string(),
         requestId: z.string().optional()
+    }),
+    z.object({
+        type: z.literal('accepted'),
+        requestId: z.string(),
+        phase: CloudSpawnPhaseSchema,
+        selectedMachineId: z.string().optional()
     }),
     z.object({
         type: z.literal('error'),
@@ -869,8 +962,120 @@ export const ReviewRoundSchema = z.object({
 
 export type ReviewRound = z.infer<typeof ReviewRoundSchema>
 
+export const CloudWorkspaceSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    machineId: z.string().optional(),
+    key: z.string().optional(),
+    name: z.string().optional(),
+    mode: WorkspaceModeSchema.optional(),
+    status: CloudWorkspaceStatusSchema,
+    source: WorkspaceSourceSchema.optional(),
+    path: z.string().optional(),
+    environmentId: z.string().optional(),
+    environmentVersion: z.string().optional(),
+    environment: EnvironmentTemplateSchema.optional(),
+    reused: z.boolean().optional(),
+    lastLeaseId: z.string().optional(),
+    lastUsedAt: z.number().optional(),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    error: CloudRequestErrorSchema.optional()
+})
+
+export type CloudWorkspace = z.infer<typeof CloudWorkspaceSchema>
+
+export const CloudWorkspaceLeaseSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    workspaceId: z.string(),
+    requestId: z.string().optional(),
+    machineId: z.string(),
+    sessionId: z.string().optional(),
+    status: CloudWorkspaceLeaseStatusSchema,
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    expiresAt: z.number().optional(),
+    releasedAt: z.number().optional()
+})
+
+export type CloudWorkspaceLease = z.infer<typeof CloudWorkspaceLeaseSchema>
+
+export const CloudSpawnRequestSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    requestedMachineId: z.string().optional(),
+    selectedMachineId: z.string().optional(),
+    phase: CloudSpawnPhaseSchema,
+    request: MachineSpawnRequestSchema,
+    workspaceId: z.string().optional(),
+    sessionId: z.string().optional(),
+    reusedWorkspace: z.boolean().optional(),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    startedAt: z.number().optional(),
+    completedAt: z.number().optional(),
+    error: CloudRequestErrorSchema.optional()
+})
+
+export type CloudSpawnRequest = z.infer<typeof CloudSpawnRequestSchema>
+
+export const CloudSecretSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+    mountAs: z.enum(['env', 'file']).optional(),
+    envName: z.string().optional(),
+    filePath: z.string().optional(),
+    adapter: CloudSecretAdapterSchema.optional(),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    lastAccessedAt: z.number().optional()
+})
+
+export type CloudSecret = z.infer<typeof CloudSecretSchema>
+
+export const CloudSecretAccessEventSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    secretId: z.string(),
+    secretName: z.string(),
+    requestId: z.string().optional(),
+    machineId: z.string().optional(),
+    sessionId: z.string().optional(),
+    createdAt: z.number()
+})
+
+export type CloudSecretAccessEvent = z.infer<typeof CloudSecretAccessEventSchema>
+
+export const CloudWorkerEnrollmentTokenSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    label: z.string().optional(),
+    machineId: z.string().optional(),
+    tokenPreview: z.string(),
+    createdAt: z.number(),
+    expiresAt: z.number().optional(),
+    revokedAt: z.number().optional()
+})
+
+export type CloudWorkerEnrollmentToken = z.infer<typeof CloudWorkerEnrollmentTokenSchema>
+
 const ReviewLoopChangedSchema = SessionEventBaseSchema.extend({
     loopId: z.string()
+})
+
+const CloudSpawnRequestChangedSchema = SessionEventBaseSchema.extend({
+    requestId: z.string()
+})
+
+const CloudWorkspaceChangedSchema = SessionEventBaseSchema.extend({
+    workspaceId: z.string()
+})
+
+const CloudSecretChangedSchema = SessionEventBaseSchema.extend({
+    secretId: z.string()
 })
 
 export const SyncEventSchema = z.discriminatedUnion('type', [
@@ -892,6 +1097,18 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
     }),
     MachineChangedSchema.extend({
         type: z.literal('machine-updated'),
+        data: z.unknown().optional()
+    }),
+    CloudSpawnRequestChangedSchema.extend({
+        type: z.literal('cloud-spawn-request-updated'),
+        data: z.unknown().optional()
+    }),
+    CloudWorkspaceChangedSchema.extend({
+        type: z.literal('cloud-workspace-updated'),
+        data: z.unknown().optional()
+    }),
+    CloudSecretChangedSchema.extend({
+        type: z.literal('cloud-secret-updated'),
         data: z.unknown().optional()
     }),
     GroupChangedSchema.extend({

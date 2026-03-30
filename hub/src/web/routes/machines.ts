@@ -77,10 +77,13 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Not connected' }, 503)
         }
 
+        const namespace = c.get('namespace')
         const machineId = c.req.param('id')
-        const machine = requireMachine(c, engine, machineId)
-        if (machine instanceof Response) {
-            return machine
+        if (machineId !== 'auto') {
+            const machine = requireMachine(c, engine, machineId)
+            if (machine instanceof Response) {
+                return machine
+            }
         }
 
         const body = await c.req.json().catch(() => null)
@@ -96,6 +99,14 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
 
         if (parsed.data.agent === 'claude' && parsed.data.thinkEffort === 'xhigh') {
             return c.json({ error: 'Claude thinkEffort does not support xhigh (expected low/medium/high)' }, 400)
+        }
+
+        if (machineId === 'auto') {
+            if (parsed.data.executionBackend !== 'cloud-self-hosted' && parsed.data.executionBackend !== 'cloud-managed') {
+                return c.json({ error: 'Auto machine selection requires a cloud execution backend' }, 400)
+            }
+            const result = await engine.spawnSessionOnAutoCloudWorker(namespace, parsed.data)
+            return c.json(result)
         }
 
         const result = await engine.spawnSession(machineId, parsed.data)

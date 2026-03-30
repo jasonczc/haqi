@@ -10,6 +10,7 @@ function getMachineTitle(machine: Machine): string {
 export function MachineSelector(props: {
     machines: Machine[]
     machineId: string | null
+    showAutoOption?: boolean
     isLoading?: boolean
     isDisabled: boolean
     onChange: (machineId: string) => void
@@ -27,10 +28,15 @@ export function MachineSelector(props: {
                 disabled={props.isDisabled}
                 className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
             >
+                {props.showAutoOption ? (
+                    <option value="auto">
+                        {t('newSession.machine.auto')}
+                    </option>
+                ) : null}
                 {props.isLoading && (
                     <option value="">{t('loading.machines')}</option>
                 )}
-                {!props.isLoading && props.machines.length === 0 && (
+                {!props.isLoading && props.machines.length === 0 && !props.showAutoOption && (
                     <option value="">{t('misc.noMachines')}</option>
                 )}
                 {props.machines.map((m) => (

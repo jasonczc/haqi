@@ -70,4 +70,74 @@ describe('createMachinesRoutes cloud endpoints', () => {
         expect(response.status).toBe(200)
         expect(json).toEqual({ previews })
     })
+
+    it('routes auto cloud spawn through scheduler path', async () => {
+        let capturedNamespace: string | undefined
+        let capturedRequest: unknown
+
+        const app = createAuthedApp(() => ({
+            getOnlineMachinesByNamespace: () => [],
+            listCloudEnvironments: () => [],
+            listCloudPreviews: () => [],
+            spawnSessionOnAutoCloudWorker: async (namespace: string, request: unknown) => {
+                capturedNamespace = namespace
+                capturedRequest = request
+                return { type: 'success', sessionId: 'session-auto' as const }
+            }
+        }))
+
+        const response = await app.request('http://localhost/api/machines/auto/spawn', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                executionBackend: 'cloud-self-hosted',
+                runtimeKind: 'host-process',
+                workspaceSource: {
+                    type: 'repo',
+                    repository: {
+                        url: 'https://github.com/acme/demo.git'
+                    }
+                }
+            })
+        })
+        const json = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(json).toEqual({
+            type: 'success',
+            sessionId: 'session-auto'
+        })
+        expect(capturedNamespace).toBe('default')
+        expect(capturedRequest).toEqual(expect.objectContaining({
+            executionBackend: 'cloud-self-hosted',
+            runtimeKind: 'host-process'
+        }))
+    })
+
+    it('rejects auto spawn for local backend', async () => {
+        const app = createAuthedApp(() => ({
+            getOnlineMachinesByNamespace: () => [],
+            listCloudEnvironments: () => [],
+            listCloudPreviews: () => []
+        }))
+
+        const response = await app.request('http://localhost/api/machines/auto/spawn', {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                executionBackend: 'local',
+                directory: '/tmp/project'
+            })
+        })
+        const json = await response.json()
+
+        expect(response.status).toBe(400)
+        expect(json).toEqual({
+            error: 'Auto machine selection requires a cloud execution backend'
+        })
+    })
 })
