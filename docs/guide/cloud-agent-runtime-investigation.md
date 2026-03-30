@@ -740,7 +740,154 @@ exec-daemon 与 Cursor 云端控制面之间使用 **Connect-RPC over WebSocket*
 | 沙箱 | cursorsandbox 进程级（非容器级） | 隔离开销极小 |
 | 控制面 | Connect-RPC over WebSocket | 双向流、长连接 |
 
-### 7.12 局限与未验证项
+### 7.12 网页远控为何流畅：VNC 链路深度分析
+
+通过浏览器远程操控桌面（人类手动操作）也非常流畅，这得益于以下多层优化：
+
+#### A. Cursor 专用 VNC 代理网络 — `cursorvm.com`
+
+用户浏览器 **不是直接连容器内的 noVNC**。Cursor 在全球部署了专用 VNC WebSocket 代理集群：
+
+```
+wss://*.us1.cursorvm.com     wss://*.us1p.cursorvm.com
+wss://*.us3.cursorvm.com     wss://*.us3p.cursorvm.com
+wss://*.us4.cursorvm.com     wss://*.us4p.cursorvm.com
+wss://*.us5.cursorvm.com     wss://*.us5p.cursorvm.com
+wss://*.us6.cursorvm.com     wss://*.us6p.cursorvm.com
+wss://*.us7.cursorvm.com     wss://*.us7p.cursorvm.com
+wss://*.dev.cursorvm.com     (开发环境)
+```
+
+每个区域有对应的 `cursorvm-manager.com` 管理面：
+
+```
+https://us1.cursorvm-manager.com  ...  https://us7p.cursorvm-manager.com
+https://dev.cursorvm-manager.com
+https://eval1.cursorvm-manager.com  https://eval2.cursorvm-manager.com
+https://train1~5.cursorvm-manager.com  (训练环境)
+```
+
+**链路**：
+
+```
+用户浏览器
+  ↓ WSS (TLS + WebSocket)
+*.us{1-7}{p}.cursorvm.com (边缘代理，就近接入)
+  ↓ 内部网络
+容器 websockify (:26058) → TigerVNC (:5901) → X11 framebuffer
+```
+
+**效果**：用户接入的是 **离自己最近的边缘节点**（类似 CDN），而非直接跨区域连容器。p 后缀可能代表 premium 或特定 ISP 优化线路。
+
+#### B. TigerVNC Tight 编码 — 智能分区压缩
+
+从 VNC server 日志可看到实际编码统计：
+
+```
+EncodeManager: Framebuffer updates: 5990
+EncodeManager:   Tight:
+    Solid:       616 rects, 5.61 Mpixels → 9.6 KiB  (1:2277 ratio)
+    Bitmap RLE:  283 rects, 94.7 kpixels → 9.4 KiB  (1:39.9 ratio)
+    Indexed RLE: 3532 rects, 5.42 Mpixels → 1.05 MiB (1:19.7 ratio)
+  Tight (JPEG):
+    Full Colour: 6221 rects, 19.7 Mpixels → 20.5 MiB (1:3.66 ratio)
+  Total: 10652 rects, 30.8 Mpixels → 21.6 MiB  (1:5.45 ratio)
+```
+
+TigerVNC 对每个脏矩形 **自动选择最优编码**：
+
+| 区域类型 | 编码方式 | 压缩比 | 典型场景 |
+|----------|----------|--------|----------|
+| 纯色区域 | **Solid** | **1:2277** | 背景、面板、空白区 |
+| 简单图案 | **Bitmap RLE** | 1:40 | 文字边缘、图标 |
+| 低色彩区域 | **Indexed RLE** | 1:20 | 代码编辑器、终端 |
+| 复杂图像 | **Tight JPEG** | 1:3.7 | 照片、渐变、壁纸 |
+
+**关键**：大量 GUI 元素（菜单、文本、按钮）属于 Solid 或 Indexed RLE 区域，压缩比高达 **20~2000 倍**。只有壁纸等复杂区域才走 JPEG 有损压缩。
+
+#### C. ComparingUpdateTracker — 像素级增量检测
+
+```
+ComparingUpdateTracker: 322 Mpixels in / 24.5 Mpixels out
+ComparingUpdateTracker: (1:13.1 ratio)
+```
+
+TigerVNC 在编码前先做 **像素级帧对比**：322M 像素的屏幕变化中，只有 24.5M（7.6%）是真正改变的像素，其余 **92.4% 被过滤掉不发送**。这是一个巨大的带宽节省——即使屏幕在"刷新"，如果内容没变，就不传输。
+
+#### D. 短连接快速重连模式
+
+从日志中观察到 Cursor 的 VNC 客户端使用 **频繁短连接** 模式：
+
+```
+13:58:18  accepted → 13:58:19  closed (1s, 2 updates)
+13:58:21  accepted → 13:58:23  closed (2s, 7 updates)
+13:58:25  accepted → 13:58:27  closed (2s, 16 updates)
+13:58:29  accepted → 13:58:32  closed (3s, 11 updates)
+13:58:35  accepted → 13:58:46  closed (11s, 272 updates) ← 有操作
+13:59:07  accepted → 13:59:22  closed (15s, 476 updates) ← 有操作
+```
+
+在 **空闲时**（无人操作），客户端快速连断获取屏幕快照（1-3 秒一次），数据极小（200-260 KiB）。**有操作时** 保持长连接持续传输（10-15 秒，1+ MiB），然后断开。
+
+这种模式的好处：
+- 空闲时几乎不占带宽
+- 每次重连自动获取最新的完整帧缓冲
+- 避免长连接累积的状态不一致
+
+#### E. 无鉴权 + localhost 绑定 — 零协议开销
+
+```
+-SecurityTypes None    → 无 TLS/VeNCrypt 握手
+-localhost             → 仅 127.0.0.1 接受连接
+```
+
+VNC server 绑定 localhost，安全由外层代理保证。协议层完全跳过认证握手，连接建立时间最小化。
+
+#### F. 软件渲染 + 轻量桌面
+
+```
+export LIBGL_ALWAYS_SOFTWARE=1   → Mesa llvmpipe 软件渲染
+XFCE4                            → 极轻量桌面环境
+WhiteSur Light 主题               → 对比度高，压缩友好
+```
+
+- **XFCE4** 比 GNOME/KDE 轻一个量级，UI 元素简单，生成的脏矩形少
+- **WhiteSur Light 主题**：浅色背景 + 高对比度，大面积纯色区域极多 → 触发 Solid 编码（压缩比 2000+）
+- **llvmpipe 软件渲染**：无 GPU，但 VNC 场景不需要 GPU——桌面操作的帧率需求低，CPU 渲染足够
+- **1920x1200@96DPI**：合理分辨率，既够清晰又不像 4K 那样产生巨量像素
+
+#### G. 全链路总结
+
+```
+用户浏览器
+  ↓ WSS（TLS over WebSocket，就近边缘节点）
+cursorvm.com 边缘代理
+  ↓ 内部网络（低延迟）
+容器 websockify (:26058)
+  ↓ RFB 协议（localhost，零延迟）
+TigerVNC (:5901)
+  ├─ ComparingUpdateTracker: 92% 未变像素过滤
+  ├─ Tight 编码: 按区域自动选 Solid/RLE/JPEG
+  ├─ 纯色压缩比 2000+
+  └─ JPEG Quality 6（默认，文字清晰 + 图像可接受）
+  ↓ X11 framebuffer
+XFCE4 轻量桌面 + WhiteSur Light 主题
+  ├─ 大面积纯色 → 高压缩
+  ├─ 软件渲染（无 GPU 依赖）
+  └─ 96 DPI，不缩放
+```
+
+| 优化层 | 技术 | 效果 |
+|--------|------|------|
+| **网络接入** | cursorvm.com 边缘代理（7+ 区域） | 就近接入，低 RTT |
+| **像素过滤** | ComparingUpdateTracker | 92%+ 未变像素不传输 |
+| **编码** | Tight 智能分区 | 纯色 2000:1，RLE 20:1，JPEG 3.7:1 |
+| **协议** | SecurityTypes=None + localhost | 零握手开销 |
+| **桌面** | XFCE4 + WhiteSur Light | 轻量 + 压缩友好 |
+| **连接模式** | 短连接快照 + 按需长连接 | 空闲零带宽 |
+| **分辨率** | 1920x1200@96DPI | 清晰但不过度 |
+
+### 7.13 局限与未验证项
 
 - **Protobuf 完整定义**：仅从二进制 strings 提取方法名和字段名，不含完整 schema。
 - **端口 26500 / 50052**：无法确认具体用途（进程不在容器内，从宿主机监听）。
