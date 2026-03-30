@@ -58,6 +58,7 @@ import { filterSessionsBySearch } from '@/lib/session-search'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
+import DesktopPage from '@/routes/sessions/desktop'
 import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
 import DebugDiffPage from '@/routes/debug/diff'
@@ -1942,6 +1943,12 @@ const sessionPreviewRoute = createRoute({
     component: PreviewPage,
 })
 
+const sessionDesktopRoute = createRoute({
+    getParentRoute: () => sessionDetailRoute,
+    path: 'desktop',
+    component: DesktopPage,
+})
+
 type SessionFileSearch = {
     path: string
     staged?: boolean
@@ -2074,6 +2081,7 @@ export const routeTree = rootRoute.addChildren([
         newSessionRoute,
         sessionDetailRoute.addChildren([
             sessionPreviewRoute,
+            sessionDesktopRoute,
             sessionTerminalRoute,
             sessionFilesRoute,
             sessionFileRoute,

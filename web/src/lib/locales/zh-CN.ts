@@ -74,6 +74,13 @@ export default {
   // Session header
   'session.title': '文件',
   'session.mcpStatus': 'MCP 状态',
+  'session.desktop.title': '远程桌面',
+  'session.desktop.loading': '正在加载远程桌面…',
+  'session.desktop.empty': '本会话未上报可用的远程桌面地址。请在云环境模板中暴露 noVNC / websockify 的 HTTP 预览端口，或在「预览」页粘贴 noVNC 的 URL。',
+  'session.desktop.openExternal': '新标签页打开',
+  'session.desktop.vncRawWarning': '5900 端口通常是原生 VNC（RFB），不是 HTTP，浏览器无法内嵌。请在 HTTP 端口（常见为 6080）运行 noVNC/websockify，并将该端口作为预览暴露。',
+  'session.desktop.cannotEmbed': '该地址不是可内嵌的 noVNC 页面。请在新标签页打开，或修正预览端口绑定。',
+  'session.desktop.noFrame': '没有可显示的桌面 URL。',
   'session.more': '更多操作',
 
   // Session actions

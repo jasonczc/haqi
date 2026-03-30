@@ -191,6 +191,7 @@ free -h && df -h / /workspace
 |------|------|------------------------|
 | 谁在机器上起 shell | **CLI** 连 Hub，RPC/事件驱动 | **pod-daemon gRPC** + **exec-daemon** |
 | 终端到浏览器 | Hub **Socket.IO** 转发 | **PTY WebSocket**（专用端口）+ 闭源协议 |
+| 图形桌面到浏览器 | **Web「远程桌面」**：会话元数据中的 `previewUrls` 若含 **noVNC / websockify**（URL 或名称命中），则内嵌 iframe；仅暴露 **5900** 等原生 VNC 时提示用 **6080 类 HTTP** 的 noVNC 预览 | **VNC → websockify → noVNC**（Ansible 镜像栈） |
 | 进程输出 | CLI 上报 | **PodDaemon AttachProcess** 事件流（推断） |
 | 策略/忽略文件 | 自有模式 | **`.cursorignore` + sandbox.json + cursorsandbox** |
 

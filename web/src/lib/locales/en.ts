@@ -74,6 +74,13 @@ export default {
   // Session header
   'session.title': 'Files',
   'session.mcpStatus': 'MCP status',
+  'session.desktop.title': 'Desktop',
+  'session.desktop.loading': 'Loading desktop…',
+  'session.desktop.empty': 'No remote desktop endpoint was reported for this session. Expose noVNC or websockify on a preview port in your cloud environment, or open Preview and paste a noVNC URL.',
+  'session.desktop.openExternal': 'Open in new tab',
+  'session.desktop.vncRawWarning': 'Port 5900 is usually raw VNC (RFB), not HTTP. Browsers cannot embed it. Run noVNC/websockify on an HTTP port (often 6080) and expose that as the preview instead.',
+  'session.desktop.cannotEmbed': 'This URL is not embedded as a noVNC page. Open it in a new tab or fix the preview binding.',
+  'session.desktop.noFrame': 'No desktop URL to display.',
   'session.more': 'More actions',
 
   // Session actions

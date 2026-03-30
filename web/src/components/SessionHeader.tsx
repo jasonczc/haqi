@@ -8,6 +8,7 @@ import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation } from '@/lib/use-translation'
+import { inferRemoteDesktopMetadata } from '@hapi/protocol/remoteDesktop'
 
 function getSessionTitle(session: Session): string {
     if (session.metadata?.name) {
@@ -39,6 +40,27 @@ function FilesIcon(props: { className?: string }) {
         >
             <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
             <path d="M14 2v6h6" />
+        </svg>
+    )
+}
+
+function MonitorIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <rect x="2" y="3" width="20" height="14" rx="2" />
+            <path d="M8 21h8" />
+            <path d="M12 17v4" />
         </svg>
     )
 }
@@ -131,6 +153,7 @@ export function SessionHeader(props: {
     onToggleSidebar?: () => void
     sidebarVisible?: boolean
     onViewPreview?: () => void
+    onViewDesktop?: () => void
     onViewFiles?: () => void
     onViewMcpStatus?: () => void
     api: ApiClient | null
@@ -160,6 +183,10 @@ export function SessionHeader(props: {
     const setupStatus = session.metadata?.setupStatus
     const serviceEndpointCount = session.metadata?.serviceEndpoints?.length ?? 0
     const previewCount = session.metadata?.previewUrls?.length ?? 0
+    const hasRemoteDesktop = Boolean(
+        session.metadata?.remoteDesktop
+        || inferRemoteDesktopMetadata(session.metadata?.previewUrls)
+    )
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
     const displayThinkEffort = session.metadata?.thinkEffort?.trim()
     const displayServiceTier = session.metadata?.serviceTier?.trim()
@@ -374,6 +401,18 @@ export function SessionHeader(props: {
                             aria-label="Preview"
                         >
                             <BrowserIcon />
+                        </button>
+                    ) : null}
+
+                    {props.onViewDesktop && hasRemoteDesktop ? (
+                        <button
+                            type="button"
+                            onClick={props.onViewDesktop}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title={t('session.desktop.title')}
+                            aria-label={t('session.desktop.title')}
+                        >
+                            <MonitorIcon />
                         </button>
                     ) : null}
 
