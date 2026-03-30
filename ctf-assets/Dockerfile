@@ -105,6 +105,9 @@ RUN mkdir -p /usr/local/novnc && \
 # 7. 字体 — Inter, JetBrains Mono, Public Sans, Source Sans 3, Cascadia Code
 # ════════════════════════════════════════════════════════════════════════
 COPY system-assets/fonts/ /usr/share/fonts/truetype/macos/
+
+# 字体替换规则 — macOS/Windows 字体映射到 Linux 等价
+COPY system-configs/etc-fonts/local.conf /etc/fonts/local.conf
 RUN fc-cache -fv 2>/dev/null || true
 
 # ════════════════════════════════════════════════════════════════════════
@@ -121,6 +124,9 @@ RUN tar xzf /tmp/WhiteSur-Light-theme.tar.gz -C /usr/share/themes/ && \
     gtk-update-icon-cache /usr/share/icons/WhiteSur-dark/ 2>/dev/null || true && \
     gtk-update-icon-cache /usr/share/icons/WhiteSur-light/ 2>/dev/null || true
 
+# Plank WhiteSur-Light dock 主题
+COPY system-assets/plank-themes/WhiteSur-Light/ /usr/share/plank/themes/WhiteSur-Light/
+
 # ════════════════════════════════════════════════════════════════════════
 # 9. 壁纸 + Cursor 图标
 # ════════════════════════════════════════════════════════════════════════
@@ -129,6 +135,15 @@ COPY system-assets/icons/cursor-logo.png /usr/share/icons/hicolor/24x24/apps/
 COPY system-assets/icons/cursor-logo-dark.png /usr/share/icons/hicolor/24x24/apps/
 COPY system-assets/icons/cursor-logo.svg /usr/share/pixmaps/
 COPY system-assets/icons/cursor-logo-dark.svg /usr/share/pixmaps/
+
+# 壁纸 hash/version 元数据
+COPY system-assets/backgrounds/ /usr/share/backgrounds/
+
+# cloud-agent-media 原始素材包
+COPY system-assets/cloud-agent-media/ /usr/local/share/cloud-agent-media/
+
+# Chrome .desktop 文件
+COPY system-configs/google-chrome.desktop /usr/share/applications/google-chrome.desktop
 
 # ════════════════════════════════════════════════════════════════════════
 # 10. AnyOS 配置 — /usr/local/share
@@ -197,6 +212,20 @@ RUN cat > /home/ubuntu/.gitconfig <<'GITCONFIG'
 	fsmonitor = true
 	untrackedCache = true
 GITCONFIG
+
+# ════════════════════════════════════════════════════════════════════════
+# 14b. Cursor Agent Hooks — git secret scanning + co-author
+# ════════════════════════════════════════════════════════════════════════
+COPY system-configs/cursor-agent-hooks/ /home/ubuntu/.cursor/agent-hooks/default/
+RUN chmod +x /home/ubuntu/.cursor/agent-hooks/default/.dispatcher \
+             /home/ubuntu/.cursor/agent-hooks/default/commit-msg.cursor \
+             /home/ubuntu/.cursor/agent-hooks/default/commit-msg.cursor.co-author \
+             /home/ubuntu/.cursor/agent-hooks/default/pre-commit.cursor 2>/dev/null; true
+
+# cursor-git-ssh-keygen
+RUN mkdir -p /home/ubuntu/.cursor/bin
+COPY system-scripts/cursor-git-ssh-keygen /home/ubuntu/.cursor/bin/cursor-git-ssh-keygen
+RUN chmod +x /home/ubuntu/.cursor/bin/cursor-git-ssh-keygen
 
 # ════════════════════════════════════════════════════════════════════════
 # 15. pod-daemon + exec-daemon 二进制

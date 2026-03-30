@@ -1,0 +1,4 @@
+/home/ubuntu/.codex/memories/:
+total 8
+drwxr-xr-x 2 ubuntu ubuntu 4096 Mar 30 04:33 .
+drwxr-xr-x 9 ubuntu ubuntu 4096 Mar 30 04:33 ..

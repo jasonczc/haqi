@@ -1,0 +1,9 @@
+{
+  "listenPort": 3016,
+  "publicUrl": "http://localhost:3016",
+  "cliApiToken": "DbLLP7TlN3-UbAhV1mNNiZKpM6Oo13l-FevqLTxQ_8g",
+  "vapidKeys": {
+    "publicKey": "BD6dqYxMEuOzAv1oGIjrqG-ghuUaG-hqnGZ_V72X6VGrj9rRoL4H1-BuyNN29vZ8Z5ndp56t7ETogUnH2Pyaktc",
+    "privateKey": "mQ-nADuz-e1hCTxKYz-qqyDoPLglLG6DcRnHjJLyga4"
+  }
+}
