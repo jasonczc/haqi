@@ -80,18 +80,59 @@ async function prepareRepositoryWorkspace(
     repositoryCredential: ResolvedSecret | undefined
 ): Promise<PreparedWorkspace> {
     const workspaceId = workspaceLease?.workspaceId ?? buildWorkspaceId('repo')
-    const workspaceRoot = resolveWorkspaceRoot({
+    const workspaceRoot = workspaceLease?.repoVolumePath
+        ? resolve(workspaceLease.repoVolumePath)
+        : resolveWorkspaceRoot({
+            workspaceId,
+            workspace,
+            workspaceLease
+        })
+    const desktopStatePath = workspaceLease?.desktopStateVolumePath
+        ? resolve(workspaceLease.desktopStateVolumePath)
+        : join(dirname(workspaceRoot), '.haqi-desktop')
+    const checkpointId = workspaceLease?.checkpointId
+    const workspaceBranch = workspaceLease?.workspaceBranch
+    await ensureDir(dirname(workspaceRoot))
+    await ensureDir(desktopStatePath)
+
+    if (workspaceLease?.repoVolumePath) {
+        await ensureDir(workspaceRoot)
+        const workingDirectory = repository.subdirectory
+            ? join(workspaceRoot, repository.subdirectory)
+            : workspaceRoot
+        const environment = await loadWorkspaceEnvironmentTemplate([workingDirectory, workspaceRoot])
+
+        return {
+            workspaceId,
+            workspacePath: workspaceRoot,
+            repoVolumePath: workspaceRoot,
+            desktopStatePath,
+            workingDirectory,
+            workspaceBranch,
+            checkpointId,
+            source: {
+                type: 'repo',
+                repository
+            },
+            mode: workspaceLease?.mode ?? workspace?.mode,
+            spec: workspace,
+            environment: environment ?? undefined,
+            cleanupPaths: (workspaceLease?.mode ?? workspace?.mode) === 'persistent' ? [] : [workspaceRoot, desktopStatePath]
+        }
+    }
+
+    const resolvedWorkspaceRoot = resolveWorkspaceRoot({
         workspaceId,
         workspace,
         workspaceLease
     })
-    await ensureDir(dirname(workspaceRoot))
+    await ensureDir(dirname(resolvedWorkspaceRoot))
 
     try {
-        await fs.access(workspaceRoot)
-        const entries = await fs.readdir(workspaceRoot)
+        await fs.access(resolvedWorkspaceRoot)
+        const entries = await fs.readdir(resolvedWorkspaceRoot)
         if (entries.length === 0) {
-            await fs.rmdir(workspaceRoot)
+            await fs.rmdir(resolvedWorkspaceRoot)
         }
     } catch {
         // ignore
@@ -99,56 +140,60 @@ async function prepareRepositoryWorkspace(
 
     const repositoryUrl = repository.url
     const authenticatedUrl = applyRepositoryCredential(repositoryUrl, repositoryCredential)
-    const repositoryAlreadyExists = await hasGitRepository(workspaceRoot)
+    const repositoryAlreadyExists = await hasGitRepository(resolvedWorkspaceRoot)
     if (!repositoryAlreadyExists) {
         const cloneArgs = ['clone']
         if (repository.cloneDepth) {
             cloneArgs.push('--depth', String(repository.cloneDepth))
         }
-        cloneArgs.push(authenticatedUrl, workspaceRoot)
+        cloneArgs.push(authenticatedUrl, resolvedWorkspaceRoot)
         await runGit(cloneArgs)
         if (authenticatedUrl !== repositoryUrl) {
-            await runGit(['remote', 'set-url', 'origin', repositoryUrl], workspaceRoot)
+            await runGit(['remote', 'set-url', 'origin', repositoryUrl], resolvedWorkspaceRoot)
         }
     } else {
-        await syncRemoteUrl(workspaceRoot, repositoryUrl, authenticatedUrl)
+        await syncRemoteUrl(resolvedWorkspaceRoot, repositoryUrl, authenticatedUrl)
     }
 
     if (repository.ref?.branch) {
-        await runGit(['checkout', repository.ref.branch], workspaceRoot)
-        await runGit(['pull', '--ff-only', 'origin', repository.ref.branch], workspaceRoot).catch(() => undefined)
+        await runGit(['checkout', repository.ref.branch], resolvedWorkspaceRoot)
+        await runGit(['pull', '--ff-only', 'origin', repository.ref.branch], resolvedWorkspaceRoot).catch(() => undefined)
     } else if (repository.ref?.tag) {
-        await runGit(['checkout', `tags/${repository.ref.tag}`], workspaceRoot)
+        await runGit(['checkout', `tags/${repository.ref.tag}`], resolvedWorkspaceRoot)
     } else if (repository.ref?.commit) {
-        await runGit(['checkout', repository.ref.commit], workspaceRoot)
+        await runGit(['checkout', repository.ref.commit], resolvedWorkspaceRoot)
     } else if (repository.ref?.pr) {
         const pullRequestRef = `refs/pull/${repository.ref.pr}/head`
         try {
-            await runGit(['fetch', 'origin', `${pullRequestRef}:haqi-pr-${repository.ref.pr}`], workspaceRoot)
+            await runGit(['fetch', 'origin', `${pullRequestRef}:haqi-pr-${repository.ref.pr}`], resolvedWorkspaceRoot)
         } catch {
-            await runGit(['fetch', 'origin', `pull/${repository.ref.pr}/head:haqi-pr-${repository.ref.pr}`], workspaceRoot)
+            await runGit(['fetch', 'origin', `pull/${repository.ref.pr}/head:haqi-pr-${repository.ref.pr}`], resolvedWorkspaceRoot)
         }
-        await runGit(['checkout', `haqi-pr-${repository.ref.pr}`], workspaceRoot)
+        await runGit(['checkout', `haqi-pr-${repository.ref.pr}`], resolvedWorkspaceRoot)
     }
 
     if (repository.withSubmodules) {
-        await runGit(['submodule', 'update', '--init', '--recursive'], workspaceRoot)
+        await runGit(['submodule', 'update', '--init', '--recursive'], resolvedWorkspaceRoot)
     }
 
     if (repository.withLfs) {
-        await runGit(['lfs', 'install', '--local'], workspaceRoot)
-        await runGit(['lfs', 'pull'], workspaceRoot)
+        await runGit(['lfs', 'install', '--local'], resolvedWorkspaceRoot)
+        await runGit(['lfs', 'pull'], resolvedWorkspaceRoot)
     }
 
     const workingDirectory = repository.subdirectory
-        ? join(workspaceRoot, repository.subdirectory)
-        : workspaceRoot
-    const environment = await loadWorkspaceEnvironmentTemplate([workingDirectory, workspaceRoot])
+        ? join(resolvedWorkspaceRoot, repository.subdirectory)
+        : resolvedWorkspaceRoot
+    const environment = await loadWorkspaceEnvironmentTemplate([workingDirectory, resolvedWorkspaceRoot])
 
     return {
         workspaceId,
-        workspacePath: workspaceRoot,
+        workspacePath: resolvedWorkspaceRoot,
+        repoVolumePath: resolvedWorkspaceRoot,
+        desktopStatePath,
         workingDirectory,
+        workspaceBranch,
+        checkpointId,
         source: {
             type: 'repo',
             repository
@@ -156,7 +201,7 @@ async function prepareRepositoryWorkspace(
         mode: workspaceLease?.mode ?? workspace?.mode,
         spec: workspace,
         environment: environment ?? undefined,
-        cleanupPaths: (workspaceLease?.mode ?? workspace?.mode) === 'persistent' ? [] : [workspaceRoot]
+        cleanupPaths: (workspaceLease?.mode ?? workspace?.mode) === 'persistent' ? [] : [resolvedWorkspaceRoot, desktopStatePath]
     }
 }
 
@@ -190,7 +235,13 @@ export async function prepareWorkspace(options: {
     return {
         workspaceId: options.workspaceLease?.workspaceId ?? buildWorkspaceId('dir'),
         workspacePath: resolvedDirectory,
+        repoVolumePath: resolvedDirectory,
         workingDirectory: resolvedDirectory,
+        desktopStatePath: options.workspaceLease?.desktopStateVolumePath
+            ? resolve(options.workspaceLease.desktopStateVolumePath)
+            : undefined,
+        workspaceBranch: options.workspaceLease?.workspaceBranch,
+        checkpointId: options.workspaceLease?.checkpointId,
         source: workspaceSource ?? {
             type: 'path',
             directory: resolvedDirectory

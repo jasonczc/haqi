@@ -1,7 +1,11 @@
 import type {
+    DesktopHydrationRuntimeState,
+    DesktopHydrationState,
+    DesktopTerminalDescriptor,
     EnvironmentTemplate,
     MachineSpawnRequest,
     PreviewTarget,
+    RepoStatus,
     RuntimeKind,
     SecretRef,
     WorkerResources,
@@ -15,7 +19,11 @@ export type SpawnRequestId = string
 export type PreparedWorkspace = {
     workspaceId: string
     workspacePath: string
+    repoVolumePath: string
+    desktopStatePath?: string
     workingDirectory: string
+    workspaceBranch?: string
+    checkpointId?: string
     source?: WorkspaceSource
     mode?: WorkspaceMode
     spec?: WorkspaceSpec
@@ -74,6 +82,7 @@ export type ResolvedEnvironmentTemplate = {
     services: NonNullable<EnvironmentTemplate['services']>
     workingDirectory?: string
     environmentId?: string
+    desktop?: EnvironmentTemplate['desktop']
 }
 
 export type PreparedEnvironment = {
@@ -89,4 +98,16 @@ export type SpawnExecutionContext = {
     requestId: SpawnRequestId
     machineId?: string
     request: MachineSpawnRequest
+}
+
+export type RepositorySyncResult = {
+    repoStatus: RepoStatus
+    repositoryCommit?: string
+    branch?: string
+}
+
+export type DesktopHydrationResult = {
+    desktopState: DesktopHydrationState
+    languageServers: DesktopHydrationRuntimeState[]
+    terminalDescriptors: DesktopTerminalDescriptor[]
 }

@@ -60,7 +60,7 @@ export { ReportStore } from './reportStore'
 export { ReviewLoopStore } from './reviewLoopStore'
 export { CloudStore } from './cloudStore'
 
-const SCHEMA_VERSION: number = 14
+const SCHEMA_VERSION: number = 15
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -264,6 +264,13 @@ export class Store {
             return
         }
 
+        if (currentVersion === 14 && SCHEMA_VERSION >= 15) {
+            this.migrateFromV14ToV15()
+            this.setUserVersion(15)
+            this.initSchema()
+            return
+        }
+
         if (currentVersion === 3 && SCHEMA_VERSION === 4) {
             this.migrateFromV3ToV4()
             this.setUserVersion(SCHEMA_VERSION)
@@ -276,6 +283,7 @@ export class Store {
 
         this.ensureRequiredTablesPresent()
         this.ensureGroupMessageColumnsPresent()
+        this.ensureCloudWorkspaceColumnsPresent()
     }
 
     private createSchema(): void {
@@ -1107,6 +1115,18 @@ export class Store {
         }
     }
 
+    private migrateFromV14ToV15(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.ensureCloudWorkspaceColumnsPresent()
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v14->v15 failed: ${message}`)
+        }
+    }
+
     private getSessionColumnNames(): Set<string> {
         const rows = this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>
         return new Set(rows.map((row) => row.name))
@@ -1119,6 +1139,11 @@ export class Store {
 
     private getGroupMessageColumnNames(): Set<string> {
         const rows = this.db.prepare('PRAGMA table_info(group_messages)').all() as Array<{ name: string }>
+        return new Set(rows.map((row) => row.name))
+    }
+
+    private getCloudWorkspaceColumnNames(): Set<string> {
+        const rows = this.db.prepare('PRAGMA table_info(cloud_workspaces)').all() as Array<{ name: string }>
         return new Set(rows.map((row) => row.name))
     }
 
@@ -1143,6 +1168,27 @@ export class Store {
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1"
         ).get(name) as { name?: string } | undefined
         return Boolean(row?.name)
+    }
+
+    private ensureCloudWorkspaceColumnsPresent(): void {
+        if (!this.hasTable('cloud_workspaces')) {
+            return
+        }
+
+        const columns = this.getCloudWorkspaceColumnNames()
+        const addColumnIfMissing = (name: string, sql: string) => {
+            if (!columns.has(name)) {
+                this.db.exec(`ALTER TABLE cloud_workspaces ADD COLUMN ${sql}`)
+                columns.add(name)
+            }
+        }
+
+        addColumnIfMissing('repo_volume_path', 'repo_volume_path TEXT')
+        addColumnIfMissing('desktop_state_volume_path', 'desktop_state_volume_path TEXT')
+        addColumnIfMissing('checkpoint_id', 'checkpoint_id TEXT')
+        addColumnIfMissing('workspace_branch', 'workspace_branch TEXT')
+        addColumnIfMissing('repo_status', 'repo_status TEXT')
+        addColumnIfMissing('desktop_state', 'desktop_state TEXT')
     }
 
     private ensureRequiredTablesPresent(): void {

@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { promisify } from 'node:util'
 
 const execFileAsync = promisify(execFile)
@@ -56,6 +56,14 @@ export type DockerRunSpec = {
     detach?: boolean
 }
 
+type DockerExecSpec = {
+    containerId: string
+    command: string[]
+    workingDir?: string
+    env?: string[]
+    detach?: boolean
+}
+
 export type DockerInspectResult = {
     id: string
     status?: string
@@ -106,6 +114,39 @@ export class DockerCliRuntime {
 
         const result = await runDockerCommand(args)
         return result.stdout.trim()
+    }
+
+    async exec(spec: DockerExecSpec): Promise<DockerCommandResult> {
+        const args: string[] = ['exec']
+        if (spec.detach) {
+            args.push('-d')
+        }
+        if (spec.workingDir) {
+            args.push('-w', spec.workingDir)
+        }
+        for (const env of spec.env ?? []) {
+            args.push('-e', env)
+        }
+        args.push(spec.containerId, ...spec.command)
+        return await runDockerCommand(args)
+    }
+
+    spawnExec(spec: DockerExecSpec, options?: {
+        stdio?: ('pipe' | 'ignore' | 'inherit')[] | ['pipe', 'pipe', 'pipe'] | ['ignore', 'pipe', 'pipe']
+        detached?: boolean
+    }): ChildProcess {
+        const args: string[] = ['exec', '-i']
+        if (spec.workingDir) {
+            args.push('-w', spec.workingDir)
+        }
+        for (const env of spec.env ?? []) {
+            args.push('-e', env)
+        }
+        args.push(spec.containerId, ...spec.command)
+        return spawn('docker', args, {
+            detached: options?.detached,
+            stdio: options?.stdio ?? ['ignore', 'pipe', 'pipe']
+        })
     }
 
     async inspect(containerId: string): Promise<DockerInspectResult> {

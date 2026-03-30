@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import os from 'node:os'
 import { join } from 'node:path'
 import type {
     CloudWorkspace,
@@ -66,6 +67,7 @@ function buildWorkspaceReuseKey(
         mode,
         source,
         ref: normalizeRefKey(request),
+        checkpointId: request.checkpointId?.trim() || request.environment?.runtime?.checkpointId?.trim() || null,
         environmentId: environmentId ?? request.environmentId ?? request.environment?.id ?? null,
         workspaceName: request.workspace?.name?.trim() || null
     }
@@ -73,13 +75,26 @@ function buildWorkspaceReuseKey(
     return `persistent:${digest}`
 }
 
-function buildWorkspacePath(request: MachineSpawnRequest, workspaceId: string, workspaceKey: string | null): string | null {
-    const baseDir = request.workspace?.baseDir?.trim()
-    if (!baseDir) {
-        return null
-    }
+function resolveWorkspaceBaseDir(request: MachineSpawnRequest): string {
+    return request.workspace?.baseDir?.trim() || join(os.tmpdir(), 'haqi-cloud-workspaces')
+}
+
+function buildWorkspaceRoot(request: MachineSpawnRequest, workspaceId: string, workspaceKey: string | null): string {
+    const baseDir = resolveWorkspaceBaseDir(request)
     const name = request.workspace?.name?.trim() || workspaceKey || workspaceId
     return join(baseDir, name)
+}
+
+function buildRepoVolumePath(request: MachineSpawnRequest, workspaceId: string, workspaceKey: string | null): string {
+    return join(buildWorkspaceRoot(request, workspaceId, workspaceKey), 'repo')
+}
+
+function buildDesktopStateVolumePath(request: MachineSpawnRequest, workspaceId: string, workspaceKey: string | null): string {
+    return join(buildWorkspaceRoot(request, workspaceId, workspaceKey), '.haqi-desktop')
+}
+
+function buildWorkspaceBranch(workspaceId: string): string {
+    return `haqi/${workspaceId}`
 }
 
 function toCloudWorkspace(value: ReturnType<Store['cloud']['getWorkspace']> extends infer T ? NonNullable<T> : never): CloudWorkspace {
@@ -93,9 +108,15 @@ function toCloudWorkspace(value: ReturnType<Store['cloud']['getWorkspace']> exte
         status: value.status,
         source: value.source ?? undefined,
         path: value.path ?? undefined,
+        repoVolumePath: value.repoVolumePath ?? undefined,
+        desktopStateVolumePath: value.desktopStateVolumePath ?? undefined,
         environmentId: value.environmentId ?? undefined,
         environmentVersion: value.environmentVersion ?? undefined,
         environment: value.environment ?? undefined,
+        checkpointId: value.checkpointId ?? undefined,
+        workspaceBranch: value.workspaceBranch ?? undefined,
+        repoStatus: value.repoStatus ?? undefined,
+        desktopState: value.desktopState ?? undefined,
         reused: value.reused || undefined,
         lastLeaseId: value.lastLeaseId ?? undefined,
         lastUsedAt: value.lastUsedAt ?? undefined,
@@ -166,6 +187,10 @@ export class WorkspaceManager {
         const environmentVersion = options.environment?.version
         const source = normalizeWorkspaceSource(options.request)
         const workspaceKey = buildWorkspaceReuseKey(options.namespace, options.request, environmentId)
+        const checkpointId = options.request.checkpointId?.trim()
+            || options.environment?.runtime?.checkpointId?.trim()
+            || options.environment?.runtime?.image?.trim()
+            || null
         const expiresAt = options.request.ttlMinutes
             ? Date.now() + options.request.ttlMinutes * 60_000
             : null
@@ -192,6 +217,7 @@ export class WorkspaceManager {
                 namespace: options.namespace,
                 status: 'leased',
                 machineId: existing.machineId,
+                checkpointId,
                 lastLeaseId: lease.id,
                 reused: true
             })
@@ -214,10 +240,15 @@ export class WorkspaceManager {
             mode,
             status: 'creating',
             source,
-            path: buildWorkspacePath(options.request, options.requestId, workspaceKey),
+            path: buildRepoVolumePath(options.request, options.requestId, workspaceKey),
+            repoVolumePath: buildRepoVolumePath(options.request, options.requestId, workspaceKey),
+            desktopStateVolumePath: buildDesktopStateVolumePath(options.request, options.requestId, workspaceKey),
             environmentId,
             environmentVersion,
             environment: options.environment,
+            checkpointId,
+            workspaceBranch: buildWorkspaceBranch(options.requestId),
+            repoStatus: 'clean',
             reused: false
         })
         const lease = this.store.cloud.createWorkspaceLease({
@@ -252,9 +283,15 @@ export class WorkspaceManager {
         workspaceId: string
         machineId: string
         path?: string | null
+        repoVolumePath?: string | null
+        desktopStateVolumePath?: string | null
         environment?: EnvironmentTemplate
         environmentId?: string
         environmentVersion?: string
+        checkpointId?: string
+        workspaceBranch?: string
+        repoStatus?: CloudWorkspace['repoStatus']
+        desktopState?: CloudWorkspace['desktopState']
         reused?: boolean
     }): CloudWorkspace | null {
         const updated = this.store.cloud.updateWorkspace({
@@ -263,9 +300,15 @@ export class WorkspaceManager {
             status: 'ready',
             machineId: options.machineId,
             path: options.path,
+            repoVolumePath: options.repoVolumePath,
+            desktopStateVolumePath: options.desktopStateVolumePath,
             environment: options.environment,
             environmentId: options.environmentId,
             environmentVersion: options.environmentVersion,
+            checkpointId: options.checkpointId,
+            workspaceBranch: options.workspaceBranch,
+            repoStatus: options.repoStatus,
+            desktopState: options.desktopState,
             reused: options.reused
         })
         return updated ? toCloudWorkspace(updated) : null

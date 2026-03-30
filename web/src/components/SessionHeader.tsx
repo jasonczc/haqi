@@ -144,12 +144,19 @@ export function SessionHeader(props: {
     const runtimeKind = session.metadata?.runtimeKind
     const workspaceId = session.metadata?.workspaceId
     const spawnRequestId = session.metadata?.spawnRequestId
+    const checkpointId = session.metadata?.checkpointId
+    const launchMode = session.metadata?.launchMode
+    const repoSyncStatus = session.metadata?.repoSyncStatus
+    const workspaceBranch = session.metadata?.workspaceBranch
+    const containerId = session.metadata?.containerId
     const workspaceMode = session.metadata?.workspaceMode
     const workerId = session.metadata?.workerId
     const environmentId = session.metadata?.environmentId
     const environmentVersion = session.metadata?.environmentVersion
     const repositoryRef = session.metadata?.repositoryRef
     const repositoryProvider = session.metadata?.repositoryProvider
+    const terminalDescriptorCount = session.metadata?.terminalDescriptors?.length ?? 0
+    const languageServerCount = session.metadata?.languageServers?.length ?? 0
     const setupStatus = session.metadata?.setupStatus
     const serviceEndpointCount = session.metadata?.serviceEndpoints?.length ?? 0
     const previewCount = session.metadata?.previewUrls?.length ?? 0
@@ -288,11 +295,20 @@ export function SessionHeader(props: {
                             {executionBackend ? (
                                 <span>{executionBackend}{runtimeKind ? ` · ${runtimeKind}` : ''}</span>
                             ) : null}
+                            {containerId ? (
+                                <span>container-backed</span>
+                            ) : null}
                             {workerId ? (
                                 <span>worker: {workerId}</span>
                             ) : null}
+                            {checkpointId ? (
+                                <span>checkpoint: {checkpointId}</span>
+                            ) : null}
                             {environmentId ? (
                                 <span>env: {environmentId}{environmentVersion ? ` @ ${environmentVersion}` : ''}</span>
+                            ) : null}
+                            {launchMode ? (
+                                <span>launch: {launchMode}</span>
                             ) : null}
                             {workspaceMode ? (
                                 <span>workspace: {workspaceMode}</span>
@@ -303,8 +319,14 @@ export function SessionHeader(props: {
                             {repositoryRef?.branch ? (
                                 <span>branch: {repositoryRef.branch}</span>
                             ) : null}
+                            {workspaceBranch ? (
+                                <span>ws-branch: {workspaceBranch}</span>
+                            ) : null}
                             {repositoryRef?.commit ? (
                                 <span>commit: {repositoryRef.commit.slice(0, 12)}</span>
+                            ) : null}
+                            {repoSyncStatus ? (
+                                <span>repo: {repoSyncStatus}</span>
                             ) : null}
                             {spawnRequestId ? (
                                 <span>
@@ -324,6 +346,12 @@ export function SessionHeader(props: {
                             ) : null}
                             {serviceEndpointCount > 0 ? (
                                 <span>services: {serviceEndpointCount}</span>
+                            ) : null}
+                            {languageServerCount > 0 ? (
+                                <span>lsp: {languageServerCount}</span>
+                            ) : null}
+                            {terminalDescriptorCount > 0 ? (
+                                <span>terminals: {terminalDescriptorCount}</span>
                             ) : null}
                             {setupStatus ? (
                                 <span>setup: {setupStatus.phase}</span>

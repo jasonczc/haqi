@@ -5,6 +5,7 @@ import type {
     TerminalOutputPayload,
     TerminalReadyPayload
 } from '@hapi/protocol'
+import type { Metadata } from '@/api/types'
 import type { TerminalSession } from './types'
 
 type TerminalRuntime = TerminalSession & {
@@ -15,7 +16,7 @@ type TerminalRuntime = TerminalSession & {
 
 type TerminalManagerOptions = {
     sessionId: string
-    getSessionPath: () => string | null
+    getSessionMetadata: () => Metadata | null
     onReady: (payload: TerminalReadyPayload) => void
     onOutput: (payload: TerminalOutputPayload) => void
     onExit: (payload: TerminalExitPayload) => void
@@ -72,7 +73,7 @@ function buildFilteredEnv(): NodeJS.ProcessEnv {
 
 export class TerminalManager {
     private readonly sessionId: string
-    private readonly getSessionPath: () => string | null
+    private readonly getSessionMetadata: () => Metadata | null
     private readonly onReady: (payload: TerminalReadyPayload) => void
     private readonly onOutput: (payload: TerminalOutputPayload) => void
     private readonly onExit: (payload: TerminalExitPayload) => void
@@ -84,7 +85,7 @@ export class TerminalManager {
 
     constructor(options: TerminalManagerOptions) {
         this.sessionId = options.sessionId
-        this.getSessionPath = options.getSessionPath
+        this.getSessionMetadata = options.getSessionMetadata
         this.onReady = options.onReady
         this.onOutput = options.onOutput
         this.onExit = options.onExit
@@ -120,14 +121,25 @@ export class TerminalManager {
             return
         }
 
-        const sessionPath = this.getSessionPath() ?? process.cwd()
+        const metadata = this.getSessionMetadata()
+        const sessionPath = metadata?.path ?? process.cwd()
         const shell = resolveShell()
         const decoder = new TextDecoder()
+        const dockerContainerId = metadata?.runtimeKind === 'docker-session'
+            ? metadata.containerId?.trim()
+            : undefined
+        const command = dockerContainerId
+            ? ['docker', 'exec', '-it', ...(sessionPath ? ['-w', sessionPath] : []), dockerContainerId, shell]
+            : [shell]
+        const spawnCwd = dockerContainerId ? process.cwd() : sessionPath
+        const spawnEnv = dockerContainerId
+            ? { TERM: this.filteredEnv.TERM ?? 'xterm-256color' }
+            : this.filteredEnv
 
         try {
-            const proc = Bun.spawn([shell], {
-                cwd: sessionPath,
-                env: this.filteredEnv,
+            const proc = Bun.spawn(command, {
+                cwd: spawnCwd,
+                env: spawnEnv,
                 terminal: {
                     cols,
                     rows,

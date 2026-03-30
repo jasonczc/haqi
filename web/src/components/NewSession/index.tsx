@@ -17,6 +17,7 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { useCloudEnvironments } from '@/hooks/queries/useCloudEnvironments'
+import { useCloudCheckpoints } from '@/hooks/queries/useCloudCheckpoints'
 import { useCloudProviders } from '@/hooks/queries/useCloudProviders'
 import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
@@ -143,7 +144,9 @@ export function NewSession(props: {
     const [previewUrlInput, setPreviewUrlInput] = useState(() => lastSessionConfig?.previewUrl ?? '')
     const [executionBackend, setExecutionBackend] = useState<ExecutionBackend>(() => lastSessionConfig?.executionBackend ?? loadPreferredExecutionBackend())
     const [runtimeKind, setRuntimeKind] = useState<RuntimeKind>(() => lastSessionConfig?.runtimeKind ?? loadPreferredRuntimeKind())
+    const [launchMode, setLaunchMode] = useState<'interactive' | 'background'>(() => lastSessionConfig?.launchMode ?? 'interactive')
     const [environmentId, setEnvironmentId] = useState(() => lastSessionConfig?.environmentId ?? '')
+    const [checkpointId, setCheckpointId] = useState(() => lastSessionConfig?.checkpointId ?? '')
     const [repositoryUrl, setRepositoryUrl] = useState(() => lastSessionConfig?.repositoryUrl ?? '')
     const [repositoryBranch, setRepositoryBranch] = useState(() => lastSessionConfig?.repositoryBranch ?? '')
     const [workspaceMode, setWorkspaceMode] = useState<'ephemeral' | 'persistent' | 'snapshot-derived'>(() => lastSessionConfig?.workspaceMode ?? 'ephemeral')
@@ -192,7 +195,6 @@ export function NewSession(props: {
         return props.machines.filter((machine) => !isCloudMachine(machine))
     }, [executionBackend, props.machines])
 
-    const isAutoCloudMachine = executionBackend !== 'local' && machineId === AUTO_CLOUD_MACHINE_ID
     const machineIdForPathQueries = useMemo(() => {
         if (!machineId || machineId === AUTO_CLOUD_MACHINE_ID) {
             return null
@@ -204,6 +206,9 @@ export function NewSession(props: {
 
     useEffect(() => {
         if (executionBackend !== 'local') {
+            if (runtimeKind !== 'docker-session') {
+                setRuntimeKind('docker-session')
+            }
             if (machineId === AUTO_CLOUD_MACHINE_ID) return
             if (machineId && selectableMachines.find((machine) => machine.id === machineId)) return
             setMachineId(AUTO_CLOUD_MACHINE_ID)
@@ -279,6 +284,11 @@ export function NewSession(props: {
         isLoading: cloudWorkersLoading,
         error: cloudWorkersError
     } = useCloudWorkers(props.api, executionBackend !== 'local')
+    const {
+        checkpoints: cloudCheckpoints,
+        isLoading: cloudCheckpointsLoading,
+        error: cloudCheckpointsError
+    } = useCloudCheckpoints(props.api, executionBackend !== 'local')
     const {
         environments: cloudEnvironments,
         isLoading: cloudEnvironmentsLoading,
@@ -356,6 +366,12 @@ export function NewSession(props: {
             ? cloudEnvironments.find((environment) => environment.id === environmentId.trim()) ?? null
             : null,
         [cloudEnvironments, environmentId]
+    )
+    const selectedCheckpoint = useMemo(
+        () => checkpointId.trim()
+            ? cloudCheckpoints.find((checkpoint) => checkpoint.id === checkpointId.trim()) ?? null
+            : null,
+        [checkpointId, cloudCheckpoints]
     )
 
     const getSuggestions = useCallback(async (query: string): Promise<Suggestion[]> => {
@@ -447,10 +463,11 @@ export function NewSession(props: {
     async function handleCreate() {
         const trimmedDirectory = directory.trim()
         const trimmedRepositoryUrl = repositoryUrl.trim()
+        const trimmedCheckpointId = checkpointId.trim()
 
         if (!machineId) return
         if (executionBackend === 'local' && !trimmedDirectory) return
-        if (executionBackend !== 'local' && !trimmedRepositoryUrl && (!trimmedDirectory || isAutoCloudMachine)) return
+        if (executionBackend !== 'local' && (!trimmedRepositoryUrl || !trimmedCheckpointId)) return
 
         setError(null)
         try {
@@ -475,20 +492,13 @@ export function NewSession(props: {
             )
             const workspaceSource: WorkspaceSource | undefined = executionBackend === 'local'
                 ? undefined
-                : trimmedRepositoryUrl
-                    ? {
-                        type: 'repo',
-                        repository: {
-                            url: trimmedRepositoryUrl,
-                            ref: repositoryBranch.trim() ? { branch: repositoryBranch.trim() } : undefined
-                        }
+                : {
+                    type: 'repo',
+                    repository: {
+                        url: trimmedRepositoryUrl,
+                        ref: repositoryBranch.trim() ? { branch: repositoryBranch.trim() } : undefined
                     }
-                    : (trimmedDirectory && !isAutoCloudMachine)
-                        ? {
-                            type: 'path',
-                            directory: trimmedDirectory
-                        }
-                        : undefined
+                }
             const workspace: WorkspaceSpec | undefined = executionBackend === 'local'
                 ? undefined
                 : { mode: workspaceMode }
@@ -500,13 +510,15 @@ export function NewSession(props: {
                 ? {
                     id: environmentId.trim(),
                     runtime: {
-                        kind: runtimeKind
+                        kind: runtimeKind,
+                        checkpointId: trimmedCheckpointId || undefined
                     }
                 }
                 : runtimeKind !== 'host-process'
                     ? {
                         runtime: {
-                            kind: runtimeKind
+                            kind: runtimeKind,
+                            checkpointId: trimmedCheckpointId || undefined
                         }
                     }
                     : undefined
@@ -523,8 +535,11 @@ export function NewSession(props: {
                 previewUrl: sessionSettings.previewUrl,
                 executionBackend,
                 runtimeKind,
+                launchMode,
                 environmentId: environmentId.trim() || undefined,
                 environment: cloudEnvironment,
+                checkpointId: executionBackend === 'local' ? undefined : trimmedCheckpointId,
+                repoSyncPolicy: executionBackend === 'local' ? undefined : 'fetch-reset',
                 workspaceSource,
                 workspace,
                 networkPolicy: parsedNetworkPolicy,
@@ -567,7 +582,9 @@ export function NewSession(props: {
                     previewUrl: normalizedPreviewUrl.value ?? '',
                     executionBackend,
                     runtimeKind,
+                    launchMode,
                     environmentId: environmentId.trim(),
+                    checkpointId: trimmedCheckpointId,
                     repositoryUrl: trimmedRepositoryUrl,
                     repositoryBranch: repositoryBranch.trim(),
                     workspaceMode,
@@ -597,10 +614,7 @@ export function NewSession(props: {
         && !isFormDisabled
         && (
             (executionBackend === 'local' && directory.trim())
-            || (executionBackend !== 'local' && (
-                repositoryUrl.trim()
-                || (!isAutoCloudMachine && directory.trim())
-            ))
+            || (executionBackend !== 'local' && repositoryUrl.trim() && checkpointId.trim())
         )
     )
 
@@ -640,23 +654,27 @@ export function NewSession(props: {
                     Runner last spawn error: {runnerSpawnError}
                 </div>
             ) : null}
-            <DirectorySection
-                directory={directory}
-                suggestions={suggestions}
-                selectedIndex={selectedIndex}
-                isDisabled={isFormDisabled}
-                recentPaths={recentPaths}
-                onDirectoryChange={handleDirectoryChange}
-                onDirectoryFocus={handleDirectoryFocus}
-                onDirectoryBlur={handleDirectoryBlur}
-                onDirectoryKeyDown={handleDirectoryKeyDown}
-                onSuggestionSelect={handleSuggestionSelect}
-                onPathClick={handlePathClick}
-            />
+            {executionBackend === 'local' ? (
+                <DirectorySection
+                    directory={directory}
+                    suggestions={suggestions}
+                    selectedIndex={selectedIndex}
+                    isDisabled={isFormDisabled}
+                    recentPaths={recentPaths}
+                    onDirectoryChange={handleDirectoryChange}
+                    onDirectoryFocus={handleDirectoryFocus}
+                    onDirectoryBlur={handleDirectoryBlur}
+                    onDirectoryKeyDown={handleDirectoryKeyDown}
+                    onSuggestionSelect={handleSuggestionSelect}
+                    onPathClick={handlePathClick}
+                />
+            ) : null}
             <CloudSettingsSection
                 executionBackend={executionBackend}
                 runtimeKind={runtimeKind}
+                launchMode={launchMode}
                 environmentId={environmentId}
+                checkpointId={checkpointId}
                 repositoryUrl={repositoryUrl}
                 repositoryBranch={repositoryBranch}
                 workspaceMode={workspaceMode}
@@ -668,17 +686,23 @@ export function NewSession(props: {
                 previewPreferredPort={previewPreferredPort}
                 ttlMinutes={ttlMinutes}
                 cloudInventorySummary={cloudInventorySummary}
+                cloudCheckpoints={cloudCheckpoints}
                 selectedProviderType={selectedCloudProvider?.type}
                 selectedWorkerLifecycle={selectedCloudWorker?.lifecycle}
                 runtimeWarning={cloudRuntimeWarning}
                 cloudEnvironments={cloudEnvironments}
+                cloudCheckpointsLoading={cloudCheckpointsLoading}
+                cloudCheckpointsError={cloudCheckpointsError}
                 cloudEnvironmentsLoading={cloudEnvironmentsLoading}
                 cloudEnvironmentsError={cloudEnvironmentsError}
                 selectedEnvironmentSummary={selectedEnvironmentSummary}
+                selectedCheckpoint={selectedCheckpoint}
                 isDisabled={isFormDisabled}
                 onExecutionBackendChange={setExecutionBackend}
                 onRuntimeKindChange={setRuntimeKind}
+                onLaunchModeChange={setLaunchMode}
                 onEnvironmentIdChange={setEnvironmentId}
+                onCheckpointIdChange={setCheckpointId}
                 onRepositoryUrlChange={setRepositoryUrl}
                 onRepositoryBranchChange={setRepositoryBranch}
                 onWorkspaceModeChange={setWorkspaceMode}

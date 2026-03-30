@@ -180,10 +180,18 @@ export default function CloudRequestDetailPage() {
                     <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Environment</div>
                     <div className="mt-1 font-medium">{request.request.environmentId ?? request.request.environment?.id ?? 'default'}</div>
                 </div>
+                <div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Checkpoint</div>
+                    <div className="mt-1 font-medium">{request.request.checkpointId ?? request.request.environment?.runtime?.checkpointId ?? 'default'}</div>
+                </div>
+                <div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Launch</div>
+                    <div className="mt-1 font-medium">{request.request.launchMode ?? 'interactive'}</div>
+                </div>
                 <div className="md:col-span-2">
                     <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Repository</div>
                     <div className="mt-1 font-medium">
-                        {repository?.url ?? request.request.workspaceSource?.directory ?? 'none'}
+                        {repository?.url ?? 'none'}
                     </div>
                     {repository ? (
                         <div className="mt-1 text-[var(--app-hint)]">{formatRef(repository.ref)}</div>

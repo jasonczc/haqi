@@ -54,6 +54,7 @@ import {
     filterWorkersByProvider
 } from '../cloud/provider'
 import { PreviewRegistry } from '../cloud/previewRegistry'
+import { CheckpointRegistry } from '../cloud/checkpointRegistry'
 import { SecretBroker } from '../cloud/secretBroker'
 import { WorkspaceManager } from '../cloud/workspaceManager'
 import { SpawnCoordinator } from '../cloud/spawnCoordinator'
@@ -121,6 +122,7 @@ export type CloudPreviewRecord = {
 type SessionMetadataShape = {
     machineId?: string
     environmentId?: string
+    checkpointId?: string
     runtimeKind?: 'host-process' | 'docker-session'
     previewUrls?: import('@hapi/protocol/types').PreviewTarget[]
 }
@@ -489,6 +491,7 @@ export class SyncEngine {
     private readonly reviewLoopService: ReviewLoopService
     private readonly rpcGateway: RpcGateway
     private readonly cloudEnvironmentRegistry: CloudEnvironmentRegistry
+    private readonly checkpointRegistry: CheckpointRegistry
     private readonly previewRegistry: PreviewRegistry
     private readonly secretBroker: SecretBroker
     private readonly workspaceManager: WorkspaceManager
@@ -539,6 +542,7 @@ export class SyncEngine {
         )
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
         this.cloudEnvironmentRegistry = new CloudEnvironmentRegistry()
+        this.checkpointRegistry = new CheckpointRegistry()
         this.previewRegistry = new PreviewRegistry()
         this.secretBroker = new SecretBroker(store)
         this.workspaceManager = new WorkspaceManager(store, (machineId) => {
@@ -551,6 +555,7 @@ export class SyncEngine {
             rpcGateway: this.rpcGateway,
             publisher: this.eventPublisher,
             environmentRegistry: this.cloudEnvironmentRegistry,
+            checkpointRegistry: this.checkpointRegistry,
             workspaceManager: this.workspaceManager,
             secretBroker: this.secretBroker,
             persistPreviewUrl: async (sessionId, previewUrl) => {
@@ -583,6 +588,7 @@ export class SyncEngine {
 
     registerEnvironmentDefinition(template: import('@hapi/protocol/types').EnvironmentTemplate): void {
         this.cloudEnvironmentRegistry.register(template)
+        this.checkpointRegistry.registerFromEnvironment(template)
     }
 
     getEnvironmentDefinition(id: string): import('@hapi/protocol/types').EnvironmentTemplate | null {
@@ -599,6 +605,10 @@ export class SyncEngine {
 
     listCloudEnvironments(): import('@hapi/protocol/types').EnvironmentTemplate[] {
         return this.cloudEnvironmentRegistry.list()
+    }
+
+    listCloudCheckpoints(): import('@hapi/protocol/types').CloudCheckpoint[] {
+        return this.checkpointRegistry.list()
     }
 
     registerSessionPreviews(sessionId: string, previews: import('@hapi/protocol/types').PreviewTarget[] | undefined): void {
@@ -1097,10 +1107,14 @@ export class SyncEngine {
             })
 
             if (!this.cloudEnvironmentRegistry.get(environmentId)) {
-                this.cloudEnvironmentRegistry.register({
+                const registered = this.cloudEnvironmentRegistry.register({
                     id: environmentId,
-                    runtime: metadata.runtimeKind ? { kind: metadata.runtimeKind } : undefined
+                    runtime: {
+                        ...(metadata.runtimeKind ? { kind: metadata.runtimeKind } : {}),
+                        ...(metadata.checkpointId ? { checkpointId: metadata.checkpointId } : {})
+                    }
                 })
+                this.checkpointRegistry.registerFromEnvironment(registered)
             }
         }
 

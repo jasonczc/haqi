@@ -23,6 +23,12 @@ export type SessionBootstrapOptions = {
     agentState?: AgentState | null
     spawnRequestId?: string
     workspaceId?: string
+    checkpointId?: string
+    launchMode?: Metadata['launchMode']
+    repoSyncPolicy?: Metadata['repoSyncPolicy']
+    repoSyncStatus?: Metadata['repoSyncStatus']
+    workspaceBranch?: string
+    containerId?: string
     runtimeKind?: Metadata['runtimeKind']
     executionBackend?: Metadata['executionBackend']
     environmentId?: string
@@ -34,6 +40,9 @@ export type SessionBootstrapOptions = {
     workspaceSource?: Metadata['workspaceSource']
     workspaceMode?: Metadata['workspaceMode']
     serviceEndpoints?: Metadata['serviceEndpoints']
+    desktopState?: Metadata['desktopState']
+    languageServers?: Metadata['languageServers']
+    terminalDescriptors?: Metadata['terminalDescriptors']
     setupStatus?: Metadata['setupStatus']
     previewUrls?: Metadata['previewUrls']
 }
@@ -67,6 +76,12 @@ export function buildSessionMetadata(options: {
     now?: number
     spawnRequestId?: string
     workspaceId?: string
+    checkpointId?: string
+    launchMode?: Metadata['launchMode']
+    repoSyncPolicy?: Metadata['repoSyncPolicy']
+    repoSyncStatus?: Metadata['repoSyncStatus']
+    workspaceBranch?: string
+    containerId?: string
     runtimeKind?: Metadata['runtimeKind']
     executionBackend?: Metadata['executionBackend']
     environmentId?: string
@@ -78,6 +93,9 @@ export function buildSessionMetadata(options: {
     workspaceSource?: Metadata['workspaceSource']
     workspaceMode?: Metadata['workspaceMode']
     serviceEndpoints?: Metadata['serviceEndpoints']
+    desktopState?: Metadata['desktopState']
+    languageServers?: Metadata['languageServers']
+    terminalDescriptors?: Metadata['terminalDescriptors']
     setupStatus?: Metadata['setupStatus']
     previewUrls?: Metadata['previewUrls']
 }): Metadata {
@@ -106,6 +124,12 @@ export function buildSessionMetadata(options: {
         spawnRequestId: options.spawnRequestId,
         workspaceId: options.workspaceId,
         workspaceSource: options.workspaceSource,
+        checkpointId: options.checkpointId,
+        launchMode: options.launchMode,
+        repoSyncPolicy: options.repoSyncPolicy,
+        repoSyncStatus: options.repoSyncStatus,
+        workspaceBranch: options.workspaceBranch,
+        containerId: options.containerId,
         runtimeKind: options.runtimeKind,
         executionBackend: options.executionBackend,
         environmentId: options.environmentId,
@@ -116,6 +140,9 @@ export function buildSessionMetadata(options: {
         repositoryCommit: options.repositoryCommit,
         workspaceMode: options.workspaceMode,
         serviceEndpoints: options.serviceEndpoints,
+        desktopState: options.desktopState,
+        languageServers: options.languageServers,
+        terminalDescriptors: options.terminalDescriptors,
         setupStatus: options.setupStatus,
         previewUrls: options.previewUrls
     }
@@ -153,6 +180,23 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     const agentState = options.agentState === undefined ? {} : options.agentState
     const spawnRequestId = options.spawnRequestId ?? process.env.HAPI_SPAWN_REQUEST_ID
     const workspaceId = options.workspaceId ?? process.env.HAPI_WORKSPACE_ID
+    const checkpointId = options.checkpointId ?? process.env.HAPI_CHECKPOINT_ID
+    const launchMode = options.launchMode ?? (
+        process.env.HAPI_LAUNCH_MODE === 'interactive' || process.env.HAPI_LAUNCH_MODE === 'background'
+            ? process.env.HAPI_LAUNCH_MODE
+            : undefined
+    )
+    const repoSyncPolicy = options.repoSyncPolicy ?? (
+        process.env.HAPI_REPO_SYNC_POLICY === 'fetch-reset'
+            ? process.env.HAPI_REPO_SYNC_POLICY
+            : undefined
+    )
+    const repoSyncStatus = options.repoSyncStatus ?? (() => {
+        const raw = process.env.HAPI_REPO_SYNC_STATUS
+        return raw === 'clean' || raw === 'dirty' || raw === 'diverged' ? raw : undefined
+    })()
+    const workspaceBranch = options.workspaceBranch ?? process.env.HAPI_WORKSPACE_BRANCH
+    const containerId = options.containerId ?? process.env.HAPI_CONTAINER_ID
     const runtimeKind = options.runtimeKind ?? (
         process.env.HAPI_RUNTIME_KIND === 'docker-session' || process.env.HAPI_RUNTIME_KIND === 'host-process'
             ? process.env.HAPI_RUNTIME_KIND
@@ -216,6 +260,42 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
             return undefined
         }
     })()
+    const desktopState = options.desktopState ?? (() => {
+        const raw = process.env.HAPI_DESKTOP_STATE_JSON
+        if (!raw) {
+            return undefined
+        }
+        try {
+            const parsed = JSON.parse(raw)
+            return parsed && typeof parsed === 'object' ? parsed as Metadata['desktopState'] : undefined
+        } catch {
+            return undefined
+        }
+    })()
+    const languageServers = options.languageServers ?? (() => {
+        const raw = process.env.HAPI_LANGUAGE_SERVERS_JSON
+        if (!raw) {
+            return undefined
+        }
+        try {
+            const parsed = JSON.parse(raw)
+            return Array.isArray(parsed) ? parsed as Metadata['languageServers'] : undefined
+        } catch {
+            return undefined
+        }
+    })()
+    const terminalDescriptors = options.terminalDescriptors ?? (() => {
+        const raw = process.env.HAPI_TERMINAL_DESCRIPTORS_JSON
+        if (!raw) {
+            return undefined
+        }
+        try {
+            const parsed = JSON.parse(raw)
+            return Array.isArray(parsed) ? parsed as Metadata['terminalDescriptors'] : undefined
+        } catch {
+            return undefined
+        }
+    })()
     const setupStatus = options.setupStatus ?? (() => {
         const raw = process.env.HAPI_SETUP_STATUS_JSON
         if (!raw) {
@@ -273,6 +353,12 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         machineId,
         spawnRequestId,
         workspaceId,
+        checkpointId,
+        launchMode,
+        repoSyncPolicy,
+        repoSyncStatus,
+        workspaceBranch,
+        containerId,
         runtimeKind,
         executionBackend,
         environmentId,
@@ -284,6 +370,9 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         workspaceSource,
         workspaceMode,
         serviceEndpoints,
+        desktopState,
+        languageServers,
+        terminalDescriptors,
         setupStatus,
         previewUrls
     })

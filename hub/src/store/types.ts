@@ -1,8 +1,10 @@
 import type {
+    DesktopHydrationState,
     CloudSecretAdapter,
     CloudSpawnPhase,
     CloudWorkspaceLeaseStatus,
     CloudWorkspaceStatus,
+    RepoStatus,
     WorkspaceMode
 } from '@hapi/protocol/types'
 
@@ -74,9 +76,15 @@ export type StoredCloudWorkspace = {
     status: CloudWorkspaceStatus
     source: unknown | null
     path: string | null
+    repoVolumePath: string | null
+    desktopStateVolumePath: string | null
     environmentId: string | null
     environmentVersion: string | null
     environment: unknown | null
+    checkpointId: string | null
+    workspaceBranch: string | null
+    repoStatus: RepoStatus | null
+    desktopState: DesktopHydrationState | null
     reused: boolean
     lastLeaseId: string | null
     lastUsedAt: number | null

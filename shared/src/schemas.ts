@@ -166,6 +166,27 @@ export const SecretRefSchema = z.object({
 
 export type SecretRef = z.infer<typeof SecretRefSchema>
 
+export const LaunchModeSchema = z.enum([
+    'interactive',
+    'background'
+])
+
+export type LaunchMode = z.infer<typeof LaunchModeSchema>
+
+export const RepoSyncPolicySchema = z.enum([
+    'fetch-reset'
+])
+
+export type RepoSyncPolicy = z.infer<typeof RepoSyncPolicySchema>
+
+export const RepoStatusSchema = z.enum([
+    'clean',
+    'dirty',
+    'diverged'
+])
+
+export type RepoStatus = z.infer<typeof RepoStatusSchema>
+
 export const EnvironmentServicePortSchema = z.object({
     name: z.string().optional(),
     containerPort: z.number().int().positive(),
@@ -219,6 +240,7 @@ export type EnvironmentCacheMount = z.infer<typeof EnvironmentCacheMountSchema>
 export const EnvironmentRuntimeSchema = z.object({
     kind: RuntimeKindSchema.optional(),
     image: z.string().optional(),
+    checkpointId: z.string().optional(),
     dockerfile: z.string().optional(),
     buildContext: z.string().optional(),
     snapshot: z.string().optional(),
@@ -230,6 +252,77 @@ export const EnvironmentRuntimeSchema = z.object({
 })
 
 export type EnvironmentRuntime = z.infer<typeof EnvironmentRuntimeSchema>
+
+export const DesktopTerminalDescriptorSchema = z.object({
+    name: z.string().min(1),
+    command: z.string().min(1),
+    cwd: z.string().optional(),
+    shell: z.string().optional(),
+    env: z.record(z.string(), z.string()).optional()
+})
+
+export type DesktopTerminalDescriptor = z.infer<typeof DesktopTerminalDescriptorSchema>
+
+export const DesktopLanguageServerSchema = z.object({
+    name: z.string().min(1),
+    command: z.string().min(1),
+    cwd: z.string().optional(),
+    readyPattern: z.string().optional(),
+    env: z.record(z.string(), z.string()).optional()
+})
+
+export type DesktopLanguageServer = z.infer<typeof DesktopLanguageServerSchema>
+
+export const DesktopWarmupCommandSchema = z.object({
+    name: z.string().min(1).optional(),
+    command: z.string().min(1),
+    cwd: z.string().optional(),
+    env: z.record(z.string(), z.string()).optional()
+})
+
+export type DesktopWarmupCommand = z.infer<typeof DesktopWarmupCommandSchema>
+
+export const DesktopHydrationSpecSchema = z.object({
+    terminals: z.array(DesktopTerminalDescriptorSchema).optional(),
+    languageServers: z.array(DesktopLanguageServerSchema).optional(),
+    warmup: z.array(DesktopWarmupCommandSchema).optional(),
+    statePaths: z.array(z.string().min(1)).optional()
+})
+
+export type DesktopHydrationSpec = z.infer<typeof DesktopHydrationSpecSchema>
+
+export const DesktopHydrationRuntimeStateSchema = z.object({
+    name: z.string().min(1),
+    status: z.enum(['pending', 'running', 'ready', 'failed']),
+    message: z.string().optional(),
+    updatedAt: z.number()
+})
+
+export type DesktopHydrationRuntimeState = z.infer<typeof DesktopHydrationRuntimeStateSchema>
+
+export const DesktopHydrationStateSchema = z.object({
+    status: z.enum(['pending', 'running', 'ready', 'failed']),
+    phase: z.string().optional(),
+    terminals: z.array(DesktopHydrationRuntimeStateSchema).optional(),
+    languageServers: z.array(DesktopHydrationRuntimeStateSchema).optional(),
+    warmup: z.array(DesktopHydrationRuntimeStateSchema).optional(),
+    updatedAt: z.number()
+})
+
+export type DesktopHydrationState = z.infer<typeof DesktopHydrationStateSchema>
+
+export const CloudCheckpointSchema = z.object({
+    id: z.string().min(1),
+    image: z.string().min(1),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    labels: z.array(z.string()).optional(),
+    capabilities: WorkerCapabilitiesSchema.optional(),
+    defaultEnvironment: z.lazy(() => EnvironmentTemplateSchema).optional(),
+    defaultDesktop: DesktopHydrationSpecSchema.optional()
+})
+
+export type CloudCheckpoint = z.infer<typeof CloudCheckpointSchema>
 
 export const EnvironmentTemplateSchema = z.object({
     id: z.string().min(1).optional(),
@@ -258,7 +351,8 @@ export const EnvironmentTemplateSchema = z.object({
         node: z.boolean().optional(),
         bun: z.boolean().optional(),
         python: z.boolean().optional()
-    }).optional()
+    }).optional(),
+    desktop: DesktopHydrationSpecSchema.optional()
 })
 
 export type EnvironmentTemplate = z.infer<typeof EnvironmentTemplateSchema>
@@ -267,6 +361,10 @@ export const CloudSpawnPhaseSchema = z.enum([
     'queued',
     'selecting-worker',
     'acquiring-workspace',
+    'pulling-checkpoint',
+    'creating-container',
+    'syncing-repo',
+    'hydrating-desktop',
     'preparing-workspace',
     'materializing-secrets',
     'starting-session',
@@ -337,9 +435,13 @@ export const CloudWorkspaceLeaseBindingSchema = z.object({
     name: z.string().optional(),
     path: z.string().optional(),
     baseDir: z.string().optional(),
+    repoVolumePath: z.string().optional(),
+    desktopStateVolumePath: z.string().optional(),
     source: WorkspaceSourceSchema.optional(),
     environmentId: z.string().optional(),
     environmentVersion: z.string().optional(),
+    checkpointId: z.string().optional(),
+    workspaceBranch: z.string().optional(),
     expiresAt: z.number().optional()
 })
 
@@ -393,6 +495,12 @@ export const MetadataSchema = z.object({
     workerId: z.string().optional(),
     workspaceId: z.string().optional(),
     spawnRequestId: z.string().optional(),
+    checkpointId: z.string().optional(),
+    launchMode: LaunchModeSchema.optional(),
+    repoSyncPolicy: RepoSyncPolicySchema.optional(),
+    repoSyncStatus: RepoStatusSchema.optional(),
+    workspaceBranch: z.string().optional(),
+    containerId: z.string().optional(),
     workspaceSource: WorkspaceSourceSchema.optional(),
     workspaceMode: WorkspaceModeSchema.optional(),
     repositoryUrl: z.string().optional(),
@@ -409,6 +517,9 @@ export const MetadataSchema = z.object({
         containerPort: z.number().int().positive(),
         url: z.string().optional()
     })).optional(),
+    desktopState: DesktopHydrationStateSchema.optional(),
+    languageServers: z.array(DesktopHydrationRuntimeStateSchema).optional(),
+    terminalDescriptors: z.array(DesktopTerminalDescriptorSchema).optional(),
     setupStatus: z.object({
         phase: z.string(),
         message: z.string().optional(),
@@ -735,8 +846,11 @@ export const MachineSpawnRequestSchema = z.object({
     previewUrl: z.string().optional(),
     executionBackend: ExecutionBackendSchema.optional(),
     runtimeKind: RuntimeKindSchema.optional(),
+    launchMode: LaunchModeSchema.optional(),
     environmentId: z.string().optional(),
     environment: EnvironmentTemplateSchema.optional(),
+    checkpointId: z.string().min(1).optional(),
+    repoSyncPolicy: RepoSyncPolicySchema.optional(),
     workspaceSource: WorkspaceSourceSchema.optional(),
     workspace: WorkspaceSpecSchema.optional(),
     resources: WorkerResourcesSchema.optional(),
@@ -972,9 +1086,15 @@ export const CloudWorkspaceSchema = z.object({
     status: CloudWorkspaceStatusSchema,
     source: WorkspaceSourceSchema.optional(),
     path: z.string().optional(),
+    repoVolumePath: z.string().optional(),
+    desktopStateVolumePath: z.string().optional(),
     environmentId: z.string().optional(),
     environmentVersion: z.string().optional(),
     environment: EnvironmentTemplateSchema.optional(),
+    checkpointId: z.string().optional(),
+    workspaceBranch: z.string().optional(),
+    repoStatus: RepoStatusSchema.optional(),
+    desktopState: DesktopHydrationStateSchema.optional(),
     reused: z.boolean().optional(),
     lastLeaseId: z.string().optional(),
     lastUsedAt: z.number().optional(),

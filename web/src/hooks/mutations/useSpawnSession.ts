@@ -26,8 +26,11 @@ type SpawnInput = {
     previewUrl?: string
     executionBackend?: ExecutionBackend
     runtimeKind?: RuntimeKind
+    launchMode?: 'interactive' | 'background'
     environmentId?: string
     environment?: EnvironmentTemplate
+    checkpointId?: string
+    repoSyncPolicy?: 'fetch-reset'
     workspaceSource?: WorkspaceSource
     workspace?: WorkspaceSpec
     resources?: WorkerResources
@@ -66,8 +69,11 @@ export function useSpawnSession(api: ApiClient | null): {
                 previewUrl: input.previewUrl,
                 executionBackend: input.executionBackend,
                 runtimeKind: input.runtimeKind,
+                launchMode: input.launchMode,
                 environmentId: input.environmentId,
                 environment: input.environment,
+                checkpointId: input.checkpointId,
+                repoSyncPolicy: input.repoSyncPolicy,
                 workspaceSource: input.workspaceSource,
                 workspace: input.workspace,
                 resources: input.resources,

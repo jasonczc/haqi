@@ -5,6 +5,7 @@ export const queryKeys = {
     turns: (sessionId: string) => ['turns', sessionId] as const,
     machines: ['machines'] as const,
     cloudEnvironments: ['cloud-environments'] as const,
+    cloudCheckpoints: ['cloud-checkpoints'] as const,
     cloudWorkers: (provider?: string) => ['cloud-workers', provider ?? 'auto'] as const,
     cloudProviders: ['cloud-providers'] as const,
     cloudRequests: ['cloud-requests'] as const,

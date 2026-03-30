@@ -29,6 +29,9 @@ export interface SpawnSessionOptions {
     runtimeKind?: RuntimeKind
     environmentId?: string
     environment?: EnvironmentTemplate
+    launchMode?: 'interactive' | 'background'
+    checkpointId?: string
+    repoSyncPolicy?: 'fetch-reset'
     workspaceSource?: WorkspaceSource
     workspace?: WorkspaceSpec
     resources?: WorkerResources

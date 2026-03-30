@@ -68,6 +68,37 @@ describe('workspaceEnvironment', () => {
         }))
     })
 
+    it('maps legacy terminals into desktop terminals when desktop config is absent', async () => {
+        const root = await makeTempDir()
+        await fs.mkdir(join(root, '.haqi'), { recursive: true })
+        await fs.writeFile(
+            join(root, '.haqi', 'environment.json'),
+            JSON.stringify({
+                id: 'repo-template',
+                runtime: {
+                    kind: 'docker-session',
+                    image: 'ghcr.io/acme/dev:latest'
+                },
+                terminals: [
+                    {
+                        name: 'app',
+                        command: 'bun dev'
+                    }
+                ]
+            }),
+            'utf8'
+        )
+
+        const template = await loadWorkspaceEnvironmentTemplate([root])
+
+        expect(template?.desktop?.terminals).toEqual([
+            {
+                name: 'app',
+                command: 'bun dev'
+            }
+        ])
+    })
+
     it('loads a workspace template from .haqi/environment.json', async () => {
         const root = await makeTempDir()
         await fs.mkdir(join(root, '.haqi'), { recursive: true })

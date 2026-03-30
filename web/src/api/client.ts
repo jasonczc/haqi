@@ -2,6 +2,7 @@ import type {
     AttachmentMetadata,
     AuthResponse,
     CloudProviderSummaryResponse,
+    CloudCheckpointsResponse,
     CloudRequestResponse,
     CloudRequestsResponse,
     CloudSecretResponse,
@@ -866,6 +867,10 @@ export class ApiClient {
         }
         const qs = params.toString()
         return await this.request<CloudWorkersResponse>(`/api/cloud/workers${qs ? `?${qs}` : ''}`)
+    }
+
+    async getCloudCheckpoints(): Promise<CloudCheckpointsResponse> {
+        return await this.request<CloudCheckpointsResponse>('/api/cloud/checkpoints')
     }
 
     async getCloudRequests(limit?: number): Promise<CloudRequestsResponse> {

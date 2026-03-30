@@ -16,6 +16,7 @@ export type {
     AttachmentMetadata,
     CloudSecret,
     CloudSecretAdapter,
+    CloudCheckpoint,
     CloudSpawnPhase,
     CloudSpawnRequest,
     CloudWorkspace,
@@ -219,6 +220,10 @@ export type CloudWorkerSummary = {
 
 export type CloudEnvironmentsResponse = {
     environments: CloudEnvironmentSummary[]
+}
+
+export type CloudCheckpointsResponse = {
+    checkpoints: import('@hapi/protocol/types').CloudCheckpoint[]
 }
 
 export type CloudPreviewsResponse = {

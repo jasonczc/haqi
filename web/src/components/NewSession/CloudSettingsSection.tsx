@@ -1,11 +1,13 @@
-import type { CloudEnvironmentSummary, ExecutionBackend, RuntimeKind } from '@/types/api'
+import type { CloudCheckpoint, CloudEnvironmentSummary, ExecutionBackend, RuntimeKind } from '@/types/api'
 import type { CloudInventorySummary, CloudRuntimeWarning } from './cloudInventory'
 import { useTranslation } from '@/lib/use-translation'
 
 export function CloudSettingsSection(props: {
     executionBackend: ExecutionBackend
     runtimeKind: RuntimeKind
+    launchMode: 'interactive' | 'background'
     environmentId: string
+    checkpointId: string
     repositoryUrl: string
     repositoryBranch: string
     workspaceMode: 'ephemeral' | 'persistent' | 'snapshot-derived'
@@ -18,16 +20,22 @@ export function CloudSettingsSection(props: {
     ttlMinutes: string
     cloudInventorySummary: CloudInventorySummary
     cloudEnvironments: CloudEnvironmentSummary[]
+    cloudCheckpoints: CloudCheckpoint[]
     cloudEnvironmentsLoading?: boolean
     cloudEnvironmentsError?: string | null
+    cloudCheckpointsLoading?: boolean
+    cloudCheckpointsError?: string | null
     selectedEnvironmentSummary: CloudEnvironmentSummary | null
+    selectedCheckpoint: CloudCheckpoint | null
     selectedProviderType?: 'self-hosted' | 'managed'
     selectedWorkerLifecycle?: string
     runtimeWarning: CloudRuntimeWarning | null
     isDisabled: boolean
     onExecutionBackendChange: (value: ExecutionBackend) => void
     onRuntimeKindChange: (value: RuntimeKind) => void
+    onLaunchModeChange: (value: 'interactive' | 'background') => void
     onEnvironmentIdChange: (value: string) => void
+    onCheckpointIdChange: (value: string) => void
     onRepositoryUrlChange: (value: string) => void
     onRepositoryBranchChange: (value: string) => void
     onWorkspaceModeChange: (value: 'ephemeral' | 'persistent' | 'snapshot-derived') => void
@@ -140,20 +148,39 @@ export function CloudSettingsSection(props: {
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-[var(--app-hint)]">
-                            {t('newSession.runtimeKind')}
+                            Launch Mode
                         </label>
                         <div className="flex flex-col gap-2 text-sm">
                             <label className="flex items-center gap-2">
                                 <input
                                     type="radio"
-                                    name="runtimeKind"
-                                    checked={props.runtimeKind === 'host-process'}
-                                    onChange={() => props.onRuntimeKindChange('host-process')}
+                                    name="launchMode"
+                                    checked={props.launchMode === 'interactive'}
+                                    onChange={() => props.onLaunchModeChange('interactive')}
                                     disabled={props.isDisabled}
                                     className="accent-[var(--app-link)]"
                                 />
-                                <span>{t('newSession.runtimeKind.hostProcess')}</span>
+                                <span>Interactive</span>
                             </label>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="radio"
+                                    name="launchMode"
+                                    checked={props.launchMode === 'background'}
+                                    onChange={() => props.onLaunchModeChange('background')}
+                                    disabled={props.isDisabled}
+                                    className="accent-[var(--app-link)]"
+                                />
+                                <span>Background</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-[var(--app-hint)]">
+                            {t('newSession.runtimeKind')}
+                        </label>
+                        <div className="flex flex-col gap-2 text-sm">
                             <label className="flex items-center gap-2">
                                 <input
                                     type="radio"
@@ -166,6 +193,46 @@ export function CloudSettingsSection(props: {
                                 <span>{t('newSession.runtimeKind.dockerSession')}</span>
                             </label>
                         </div>
+                        <div className="pt-1 text-[11px] text-[var(--app-hint)]">
+                            Cloud runtime is container-backed and checkpoint-based.
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-[var(--app-hint)]" htmlFor="new-session-checkpoint-id">
+                            Checkpoint
+                        </label>
+                        <input
+                            id="new-session-checkpoint-id"
+                            type="text"
+                            placeholder="ghcr.io/org/dev:latest"
+                            value={props.checkpointId}
+                            onChange={(event) => props.onCheckpointIdChange(event.target.value)}
+                            disabled={props.isDisabled}
+                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                        />
+                        {props.cloudCheckpointsLoading ? (
+                            <div className="pt-1 text-[11px] text-[var(--app-hint)]">Loading checkpoints…</div>
+                        ) : props.cloudCheckpointsError ? (
+                            <div className="pt-1 text-[11px] text-red-600">{props.cloudCheckpointsError}</div>
+                        ) : props.cloudCheckpoints.length > 0 ? (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                                {props.cloudCheckpoints.map((checkpoint) => (
+                                    <span
+                                        key={checkpoint.id}
+                                        className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)]"
+                                        title={checkpoint.image}
+                                    >
+                                        {checkpoint.id}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
+                        {props.selectedCheckpoint ? (
+                            <div className="pt-1 text-[11px] text-[var(--app-hint)]">
+                                {props.selectedCheckpoint.image}
+                            </div>
+                        ) : null}
                     </div>
 
                     {props.runtimeWarning ? (

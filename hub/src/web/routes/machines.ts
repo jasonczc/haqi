@@ -101,6 +101,18 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Claude thinkEffort does not support xhigh (expected low/medium/high)' }, 400)
         }
 
+        if (parsed.data.executionBackend === 'cloud-self-hosted' || parsed.data.executionBackend === 'cloud-managed') {
+            if (!parsed.data.workspaceSource?.repository) {
+                return c.json({ error: 'Cloud sessions require workspaceSource.repository' }, 400)
+            }
+            if (parsed.data.directory?.trim()) {
+                return c.json({ error: 'Cloud sessions do not accept directory; use workspaceSource.repository' }, 400)
+            }
+            if (!parsed.data.checkpointId?.trim()) {
+                return c.json({ error: 'Cloud sessions require checkpointId' }, 400)
+            }
+        }
+
         if (machineId === 'auto') {
             if (parsed.data.executionBackend !== 'cloud-self-hosted' && parsed.data.executionBackend !== 'cloud-managed') {
                 return c.json({ error: 'Auto machine selection requires a cloud execution backend' }, 400)

@@ -5,6 +5,7 @@ import type {
     CloudSpawnPhase,
     CloudWorkspaceLeaseStatus,
     CloudWorkspaceStatus,
+    RepoStatus,
     WorkspaceMode
 } from '@hapi/protocol/types'
 
@@ -46,9 +47,15 @@ type DbCloudWorkspaceRow = {
     status: CloudWorkspaceStatus
     source: string | null
     path: string | null
+    repo_volume_path: string | null
+    desktop_state_volume_path: string | null
     environment_id: string | null
     environment_version: string | null
     environment: string | null
+    checkpoint_id: string | null
+    workspace_branch: string | null
+    repo_status: RepoStatus | null
+    desktop_state: string | null
     reused: number
     last_lease_id: string | null
     last_used_at: number | null
@@ -161,9 +168,15 @@ function toStoredCloudWorkspace(row: DbCloudWorkspaceRow): StoredCloudWorkspace 
         status: row.status,
         source: safeJsonParse(row.source),
         path: row.path,
+        repoVolumePath: row.repo_volume_path,
+        desktopStateVolumePath: row.desktop_state_volume_path,
         environmentId: row.environment_id,
         environmentVersion: row.environment_version,
         environment: safeJsonParse(row.environment),
+        checkpointId: row.checkpoint_id,
+        workspaceBranch: row.workspace_branch,
+        repoStatus: row.repo_status,
+        desktopState: safeJsonParse(row.desktop_state) as StoredCloudWorkspace['desktopState'],
         reused: row.reused === 1,
         lastLeaseId: row.last_lease_id,
         lastUsedAt: row.last_used_at,
@@ -321,7 +334,18 @@ export class CloudStore {
             FROM cloud_spawn_requests
             WHERE namespace = ?
               AND selected_machine_id = ?
-              AND phase IN ('queued', 'selecting-worker', 'acquiring-workspace', 'preparing-workspace', 'materializing-secrets', 'starting-session')
+              AND phase IN (
+                'queued',
+                'selecting-worker',
+                'acquiring-workspace',
+                'pulling-checkpoint',
+                'creating-container',
+                'syncing-repo',
+                'hydrating-desktop',
+                'preparing-workspace',
+                'materializing-secrets',
+                'starting-session'
+              )
         `).get(namespace, machineId) as { count: number } | undefined
         return row?.count ?? 0
     }
@@ -389,9 +413,15 @@ export class CloudStore {
         status: CloudWorkspaceStatus
         source?: unknown
         path?: string | null
+        repoVolumePath?: string | null
+        desktopStateVolumePath?: string | null
         environmentId?: string | null
         environmentVersion?: string | null
         environment?: unknown
+        checkpointId?: string | null
+        workspaceBranch?: string | null
+        repoStatus?: RepoStatus | null
+        desktopState?: unknown
         reused?: boolean
         error?: unknown
     }): StoredCloudWorkspace {
@@ -400,11 +430,15 @@ export class CloudStore {
         this.db.prepare(`
             INSERT INTO cloud_workspaces (
                 id, namespace, machine_id, workspace_key, name, mode, status,
-                source, path, environment_id, environment_version, environment,
+                source, path, repo_volume_path, desktop_state_volume_path,
+                environment_id, environment_version, environment, checkpoint_id,
+                workspace_branch, repo_status, desktop_state,
                 reused, last_lease_id, last_used_at, created_at, updated_at, error
             ) VALUES (
                 @id, @namespace, @machine_id, @workspace_key, @name, @mode, @status,
-                @source, @path, @environment_id, @environment_version, @environment,
+                @source, @path, @repo_volume_path, @desktop_state_volume_path,
+                @environment_id, @environment_version, @environment, @checkpoint_id,
+                @workspace_branch, @repo_status, @desktop_state,
                 @reused, NULL, @last_used_at, @created_at, @updated_at, @error
             )
         `).run({
@@ -417,9 +451,15 @@ export class CloudStore {
             status: options.status,
             source: options.source === undefined ? null : JSON.stringify(options.source),
             path: normalizeOptionalString(options.path),
+            repo_volume_path: normalizeOptionalString(options.repoVolumePath),
+            desktop_state_volume_path: normalizeOptionalString(options.desktopStateVolumePath),
             environment_id: normalizeOptionalString(options.environmentId),
             environment_version: normalizeOptionalString(options.environmentVersion),
             environment: options.environment === undefined ? null : JSON.stringify(options.environment),
+            checkpoint_id: normalizeOptionalString(options.checkpointId),
+            workspace_branch: normalizeOptionalString(options.workspaceBranch),
+            repo_status: options.repoStatus ?? null,
+            desktop_state: options.desktopState === undefined ? null : JSON.stringify(options.desktopState),
             reused: options.reused ? 1 : 0,
             last_used_at: now,
             created_at: now,
@@ -461,9 +501,15 @@ export class CloudStore {
         machineId?: string | null
         status?: CloudWorkspaceStatus
         path?: string | null
+        repoVolumePath?: string | null
+        desktopStateVolumePath?: string | null
         environmentId?: string | null
         environmentVersion?: string | null
         environment?: unknown
+        checkpointId?: string | null
+        workspaceBranch?: string | null
+        repoStatus?: RepoStatus | null
+        desktopState?: unknown | null
         reused?: boolean
         lastLeaseId?: string | null
         error?: unknown | null
@@ -477,9 +523,15 @@ export class CloudStore {
             SET machine_id = @machine_id,
                 status = @status,
                 path = @path,
+                repo_volume_path = @repo_volume_path,
+                desktop_state_volume_path = @desktop_state_volume_path,
                 environment_id = @environment_id,
                 environment_version = @environment_version,
                 environment = @environment,
+                checkpoint_id = @checkpoint_id,
+                workspace_branch = @workspace_branch,
+                repo_status = @repo_status,
+                desktop_state = @desktop_state,
                 reused = @reused,
                 last_lease_id = @last_lease_id,
                 last_used_at = @last_used_at,
@@ -494,6 +546,12 @@ export class CloudStore {
                 : existing.machineId,
             status: options.status ?? existing.status,
             path: options.path !== undefined ? normalizeOptionalString(options.path) : existing.path,
+            repo_volume_path: options.repoVolumePath !== undefined
+                ? normalizeOptionalString(options.repoVolumePath)
+                : existing.repoVolumePath,
+            desktop_state_volume_path: options.desktopStateVolumePath !== undefined
+                ? normalizeOptionalString(options.desktopStateVolumePath)
+                : existing.desktopStateVolumePath,
             environment_id: options.environmentId !== undefined
                 ? normalizeOptionalString(options.environmentId)
                 : existing.environmentId,
@@ -503,6 +561,16 @@ export class CloudStore {
             environment: options.environment === undefined
                 ? (existing.environment === null ? null : JSON.stringify(existing.environment))
                 : (options.environment === null ? null : JSON.stringify(options.environment)),
+            checkpoint_id: options.checkpointId !== undefined
+                ? normalizeOptionalString(options.checkpointId)
+                : existing.checkpointId,
+            workspace_branch: options.workspaceBranch !== undefined
+                ? normalizeOptionalString(options.workspaceBranch)
+                : existing.workspaceBranch,
+            repo_status: options.repoStatus !== undefined ? options.repoStatus : existing.repoStatus,
+            desktop_state: options.desktopState === undefined
+                ? (existing.desktopState === null ? null : JSON.stringify(existing.desktopState))
+                : (options.desktopState === null ? null : JSON.stringify(options.desktopState)),
             reused: options.reused !== undefined ? (options.reused ? 1 : 0) : (existing.reused ? 1 : 0),
             last_lease_id: options.lastLeaseId !== undefined ? normalizeOptionalString(options.lastLeaseId) : existing.lastLeaseId,
             last_used_at: Date.now(),

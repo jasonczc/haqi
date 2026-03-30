@@ -29,11 +29,13 @@ export type LastSessionConfig = {
     previewUrl?: string
     runtimeKind?: RuntimeKind
     executionBackend?: ExecutionBackend
+    launchMode?: 'interactive' | 'background'
     workspaceMode?: WorkspaceMode
     networkPolicy?: NetworkMode
     repositoryUrl?: string
     repositoryBranch?: string
     environmentId?: string
+    checkpointId?: string
     ttlMinutes?: string
     workspaceName?: string
     labels?: string

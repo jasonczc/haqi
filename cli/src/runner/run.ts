@@ -23,16 +23,20 @@ import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
 import { prepareWorkspace } from '@/cloud/workspace/prepareWorkspace';
 import { resolveEnvironmentTemplate } from '@/cloud/environment/resolveEnvironment';
+import { loadWorkspaceEnvironmentTemplate } from '@/cloud/environment/workspaceEnvironment';
 import { DockerCliRuntime } from '@/cloud/docker/dockerCli';
 import { DockerServiceOrchestrator } from '@/cloud/docker/serviceOrchestrator';
 import { buildSpawnEnvironment, startHostProcessExecutor } from '@/cloud/executors/HostProcessExecutor';
 import { startDockerSessionExecutor } from '@/cloud/executors/DockerSessionExecutor';
+import { ensureWorkspaceContainer } from '@/cloud/executors/WorkspaceContainerManager';
 import { mergePreviewTargets } from '@/cloud/preview/previewReporter';
 import type { PreparedWorkspace, PreparedWorkspaceCleanup, ResolvedEnvironmentTemplate } from '@/cloud/types';
 import { runEnvironmentCommands } from '@/cloud/environment/runEnvironmentCommands';
 import { buildCloudRunnerStateSnapshot } from './cloudRunnerState';
 import type { WorkerLifecycle } from '@hapi/protocol/types';
 import { materializeResolvedSecrets } from '@/cloud/secrets/materializeSecrets';
+import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInContainer';
+import { hydrateDesktop } from '@/cloud/desktop/hydrateDesktop';
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -272,9 +276,17 @@ export async function startRunner(): Promise<void> {
       let resolvedEnvironment: ResolvedEnvironmentTemplate | null = null;
       let startedServices: Awaited<ReturnType<DockerServiceOrchestrator['startServices']>> = [];
       let dockerServiceOrchestrator: DockerServiceOrchestrator | null = null;
+      let dockerRuntime: DockerCliRuntime | null = null;
+      let workspaceContainerId: string | undefined;
+      let workspaceContainerPreviewTargets: Metadata['previewUrls'] | undefined;
       let extraEnv: Record<string, string> = {};
       let secretCleanupPaths: string[] = [];
       let serviceEndpoints: ReturnType<DockerServiceOrchestrator['collectServiceEndpoints']> = [];
+      let repoSyncStatus: Metadata['repoSyncStatus'] | undefined;
+      let repositoryCommit: string | undefined;
+      let desktopState: Metadata['desktopState'] | undefined;
+      let languageServers: Metadata['languageServers'] | undefined;
+      let terminalDescriptors: Metadata['terminalDescriptors'] | undefined;
       let setupStatusMessage = 'preparing-workspace';
       let spawnResult: SpawnSessionResult | null = null;
       let spawnFailed = false;
@@ -528,15 +540,63 @@ export async function startRunner(): Promise<void> {
         spawnDirectory = preparedWorkspace.workingDirectory;
         updateWorkspacePreparation('workspace-ready', 30);
 
+        const repositorySource = preparedWorkspace.source?.repository ?? options.workspaceSource?.repository;
+        const isCloudRepoDockerSession = options.executionBackend !== 'local'
+          && options.runtimeKind === 'docker-session'
+          && Boolean(repositorySource);
+        dockerRuntime = isCloudRepoDockerSession ? new DockerCliRuntime() : null;
+
         resolvedEnvironment = resolveEnvironmentTemplate({
           runtimeKind: options.runtimeKind,
           environmentId: options.environmentId,
           environment: options.environment,
           resolvedEnvironment: options.resolvedEnvironment,
-          workspaceEnvironment: preparedWorkspace.environment ?? null,
+          workspaceEnvironment: isCloudRepoDockerSession ? null : (preparedWorkspace.environment ?? null),
           workspaceSource: options.workspaceSource,
           workspacePath: preparedWorkspace.workingDirectory
         });
+
+        if (isCloudRepoDockerSession && dockerRuntime && repositorySource) {
+          updateWorkspacePreparation('pulling-checkpoint', 20);
+          await dockerRuntime.ensureAvailable();
+          const workspaceContainer = await ensureWorkspaceContainer({
+            runtime: dockerRuntime,
+            workspace: preparedWorkspace,
+            environment: resolvedEnvironment,
+            checkpointId: options.checkpointId ?? preparedWorkspace.checkpointId,
+            sessionLabel: spawnRequestId
+          });
+          workspaceContainerId = workspaceContainer.containerId;
+          workspaceContainerPreviewTargets = workspaceContainer.previewTargets;
+
+          updateWorkspacePreparation('syncing-repo', 30);
+          const syncResult = await syncRepositoryInContainer({
+            runtime: dockerRuntime,
+            containerId: workspaceContainer.containerId,
+            workspace: preparedWorkspace,
+            repository: repositorySource,
+            repoSyncPolicy: options.repoSyncPolicy ?? 'fetch-reset',
+            repositoryCredential
+          });
+          repoSyncStatus = syncResult.repoStatus;
+          repositoryCommit = syncResult.repositoryCommit;
+
+          const workspaceEnvironment = await loadWorkspaceEnvironmentTemplate([
+            preparedWorkspace.workingDirectory,
+            preparedWorkspace.repoVolumePath
+          ]);
+          preparedWorkspace.environment = workspaceEnvironment ?? undefined;
+          resolvedEnvironment = resolveEnvironmentTemplate({
+            runtimeKind: options.runtimeKind,
+            environmentId: options.environmentId,
+            environment: options.environment,
+            resolvedEnvironment: options.resolvedEnvironment,
+            workspaceEnvironment,
+            workspaceSource: options.workspaceSource,
+            workspacePath: preparedWorkspace.workingDirectory
+          });
+        }
+
         updateWorkspacePreparation('environment-ready', 45);
 
         if (resolvedEnvironment.services.length > 0) {
@@ -545,7 +605,7 @@ export async function startRunner(): Promise<void> {
           startedServices = await dockerServiceOrchestrator.startServices({
             services: resolvedEnvironment.services,
             sessionId: spawnRequestId,
-            workspaceDir: preparedWorkspace.workspacePath
+            workspaceDir: preparedWorkspace.repoVolumePath
           });
           serviceEndpoints = dockerServiceOrchestrator.collectServiceEndpoints(startedServices);
         }
@@ -565,7 +625,7 @@ export async function startRunner(): Promise<void> {
         if (runtimeSecrets.length > 0) {
           const materializedSecrets = await materializeResolvedSecrets({
             secrets: runtimeSecrets,
-            workspacePath: preparedWorkspace.workspacePath,
+            workspacePath: preparedWorkspace.repoVolumePath,
             requestId: spawnRequestId
           });
           extraEnv = {
@@ -595,8 +655,25 @@ export async function startRunner(): Promise<void> {
         if (resolvedEnvironment.environment?.version) {
           extraEnv.HAPI_ENVIRONMENT_VERSION = resolvedEnvironment.environment.version;
         }
+        if (options.checkpointId ?? preparedWorkspace.checkpointId) {
+          extraEnv.HAPI_CHECKPOINT_ID = options.checkpointId ?? preparedWorkspace.checkpointId!;
+        }
+        if (options.launchMode) {
+          extraEnv.HAPI_LAUNCH_MODE = options.launchMode;
+        }
+        if (options.repoSyncPolicy) {
+          extraEnv.HAPI_REPO_SYNC_POLICY = options.repoSyncPolicy;
+        }
+        if (repoSyncStatus) {
+          extraEnv.HAPI_REPO_SYNC_STATUS = repoSyncStatus;
+        }
+        if (preparedWorkspace.workspaceBranch) {
+          extraEnv.HAPI_WORKSPACE_BRANCH = preparedWorkspace.workspaceBranch;
+        }
+        if (workspaceContainerId) {
+          extraEnv.HAPI_CONTAINER_ID = workspaceContainerId;
+        }
 
-        const repositorySource = preparedWorkspace.source?.repository ?? options.workspaceSource?.repository;
         if (repositorySource?.url) {
           extraEnv.HAPI_REPOSITORY_URL = repositorySource.url;
         }
@@ -609,7 +686,9 @@ export async function startRunner(): Promise<void> {
         if (repositorySource?.ref?.tag) {
           extraEnv.HAPI_REPOSITORY_TAG = repositorySource.ref.tag;
         }
-        if (repositorySource?.ref?.commit) {
+        if (repositoryCommit) {
+          extraEnv.HAPI_REPOSITORY_COMMIT = repositoryCommit;
+        } else if (repositorySource?.ref?.commit) {
           extraEnv.HAPI_REPOSITORY_COMMIT = repositorySource.ref.commit;
         }
         if (repositorySource?.ref?.pr) {
@@ -620,13 +699,28 @@ export async function startRunner(): Promise<void> {
         }
 
         const servicePreviewTargets = startedServices.flatMap((service) => service.previews);
-        if (servicePreviewTargets.length > 0) {
-          extraEnv.HAPI_PREVIEW_TARGETS_JSON = JSON.stringify(servicePreviewTargets);
+        const allPreviewTargets = mergePreviewTargets(
+          servicePreviewTargets.length > 0 ? servicePreviewTargets : undefined,
+          workspaceContainerPreviewTargets
+        );
+        if (allPreviewTargets) {
+          extraEnv.HAPI_PREVIEW_TARGETS_JSON = JSON.stringify(allPreviewTargets);
         }
 
         if (resolvedEnvironment.environment?.install) {
           updateWorkspacePreparation('running-install-hooks', 65);
-          if (resolvedEnvironment.runtimeKind !== 'docker-session') {
+          if (resolvedEnvironment.runtimeKind === 'docker-session' && dockerRuntime && workspaceContainerId) {
+            for (const command of (Array.isArray(resolvedEnvironment.environment.install)
+              ? resolvedEnvironment.environment.install
+              : [resolvedEnvironment.environment.install])) {
+              await dockerRuntime.exec({
+                containerId: workspaceContainerId,
+                workingDir: preparedWorkspace.workingDirectory,
+                env: Object.entries(extraEnv).map(([key, value]) => `${key}=${value}`),
+                command: ['sh', '-lc', command]
+              });
+            }
+          } else if (resolvedEnvironment.runtimeKind !== 'docker-session') {
             await runEnvironmentCommands({
               commands: resolvedEnvironment.environment.install,
               cwd: preparedWorkspace.workingDirectory,
@@ -638,13 +732,45 @@ export async function startRunner(): Promise<void> {
 
         if (resolvedEnvironment.environment?.start) {
           updateWorkspacePreparation('running-start-hooks', 75);
-          if (resolvedEnvironment.runtimeKind !== 'docker-session') {
+          if (resolvedEnvironment.runtimeKind === 'docker-session' && dockerRuntime && workspaceContainerId) {
+            for (const command of (Array.isArray(resolvedEnvironment.environment.start)
+              ? resolvedEnvironment.environment.start
+              : [resolvedEnvironment.environment.start])) {
+              await dockerRuntime.exec({
+                containerId: workspaceContainerId,
+                workingDir: preparedWorkspace.workingDirectory,
+                env: Object.entries(extraEnv).map(([key, value]) => `${key}=${value}`),
+                command: ['sh', '-lc', command]
+              });
+            }
+          } else if (resolvedEnvironment.runtimeKind !== 'docker-session') {
             await runEnvironmentCommands({
               commands: resolvedEnvironment.environment.start,
               cwd: preparedWorkspace.workingDirectory,
               env: extraEnv,
               label: 'start'
             });
+          }
+        }
+
+        if (resolvedEnvironment.runtimeKind === 'docker-session' && dockerRuntime && workspaceContainerId) {
+          updateWorkspacePreparation('hydrating-desktop', 82);
+          const hydration = await hydrateDesktop({
+            runtime: dockerRuntime,
+            containerId: workspaceContainerId,
+            workspace: preparedWorkspace,
+            environment: resolvedEnvironment.environment,
+            launchMode: options.launchMode
+          });
+          desktopState = hydration.desktopState;
+          languageServers = hydration.languageServers;
+          terminalDescriptors = hydration.terminalDescriptors;
+          extraEnv.HAPI_DESKTOP_STATE_JSON = JSON.stringify(hydration.desktopState);
+          if (hydration.languageServers.length > 0) {
+            extraEnv.HAPI_LANGUAGE_SERVERS_JSON = JSON.stringify(hydration.languageServers);
+          }
+          if (hydration.terminalDescriptors.length > 0) {
+            extraEnv.HAPI_TERMINAL_DESCRIPTORS_JSON = JSON.stringify(hydration.terminalDescriptors);
           }
         }
 
@@ -655,12 +781,14 @@ export async function startRunner(): Promise<void> {
         const executionCwd = isBunCompiled() ? spawnDirectory : projectPath();
         const execution = resolvedEnvironment.runtimeKind === 'docker-session'
           ? await startDockerSessionExecutor({
-              runtime: new DockerCliRuntime(),
+              runtime: dockerRuntime ?? new DockerCliRuntime(),
               workspace: preparedWorkspace,
               environment: resolvedEnvironment,
               env: extraEnv,
               options,
-              sessionLabel: spawnRequestId
+              sessionLabel: spawnRequestId,
+              existingContainerId: workspaceContainerId,
+              existingPreviewTargets: workspaceContainerPreviewTargets
             })
           : startHostProcessExecutor({
               executionCwd,
@@ -899,7 +1027,10 @@ export async function startRunner(): Promise<void> {
         } else {
           const previewTargets = mergePreviewTargets(
             servicePreviewTargets.length > 0 ? servicePreviewTargets : undefined,
-            'previewTargets' in execution ? execution.previewTargets : undefined
+            mergePreviewTargets(
+              workspaceContainerPreviewTargets,
+              'previewTargets' in execution ? execution.previewTargets : undefined
+            )
           );
           const repositorySource = preparedWorkspace.source?.repository;
           if (previewTargets || repositorySource || resolvedEnvironment.environmentId) {
@@ -913,10 +1044,19 @@ export async function startRunner(): Promise<void> {
               runtimeKind: execution.runtimeKind,
               spawnRequestId,
               workspaceId: preparedWorkspace.workspaceId,
+              checkpointId: options.checkpointId ?? preparedWorkspace.checkpointId,
+              launchMode: options.launchMode,
+              repoSyncPolicy: options.repoSyncPolicy,
+              repoSyncStatus: repoSyncStatus ?? metadata.repoSyncStatus,
+              workspaceBranch: preparedWorkspace.workspaceBranch ?? metadata.workspaceBranch,
+              containerId: workspaceContainerId ?? metadata.containerId,
               environmentId: resolvedEnvironment.environmentId,
               environmentVersion: resolvedEnvironment.environment?.version ?? metadata.environmentVersion,
               workspaceMode: workspaceMode ?? metadata.workspaceMode,
               serviceEndpoints: serviceEndpoints.length > 0 ? serviceEndpoints : metadata.serviceEndpoints,
+              desktopState: desktopState ?? metadata.desktopState,
+              languageServers: languageServers ?? metadata.languageServers,
+              terminalDescriptors: terminalDescriptors ?? metadata.terminalDescriptors,
               setupStatus: {
                 phase: setupStatusMessage,
                 updatedAt: Date.now()
@@ -925,7 +1065,7 @@ export async function startRunner(): Promise<void> {
               repositoryUrl: repositorySource?.url ?? metadata.repositoryUrl,
               repositoryProvider: repositorySource?.provider ?? metadata.repositoryProvider,
               repositoryRef: repositorySource?.ref ?? metadata.repositoryRef,
-              repositoryCommit: repositorySource?.ref?.commit ?? metadata.repositoryCommit
+              repositoryCommit: repositoryCommit ?? repositorySource?.ref?.commit ?? metadata.repositoryCommit
             };
             trackedSession.happySessionMetadataFromLocalWebhook = nextMetadata;
           }
@@ -941,30 +1081,41 @@ export async function startRunner(): Promise<void> {
         return spawnResult;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorCode = error instanceof Error && 'code' in error && typeof (error as { code?: unknown }).code === 'string'
+          ? (error as { code: string }).code
+          : (errorMessage === 'workspace_dirty_requires_resume' ? 'workspace_dirty_requires_resume' : undefined);
+        const formattedErrorMessage = errorCode === 'workspace_dirty_requires_resume'
+          ? 'Persistent workspace contains uncommitted changes and requires resume instead of reset'
+          : errorMessage;
         logger.debug('[RUNNER RUN] Failed to spawn session:', error);
         spawnFailed = true;
         syncCloudRunnerState({
           currentSessionId: null,
           workspacePreparation: buildWorkspacePreparationState('failed'),
           lastWorkspaceError: {
-            message: errorMessage,
+            message: formattedErrorMessage,
+            ...(errorCode ? { code: errorCode } : {}),
             at: Date.now()
           },
           status: 'failed',
           lifecycle: pidToTrackedSession.size > 0 ? 'busy' : 'idle'
         });
         await stopStartedServices();
+        if (workspaceContainerId) {
+          await new DockerCliRuntime().remove(workspaceContainerId).catch(() => undefined);
+        }
         await cleanupPreparedWorkspace();
         await maybeCleanupWorktree('exception');
         reportSpawnOutcomeToHub?.({
           type: 'error',
           details: {
-            message: `Failed to spawn session: ${errorMessage}`
+            message: `Failed to spawn session: ${formattedErrorMessage}`
           }
         });
         return {
           type: 'error',
-          errorMessage: `Failed to spawn session: ${errorMessage}`
+          errorMessage: `Failed to spawn session: ${formattedErrorMessage}`,
+          errorCode
         };
       } finally {
         activeSpawnCount = Math.max(0, activeSpawnCount - 1);
@@ -993,10 +1144,6 @@ export async function startRunner(): Promise<void> {
             } catch (error) {
               logger.debug(`[RUNNER RUN] Failed to kill session ${sessionId}:`, error);
             }
-          } else if (session.containerId) {
-            void new DockerCliRuntime().remove(session.containerId).catch((error) => {
-              logger.debug(`[RUNNER RUN] Failed to remove docker session container ${session.containerId}:`, error);
-            });
           } else {
             // For externally started sessions, try to kill by PID
             try {
@@ -1005,6 +1152,12 @@ export async function startRunner(): Promise<void> {
             } catch (error) {
               logger.debug(`[RUNNER RUN] Failed to kill external session PID ${pid}:`, error);
             }
+          }
+
+          if (session.containerId) {
+            void new DockerCliRuntime().remove(session.containerId).catch((error) => {
+              logger.debug(`[RUNNER RUN] Failed to remove docker session container ${session.containerId}:`, error);
+            });
           }
 
           if (session.serviceContainerIds?.length) {
@@ -1038,6 +1191,19 @@ export async function startRunner(): Promise<void> {
     const onChildExited = (pid: number) => {
       logger.debug(`[RUNNER RUN] Removing exited process PID ${pid} from tracking`);
       const tracked = pidToTrackedSession.get(pid);
+      if (tracked?.containerId) {
+        void new DockerCliRuntime().remove(tracked.containerId).catch(() => undefined);
+      }
+      if (tracked?.serviceContainerIds?.length) {
+        for (const serviceContainerId of tracked.serviceContainerIds) {
+          void new DockerCliRuntime().remove(serviceContainerId).catch(() => undefined);
+        }
+      }
+      if (tracked?.cleanupPaths?.length) {
+        for (const cleanupPath of tracked.cleanupPaths) {
+          void fs.rm(cleanupPath, { recursive: true, force: true }).catch(() => undefined);
+        }
+      }
       if (tracked?.spawnRequestId) {
         requestIdToAwaiter.delete(tracked.spawnRequestId);
         requestIdToErrorAwaiter.delete(tracked.spawnRequestId);

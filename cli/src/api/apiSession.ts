@@ -97,7 +97,7 @@ export class ApiSessionClient extends EventEmitter {
 
         this.terminalManager = new TerminalManager({
             sessionId: this.sessionId,
-            getSessionPath: () => this.metadata?.path ?? null,
+            getSessionMetadata: () => this.metadata,
             onReady: (payload) => this.socket.emit('terminal:ready', payload),
             onOutput: (payload) => this.socket.emit('terminal:output', payload),
             onExit: (payload) => this.socket.emit('terminal:exit', payload),

@@ -1,5 +1,6 @@
 import type {
     CloudRequestError,
+    CloudCheckpoint,
     CloudSecret,
     CloudSpawnPhase,
     CloudSpawnRequest,
@@ -21,6 +22,7 @@ import type { MachineCache } from '../sync/machineCache'
 import type { RpcGateway } from '../sync/rpcGateway'
 import type { EventPublisher } from '../sync/eventPublisher'
 import type { EnvironmentRegistry } from './environmentRegistry'
+import { CheckpointRegistry } from './checkpointRegistry'
 import { selectWorker, type SelectWorkerOptions } from './scheduler'
 import { WorkspaceManager } from './workspaceManager'
 import { SecretBroker } from './secretBroker'
@@ -31,6 +33,7 @@ type CoordinatorOptions = {
     rpcGateway: RpcGateway
     publisher: EventPublisher
     environmentRegistry: EnvironmentRegistry
+    checkpointRegistry: CheckpointRegistry
     workspaceManager: WorkspaceManager
     secretBroker: SecretBroker
     persistPreviewUrl?: (sessionId: string, previewUrl: string) => Promise<void>
@@ -77,7 +80,8 @@ function mergeEnvironmentTemplates(
             : undefined,
         services: explicit.services ?? registered.services,
         user: explicit.user ?? registered.user,
-        workingDir: explicit.workingDir ?? registered.workingDir
+        workingDir: explicit.workingDir ?? registered.workingDir,
+        desktop: explicit.desktop ?? registered.desktop
     }
 }
 
@@ -123,9 +127,15 @@ function toCloudWorkspace(value: StoredCloudWorkspace): CloudWorkspace | null {
         status: value.status,
         source: value.source ?? undefined,
         path: value.path ?? undefined,
+        repoVolumePath: value.repoVolumePath ?? undefined,
+        desktopStateVolumePath: value.desktopStateVolumePath ?? undefined,
         environmentId: value.environmentId ?? undefined,
         environmentVersion: value.environmentVersion ?? undefined,
         environment: value.environment ?? undefined,
+        checkpointId: value.checkpointId ?? undefined,
+        workspaceBranch: value.workspaceBranch ?? undefined,
+        repoStatus: value.repoStatus ?? undefined,
+        desktopState: value.desktopState ?? undefined,
         reused: value.reused || undefined,
         lastLeaseId: value.lastLeaseId ?? undefined,
         lastUsedAt: value.lastUsedAt ?? undefined,
@@ -164,6 +174,7 @@ export class SpawnCoordinator {
     private readonly rpcGateway: RpcGateway
     private readonly publisher: EventPublisher
     private readonly environmentRegistry: EnvironmentRegistry
+    private readonly checkpointRegistry: CheckpointRegistry
     private readonly workspaceManager: WorkspaceManager
     private readonly secretBroker: SecretBroker
     private readonly persistPreviewUrl?: (sessionId: string, previewUrl: string) => Promise<void>
@@ -175,6 +186,7 @@ export class SpawnCoordinator {
         this.rpcGateway = options.rpcGateway
         this.publisher = options.publisher
         this.environmentRegistry = options.environmentRegistry
+        this.checkpointRegistry = options.checkpointRegistry
         this.workspaceManager = options.workspaceManager
         this.secretBroker = options.secretBroker
         this.persistPreviewUrl = options.persistPreviewUrl
@@ -358,7 +370,29 @@ export class SpawnCoordinator {
 
             const request = requestParse.data
             const namespace = existing.namespace
-            const environment = this.resolveEnvironment(request)
+            if (!request.workspaceSource?.repository) {
+                this.failRequest(namespace, requestId, {
+                    phase: 'queued',
+                    code: 'cloud_repo_required',
+                    message: 'Cloud docker sessions require workspaceSource.repository',
+                    retryable: false,
+                    at: Date.now()
+                })
+                return
+            }
+            const requestedEnvironment = this.resolveEnvironment(request)
+            const checkpoint = this.resolveCheckpoint(request, requestedEnvironment)
+            if (!checkpoint) {
+                this.failRequest(namespace, requestId, {
+                    phase: 'queued',
+                    code: 'checkpoint_not_found',
+                    message: 'Cloud docker sessions require a valid checkpointId or environment.runtime.image',
+                    retryable: false,
+                    at: Date.now()
+                })
+                return
+            }
+            const environment = mergeEnvironmentTemplates(checkpoint.defaultEnvironment, requestedEnvironment)
 
             this.workspaceManager.expireLeases()
 
@@ -429,6 +463,16 @@ export class SpawnCoordinator {
             if (parsedWorkspace) {
                 this.emitWorkspace(parsedWorkspace)
             }
+            await this.updatePhase(namespace, requestId, 'pulling-checkpoint', {
+                selectedMachineId,
+                workspaceId: workspace.id,
+                reusedWorkspace
+            })
+            await this.updatePhase(namespace, requestId, 'creating-container', {
+                selectedMachineId,
+                workspaceId: workspace.id,
+                reusedWorkspace
+            })
             await this.updatePhase(namespace, requestId, 'materializing-secrets', {
                 selectedMachineId,
                 workspaceId: workspace.id,
@@ -477,7 +521,12 @@ export class SpawnCoordinator {
                 return
             }
 
-            await this.updatePhase(namespace, requestId, 'preparing-workspace', {
+            await this.updatePhase(namespace, requestId, 'syncing-repo', {
+                selectedMachineId,
+                workspaceId: workspace.id,
+                reusedWorkspace
+            })
+            await this.updatePhase(namespace, requestId, 'hydrating-desktop', {
                 selectedMachineId,
                 workspaceId: workspace.id,
                 reusedWorkspace
@@ -486,6 +535,8 @@ export class SpawnCoordinator {
             const spawnPayload: MachineSpawnRequest = {
                 ...request,
                 spawnRequestId: requestId,
+                checkpointId: checkpoint.id,
+                repoSyncPolicy: request.repoSyncPolicy ?? 'fetch-reset',
                 environment,
                 resolvedEnvironment: environment,
                 workspaceLease: {
@@ -497,9 +548,13 @@ export class SpawnCoordinator {
                     name: workspace.name ?? undefined,
                     path: workspace.path ?? undefined,
                     baseDir: request.workspace?.baseDir,
+                    repoVolumePath: workspace.repoVolumePath,
+                    desktopStateVolumePath: workspace.desktopStateVolumePath,
                     source: request.workspaceSource,
                     environmentId: environment?.id,
                     environmentVersion: environment?.version,
+                    checkpointId: checkpoint.id,
+                    workspaceBranch: workspace.workspaceBranch,
                     expiresAt: lease.expiresAt ?? undefined
                 },
                 resolvedSecrets
@@ -550,9 +605,14 @@ export class SpawnCoordinator {
                 workspaceId: options.workspace.id,
                 machineId: options.selectedMachineId,
                 path: options.workspace.path ?? undefined,
+                repoVolumePath: options.workspace.repoVolumePath ?? undefined,
+                desktopStateVolumePath: options.workspace.desktopStateVolumePath ?? undefined,
                 environment: options.environment,
                 environmentId: options.environment?.id ?? options.workspace.environmentId ?? undefined,
                 environmentVersion: options.environment?.version ?? options.workspace.environmentVersion ?? undefined,
+                checkpointId: options.workspace.checkpointId ?? options.request.checkpointId ?? undefined,
+                workspaceBranch: options.workspace.workspaceBranch ?? undefined,
+                repoStatus: 'clean',
                 reused: options.reusedWorkspace
             })
             if (readyWorkspace) {
@@ -593,7 +653,7 @@ export class SpawnCoordinator {
                     }
                 case 'requestToApproveDirectoryCreation':
                     return {
-                        phase: 'preparing-workspace',
+                        phase: 'syncing-repo',
                         code: 'directory_creation_approval_required',
                         message: `Directory creation requires approval: ${options.response.directory}`,
                         retryable: false,
@@ -635,6 +695,32 @@ export class SpawnCoordinator {
             ? this.environmentRegistry.get(environmentId) ?? undefined
             : undefined
         return mergeEnvironmentTemplates(registered, request.environment)
+    }
+
+    private resolveCheckpoint(
+        request: MachineSpawnRequest,
+        environment: EnvironmentTemplate | undefined
+    ): CloudCheckpoint | null {
+        const explicitId = request.checkpointId?.trim()
+            || environment?.runtime?.checkpointId?.trim()
+        if (explicitId) {
+            return this.checkpointRegistry.get(explicitId)
+        }
+
+        const image = environment?.runtime?.image?.trim()
+        if (!image) {
+            return null
+        }
+
+        const fallbackId = environment?.id?.trim() || image
+        return this.checkpointRegistry.get(fallbackId) ?? this.checkpointRegistry.register({
+            id: fallbackId,
+            image,
+            name: environment?.name ?? fallbackId,
+            description: environment?.description,
+            defaultEnvironment: environment,
+            defaultDesktop: environment?.desktop
+        })
     }
 
     private selectMachine(

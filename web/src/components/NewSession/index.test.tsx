@@ -159,6 +159,7 @@ describe('NewSession initial directory preset', () => {
             getSessions,
             checkMachinePathsExists,
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            getCloudCheckpoints: vi.fn(async () => ({ checkpoints: [] })),
             spawnSession
         } as unknown as ApiClient
 
@@ -348,8 +349,8 @@ describe('NewSession initial directory preset', () => {
         )
 
         fireEvent.click(screen.getByRole('radio', { name: 'Self-hosted cloud worker' }))
-        fireEvent.change(screen.getByPlaceholderText('/path/to/project'), { target: { value: '/tmp/project' } })
         fireEvent.click(screen.getByRole('radio', { name: 'Docker session' }))
+        fireEvent.change(screen.getByPlaceholderText('ghcr.io/org/dev:latest'), { target: { value: 'ghcr.io/acme/dev:node' } })
         fireEvent.change(screen.getByPlaceholderText('default-node18'), { target: { value: 'node-dev' } })
         fireEvent.change(screen.getByPlaceholderText('https://github.com/org/repo.git'), { target: { value: 'https://github.com/acme/demo.git' } })
         fireEvent.change(screen.getByPlaceholderText('main'), { target: { value: 'feature/cloud' } })
@@ -360,7 +361,7 @@ describe('NewSession initial directory preset', () => {
         fireEvent.change(screen.getByLabelText('Preferred preview port'), { target: { value: '4173' } })
         fireEvent.change(screen.getByLabelText('Workspace mode'), { target: { value: 'persistent' } })
         fireEvent.change(screen.getByPlaceholderText('120'), { target: { value: '120' } })
-        fireEvent.keyDown(screen.getByPlaceholderText('/path/to/project'), { key: 'Enter', metaKey: true })
+        fireEvent.keyDown(screen.getByPlaceholderText('https://github.com/org/repo.git'), { key: 'Enter', metaKey: true })
 
         await waitFor(() => {
             expect(spawnSession).toHaveBeenCalledTimes(1)
@@ -370,6 +371,9 @@ describe('NewSession initial directory preset', () => {
         expect(request).toEqual(expect.objectContaining({
             executionBackend: 'cloud-self-hosted',
             runtimeKind: 'docker-session',
+            checkpointId: 'ghcr.io/acme/dev:node',
+            launchMode: 'interactive',
+            repoSyncPolicy: 'fetch-reset',
             environmentId: 'node-dev',
             workspaceSource: expect.objectContaining({
                 type: 'repo',
@@ -395,6 +399,7 @@ describe('NewSession initial directory preset', () => {
         expect(savedRaw).not.toBeNull()
         const saved = JSON.parse(savedRaw ?? '{}')
         expect(saved.runtimeKind).toBe('docker-session')
+        expect(saved.checkpointId).toBe('ghcr.io/acme/dev:node')
         expect(saved.environmentId).toBe('node-dev')
         expect(saved.repositoryUrl).toBe('https://github.com/acme/demo.git')
         expect(saved.repositoryBranch).toBe('feature/cloud')
@@ -422,6 +427,7 @@ describe('NewSession initial directory preset', () => {
             getSessions,
             checkMachinePathsExists,
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            getCloudCheckpoints: vi.fn(async () => ({ checkpoints: [] })),
             spawnSession
         } as unknown as ApiClient
 
@@ -468,6 +474,9 @@ describe('NewSession initial directory preset', () => {
         fireEvent.change(screen.getByPlaceholderText('https://github.com/org/repo.git'), {
             target: { value: 'https://github.com/acme/demo.git' }
         })
+        fireEvent.change(screen.getByPlaceholderText('ghcr.io/org/dev:latest'), {
+            target: { value: 'ghcr.io/acme/dev:node' }
+        })
         fireEvent.keyDown(screen.getByPlaceholderText('https://github.com/org/repo.git'), { key: 'Enter', metaKey: true })
 
         await waitFor(() => {
@@ -478,6 +487,9 @@ describe('NewSession initial directory preset', () => {
         expect(calledMachineId).toBe('auto')
         expect(calledRequest).toEqual(expect.objectContaining({
             executionBackend: 'cloud-self-hosted',
+            checkpointId: 'ghcr.io/acme/dev:node',
+            launchMode: 'interactive',
+            repoSyncPolicy: 'fetch-reset',
             workspaceSource: expect.objectContaining({
                 type: 'repo',
                 repository: expect.objectContaining({

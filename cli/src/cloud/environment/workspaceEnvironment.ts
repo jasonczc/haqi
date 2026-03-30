@@ -15,6 +15,21 @@ function resolveTemplatePath(templatePath: string, basePath: string): string {
     return resolve(basePath, templatePath)
 }
 
+function mergeDesktopSpec(template: EnvironmentTemplate): EnvironmentTemplate['desktop'] | undefined {
+    const legacyTerminals = template.terminals?.map((terminal) => ({
+        name: terminal.name,
+        command: terminal.command
+    }))
+    if (!template.desktop && (!legacyTerminals || legacyTerminals.length === 0)) {
+        return undefined
+    }
+
+    return {
+        ...template.desktop,
+        terminals: template.desktop?.terminals ?? legacyTerminals
+    }
+}
+
 export function normalizeEnvironmentTemplatePaths(
     template: EnvironmentTemplate,
     basePath: string
@@ -38,6 +53,7 @@ export function normalizeEnvironmentTemplatePaths(
     return {
         ...template,
         runtime,
+        desktop: mergeDesktopSpec(template),
         ...(template.workingDir
             ? {
                 workingDir: resolveTemplatePath(template.workingDir, basePath)
@@ -89,6 +105,16 @@ export function mergeEnvironmentTemplates(
                 ...(override.features ?? {})
             }
             : undefined,
+        desktop: base.desktop || override.desktop
+            ? {
+                ...(base.desktop ?? {}),
+                ...(override.desktop ?? {}),
+                terminals: override.desktop?.terminals ?? base.desktop?.terminals,
+                languageServers: override.desktop?.languageServers ?? base.desktop?.languageServers,
+                warmup: override.desktop?.warmup ?? base.desktop?.warmup,
+                statePaths: override.desktop?.statePaths ?? base.desktop?.statePaths
+            }
+            : undefined,
         source: override.source ?? base.source
     }
 }
@@ -123,6 +149,7 @@ export async function loadWorkspaceEnvironmentTemplate(
             const normalized = normalizeEnvironmentTemplatePaths(template, root)
             return {
                 ...normalized,
+                desktop: mergeDesktopSpec(normalized),
                 source: normalized.source ?? 'repo'
             }
         }

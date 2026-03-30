@@ -64,6 +64,18 @@ export default function CloudWorkspaceDetailPage() {
                     <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Environment</div>
                     <div className="mt-1 font-medium">{workspace.environmentId ?? workspace.environment?.id ?? 'default'}</div>
                 </div>
+                <div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Checkpoint</div>
+                    <div className="mt-1 font-medium">{workspace.checkpointId ?? 'default'}</div>
+                </div>
+                <div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Workspace Branch</div>
+                    <div className="mt-1 font-medium">{workspace.workspaceBranch ?? 'pending'}</div>
+                </div>
+                <div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Repo Status</div>
+                    <div className="mt-1 font-medium">{workspace.repoStatus ?? 'unknown'}</div>
+                </div>
                 <div className="md:col-span-2">
                     <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Source</div>
                     <div className="mt-1 font-medium">{source ?? 'none'}</div>
@@ -71,6 +83,21 @@ export default function CloudWorkspaceDetailPage() {
                 <div className="md:col-span-2">
                     <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Path</div>
                     <div className="mt-1 break-all font-mono text-xs">{workspace.path ?? 'worker-managed'}</div>
+                </div>
+                <div className="md:col-span-2">
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Repo Volume</div>
+                    <div className="mt-1 break-all font-mono text-xs">{workspace.repoVolumePath ?? workspace.path ?? 'worker-managed'}</div>
+                </div>
+                <div className="md:col-span-2">
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Desktop State Volume</div>
+                    <div className="mt-1 break-all font-mono text-xs">{workspace.desktopStateVolumePath ?? 'worker-managed'}</div>
+                </div>
+                <div className="md:col-span-2">
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Desktop State</div>
+                    <div className="mt-1 font-medium">{workspace.desktopState?.status ?? 'pending'}</div>
+                    {workspace.desktopState?.phase ? (
+                        <div className="mt-1 text-[var(--app-hint)]">{workspace.desktopState.phase}</div>
+                    ) : null}
                 </div>
             </div>
         </div>

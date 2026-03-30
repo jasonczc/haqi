@@ -42,6 +42,7 @@ export function resolveEnvironmentTemplate(
         environmentId: input.environmentId ?? normalizedEnvironment?.id,
         environment: normalizedEnvironment,
         services,
-        workingDirectory: resolvedWorkingDirectory
+        workingDirectory: resolvedWorkingDirectory,
+        desktop: normalizedEnvironment?.desktop
     }
 }

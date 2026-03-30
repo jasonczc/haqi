@@ -65,6 +65,17 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null): Hono<
         })
     })
 
+    app.get('/cloud/checkpoints', (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        return c.json({
+            checkpoints: engine.listCloudCheckpoints()
+        })
+    })
+
     app.get('/cloud/requests', (c) => {
         const engine = getSyncEngine()
         if (!engine) {

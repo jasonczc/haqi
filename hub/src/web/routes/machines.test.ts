@@ -93,7 +93,8 @@ describe('createMachinesRoutes cloud endpoints', () => {
             },
             body: JSON.stringify({
                 executionBackend: 'cloud-self-hosted',
-                runtimeKind: 'host-process',
+                runtimeKind: 'docker-session',
+                checkpointId: 'ghcr.io/acme/dev:latest',
                 workspaceSource: {
                     type: 'repo',
                     repository: {
@@ -112,7 +113,8 @@ describe('createMachinesRoutes cloud endpoints', () => {
         expect(capturedNamespace).toBe('default')
         expect(capturedRequest).toEqual(expect.objectContaining({
             executionBackend: 'cloud-self-hosted',
-            runtimeKind: 'host-process'
+            runtimeKind: 'docker-session',
+            checkpointId: 'ghcr.io/acme/dev:latest'
         }))
     })
 
