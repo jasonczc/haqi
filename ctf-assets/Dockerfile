@@ -176,15 +176,22 @@ COPY system-scripts/vnc/anyos-xstartup /tmp/anyos-xstartup
 RUN chmod +x /tmp/anyos-xstartup
 
 # ════════════════════════════════════════════════════════════════════════
-# 13. XFCE4 / GTK3 / Plank 用户桌面配置
+# 13. XFCE4 / GTK3 / Plank 桌面配置（系统级 + 用户级）
 # ════════════════════════════════════════════════════════════════════════
-# .config/xfce4 — 面板、窗口管理器、桌面
+
+# 系统级 — /etc/xdg/xfce4（helpers, panel default, session, xinitrc, Xft）
+COPY system-configs/etc-xdg-xfce4/ /etc/xdg/xfce4/
+
+# 系统级 — /etc/gtk-3.0（全局 GTK 主题默认）
+COPY system-configs/etc-gtk-3.0/ /etc/gtk-3.0/
+
+# 用户级 — .config/xfce4（面板、窗口管理器、桌面、终端、快捷键、appfinder）
 COPY system-scripts/user-config/xfce4/ /home/ubuntu/.config/xfce4/
-# .config/gtk-3.0 — GTK 主题
+# 用户级 — .config/gtk-3.0（GTK 主题覆盖 + 面板 CSS）
 COPY system-scripts/user-config/gtk-3.0/ /home/ubuntu/.config/gtk-3.0/
-# .config/plank — Dock 配置
+# 用户级 — .config/plank（Dock 配置 + launchers）
 COPY system-scripts/user-config/plank/ /home/ubuntu/.config/plank/
-# .config/dconf — dconf 数据库
+# 用户级 — .config/dconf（dconf 数据库）
 COPY system-scripts/user-config/dconf/ /home/ubuntu/.config/dconf/
 
 # .Xresources — DPI 和字体渲染

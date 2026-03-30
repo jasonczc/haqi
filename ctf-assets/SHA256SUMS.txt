@@ -1,5 +1,5 @@
 d37b6a6833db3ec6b48eb6e4c4d5c111de702faaadb9500993a52219b4091976  ./docker-compose.yml
-2c0ed9dc854c7d32c7e5cc21373eae8cdc71b6e25e416cb0516e50600cea5cac  ./Dockerfile
+78147e5c159fe7ca0242c565d0479e4ca7c9bbabcae6a7cf87226afc20a583a3  ./Dockerfile
 bec0a9968e38f6e3ac5ee8d24d760465c5c181ccdc9765de2f8e2628531dbd60  ./entrypoint.sh
 9532e688253f8d781ac8758b19eaf0e959d9517948811a4461053133effe7ffc  ./exec-daemon/252.index.js
 6d8dadad2ed31442126863b8a0ab99dc2b76c40d139733c78f69d77ae67faa58  ./exec-daemon/407.index.js
@@ -161,6 +161,14 @@ fbfeba175490c7180516b2c0f42eee7363adae9be335522556e3a47f276aa11a  ./system-asset
 0a73b4bc544fa46ff63e670a9533cd6beb6d64799e4a8d18c6b6dc1db2ba599a  ./system-configs/cursor-agent-hooks/L3dvcmtzcGFjZQ/.dispatcher
 807d80d12d4d8138a44ff2b8e041220fac56801f57a28c15e7100213205dc025  ./system-configs/cursor-agent-hooks/L3dvcmtzcGFjZQ/pre-commit.cursor
 7948ca4763b644ede6243b6e4731bb72f1e8a288db17f4fea09063921f30825f  ./system-configs/etc-fonts/local.conf
+5317c571e0136bdcb9bd14de8f2d8aeabbcc5fe64e9905e4e17bf7614fac661d  ./system-configs/etc-gtk-3.0/settings.ini
+1910250dfa555acd8e333bb336ca04bb98b4e8c5ec7306a39e1f0f99bae36ef3  ./system-configs/etc-xdg-xfce4/helpers.rc
+87b38ed482f67a54f13c6a1fe002a44c833ca03b2d5adffc75a74884be4e9b95  ./system-configs/etc-xdg-xfce4/panel/default.xml
+418368a0659e9d30c02a80a8244c9c2d07f2cb91cd1f2cd8de7ef559ce6cd947  ./system-configs/etc-xdg-xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml
+d3e1ca0c22e756cfefd962f3ebee45cfbe5c61ba9054f63b04675275b0872888  ./system-configs/etc-xdg-xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml
+ace40698c0f87f9ffe63f68e2db9f6c1bdb46022d50c3d19f1a6ced55df3cd0d  ./system-configs/etc-xdg-xfce4/xfconf/xfce-perchannel-xml/xsettings.xml
+db36786118c595c8481eb688669e0167d1d2faf9adbcc0494316b61171116eda  ./system-configs/etc-xdg-xfce4/Xft.xrdb
+a7b748db18a25a97f0b77f8167d899604ee553f8fc84e8e098eb48582e0219c9  ./system-configs/etc-xdg-xfce4/xinitrc
 457befa0e56aad4a3e66f1d24a73b04e0308ae031d33b82738301bd10acc45fb  ./system-configs/google-chrome.desktop
 cca5e16062c2b3cc162e16b4a02a432716c84a1b333ab54a676cf9a951f887c3  ./system-configs/home-ubuntu/.claude/backups/.claude.json.backup.1774792624224
 54ba2d2294d2ad8664fd6e0bb09316dbf261d826a1c5d1d706cc9306ef1a58c9  ./system-configs/home-ubuntu/.claude/backups/.claude.json.backup.1774792689288
@@ -215,6 +223,7 @@ e3a48c621dd97e19f6ea1f4f00af9b36ab72058273ce1fd5fe6c57039140eba8  ./system-scrip
 c26854a23e9cd2409e11105aa4f2dd3766a6c90b4080ee9438796c4d87f7c2d7  ./system-scripts/user-config/xfce4/terminal/terminalrc
 53548294e86cef693a33caa1a629836b175c8cd59b8870edb4a4c00558d13b6a  ./system-scripts/user-config/xfce4/xfconf/xfce-perchannel-xml/displays.xml
 09dd5a20b07702db509066cc55d00e2b0a45a9c08adae4359ed24270944cfc05  ./system-scripts/user-config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml
+5b8da7495302bb148b7ff3a2e8b49af06e39eaa4f2c9543a57253d89376edb54  ./system-scripts/user-config/xfce4/xfconf/xfce-perchannel-xml/xfce4-appfinder.xml
 14abd6b833f1f57aa685b38a48b2affaa4060724d9c0f7284727d934136f3d0e  ./system-scripts/user-config/xfce4/xfconf/xfce-perchannel-xml/xfce4-desktop.xml
 0f91251d6355898a4b41db17d6017c60973abd63611c808c2443c86887e7a2f7  ./system-scripts/user-config/xfce4/xfconf/xfce-perchannel-xml/xfce4-keyboard-shortcuts.xml
 036ec94ee2b342b70ed8c54aa6fc5d4659492d7a97e59e0ac23994a650daeee8  ./system-scripts/user-config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.dark.xml
