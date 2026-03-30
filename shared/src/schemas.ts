@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MODEL_MODES, PERMISSION_MODES } from './modes'
+import { RemoteDesktopMetadataSchema } from './remoteDesktop'
 
 export const PermissionModeSchema = z.enum(PERMISSION_MODES)
 export const ModelModeSchema = z.enum(MODEL_MODES)
@@ -524,7 +525,8 @@ export const MetadataSchema = z.object({
         phase: z.string(),
         message: z.string().optional(),
         updatedAt: z.number()
-    }).optional()
+    }).optional(),
+    remoteDesktop: RemoteDesktopMetadataSchema.optional()
 })
 
 export type Metadata = z.infer<typeof MetadataSchema>

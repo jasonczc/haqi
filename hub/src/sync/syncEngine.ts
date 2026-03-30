@@ -8,6 +8,7 @@
  */
 
 import { inferClaudeModelModeFromModel, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import { inferRemoteDesktopMetadata } from '@hapi/protocol/remoteDesktop'
 import type {
     CloudSecret,
     CloudSpawnRequest,
@@ -125,6 +126,7 @@ type SessionMetadataShape = {
     checkpointId?: string
     runtimeKind?: 'host-process' | 'docker-session'
     previewUrls?: import('@hapi/protocol/types').PreviewTarget[]
+    remoteDesktop?: import('@hapi/protocol/remoteDesktop').RemoteDesktopMetadata
 }
 
 type MirroredPayload = {
@@ -1119,6 +1121,23 @@ export class SyncEngine {
         }
 
         this.previewRegistry.setSessionPreviews(session.id, metadata.previewUrls, metadata.machineId)
+
+        const inferredDesktop = inferRemoteDesktopMetadata(metadata.previewUrls)
+        if (!inferredDesktop) {
+            return
+        }
+        const existingDesktop = metadata.remoteDesktop
+        if (JSON.stringify(inferredDesktop) === JSON.stringify(existingDesktop ?? null)) {
+            return
+        }
+        const baseMetadata = session.metadata
+        if (!baseMetadata) {
+            return
+        }
+        void this.sessionCache.updateSessionMetadata(session.id, (current) => ({
+            ...(current ?? baseMetadata),
+            remoteDesktop: inferredDesktop
+        }))
     }
 
     async sendMessage(

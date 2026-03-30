@@ -12,6 +12,7 @@ import { logger } from '@/ui/logger'
 import { runtimePath } from '@/projectPath'
 import { readWorktreeEnv } from '@/utils/worktreeEnv'
 import packageJson from '../../package.json'
+import { inferRemoteDesktopMetadata } from '@hapi/protocol/remoteDesktop'
 
 export type SessionStartedBy = 'runner' | 'terminal'
 
@@ -102,6 +103,7 @@ export function buildSessionMetadata(options: {
     const happyLibDir = runtimePath()
     const worktreeInfo = readWorktreeEnv()
     const now = options.now ?? Date.now()
+    const remoteDesktop = inferRemoteDesktopMetadata(options.previewUrls)
 
     return {
         path: options.workingDirectory,
@@ -144,7 +146,8 @@ export function buildSessionMetadata(options: {
         languageServers: options.languageServers,
         terminalDescriptors: options.terminalDescriptors,
         setupStatus: options.setupStatus,
-        previewUrls: options.previewUrls
+        previewUrls: options.previewUrls,
+        ...(remoteDesktop ? { remoteDesktop } : {})
     }
 }
 

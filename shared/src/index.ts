@@ -1,6 +1,7 @@
 export * from './messages'
 export * from './modes'
 export * from './socket'
+export * from './remoteDesktop'
 export * from './sessionSummary'
 export * from './utils'
 export * from './version'

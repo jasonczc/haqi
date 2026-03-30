@@ -34,6 +34,7 @@ import type { PreparedWorkspace, PreparedWorkspaceCleanup, ResolvedEnvironmentTe
 import { runEnvironmentCommands } from '@/cloud/environment/runEnvironmentCommands';
 import { buildCloudRunnerStateSnapshot } from './cloudRunnerState';
 import type { WorkerLifecycle } from '@hapi/protocol/types';
+import { inferRemoteDesktopMetadata } from '@hapi/protocol/remoteDesktop';
 import { materializeResolvedSecrets } from '@/cloud/secrets/materializeSecrets';
 import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInContainer';
 import { hydrateDesktop } from '@/cloud/desktop/hydrateDesktop';
@@ -1038,6 +1039,10 @@ export async function startRunner(): Promise<void> {
               path: spawnDirectory,
               host: process.env.HAPI_HOSTNAME || os.hostname()
             } as Metadata;
+            const mergedPreviewUrls = previewTargets
+              ? mergePreviewTargets(metadata.previewUrls, previewTargets)
+              : metadata.previewUrls;
+            const remoteDesktop = inferRemoteDesktopMetadata(mergedPreviewUrls ?? metadata.previewUrls);
             const nextMetadata: Metadata = {
               ...metadata,
               executionBackend: options.executionBackend ?? metadata.executionBackend,
@@ -1061,7 +1066,8 @@ export async function startRunner(): Promise<void> {
                 phase: setupStatusMessage,
                 updatedAt: Date.now()
               },
-              previewUrls: previewTargets ? mergePreviewTargets(metadata.previewUrls, previewTargets) : metadata.previewUrls,
+              previewUrls: mergedPreviewUrls,
+              ...(remoteDesktop ? { remoteDesktop } : {}),
               repositoryUrl: repositorySource?.url ?? metadata.repositoryUrl,
               repositoryProvider: repositorySource?.provider ?? metadata.repositoryProvider,
               repositoryRef: repositorySource?.ref ?? metadata.repositoryRef,

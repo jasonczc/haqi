@@ -71,6 +71,8 @@ export type {
     WorktreeMetadata
 } from './schemas'
 
+export type { RemoteDesktopMetadata } from './remoteDesktop'
+
 export type { SessionSummary, SessionSummaryMetadata } from './sessionSummary'
 
 export type {
