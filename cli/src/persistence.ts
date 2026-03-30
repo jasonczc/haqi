@@ -18,6 +18,7 @@ interface Settings {
   runnerAutoStartWhenRunningHappy?: boolean
   cliApiToken?: string
   experimentalClaudeLoginShell?: boolean
+  codexReportPromptEnabled?: boolean
   // API URL for server connections (priority: env HAPI_API_URL > this > default)
   apiUrl?: string
   // Legacy field name (for migration, read-only)

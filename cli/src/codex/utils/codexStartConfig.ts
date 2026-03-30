@@ -1,7 +1,7 @@
 import type { CodexSessionConfig } from '../types';
 import type { EnhancedMode } from '../loop';
 import type { CodexCliOverrides } from './codexCliOverrides';
-import { codexSystemPrompt } from './systemPrompt';
+import { getCodexSystemPrompt } from './systemPrompt';
 import { isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
 
 function resolveApprovalPolicy(mode: EnhancedMode): CodexSessionConfig['approval-policy'] {
@@ -48,7 +48,7 @@ export function buildCodexStartConfig(args: {
     const resolvedSandbox = cliOverrides?.sandbox ?? sandbox;
 
     const prompt = args.message;
-    const defaultBaseInstructions = isPureContextModeEnabled() ? '' : codexSystemPrompt;
+    const defaultBaseInstructions = isPureContextModeEnabled() ? '' : getCodexSystemPrompt();
     const baseInstructions = args.baseInstructions ?? defaultBaseInstructions;
     const combinedInstructions = args.developerInstructions
         ? `${baseInstructions}\n\n${args.developerInstructions}`

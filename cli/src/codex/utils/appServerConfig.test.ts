@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildThreadStartParams, buildTurnStartParams } from './appServerConfig';
-import { codexSystemPrompt } from './systemPrompt';
+import { getCodexSystemPrompt } from './systemPrompt';
 
 describe('appServerConfig', () => {
     let tempRoot: string;
@@ -35,15 +35,15 @@ describe('appServerConfig', () => {
 
         expect(params.sandbox).toBe('danger-full-access');
         expect(params.approvalPolicy).toBe('never');
-        expect(params.baseInstructions).toBe(codexSystemPrompt);
-        expect(params.developerInstructions).toBe(codexSystemPrompt);
+        expect(params.baseInstructions).toBe(getCodexSystemPrompt());
+        expect(params.developerInstructions).toBe(getCodexSystemPrompt());
         expect(params.cwd).toBe('/tmp/workspace');
         expect(params.config).toEqual({
             'mcp_servers.hapi': {
                 command: 'node',
                 args: ['mcp']
             },
-            developer_instructions: codexSystemPrompt
+            developer_instructions: getCodexSystemPrompt()
         });
     });
 
@@ -87,8 +87,8 @@ describe('appServerConfig', () => {
             developerInstructions: 'Only respond in Chinese.'
         });
 
-        expect(params.baseInstructions).toBe(codexSystemPrompt);
-        expect(params.developerInstructions).toBe(`${codexSystemPrompt}
+        expect(params.baseInstructions).toBe(getCodexSystemPrompt());
+        expect(params.developerInstructions).toBe(`${getCodexSystemPrompt()}
 
 Only respond in Chinese.`);
         expect(params.config).toEqual({
@@ -96,7 +96,7 @@ Only respond in Chinese.`);
                 command: 'node',
                 args: ['mcp']
             },
-            developer_instructions: `${codexSystemPrompt}
+            developer_instructions: `${getCodexSystemPrompt()}
 
 Only respond in Chinese.`
         });

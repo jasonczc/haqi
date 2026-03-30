@@ -451,6 +451,7 @@ export type UpdateMemoryResponse = {
 
 export type ExperimentalSettings = {
     claudeLoginShell: boolean
+    codexReportPromptEnabled: boolean
 }
 
 export type ExperimentalSettingsResponse = {

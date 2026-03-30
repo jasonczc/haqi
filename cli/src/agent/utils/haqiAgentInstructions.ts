@@ -9,6 +9,7 @@ const GLOBAL_MEMORY_FILE = 'MEMORY.md'
 const GLOBAL_SETTINGS_FILE = 'settings.json'
 const DEFAULT_MEMORY_INJECTION_ENABLED = false
 const DEFAULT_PURE_CONTEXT_MODE = false
+const DEFAULT_CODEX_REPORT_PROMPT_ENABLED = false
 const MAX_FILE_BYTES = 64 * 1024
 const DEFAULT_MEMORY_TEMPLATE = trimIdent(`
     # MEMORY.md
@@ -65,6 +66,7 @@ function resolveGlobalSettingsPath(): string {
 type GlobalPromptSettings = {
     memoryInjectionEnabled: boolean
     pureContextMode: boolean
+    codexReportPromptEnabled: boolean
 }
 
 function readGlobalPromptSettings(): GlobalPromptSettings {
@@ -73,19 +75,22 @@ function readGlobalPromptSettings(): GlobalPromptSettings {
         if (!existsSync(filepath)) {
             return {
                 memoryInjectionEnabled: DEFAULT_MEMORY_INJECTION_ENABLED,
-                pureContextMode: DEFAULT_PURE_CONTEXT_MODE
+                pureContextMode: DEFAULT_PURE_CONTEXT_MODE,
+                codexReportPromptEnabled: DEFAULT_CODEX_REPORT_PROMPT_ENABLED
             }
         }
         const raw = readFileSync(filepath, 'utf-8').trim()
         if (!raw) {
             return {
                 memoryInjectionEnabled: DEFAULT_MEMORY_INJECTION_ENABLED,
-                pureContextMode: DEFAULT_PURE_CONTEXT_MODE
+                pureContextMode: DEFAULT_PURE_CONTEXT_MODE,
+                codexReportPromptEnabled: DEFAULT_CODEX_REPORT_PROMPT_ENABLED
             }
         }
         const parsed = JSON.parse(raw) as {
             memoryInjectionEnabled?: unknown
             pureContextMode?: unknown
+            codexReportPromptEnabled?: unknown
         }
         const memoryInjectionEnabled = typeof parsed.memoryInjectionEnabled === 'boolean'
             ? parsed.memoryInjectionEnabled
@@ -93,21 +98,30 @@ function readGlobalPromptSettings(): GlobalPromptSettings {
         const pureContextMode = typeof parsed.pureContextMode === 'boolean'
             ? parsed.pureContextMode
             : DEFAULT_PURE_CONTEXT_MODE
+        const codexReportPromptEnabled = typeof parsed.codexReportPromptEnabled === 'boolean'
+            ? parsed.codexReportPromptEnabled
+            : DEFAULT_CODEX_REPORT_PROMPT_ENABLED
         return {
             memoryInjectionEnabled,
-            pureContextMode
+            pureContextMode,
+            codexReportPromptEnabled
         }
     } catch (error) {
         logger.debug('[haqi-agent-instructions] failed to load global settings', error)
         return {
             memoryInjectionEnabled: DEFAULT_MEMORY_INJECTION_ENABLED,
-            pureContextMode: DEFAULT_PURE_CONTEXT_MODE
+            pureContextMode: DEFAULT_PURE_CONTEXT_MODE,
+            codexReportPromptEnabled: DEFAULT_CODEX_REPORT_PROMPT_ENABLED
         }
     }
 }
 
 export function isPureContextModeEnabled(): boolean {
     return readGlobalPromptSettings().pureContextMode
+}
+
+export function isCodexReportPromptEnabledInSettings(): boolean {
+    return readGlobalPromptSettings().codexReportPromptEnabled
 }
 
 function ensureGlobalMemoryFile(filepath: string): void {

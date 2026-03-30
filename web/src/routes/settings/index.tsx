@@ -286,6 +286,7 @@ export default function SettingsPage() {
     const [memorySavedContent, setMemorySavedContent] = useState('')
     const [memoryStatusMessage, setMemoryStatusMessage] = useState<string | null>(null)
     const [experimentalClaudeLoginShellEnabled, setExperimentalClaudeLoginShellEnabled] = useState(false)
+    const [experimentalCodexReportPromptEnabled, setExperimentalCodexReportPromptEnabled] = useState(false)
     const [experimentalSettingsLoading, setExperimentalSettingsLoading] = useState(false)
     const [experimentalStatusMessage, setExperimentalStatusMessage] = useState<string | null>(null)
     const isMemoryDirty = memoryDraft !== memorySavedContent
@@ -395,6 +396,7 @@ export default function SettingsPage() {
         try {
             const result = await api.getExperimentalSettings()
             setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
+            setExperimentalCodexReportPromptEnabled(result.settings.codexReportPromptEnabled)
         } catch (error) {
             setExperimentalStatusMessage(
                 error instanceof Error ? error.message : t('settings.experimental.status.loadFailed')
@@ -547,10 +549,31 @@ export default function SettingsPage() {
         },
         onSuccess: (result, enabled) => {
             setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
+            setExperimentalCodexReportPromptEnabled(result.settings.codexReportPromptEnabled)
             setExperimentalStatusMessage(
                 enabled
                     ? t('settings.experimental.status.claudeLoginShellEnabled')
                     : t('settings.experimental.status.claudeLoginShellDisabled')
+            )
+        },
+        onError: (error) => {
+            setExperimentalStatusMessage(
+                error instanceof Error ? error.message : t('settings.experimental.status.saveFailed')
+            )
+        }
+    })
+
+    const toggleExperimentalCodexReportPromptMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            return await api.updateExperimentalSettings({ codexReportPromptEnabled: enabled })
+        },
+        onSuccess: (result, enabled) => {
+            setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
+            setExperimentalCodexReportPromptEnabled(result.settings.codexReportPromptEnabled)
+            setExperimentalStatusMessage(
+                enabled
+                    ? t('settings.experimental.status.codexReportPromptEnabled')
+                    : t('settings.experimental.status.codexReportPromptDisabled')
             )
         },
         onError: (error) => {
@@ -1611,6 +1634,25 @@ export default function SettingsPage() {
                                     }}
                                     disabled={experimentalSettingsLoading || toggleExperimentalClaudeLoginShellMutation.isPending}
                                     ariaLabel={t('settings.experimental.claudeLoginShell.title')}
+                                />
+                            </div>
+                            <div className="flex items-start justify-between gap-3 px-3 py-3 border-t border-[var(--app-divider)]">
+                                <div className="flex flex-col">
+                                    <span className="text-[var(--app-fg)]">
+                                        {t('settings.experimental.codexReportPrompt.title')}
+                                    </span>
+                                    <span className="text-xs text-[var(--app-hint)]">
+                                        {t('settings.experimental.codexReportPrompt.description')}
+                                    </span>
+                                </div>
+                                <Switch
+                                    checked={experimentalCodexReportPromptEnabled}
+                                    onCheckedChange={(enabled) => {
+                                        setExperimentalStatusMessage(null)
+                                        void toggleExperimentalCodexReportPromptMutation.mutateAsync(enabled)
+                                    }}
+                                    disabled={experimentalSettingsLoading || toggleExperimentalCodexReportPromptMutation.isPending}
+                                    ariaLabel={t('settings.experimental.codexReportPrompt.title')}
                                 />
                             </div>
                         </div>

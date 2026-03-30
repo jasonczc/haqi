@@ -10,6 +10,7 @@ export interface Settings {
     memoryInjectionEnabled?: boolean
     pureContextMode?: boolean
     experimentalClaudeLoginShell?: boolean
+    codexReportPromptEnabled?: boolean
     vapidKeys?: {
         publicKey: string
         privateKey: string

@@ -116,13 +116,18 @@ const updateMemoryMock = vi.fn(async (payload: {
 
 const getExperimentalSettingsMock = vi.fn(async () => ({
     settings: {
-        claudeLoginShell: false
+        claudeLoginShell: false,
+        codexReportPromptEnabled: false
     }
 }))
 
-const updateExperimentalSettingsMock = vi.fn(async (payload: { claudeLoginShell: boolean }) => ({
+const updateExperimentalSettingsMock = vi.fn(async (payload: {
+    claudeLoginShell?: boolean
+    codexReportPromptEnabled?: boolean
+}) => ({
     settings: {
-        claudeLoginShell: payload.claudeLoginShell
+        claudeLoginShell: payload.claudeLoginShell ?? false,
+        codexReportPromptEnabled: payload.codexReportPromptEnabled ?? false
     }
 }))
 
@@ -420,6 +425,8 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.experimental.title')
         expect(calledKeys).toContain('settings.experimental.claudeLoginShell.title')
         expect(calledKeys).toContain('settings.experimental.claudeLoginShell.description')
+        expect(calledKeys).toContain('settings.experimental.codexReportPrompt.title')
+        expect(calledKeys).toContain('settings.experimental.codexReportPrompt.description')
         expect(calledKeys).toContain('settings.reportDomain.title')
         expect(calledKeys).toContain('settings.memory.actions.save')
         expect(calledKeys).toContain('settings.about.website')
@@ -442,6 +449,24 @@ describe('SettingsPage', () => {
 
         await waitFor(() => {
             expect(updateExperimentalSettingsMock).toHaveBeenCalledWith({ claudeLoginShell: true })
+        })
+    })
+
+    it('updates Codex report prompt experimental setting', async () => {
+        renderWithProviders(<SettingsPage />)
+
+        await waitFor(() => {
+            expect(getExperimentalSettingsMock).toHaveBeenCalled()
+        })
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'Codex report prompt injection' })).not.toBeDisabled()
+        })
+
+        fireEvent.click(screen.getByRole('switch', { name: 'Codex report prompt injection' }))
+
+        await waitFor(() => {
+            expect(updateExperimentalSettingsMock).toHaveBeenCalledWith({ codexReportPromptEnabled: true })
         })
     })
 

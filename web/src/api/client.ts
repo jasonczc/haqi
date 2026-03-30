@@ -399,7 +399,10 @@ export class ApiClient {
         return await this.request<ExperimentalSettingsResponse>('/api/settings/experimental')
     }
 
-    async updateExperimentalSettings(payload: { claudeLoginShell: boolean }): Promise<ExperimentalSettingsResponse> {
+    async updateExperimentalSettings(payload: {
+        claudeLoginShell?: boolean
+        codexReportPromptEnabled?: boolean
+    }): Promise<ExperimentalSettingsResponse> {
         return await this.request<ExperimentalSettingsResponse>('/api/settings/experimental', {
             method: 'PATCH',
             body: JSON.stringify(payload)

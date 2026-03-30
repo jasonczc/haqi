@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildCodexStartConfig } from './codexStartConfig';
-import { codexSystemPrompt } from './systemPrompt';
+import { getCodexSystemPrompt } from './systemPrompt';
 
 describe('buildCodexStartConfig', () => {
     let tempRoot: string;
@@ -40,7 +40,7 @@ describe('buildCodexStartConfig', () => {
         expect(config.cwd).toBe('/tmp/project');
         expect(config.config).toEqual({
             mcp_servers: mcpServers,
-            developer_instructions: codexSystemPrompt
+            developer_instructions: getCodexSystemPrompt()
         });
     });
 
@@ -95,7 +95,7 @@ describe('buildCodexStartConfig', () => {
         expect(config.config).toEqual({
             mcp_servers: mcpServers,
             service_tier: 'fast',
-            developer_instructions: codexSystemPrompt
+            developer_instructions: getCodexSystemPrompt()
         });
     });
 

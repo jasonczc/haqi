@@ -6,7 +6,13 @@
  */
 
 import { trimIdent } from '@/utils/trimIdent';
-import { buildPromptWithHaqiAgentInstructions, isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
+import {
+    buildPromptWithHaqiAgentInstructions,
+    isCodexReportPromptEnabledInSettings,
+    isPureContextModeEnabled
+} from '@/agent/utils/haqiAgentInstructions';
+
+const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
 
 /**
  * Title instruction for Codex to call the haqi MCP tool.
@@ -20,7 +26,9 @@ export const TITLE_INSTRUCTION = trimIdent(`
     If you implemented a feature and also ran tests, title the feature work, not test execution.
     Do NOT downgrade to generic action-only titles like "Commit changes".
     Only change the title when the main topic changes significantly.
+`);
 
+export const REPORT_INSTRUCTION = trimIdent(`
     Report rule:
     - Publish a report via MCP tools only for:
       - complex research/investigation tasks (multi-step findings or non-trivial analysis), or
@@ -42,14 +50,29 @@ export const TITLE_INSTRUCTION = trimIdent(`
     - If the user explicitly asks to skip report creation, follow that request.
 `);
 
+export function isCodexReportPromptEnabled(): boolean {
+    const raw = process.env.HAPI_CODEX_ENABLE_REPORT_PROMPT?.trim().toLowerCase();
+    if (raw) {
+        return ENABLED_VALUES.has(raw);
+    }
+    return isCodexReportPromptEnabledInSettings();
+}
+
+export function getCodexSystemPrompt(): string {
+    if (!isCodexReportPromptEnabled()) {
+        return TITLE_INSTRUCTION;
+    }
+    return `${TITLE_INSTRUCTION}
+
+${REPORT_INSTRUCTION}`;
+}
+
 /**
  * The system prompt to inject via developer_instructions in local mode.
  */
-export const codexSystemPrompt = TITLE_INSTRUCTION;
-
 export function buildCodexSystemPrompt(startDir: string): string {
     if (isPureContextModeEnabled()) {
         return '';
     }
-    return buildPromptWithHaqiAgentInstructions(codexSystemPrompt, startDir);
+    return buildPromptWithHaqiAgentInstructions(getCodexSystemPrompt(), startDir);
 }

@@ -11,17 +11,19 @@ const updateProjectOfflineSchema = z.object({
 })
 
 const updateExperimentalSettingsSchema = z.object({
-    claudeLoginShell: z.boolean().optional()
+    claudeLoginShell: z.boolean().optional(),
+    codexReportPromptEnabled: z.boolean().optional()
 }).superRefine((value, ctx) => {
-    if (value.claudeLoginShell === undefined) {
+    if (value.claudeLoginShell === undefined && value.codexReportPromptEnabled === undefined) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'claudeLoginShell must be provided'
+            message: 'At least one experimental setting must be provided'
         })
     }
 })
 
 const DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL = false
+const DEFAULT_CODEX_REPORT_PROMPT_ENABLED = false
 
 function normalizeDirectories(directories: string[]): string[] {
     const seen = new Set<string>()
@@ -45,7 +47,8 @@ export function createSettingsRoutes(store: Store): Hono<WebAppEnv> {
             const settings = await readSettingsOrThrow(configuration.settingsFile)
             return c.json({
                 settings: {
-                    claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL
+                    claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL,
+                    codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED
                 }
             })
         } catch (error) {
@@ -64,11 +67,17 @@ export function createSettingsRoutes(store: Store): Hono<WebAppEnv> {
 
         try {
             const settings = await readSettingsOrThrow(configuration.settingsFile)
-            settings.experimentalClaudeLoginShell = parsed.data.claudeLoginShell
+            if (parsed.data.claudeLoginShell !== undefined) {
+                settings.experimentalClaudeLoginShell = parsed.data.claudeLoginShell
+            }
+            if (parsed.data.codexReportPromptEnabled !== undefined) {
+                settings.codexReportPromptEnabled = parsed.data.codexReportPromptEnabled
+            }
             await writeSettings(configuration.settingsFile, settings)
             return c.json({
                 settings: {
-                    claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL
+                    claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL,
+                    codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED
                 }
             })
         } catch (error) {
