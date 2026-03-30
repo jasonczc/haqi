@@ -12,9 +12,14 @@ const updateProjectOfflineSchema = z.object({
 
 const updateExperimentalSettingsSchema = z.object({
     claudeLoginShell: z.boolean().optional(),
-    codexReportPromptEnabled: z.boolean().optional()
+    codexReportPromptEnabled: z.boolean().optional(),
+    previewEnabled: z.boolean().optional()
 }).superRefine((value, ctx) => {
-    if (value.claudeLoginShell === undefined && value.codexReportPromptEnabled === undefined) {
+    if (
+        value.claudeLoginShell === undefined
+        && value.codexReportPromptEnabled === undefined
+        && value.previewEnabled === undefined
+    ) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: 'At least one experimental setting must be provided'
@@ -24,6 +29,7 @@ const updateExperimentalSettingsSchema = z.object({
 
 const DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL = false
 const DEFAULT_CODEX_REPORT_PROMPT_ENABLED = false
+const DEFAULT_PREVIEW_ENABLED = true
 
 function normalizeDirectories(directories: string[]): string[] {
     const seen = new Set<string>()
@@ -48,7 +54,8 @@ export function createSettingsRoutes(store: Store): Hono<WebAppEnv> {
             return c.json({
                 settings: {
                     claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL,
-                    codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED
+                    codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED,
+                    previewEnabled: settings.previewEnabled ?? DEFAULT_PREVIEW_ENABLED
                 }
             })
         } catch (error) {
@@ -73,11 +80,15 @@ export function createSettingsRoutes(store: Store): Hono<WebAppEnv> {
             if (parsed.data.codexReportPromptEnabled !== undefined) {
                 settings.codexReportPromptEnabled = parsed.data.codexReportPromptEnabled
             }
+            if (parsed.data.previewEnabled !== undefined) {
+                settings.previewEnabled = parsed.data.previewEnabled
+            }
             await writeSettings(configuration.settingsFile, settings)
             return c.json({
                 settings: {
                     claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL,
-                    codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED
+                    codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED,
+                    previewEnabled: settings.previewEnabled ?? DEFAULT_PREVIEW_ENABLED
                 }
             })
         } catch (error) {

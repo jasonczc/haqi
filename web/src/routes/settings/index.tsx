@@ -287,6 +287,7 @@ export default function SettingsPage() {
     const [memoryStatusMessage, setMemoryStatusMessage] = useState<string | null>(null)
     const [experimentalClaudeLoginShellEnabled, setExperimentalClaudeLoginShellEnabled] = useState(false)
     const [experimentalCodexReportPromptEnabled, setExperimentalCodexReportPromptEnabled] = useState(false)
+    const [experimentalPreviewEnabled, setExperimentalPreviewEnabled] = useState(true)
     const [experimentalSettingsLoading, setExperimentalSettingsLoading] = useState(false)
     const [experimentalStatusMessage, setExperimentalStatusMessage] = useState<string | null>(null)
     const isMemoryDirty = memoryDraft !== memorySavedContent
@@ -397,6 +398,7 @@ export default function SettingsPage() {
             const result = await api.getExperimentalSettings()
             setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
             setExperimentalCodexReportPromptEnabled(result.settings.codexReportPromptEnabled)
+            setExperimentalPreviewEnabled(result.settings.previewEnabled)
         } catch (error) {
             setExperimentalStatusMessage(
                 error instanceof Error ? error.message : t('settings.experimental.status.loadFailed')
@@ -547,14 +549,16 @@ export default function SettingsPage() {
         mutationFn: async (enabled: boolean) => {
             return await api.updateExperimentalSettings({ claudeLoginShell: enabled })
         },
-        onSuccess: (result, enabled) => {
+        onSuccess: async (result, enabled) => {
             setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
             setExperimentalCodexReportPromptEnabled(result.settings.codexReportPromptEnabled)
+            setExperimentalPreviewEnabled(result.settings.previewEnabled)
             setExperimentalStatusMessage(
                 enabled
                     ? t('settings.experimental.status.claudeLoginShellEnabled')
                     : t('settings.experimental.status.claudeLoginShellDisabled')
             )
+            await queryClient.invalidateQueries({ queryKey: queryKeys.experimentalSettings })
         },
         onError: (error) => {
             setExperimentalStatusMessage(
@@ -567,14 +571,38 @@ export default function SettingsPage() {
         mutationFn: async (enabled: boolean) => {
             return await api.updateExperimentalSettings({ codexReportPromptEnabled: enabled })
         },
-        onSuccess: (result, enabled) => {
+        onSuccess: async (result, enabled) => {
             setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
             setExperimentalCodexReportPromptEnabled(result.settings.codexReportPromptEnabled)
+            setExperimentalPreviewEnabled(result.settings.previewEnabled)
             setExperimentalStatusMessage(
                 enabled
                     ? t('settings.experimental.status.codexReportPromptEnabled')
                     : t('settings.experimental.status.codexReportPromptDisabled')
             )
+            await queryClient.invalidateQueries({ queryKey: queryKeys.experimentalSettings })
+        },
+        onError: (error) => {
+            setExperimentalStatusMessage(
+                error instanceof Error ? error.message : t('settings.experimental.status.saveFailed')
+            )
+        }
+    })
+
+    const toggleExperimentalPreviewMutation = useMutation({
+        mutationFn: async (enabled: boolean) => {
+            return await api.updateExperimentalSettings({ previewEnabled: enabled })
+        },
+        onSuccess: async (result, enabled) => {
+            setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
+            setExperimentalCodexReportPromptEnabled(result.settings.codexReportPromptEnabled)
+            setExperimentalPreviewEnabled(result.settings.previewEnabled)
+            setExperimentalStatusMessage(
+                enabled
+                    ? t('settings.experimental.status.previewEnabled')
+                    : t('settings.experimental.status.previewDisabled')
+            )
+            await queryClient.invalidateQueries({ queryKey: queryKeys.experimentalSettings })
         },
         onError: (error) => {
             setExperimentalStatusMessage(
@@ -1615,16 +1643,35 @@ export default function SettingsPage() {
                             <div className="flex items-start justify-between gap-3 px-3 py-3">
                                 <div className="flex flex-col">
                                     <span className="text-[var(--app-fg)]">
-                                        {t('settings.experimental.claudeLoginShell.title')}
+                                        {t('settings.experimental.preview.title')}
                                     </span>
                                     <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.experimental.claudeLoginShell.description')}
+                                        {t('settings.experimental.preview.description')}
                                     </span>
                                     {experimentalStatusMessage && (
                                         <span className="mt-1 text-xs text-[var(--app-hint)]">
                                             {experimentalStatusMessage}
                                         </span>
                                     )}
+                                </div>
+                                <Switch
+                                    checked={experimentalPreviewEnabled}
+                                    onCheckedChange={(enabled) => {
+                                        setExperimentalStatusMessage(null)
+                                        void toggleExperimentalPreviewMutation.mutateAsync(enabled)
+                                    }}
+                                    disabled={experimentalSettingsLoading || toggleExperimentalPreviewMutation.isPending}
+                                    ariaLabel={t('settings.experimental.preview.title')}
+                                />
+                            </div>
+                            <div className="flex items-start justify-between gap-3 px-3 py-3 border-t border-[var(--app-divider)]">
+                                <div className="flex flex-col">
+                                    <span className="text-[var(--app-fg)]">
+                                        {t('settings.experimental.claudeLoginShell.title')}
+                                    </span>
+                                    <span className="text-xs text-[var(--app-hint)]">
+                                        {t('settings.experimental.claudeLoginShell.description')}
+                                    </span>
                                 </div>
                                 <Switch
                                     checked={experimentalClaudeLoginShellEnabled}

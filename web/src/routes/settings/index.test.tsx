@@ -117,17 +117,20 @@ const updateMemoryMock = vi.fn(async (payload: {
 const getExperimentalSettingsMock = vi.fn(async () => ({
     settings: {
         claudeLoginShell: false,
-        codexReportPromptEnabled: false
+        codexReportPromptEnabled: false,
+        previewEnabled: true
     }
 }))
 
 const updateExperimentalSettingsMock = vi.fn(async (payload: {
     claudeLoginShell?: boolean
     codexReportPromptEnabled?: boolean
+    previewEnabled?: boolean
 }) => ({
     settings: {
         claudeLoginShell: payload.claudeLoginShell ?? false,
-        codexReportPromptEnabled: payload.codexReportPromptEnabled ?? false
+        codexReportPromptEnabled: payload.codexReportPromptEnabled ?? false,
+        previewEnabled: payload.previewEnabled ?? true
     }
 }))
 
@@ -423,6 +426,8 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.memory.pureContextMode.title')
         expect(calledKeys).toContain('settings.memory.pureContextMode.description')
         expect(calledKeys).toContain('settings.experimental.title')
+        expect(calledKeys).toContain('settings.experimental.preview.title')
+        expect(calledKeys).toContain('settings.experimental.preview.description')
         expect(calledKeys).toContain('settings.experimental.claudeLoginShell.title')
         expect(calledKeys).toContain('settings.experimental.claudeLoginShell.description')
         expect(calledKeys).toContain('settings.experimental.codexReportPrompt.title')
@@ -449,6 +454,24 @@ describe('SettingsPage', () => {
 
         await waitFor(() => {
             expect(updateExperimentalSettingsMock).toHaveBeenCalledWith({ claudeLoginShell: true })
+        })
+    })
+
+    it('updates Preview experimental setting', async () => {
+        renderWithProviders(<SettingsPage />)
+
+        await waitFor(() => {
+            expect(getExperimentalSettingsMock).toHaveBeenCalled()
+        })
+
+        await waitFor(() => {
+            expect(screen.getByRole('switch', { name: 'Preview feature' })).not.toBeDisabled()
+        })
+
+        fireEvent.click(screen.getByRole('switch', { name: 'Preview feature' }))
+
+        await waitFor(() => {
+            expect(updateExperimentalSettingsMock).toHaveBeenCalledWith({ previewEnabled: false })
         })
     })
 

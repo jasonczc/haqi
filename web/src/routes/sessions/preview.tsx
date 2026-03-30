@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
+import { useExperimentalSettings } from '@/hooks/queries/useExperimentalSettings'
 import { useSession } from '@/hooks/queries/useSession'
 import { LoadingState } from '@/components/LoadingState'
 import { queryKeys } from '@/lib/query-keys'
@@ -31,6 +32,7 @@ export default function PreviewPage() {
     const { api } = useAppContext()
     const goBack = useAppGoBack()
     const queryClient = useQueryClient()
+    const { settings: experimentalSettings, isLoading: experimentalSettingsLoading } = useExperimentalSettings(api, true)
     const { session, isLoading, error } = useSession(api, sessionId)
     const [inputUrl, setInputUrl] = useState('')
     const [frameUrl, setFrameUrl] = useState<string | null>(null)
@@ -46,11 +48,40 @@ export default function PreviewPage() {
             }
             return await api.getPreviewUrlHistory(20)
         },
-        enabled: Boolean(api),
+        enabled: Boolean(api && experimentalSettings.previewEnabled),
         staleTime: 30_000
     })
 
     const historyUrls = historyQuery.data?.urls ?? []
+
+    if (experimentalSettingsLoading) {
+        return (
+            <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+                <LoadingState label="Loading preview…" className="text-sm" />
+            </div>
+        )
+    }
+
+    if (!experimentalSettings.previewEnabled) {
+        return (
+            <div className="flex h-full flex-col bg-[var(--app-bg)]">
+                <div className="flex items-center gap-2 border-b border-[var(--app-border)] px-3 py-2">
+                    <button
+                        type="button"
+                        onClick={goBack}
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
+                        aria-label="Back"
+                    >
+                        <BackIcon />
+                    </button>
+                    <div className="text-sm font-semibold">Preview</div>
+                </div>
+                <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-[var(--app-hint)]">
+                    Preview is disabled in settings.
+                </div>
+            </div>
+        )
+    }
 
     useEffect(() => {
         const next = session?.previewUrl ?? ''

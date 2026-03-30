@@ -4,6 +4,7 @@ import type { ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
+import { useExperimentalSettings } from '@/hooks/queries/useExperimentalSettings'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
 import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
@@ -72,6 +73,7 @@ export function NewSession(props: {
 }) {
     const { haptic } = usePlatform()
     const { spawnSession, isPending, error: spawnError } = useSpawnSession(props.api)
+    const { settings: experimentalSettings } = useExperimentalSettings(props.api, true)
     const { sessions } = useSessions(props.api)
     const isFormDisabled = Boolean(isPending || props.isLoading)
     const { getRecentPaths, addRecentPath, getLastUsedMachineId, setLastUsedMachineId } = useRecentPaths()
@@ -186,7 +188,7 @@ export function NewSession(props: {
             }
             return await props.api.getPreviewUrlHistory(20)
         },
-        enabled: Boolean(props.api),
+        enabled: Boolean(props.api && experimentalSettings.previewEnabled),
         staleTime: 30_000
     })
 
@@ -318,7 +320,9 @@ export function NewSession(props: {
 
         setError(null)
         try {
-            const normalizedPreviewUrl = normalizePreviewUrlInput(previewUrlInput)
+            const normalizedPreviewUrl = normalizePreviewUrlInput(
+                experimentalSettings.previewEnabled ? previewUrlInput : ''
+            )
             if (normalizedPreviewUrl.error) {
                 setError(normalizedPreviewUrl.error)
                 return
@@ -430,35 +434,37 @@ export function NewSession(props: {
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
             />
-            <div className="flex flex-col gap-1.5 px-3 py-3">
-                <label className="text-xs font-medium text-[var(--app-hint)]">
-                    Preview URL (optional)
-                </label>
-                <input
-                    type="text"
-                    placeholder="http://localhost:3000"
-                    value={previewUrlInput}
-                    onChange={(event) => setPreviewUrlInput(event.target.value)}
-                    disabled={isFormDisabled}
-                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
-                />
-                {previewUrlHistory.length > 0 ? (
-                    <div className="flex flex-wrap gap-1 pt-1">
-                        {previewUrlHistory.slice(0, 8).map((url) => (
-                            <button
-                                key={url}
-                                type="button"
-                                onClick={() => setPreviewUrlInput(url)}
-                                disabled={isFormDisabled}
-                                className="max-w-[240px] truncate rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:opacity-50"
-                                title={url}
-                            >
-                                {url}
-                            </button>
-                        ))}
-                    </div>
-                ) : null}
-            </div>
+            {experimentalSettings.previewEnabled ? (
+                <div className="flex flex-col gap-1.5 px-3 py-3">
+                    <label className="text-xs font-medium text-[var(--app-hint)]">
+                        Preview URL (optional)
+                    </label>
+                    <input
+                        type="text"
+                        placeholder="http://localhost:3000"
+                        value={previewUrlInput}
+                        onChange={(event) => setPreviewUrlInput(event.target.value)}
+                        disabled={isFormDisabled}
+                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                    />
+                    {previewUrlHistory.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                            {previewUrlHistory.slice(0, 8).map((url) => (
+                                <button
+                                    key={url}
+                                    type="button"
+                                    onClick={() => setPreviewUrlInput(url)}
+                                    disabled={isFormDisabled}
+                                    className="max-w-[240px] truncate rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:opacity-50"
+                                    title={url}
+                                >
+                                    {url}
+                                </button>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
             <SessionTypeSelector
                 sessionType={sessionType}
                 worktreeName={worktreeName}

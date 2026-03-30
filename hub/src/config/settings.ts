@@ -11,6 +11,7 @@ export interface Settings {
     pureContextMode?: boolean
     experimentalClaudeLoginShell?: boolean
     codexReportPromptEnabled?: boolean
+    previewEnabled?: boolean
     vapidKeys?: {
         publicKey: string
         privateKey: string

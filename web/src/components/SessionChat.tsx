@@ -32,6 +32,7 @@ import { TeamPanel } from '@/components/TeamPanel'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useQueueInlinePanel } from '@/hooks/useQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import { useExperimentalSettings } from '@/hooks/queries/useExperimentalSettings'
 import { QuestionToolOverlay } from '@/components/ToolCard/QuestionToolOverlay'
 import { PlanApprovalOverlay } from '@/components/ToolCard/PlanApprovalOverlay'
 import { findLatestPendingQuestionTool } from '@/components/ToolCard/questionTools'
@@ -423,6 +424,7 @@ export function SessionChat(props: {
     const { haptic } = usePlatform()
     const { queueInlinePanelMode } = useQueueInlinePanel()
     const navigate = useNavigate()
+    const { settings: experimentalSettings } = useExperimentalSettings(props.api, true)
     const sessionInactive = !props.session.active
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
@@ -1316,7 +1318,7 @@ export function SessionChat(props: {
                 }}
                 onToggleSidebar={props.onToggleSidebar}
                 sidebarVisible={props.sidebarVisible}
-                onViewPreview={handleViewPreview}
+                onViewPreview={experimentalSettings.previewEnabled ? handleViewPreview : undefined}
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 onViewMcpStatus={handleMcpStatus}
                 api={props.api}

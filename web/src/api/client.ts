@@ -402,6 +402,7 @@ export class ApiClient {
     async updateExperimentalSettings(payload: {
         claudeLoginShell?: boolean
         codexReportPromptEnabled?: boolean
+        previewEnabled?: boolean
     }): Promise<ExperimentalSettingsResponse> {
         return await this.request<ExperimentalSettingsResponse>('/api/settings/experimental', {
             method: 'PATCH',
