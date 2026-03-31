@@ -923,6 +923,23 @@ export class CloudStore {
         return this.getEnrollmentTokenByNamespace(id, namespace)
     }
 
+    /**
+     * CAS-style revoke: only succeeds if the token is not already revoked.
+     * Returns true if this call performed the revocation, false if already revoked or not found.
+     */
+    revokeEnrollmentTokenIfActive(id: string, namespace: string, revokedAt: number = Date.now()): boolean {
+        const result = this.db.prepare(`
+            UPDATE cloud_worker_enrollment_tokens
+            SET revoked_at = @revoked_at
+            WHERE id = @id AND namespace = @namespace AND revoked_at IS NULL
+        `).run({
+            id,
+            namespace,
+            revoked_at: revokedAt
+        })
+        return result.changes > 0
+    }
+
     createWorkerSession(options: {
         namespace: string
         machineId?: string | null

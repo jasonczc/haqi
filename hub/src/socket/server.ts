@@ -159,12 +159,14 @@ export function createSocketServer(deps: SocketServerDeps): {
             return next(new Error('Missing token'))
         }
 
-        const resolved = resolveCliAuthToken(deps.store, token)
+        const resolved = resolveCliAuthToken(deps.store, token, { allowEnrollment: true })
         if (!resolved) {
             return next(new Error('Invalid token'))
         }
 
         const handshakeMachineId = typeof auth?.machineId === 'string' ? auth.machineId.trim() : ''
+        // SEC-5: When an enrollment token has no machineId (unpinned), any machineId is accepted.
+        // This is intentional for unpinned tokens — they allow any machine to enroll.
         if (resolved.machineId && handshakeMachineId && handshakeMachineId !== resolved.machineId) {
             return next(new Error('Machine access denied'))
         }

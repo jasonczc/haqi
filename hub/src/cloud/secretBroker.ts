@@ -265,6 +265,14 @@ export class SecretBroker {
         if (!record) {
             return null
         }
+
+        // CAS-style revoke: atomically mark the token as used.
+        // If another concurrent request already revoked it, this returns false.
+        const revoked = this.store.cloud.revokeEnrollmentTokenIfActive(record.id, record.namespace)
+        if (!revoked) {
+            return null // Already revoked by concurrent request
+        }
+
         const workerSession = this.createWorkerSessionToken({
             namespace: record.namespace,
             machineId: record.machineId,

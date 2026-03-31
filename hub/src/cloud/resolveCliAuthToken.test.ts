@@ -43,7 +43,12 @@ describe('resolveCliAuthToken', () => {
             machineId: 'machine-1'
         })
 
-        const enrollmentAuth = resolveCliAuthToken(store, enrollmentToken)
+        // Without allowEnrollment, enrollment tokens should NOT be exchanged (SEC-6)
+        const noEnrollmentAuth = resolveCliAuthToken(store, enrollmentToken)
+        expect(noEnrollmentAuth).toBeNull()
+
+        // With allowEnrollment: true (as used by Socket.IO middleware), enrollment works
+        const enrollmentAuth = resolveCliAuthToken(store, enrollmentToken, { allowEnrollment: true })
         expect(enrollmentAuth).not.toBeNull()
         expect(enrollmentAuth).toMatchObject({
             kind: 'enrollment',

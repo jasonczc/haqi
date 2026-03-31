@@ -22,7 +22,11 @@ export type ResolvedCliAuthToken =
         workerSessionToken: string
     }
 
-export function resolveCliAuthToken(store: Store, token: string): ResolvedCliAuthToken | null {
+export function resolveCliAuthToken(
+    store: Store,
+    token: string,
+    options?: { allowEnrollment?: boolean }
+): ResolvedCliAuthToken | null {
     const parsedToken = parseAccessToken(token)
     if (parsedToken && constantTimeEquals(parsedToken.baseToken, configuration.cliApiToken)) {
         return {
@@ -39,6 +43,13 @@ export function resolveCliAuthToken(store: Store, token: string): ResolvedCliAut
             namespace: workerSession.namespace,
             machineId: workerSession.machineId ?? undefined
         }
+    }
+
+    // Only attempt enrollment token exchange when explicitly allowed.
+    // HTTP API routes should NOT trigger enrollment exchange (SEC-6).
+    // Only the Socket.IO auth middleware passes allowEnrollment: true.
+    if (!options?.allowEnrollment) {
+        return null
     }
 
     const enrollment = secretBroker.exchangeEnrollmentToken(token)

@@ -20,17 +20,15 @@ async function readSource(relativePath: string): Promise<string> {
 // SEC-1 (Critical): Enrollment token is never revoked after exchange
 // ============================================================
 describe('SEC-1: Enrollment token replay attack', () => {
-    it('exchangeEnrollmentToken does not revoke the token after use', async () => {
+    it('exchangeEnrollmentToken revokes the token after use', async () => {
         const source = await readSource('hub/src/cloud/secretBroker.ts')
         // Find the exchangeEnrollmentToken method
         const methodMatch = source.match(/exchangeEnrollmentToken[\s\S]*?(?=\n    \w|\n\})/m)
         expect(methodMatch).not.toBeNull()
         const method = methodMatch![0]
 
-        // The bug: no revocation call after successful exchange
-        expect(method).not.toContain('revokeEnrollmentToken')
-        expect(method).not.toMatch(/revoked_at|revokedAt/)
-        expect(method).not.toMatch(/UPDATE.*revoked/)
+        // Fixed: the method now revokes the enrollment token after exchange
+        expect(method).toContain('revokeEnrollmentTokenIfActive')
     })
 })
 
@@ -38,14 +36,18 @@ describe('SEC-1: Enrollment token replay attack', () => {
 // SEC-2 (Critical): TOCTOU race in token exchange
 // ============================================================
 describe('SEC-2: Non-atomic enrollment token exchange', () => {
-    it('resolveCliAuthToken calls exchangeEnrollmentToken on every auth attempt', async () => {
-        const source = await readSource('hub/src/cloud/resolveCliAuthToken.ts')
-        // The bug: exchange happens in the auth path, not behind a mutex or CAS
-        expect(source).toContain('exchangeEnrollmentToken')
-        // No locking or CAS mechanism
-        expect(source).not.toContain('mutex')
-        expect(source).not.toContain('compareAndSwap')
-        expect(source).not.toMatch(/WHERE.*revoked_at\s*IS\s*NULL/)
+    it('exchangeEnrollmentToken uses CAS-style atomic revocation', async () => {
+        const brokerSource = await readSource('hub/src/cloud/secretBroker.ts')
+        const storeSource = await readSource('hub/src/store/cloudStore.ts')
+
+        // Fixed: exchange uses CAS-style revokeEnrollmentTokenIfActive
+        const methodMatch = brokerSource.match(/exchangeEnrollmentToken[\s\S]*?(?=\n    \w|\n\})/m)
+        expect(methodMatch).not.toBeNull()
+        const method = methodMatch![0]
+        expect(method).toContain('revokeEnrollmentTokenIfActive')
+
+        // The store method uses atomic WHERE revoked_at IS NULL
+        expect(storeSource).toMatch(/WHERE.*revoked_at IS NULL/)
     })
 })
 
@@ -67,15 +69,18 @@ describe('SEC-5: Unpinned enrollment allows machineId spoofing', () => {
 // SEC-6 (Important): Enrollment exchange as side-effect in HTTP auth
 // ============================================================
 describe('SEC-6: Enrollment token exchanged via HTTP API (not just socket)', () => {
-    it('CLI HTTP routes use resolveCliAuthToken which triggers exchange', async () => {
-        const cliRoute = await readSource('hub/src/web/routes/cli.ts')
+    it('resolveCliAuthToken requires allowEnrollment opt-in for enrollment exchange', async () => {
         const resolver = await readSource('hub/src/cloud/resolveCliAuthToken.ts')
-        // CLI HTTP routes call resolveCliAuthToken
-        expect(cliRoute).toContain('resolveCliAuthToken')
-        // resolveCliAuthToken unconditionally calls exchangeEnrollmentToken
-        expect(resolver).toContain('exchangeEnrollmentToken')
-        // No guard like "if (context === 'socket')" to prevent HTTP-triggered exchange
-        expect(resolver).not.toMatch(/context|source|socket/)
+        // Fixed: resolveCliAuthToken has an allowEnrollment parameter
+        expect(resolver).toContain('allowEnrollment')
+        // Enrollment exchange is gated behind the option
+        expect(resolver).toMatch(/options\?\.allowEnrollment/)
+        // HTTP routes do NOT pass allowEnrollment, so enrollment is blocked
+        const cliRoute = await readSource('hub/src/web/routes/cli.ts')
+        expect(cliRoute).not.toContain('allowEnrollment')
+        // Socket server DOES pass allowEnrollment: true
+        const socketServer = await readSource('hub/src/socket/server.ts')
+        expect(socketServer).toContain('allowEnrollment: true')
     })
 })
 
@@ -95,65 +100,57 @@ describe('EDGE-1: API client token rotation corrupts worker settings', () => {
 })
 
 // ============================================================
-// EDGE-2 (High): ApiMachineClient also calls maybeAutoStartServer on disconnect
+// EDGE-2 (High): ApiMachineClient guards auto-start for localhost only
 // ============================================================
-describe('EDGE-2: ApiMachineClient tries to auto-start hub on disconnect', () => {
-    it('apiMachine.ts calls maybeAutoStartServer on connection failure', async () => {
+describe('EDGE-2: ApiMachineClient guards maybeAutoStartServer for localhost', () => {
+    it('apiMachine.ts checks apiUrl before calling maybeAutoStartServer', async () => {
         const source = await readSource('cli/src/api/apiMachine.ts')
         expect(source).toContain('maybeAutoStartServer')
-        // No mode check before calling it
-        expect(source).not.toContain('isLocal')
-        expect(source).not.toContain('isRemote')
-        expect(source).not.toContain('executorType')
+        // Fix: guards auto-start by checking if apiUrl is localhost
+        expect(source).toContain('localhost')
+        expect(source).toContain('127.0.0.1')
     })
 })
 
 // ============================================================
-// EDGE-8 (Medium): Worker shutdown does not kill child sessions
+// EDGE-8 (Fixed): Shutdown handler kills child sessions for remote workers
 // ============================================================
-describe('EDGE-8: Shutdown handler does not terminate child sessions', () => {
-    it('cleanupAndShutdown does not iterate pidToTrackedSession to kill children', async () => {
+describe('EDGE-8: Shutdown handler terminates child sessions in remote mode', () => {
+    it('cleanupAndShutdown iterates pidToTrackedSession to kill children for remote mode', async () => {
         const source = await readSource('cli/src/runner/runnerLoop.ts')
         // Find the cleanupAndShutdown function
-        const cleanupMatch = source.match(/const cleanupAndShutdown[\s\S]*?(?=\n    \/\/ Wait for shutdown)/m)
+        const cleanupMatch = source.match(/const cleanupAndShutdown[\s\S]*?(?=\n    logger\.debug\('\[RUNNER RUN\] Runner started)/m)
         expect(cleanupMatch).not.toBeNull()
         const cleanup = cleanupMatch![0]
 
-        // The bug: no child process termination in cleanup
-        expect(cleanup).not.toContain('pidToTrackedSession')
-        expect(cleanup).not.toContain('killProcess')
-        expect(cleanup).not.toContain('killProcessByChildProcess')
+        // Fix: child process termination is present in cleanup
+        expect(cleanup).toContain('pidToTrackedSession')
+        expect(cleanup).toContain('killProcess')
+        expect(cleanup).toContain('killProcessByChildProcess')
     })
 })
 
 // ============================================================
-// EDGE-9 (Medium): process.exit(0) in self-restart bypasses cleanup
+// EDGE-9 (Fixed): Self-restart is gated to local mode only
 // ============================================================
-describe('EDGE-9: Self-restart process.exit bypasses cleanupAndShutdown', () => {
-    it('heartbeat self-restart calls process.exit directly', async () => {
+describe('EDGE-9: Self-restart is skipped for remote workers', () => {
+    it('self-restart version check is gated by local mode', async () => {
         const source = await readSource('cli/src/runner/runnerLoop.ts')
-        // Find the version-check self-restart block
-        const restartMatch = source.match(/installedCliMtimeMs !== startedWithCliMtimeMs[\s\S]*?process\.exit\(0\)/)
-        expect(restartMatch).not.toBeNull()
-        const restartBlock = restartMatch![0]
-
-        // The bug: calls process.exit(0) without calling cleanupAndShutdown
-        expect(restartBlock).toContain('process.exit(0)')
-        expect(restartBlock).not.toContain('cleanupAndShutdown')
-        expect(restartBlock).not.toContain('requestShutdown')
+        // The fix: self-restart is only done in local mode, remote workers skip it entirely
+        expect(source).toMatch(/if\s*\(options\.mode\s*===\s*['"]local['"]\)\s*\{[\s\S]*?installedCliMtimeMs !== startedWithCliMtimeMs/)
     })
 })
 
 // ============================================================
-// SPAWN-1 (Critical): 'accepted' response treated as error
+// SPAWN-1 (Critical): 'accepted' response treated as success
 // ============================================================
-describe('SPAWN-1: SpawnCoordinator treats accepted response as error', () => {
-    it('handleSpawnResponse maps accepted to unexpected_async_response error', async () => {
+describe('SPAWN-1: SpawnCoordinator treats accepted response as success', () => {
+    it('handleSpawnResponse no longer maps accepted to unexpected_async_response error', async () => {
         const source = await readSource('hub/src/cloud/spawnCoordinator.ts')
-        // The bug: 'accepted' case falls through to an error
-        expect(source).toContain('unexpected_async_response')
-        // Check if it's in a failure branch
-        const acceptedMatch = source.match(/['"]accepted['"][\s\S]*?unexpected_async_response/)
+        // Fixed: 'accepted' is no longer treated as an error — no unexpected_async_response
+        expect(source).not.toContain('unexpected_async_response')
+        // 'accepted' must be handled early and return (not fall through to failRequest)
+        const acceptedMatch = source.match(/options\.response\.type === ['"]accepted['"][\s\S]{0,200}?return/)
         expect(acceptedMatch).not.toBeNull()
     })
 })
@@ -173,39 +170,51 @@ describe('SPAWN-2: Worker executorType not automatically set after enrollment', 
 
     it('selectMachine filters by executorType — unset workers are excluded', async () => {
         const source = await readSource('hub/src/cloud/spawnCoordinator.ts')
-        // selectMachine checks executorType
-        expect(source).toMatch(/executorType.*cloud-self-hosted|cloud.*self.*hosted.*filter/)
+        // selectMachine checks executorType: the candidates filter guards on executorType
+        const selectFn = source.match(/private selectMachine[\s\S]*?\n    \}/)
+        expect(selectFn).not.toBeNull()
+        expect(selectFn![0]).toContain('executorType')
     })
 })
 
 // ============================================================
-// SPAWN-3 (Medium): Explicit machineId bypasses executorType check
+// SPAWN-3 (Medium): Explicit machineId now checks executorType
 // ============================================================
-describe('SPAWN-3: Explicit machineId bypasses cloud worker filter', () => {
-    it('selectMachine explicit path does not check executorType', async () => {
+describe('SPAWN-3: Explicit machineId checks executorType', () => {
+    it('selectMachine explicit path checks executorType', async () => {
         const source = await readSource('hub/src/cloud/spawnCoordinator.ts')
-        // Find the explicit machine selection path
-        const selectMatch = source.match(/requestedMachineId[\s\S]*?getMachineByNamespace[\s\S]*?return/)
+        // Fixed: explicit path now validates executorType
+        const selectMatch = source.match(/requestedMachineId[\s\S]*?getMachineByNamespace[\s\S]*?return explicit\.id/)
         expect(selectMatch).not.toBeNull()
         const selectBlock = selectMatch![0]
-        // The bug: no executorType check on the explicit path
-        expect(selectBlock).not.toContain('executorType')
-        expect(selectBlock).not.toContain('cloud-self-hosted')
+        // executorType check is present on the explicit path
+        expect(selectBlock).toContain('executorType')
+        expect(selectBlock).toContain('backend')
     })
 })
 
 // ============================================================
-// SPAWN-6 (Low): null runnerState treated as selectable
+// SPAWN-6 (Low): null runnerState guarded in spawnCoordinator for cloud workers
 // ============================================================
-describe('SPAWN-6: null runnerState makes worker immediately selectable', () => {
-    it('isRunnerStateSelectable returns true for null', async () => {
+describe('SPAWN-6: null runnerState guarded for cloud workers in selectMachine', () => {
+    it('isRunnerStateSelectable still returns true for null (unchanged — used by local too)', async () => {
         const source = await readSource('hub/src/cloud/workerState.ts')
         // Find isRunnerStateSelectable
         const fnMatch = source.match(/export function isRunnerStateSelectable[\s\S]*?\n\}/)
         expect(fnMatch).not.toBeNull()
         const fn = fnMatch![0]
-        // The bug: null/falsy check returns true (param is named runnerState)
+        // isRunnerStateSelectable itself is intentionally unchanged (local machines use it with null)
         expect(fn).toMatch(/if\s*\(!runnerState\)\s*\{\s*\n\s*return\s*true/)
+    })
+
+    it('selectMachine in spawnCoordinator guards null runnerState for cloud workers', async () => {
+        const source = await readSource('hub/src/cloud/spawnCoordinator.ts')
+        // Fixed: cloud worker candidates are filtered out when runnerState is null
+        expect(source).toMatch(/runnerState\s*==\s*null/)
+        // The guard must appear in the candidates filter, not just in isRunnerStateSelectable
+        const candidatesMatch = source.match(/const candidates[\s\S]*?selectWorker/)
+        expect(candidatesMatch).not.toBeNull()
+        expect(candidatesMatch![0]).toMatch(/runnerState\s*==\s*null/)
     })
 })
 
