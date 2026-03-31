@@ -82,17 +82,19 @@ export async function startServer(options: ServerOptions) {
         }
     })
 
-    app.get('/preview/ports', async (_c) => {
-        // Port detection -- will be implemented in Task 4
-        return _c.json({ ports: [] })
-    })
-
     const bunServer = Bun.serve({
         port: port === 0 ? undefined : port,
         fetch: app.fetch
     })
 
-    const actualPort = bunServer.port
+    const actualPort: number = bunServer.port ?? port
+
+    app.get('/preview/ports', async (c) => {
+        const { detectListeningPorts } = await import('./preview/detector')
+        const ports = await detectListeningPorts([actualPort])
+        return c.json({ ports })
+    })
+
     console.log(`haqi-daemon listening on :${actualPort}`)
 
     return {
