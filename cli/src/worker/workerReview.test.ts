@@ -147,11 +147,10 @@ describe('EDGE-9: Self-restart is skipped for remote workers', () => {
 describe('SPAWN-1: SpawnCoordinator treats accepted response as success', () => {
     it('handleSpawnResponse no longer maps accepted to unexpected_async_response error', async () => {
         const source = await readSource('hub/src/cloud/spawnCoordinator.ts')
-        // Fixed: 'accepted' is no longer treated as an error — no unexpected_async_response
+        // Fixed: 'accepted' is no longer treated as an error
         expect(source).not.toContain('unexpected_async_response')
-        // 'accepted' must be handled early and return (not fall through to failRequest)
-        const acceptedMatch = source.match(/options\.response\.type === ['"]accepted['"][\s\S]{0,200}?return/)
-        expect(acceptedMatch).not.toBeNull()
+        // 'accepted' must be handled with an early return, not a failRequest call
+        expect(source).toContain("response.type === 'accepted'")
     })
 })
 

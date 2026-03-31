@@ -641,6 +641,18 @@ export class SpawnCoordinator {
             return
         }
 
+        // SPAWN-1: 'accepted' means the Worker acknowledged the task and will process it
+        // asynchronously. Leave the request in the current phase; the Worker will report
+        // back when it finishes. Do NOT treat this as an error.
+        if (options.response.type === 'accepted') {
+            await this.updatePhase(options.namespace, options.requestId, 'starting-session', {
+                selectedMachineId: options.selectedMachineId,
+                workspaceId: options.workspace.id,
+                reusedWorkspace: options.reusedWorkspace
+            })
+            return
+        }
+
         const error: CloudRequestError = (() => {
             switch (options.response.type) {
                 case 'error':
@@ -657,14 +669,6 @@ export class SpawnCoordinator {
                         code: 'directory_creation_approval_required',
                         message: `Directory creation requires approval: ${options.response.directory}`,
                         retryable: false,
-                        at: Date.now()
-                    }
-                case 'accepted':
-                    return {
-                        phase: 'starting-session',
-                        code: 'unexpected_async_response',
-                        message: 'Worker returned an async spawn response for a resolved request',
-                        retryable: true,
                         at: Date.now()
                     }
                 default:
@@ -729,9 +733,18 @@ export class SpawnCoordinator {
         request: MachineSpawnRequest,
         environment: EnvironmentTemplate | undefined
     ): string | null {
+        const backend = request.executionBackend ?? 'cloud-self-hosted'
+
         if (requestedMachineId) {
             const explicit = this.machineCache.getMachineByNamespace(requestedMachineId, namespace)
-            return explicit?.active ? explicit.id : null
+            if (!explicit?.active) {
+                return null
+            }
+            // SPAWN-3: Explicit machineId must also satisfy the executorType requirement
+            if (explicit.metadata?.executorType !== backend) {
+                return null
+            }
+            return explicit.id
         }
 
         const pinnedWorkspace = this.workspaceManager.getPinnedWorkspace(namespace, request, environment?.id)
@@ -743,11 +756,16 @@ export class SpawnCoordinator {
             return pinned.id
         }
 
-        const backend = request.executionBackend
         const candidates = this.machineCache.getMachinesByNamespace(namespace).filter((machine) => {
-            return backend
-                ? machine.metadata?.executorType === backend
-                : machine.metadata?.executorType === 'cloud-self-hosted'
+            if (machine.metadata?.executorType !== backend) {
+                return false
+            }
+            // SPAWN-6: For cloud workers, a null runnerState means the Worker hasn't
+            // reported its state yet — treat it as not ready.
+            if (machine.runnerState == null) {
+                return false
+            }
+            return true
         })
         const selected = selectWorker(candidates, getSelectionOptions(environment, request))
         return selected?.id ?? null
