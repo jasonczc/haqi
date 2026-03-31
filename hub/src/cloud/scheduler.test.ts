@@ -142,3 +142,100 @@ describe('selectWorker', () => {
         })
     }
 })
+
+describe('self-hosted worker scenarios', () => {
+    it('excludes draining workers', () => {
+        const worker = selectWorker([
+            makeMachine('draining-worker', {
+                runnerState: {
+                    lifecycle: 'draining',
+                    capacity: { total: 1, used: 0 }
+                }
+            }),
+            makeMachine('idle-worker')
+        ])
+
+        expect(worker?.id).toBe('idle-worker')
+    })
+
+    it('filters by docker capability', () => {
+        const worker = selectWorker([
+            makeMachine('no-docker', {
+                metadata: {
+                    host: 'no-docker.local',
+                    platform: 'linux',
+                    happyCliVersion: '0.1.0',
+                    labels: [],
+                    capabilities: {}
+                }
+            }),
+            makeMachine('docker-worker', {
+                metadata: {
+                    host: 'docker-worker.local',
+                    platform: 'linux',
+                    happyCliVersion: '0.1.0',
+                    labels: [],
+                    capabilities: { docker: true }
+                }
+            })
+        ], {
+            requireDocker: true
+        })
+
+        expect(worker?.id).toBe('docker-worker')
+    })
+
+    it('balances load across workers', () => {
+        const worker = selectWorker([
+            makeMachine('busy-worker', {
+                runnerState: { capacity: { total: 4, used: 3 } }
+            }),
+            makeMachine('free-worker', {
+                runnerState: { capacity: { total: 4, used: 1 } }
+            })
+        ])
+
+        expect(worker?.id).toBe('free-worker')
+    })
+
+    it('returns null when no workers match', () => {
+        const worker = selectWorker([
+            makeMachine('inactive-worker', { active: false }),
+            makeMachine('draining-worker', {
+                runnerState: {
+                    lifecycle: 'draining',
+                    capacity: { total: 1, used: 0 }
+                }
+            })
+        ])
+
+        expect(worker).toBeNull()
+    })
+
+    it('filters by labels', () => {
+        const worker = selectWorker([
+            makeMachine('cpu-only', {
+                metadata: {
+                    host: 'cpu-only.local',
+                    platform: 'linux',
+                    happyCliVersion: '0.1.0',
+                    labels: ['cpu'],
+                    capabilities: {}
+                }
+            }),
+            makeMachine('gpu-worker', {
+                metadata: {
+                    host: 'gpu-worker.local',
+                    platform: 'linux',
+                    happyCliVersion: '0.1.0',
+                    labels: ['gpu'],
+                    capabilities: {}
+                }
+            })
+        ], {
+            labels: ['gpu']
+        })
+
+        expect(worker?.id).toBe('gpu-worker')
+    })
+})
