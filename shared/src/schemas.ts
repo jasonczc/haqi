@@ -29,7 +29,8 @@ export type ExecutionBackend = z.infer<typeof ExecutionBackendSchema>
 
 export const RuntimeKindSchema = z.enum([
     'host-process',
-    'docker-session'
+    'docker-session',
+    'daemon-session'
 ])
 
 export type RuntimeKind = z.infer<typeof RuntimeKindSchema>
@@ -1290,6 +1291,13 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
     ReviewLoopChangedSchema.extend({
         type: z.literal('review-loop-round-updated'),
         round: z.unknown()
+    }),
+    SessionEventBaseSchema.extend({
+        type: z.literal('preview-available'),
+        sessionId: z.string(),
+        port: z.number(),
+        url: z.string(),
+        name: z.string().optional()
     })
 ])
 
