@@ -213,6 +213,8 @@ export default {
   'cloud.workers.cpu': 'CPU',
   'cloud.workers.memory': '内存',
   'cloud.workers.disk': '磁盘',
+  'cloud.workers.noWorkersOnline': '暂无在线 Worker',
+  'cloud.workers.goToManagement': '前往 Worker 管理',
 
   // Chat
   'chat.placeholder': '输入消息…',

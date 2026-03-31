@@ -25,6 +25,8 @@ export function CloudSettingsSection(props: {
     cloudEnvironmentsError?: string | null
     cloudCheckpointsLoading?: boolean
     cloudCheckpointsError?: string | null
+    cloudWorkersLoading?: boolean
+    hasSelectableWorkers?: boolean
     selectedEnvironmentSummary: CloudEnvironmentSummary | null
     selectedCheckpoint: CloudCheckpoint | null
     selectedProviderType?: 'self-hosted' | 'managed'
@@ -49,6 +51,9 @@ export function CloudSettingsSection(props: {
 }) {
     const { t } = useTranslation()
     const isCloud = props.executionBackend !== 'local'
+    const showNoWorkerGuidance = props.executionBackend === 'cloud-self-hosted'
+        && !props.cloudWorkersLoading
+        && props.hasSelectableWorkers === false
     const selectedEnvironmentMissing = Boolean(props.environmentId.trim())
         && !props.selectedEnvironmentSummary
         && !props.cloudEnvironmentsLoading
@@ -145,6 +150,18 @@ export function CloudSettingsSection(props: {
                             </div>
                         ) : null}
                     </div>
+
+                    {showNoWorkerGuidance ? (
+                        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                            <div className="font-medium">{t('cloud.workers.noWorkersOnline')}</div>
+                            <a
+                                href="/cloud/workers"
+                                className="mt-1 block text-[var(--app-link)] hover:underline"
+                            >
+                                {t('cloud.workers.goToManagement')}
+                            </a>
+                        </div>
+                    ) : null}
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-[var(--app-hint)]">

@@ -216,6 +216,8 @@ export default {
   'cloud.workers.cpu': 'CPU',
   'cloud.workers.memory': 'Memory',
   'cloud.workers.disk': 'Disk',
+  'cloud.workers.noWorkersOnline': 'No workers online',
+  'cloud.workers.goToManagement': 'Go to Worker management',
 
   // Chat
   'chat.placeholder': 'Type a message…',
