@@ -28,6 +28,7 @@ import { createMemoryRoutes } from './routes/memory'
 import { createCloudRoutes } from './routes/cloud'
 import { createReportsRoutes } from './routes/reports'
 import { createPublicReportsRoutes } from './routes/publicReports'
+import { createPreviewRoutes } from './routes/preview'
 import type { ReportPublicBaseUrlSettings } from '../config/reportPublicBaseUrl'
 import { createSettingsRoutes } from './routes/settings'
 import type { SSEManager } from '../sse/sseManager'
@@ -103,6 +104,17 @@ function createWebApp(options: {
     app.use('/cli/*', corsMiddleware)
 
     app.route('/cli', createCliRoutes(options.getSyncEngine, options.store))
+
+    app.route('/preview', createPreviewRoutes({
+        resolveSession: (_sessionId) => {
+            // TODO: resolve from syncEngine (Task 11)
+            return null
+        },
+        resolvePreviewTunnel: (_machineId, _sessionId, _port) => {
+            // TODO: resolve from preview tunnel registry (Task 11)
+            return null
+        }
+    }))
 
     app.route('/api', createAuthRoutes(options.jwtSecret, options.store))
     app.route('/api', createBindRoutes(options.jwtSecret, options.store))
