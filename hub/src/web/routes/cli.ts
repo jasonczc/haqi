@@ -80,7 +80,7 @@ export function createCliRoutes(getSyncEngine: () => SyncEngine | null, store: S
         }
 
         const token = parsed.data.replace(/^Bearer\s+/i, '')
-        const auth = resolveCliAuthToken(store, token)
+        const auth = resolveCliAuthToken(store, token, { allowEnrollment: true })
         if (!auth) {
             return c.json({ error: 'Invalid token' }, 401)
         }
