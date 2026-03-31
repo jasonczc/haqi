@@ -26,7 +26,7 @@ export async function startServer(options: ServerOptions) {
         if (auth !== `Bearer ${authToken}`) {
             return c.json({ error: 'Unauthorized' }, 401)
         }
-        await next()
+        return next()
     })
 
     app.get('/health', (c) => {

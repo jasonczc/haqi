@@ -25,7 +25,7 @@ describe('daemon server', () => {
             headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
         })
         expect(res.status).toBe(200)
-        const data = await res.json()
+        const data = await res.json() as { status: string; pid: number }
         expect(data.status).toBe('ok')
         expect(data.pid).toBeGreaterThan(0)
     })
@@ -40,14 +40,14 @@ describe('daemon server', () => {
             body: JSON.stringify({ command: ['sleep', '30'], cwd: '/tmp' })
         })
         expect(spawnRes.status).toBe(200)
-        const spawnData = await spawnRes.json()
+        const spawnData = await spawnRes.json() as { pid: number; status: string }
         expect(spawnData.pid).toBeGreaterThan(0)
         expect(spawnData.status).toBe('running')
 
         const statusRes = await fetch(`${baseUrl}/process/status`, {
             headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
         })
-        const statusData = await statusRes.json()
+        const statusData = await statusRes.json() as { running: boolean }
         expect(statusData.running).toBe(true)
 
         const killRes = await fetch(`${baseUrl}/process/kill`, {
@@ -60,7 +60,7 @@ describe('daemon server', () => {
         const afterKill = await fetch(`${baseUrl}/process/status`, {
             headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
         })
-        const afterData = await afterKill.json()
+        const afterData = await afterKill.json() as { running: boolean }
         expect(afterData.running).toBe(false)
     })
 })
