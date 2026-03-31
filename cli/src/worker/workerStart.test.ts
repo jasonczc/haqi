@@ -1,8 +1,7 @@
 /**
- * Tests that verify known issues with workerStart / runnerLoop in remote worker mode.
+ * Tests that verify fixes for known issues with workerStart / runnerLoop in remote worker mode.
  *
- * These tests exercise the code paths statically (import analysis + runtime behavior)
- * to confirm bugs exist before they are fixed.
+ * These tests verify the fixes are in place by checking source code for correct patterns.
  */
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs/promises'
@@ -31,79 +30,76 @@ describe('C1: Worker and Runner share the same lock file', () => {
 
 // ---------- C2: maybeAutoStartServer in runnerLoop ----------
 
-describe('C2: runnerLoop calls maybeAutoStartServer (wrong for remote Workers)', () => {
-    it('runnerLoop.ts imports and calls maybeAutoStartServer unconditionally', async () => {
+describe('C2: runnerLoop gates maybeAutoStartServer for local mode only', () => {
+    it('runnerLoop.ts only calls maybeAutoStartServer when mode is local', async () => {
         const source = await fs.readFile(
             path.join(__dirname, '..', 'runner', 'runnerLoop.ts'),
             'utf-8'
         )
-        // The bug: maybeAutoStartServer is imported and called inside the retry loop
+        // maybeAutoStartServer is still imported (used in local mode)
         expect(source).toContain("import { maybeAutoStartServer }")
         expect(source).toContain('maybeAutoStartServer()')
 
-        // There is NO condition checking whether we're local or remote
-        expect(source).not.toMatch(/options\.mode\s*[!=]==?\s*['"]remote['"]/)
-        expect(source).not.toMatch(/options\.isLocal/)
-        expect(source).not.toMatch(/options\.isRemote/)
+        // The fix: there IS a condition checking mode before calling it
+        expect(source).toMatch(/options\.mode\s*===\s*['"]local['"]/)
     })
 })
 
 // ---------- C3: runnerLoop writes local Runner state + self-restart ----------
 
-describe('C3: runnerLoop has Runner-specific behavior that breaks Workers', () => {
-    it('runnerLoop writes to local runner state file unconditionally', async () => {
+describe('C3: runnerLoop gates Runner-specific behavior by mode', () => {
+    it('runnerLoop gates writeRunnerState for local mode only', async () => {
         const source = await fs.readFile(
             path.join(__dirname, '..', 'runner', 'runnerLoop.ts'),
             'utf-8'
         )
-        // The bug: writeRunnerState is called unconditionally
+        // writeRunnerState is still called, but gated
         expect(source).toContain('writeRunnerState(fileState)')
         expect(source).toContain('writeRunnerState(updatedState)')
 
-        // No mode check before writing state
-        expect(source).not.toMatch(/if\s*\(.*local.*\)\s*\{?\s*writeRunnerState/)
+        // The fix: mode check before writing state
+        expect(source).toMatch(/if\s*\(options\.mode\s*===\s*['"]local['"]\)\s*\{[\s\S]*?writeRunnerState/)
     })
 
-    it('runnerLoop spawns runner start for self-restart (wrong for Workers)', async () => {
+    it('runnerLoop gates self-restart for local mode only', async () => {
         const source = await fs.readFile(
             path.join(__dirname, '..', 'runner', 'runnerLoop.ts'),
             'utf-8'
         )
-        // The bug: on version change, spawns ['runner', 'start'] not ['worker', 'start']
+        // Self-restart still exists for local mode
         expect(source).toContain("spawnHappyCLI(['runner', 'start']")
 
-        // No mode-aware restart command
-        expect(source).not.toContain("spawnHappyCLI(['worker', 'start']")
+        // The fix: gated by local mode check
+        expect(source).toMatch(/if\s*\(options\.mode\s*===\s*['"]local['"]\)\s*\{[\s\S]*?spawnHappyCLI/)
     })
 
-    it('runnerLoop starts control server unconditionally (wrong for Workers)', async () => {
+    it('runnerLoop gates control server for local mode only', async () => {
         const source = await fs.readFile(
             path.join(__dirname, '..', 'runner', 'runnerLoop.ts'),
             'utf-8'
         )
-        // The bug: startRunnerControlServer is called unconditionally
+        // Control server still exists
         expect(source).toContain('startRunnerControlServer(')
 
-        // No mode check
-        expect(source).not.toMatch(/if\s*\(.*local.*\)\s*\{?\s*.*startRunnerControlServer/)
+        // The fix: gated by local mode check
+        expect(source).toMatch(/if\s*\(options\.mode\s*===\s*['"]local['"]\)\s*\{[\s\S]*?startRunnerControlServer/)
     })
 })
 
-// ---------- I4: Config file permissions too open ----------
+// ---------- I4: Config file permissions ----------
 
-describe('I4: Worker config file has insecure default permissions', () => {
-    it('writeWorkerConfig does not set restricted file permissions', async () => {
+describe('I4: Worker config file has secure permissions', () => {
+    it('writeWorkerConfig sets restricted file permissions (0o600)', async () => {
         const source = await fs.readFile(
             path.join(__dirname, 'workerConfig.ts'),
             'utf-8'
         )
-        // The bug: writeFile is called without { mode: 0o600 }
-        // This means the token file is readable by other users on shared systems
-        expect(source).not.toContain('mode:')
-        expect(source).not.toContain('0o600')
+        // The fix: writeFile is called with { mode: 0o600 }
+        expect(source).toContain('mode:')
+        expect(source).toContain('0o600')
     })
 
-    it('config file is world-readable by default', async () => {
+    it('config file is owner-only readable after fix', async () => {
         const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'haqi-worker-perm-'))
         try {
             const config: WorkerConfig = {
@@ -118,11 +114,9 @@ describe('I4: Worker config file has insecure default permissions', () => {
             const stat = await fs.stat(filePath)
             const mode = stat.mode & 0o777
 
-            // On most systems, default umask (022) gives 0644
-            // The bug: other users CAN read the file (group+other read bits set)
-            // mode & 0o044 checks if group-read or other-read bits are set
+            // After fix: other users should NOT be able to read the file
             const othersCanRead = (mode & 0o044) !== 0
-            expect(othersCanRead).toBe(true) // This SHOULD fail after fix (others should NOT be able to read)
+            expect(othersCanRead).toBe(false)
         } finally {
             await fs.rm(tempDir, { recursive: true, force: true })
         }
@@ -131,17 +125,17 @@ describe('I4: Worker config file has insecure default permissions', () => {
 
 // ---------- I5: Empty machineId ----------
 
-describe('I5: machineId can be empty string from enrollment', () => {
-    it('workerStart falls back to empty string when machineId is undefined', async () => {
+describe('I5: machineId has a generated fallback instead of empty string', () => {
+    it('workerStart generates a fallback machineId when undefined', async () => {
         const source = await fs.readFile(
             path.join(__dirname, 'workerStart.ts'),
             'utf-8'
         )
-        // The bug: when Hub sends no machineId, it becomes ''
-        expect(source).toContain("machineId: data.machineId ?? ''")
+        // The fix: no longer falls back to empty string
+        expect(source).not.toContain("machineId: data.machineId ?? ''")
 
-        // No generation of a fallback machineId
-        expect(source).not.toContain('os.hostname()')
+        // Uses os.hostname() for a generated fallback
+        expect(source).toContain('os.hostname()')
     })
 
     it('empty machineId gets persisted to config', async () => {
@@ -164,10 +158,10 @@ describe('I5: machineId can be empty string from enrollment', () => {
     })
 })
 
-// ---------- RunnerLoopOptions lacks mode field ----------
+// ---------- RunnerLoopOptions has mode field ----------
 
-describe('RunnerLoopOptions has no mode field', () => {
-    it('RunnerLoopOptions type does not include a mode or isRemote field', async () => {
+describe('RunnerLoopOptions has mode field', () => {
+    it('RunnerLoopOptions type includes a mode field', async () => {
         const source = await fs.readFile(
             path.join(__dirname, '..', 'runner', 'runnerLoop.ts'),
             'utf-8'
@@ -177,9 +171,7 @@ describe('RunnerLoopOptions has no mode field', () => {
         expect(optionsMatch).not.toBeNull()
 
         const optionsType = optionsMatch![0]
-        // The bug: no mode or isRemote/isLocal discriminator
-        expect(optionsType).not.toContain('mode')
-        expect(optionsType).not.toContain('isRemote')
-        expect(optionsType).not.toContain('isLocal')
+        // The fix: mode discriminator is present
+        expect(optionsType).toContain('mode')
     })
 })

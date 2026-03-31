@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import os from 'node:os'
 import { io } from 'socket.io-client'
 import { logger } from '@/ui/logger'
 import { acquireRunnerLock } from '@/persistence'
@@ -61,7 +62,7 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
                 socket.disconnect()
                 resolve({
                     workerSessionToken: data.workerSessionToken,
-                    machineId: data.machineId ?? '',
+                    machineId: data.machineId || `worker-${os.hostname()}-${Date.now().toString(36)}`,
                     namespace: data.namespace
                 })
             })
@@ -159,6 +160,7 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
 
     try {
         await runRunnerLoop({
+            mode: 'remote',
             machineId: workerConfig.machineId,
             getAuthToken: () => workerConfig.workerSessionToken,
             getApiUrl: () => workerConfig.hubUrl,

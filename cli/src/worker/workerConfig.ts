@@ -29,7 +29,7 @@ export async function readWorkerConfig(configDir: string = DEFAULT_CONFIG_DIR): 
 export async function writeWorkerConfig(config: WorkerConfig, configDir: string = DEFAULT_CONFIG_DIR): Promise<void> {
     await fs.mkdir(configDir, { recursive: true })
     const filePath = configFilePath(configDir)
-    await fs.writeFile(filePath, JSON.stringify(config, null, 4), 'utf-8')
+    await fs.writeFile(filePath, JSON.stringify(config, null, 4), { encoding: 'utf-8', mode: 0o600 })
 }
 
 export async function clearWorkerConfig(configDir: string = DEFAULT_CONFIG_DIR): Promise<void> {

@@ -39,6 +39,7 @@ import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInCon
 import { hydrateDesktop } from '@/cloud/desktop/hydrateDesktop';
 
 export type RunnerLoopOptions = {
+    mode: 'local' | 'remote'
     machineId: string
     getAuthToken: () => string
     getApiUrl: () => string
@@ -1135,14 +1136,20 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       });
     };
 
-    // Start control server
-    const { port: controlPort, stop: stopControlServer } = await startRunnerControlServer({
-      getChildren: getCurrentChildren,
-      stopSession,
-      spawnSession,
-      requestShutdown: () => requestShutdown('hapi-cli'),
-      onHappySessionWebhook
-    });
+    // Start control server (local mode only)
+    let controlPort = 0;
+    let stopControlServer = async () => {};
+    if (options.mode === 'local') {
+      const controlServer = await startRunnerControlServer({
+        getChildren: getCurrentChildren,
+        stopSession,
+        spawnSession,
+        requestShutdown: () => requestShutdown('hapi-cli'),
+        onHappySessionWebhook
+      });
+      controlPort = controlServer.port;
+      stopControlServer = controlServer.stop;
+    }
 
     const startedWithCliMtimeMs = getInstalledCliMtimeMs();
 
@@ -1155,8 +1162,10 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       startedWithCliMtimeMs,
       runnerLogPath: logger.logFilePath
     };
-    writeRunnerState(fileState);
-    logger.debug('[RUNNER RUN] Runner state written');
+    if (options.mode === 'local') {
+      writeRunnerState(fileState);
+      logger.debug('[RUNNER RUN] Runner state written');
+    }
 
     // Prepare initial runner state
     const initialRunnerState: RunnerState = {
@@ -1192,10 +1201,12 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           const errorMsg = error instanceof Error ? error.message : String(error)
           logger.debug(`[RUNNER RUN] Failed to register machine (attempt ${attempt}), retrying in ${nextDelayMs}ms: ${errorMsg}`)
 
-          // If hub dropped after startup, opportunistically try to recover it.
-          void maybeAutoStartServer().catch((recoverError) => {
-            logger.debug('[RUNNER RUN] Failed to auto-recover hub during machine registration retry', recoverError)
-          })
+          // If hub dropped after startup, opportunistically try to recover it (local mode only).
+          if (options.mode === 'local') {
+            void maybeAutoStartServer().catch((recoverError) => {
+              logger.debug('[RUNNER RUN] Failed to auto-recover hub during machine registration retry', recoverError)
+            })
+          }
         }
       }
     );
@@ -1337,62 +1348,58 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         }
       }
 
-      // Check if runner needs update
-      const installedCliMtimeMs = getInstalledCliMtimeMs();
-      if (typeof installedCliMtimeMs === 'number' &&
-          typeof startedWithCliMtimeMs === 'number' &&
-          installedCliMtimeMs !== startedWithCliMtimeMs) {
-        logger.debug('[RUNNER RUN] Runner is outdated, triggering self-restart with latest version, clearing heartbeat interval');
+      // Check if runner needs update (local mode only — remote workers do not self-restart)
+      if (options.mode === 'local') {
+        const installedCliMtimeMs = getInstalledCliMtimeMs();
+        if (typeof installedCliMtimeMs === 'number' &&
+            typeof startedWithCliMtimeMs === 'number' &&
+            installedCliMtimeMs !== startedWithCliMtimeMs) {
+          logger.debug('[RUNNER RUN] Runner is outdated, triggering self-restart with latest version, clearing heartbeat interval');
 
-        clearInterval(restartOnStaleVersionAndHeartbeat);
+          clearInterval(restartOnStaleVersionAndHeartbeat);
 
-        // Spawn new runner through the CLI
-        // We do not need to clean ourselves up - we will be killed by
-        // the CLI start command.
-        // 1. It will first check if runner is running (yes in this case)
-        // 2. If the version is stale (it will read runner.state.json file and check startedWithCliVersion) & compare it to its own version
-        // 3. Next it will start a new runner with the latest version with runner-sync :D
-        // Done!
+          try {
+            spawnHappyCLI(['runner', 'start'], {
+              detached: true,
+              stdio: 'ignore'
+            });
+          } catch (error) {
+            logger.debug('[RUNNER RUN] Failed to spawn new runner, this is quite likely to happen during integration tests as we are cleaning out dist/ directory', error);
+          }
+
+          logger.debug('[RUNNER RUN] Hanging for a bit - waiting for CLI to kill us because we are running outdated version of the code');
+          await new Promise(resolve => setTimeout(resolve, 10_000));
+          process.exit(0);
+        }
+      }
+
+      if (options.mode === 'local') {
+        // Before wrecklessly overriting the runner state file, we should check if we are the ones who own it
+        // Race condition is possible, but thats okay for the time being :D
+        const runnerState = await readRunnerState();
+        if (runnerState && runnerState.pid !== process.pid) {
+          logger.debug('[RUNNER RUN] Somehow a different runner was started without killing us. We should kill ourselves.')
+          requestShutdown('exception', 'A different runner was started without killing us. We should kill ourselves.')
+        }
+
+        // Heartbeat
         try {
-          spawnHappyCLI(['runner', 'start'], {
-            detached: true,
-            stdio: 'ignore'
-          });
+          const updatedState: RunnerLocallyPersistedState = {
+            pid: process.pid,
+            httpPort: controlPort,
+            startTime: fileState.startTime,
+            startedWithCliVersion: packageJson.version,
+            startedWithCliMtimeMs,
+            lastHeartbeat: new Date().toLocaleString(),
+            runnerLogPath: fileState.runnerLogPath
+          };
+          writeRunnerState(updatedState);
+          if (process.env.DEBUG) {
+            logger.debug(`[RUNNER RUN] Health check completed at ${updatedState.lastHeartbeat}`);
+          }
         } catch (error) {
-          logger.debug('[RUNNER RUN] Failed to spawn new runner, this is quite likely to happen during integration tests as we are cleaning out dist/ directory', error);
+          logger.debug('[RUNNER RUN] Failed to write heartbeat', error);
         }
-
-        // So we can just hang forever
-        logger.debug('[RUNNER RUN] Hanging for a bit - waiting for CLI to kill us because we are running outdated version of the code');
-        await new Promise(resolve => setTimeout(resolve, 10_000));
-        process.exit(0);
-      }
-
-      // Before wrecklessly overriting the runner state file, we should check if we are the ones who own it
-      // Race condition is possible, but thats okay for the time being :D
-      const runnerState = await readRunnerState();
-      if (runnerState && runnerState.pid !== process.pid) {
-        logger.debug('[RUNNER RUN] Somehow a different runner was started without killing us. We should kill ourselves.')
-        requestShutdown('exception', 'A different runner was started without killing us. We should kill ourselves.')
-      }
-
-      // Heartbeat
-      try {
-        const updatedState: RunnerLocallyPersistedState = {
-          pid: process.pid,
-          httpPort: controlPort,
-          startTime: fileState.startTime,
-          startedWithCliVersion: packageJson.version,
-          startedWithCliMtimeMs,
-          lastHeartbeat: new Date().toLocaleString(),
-          runnerLogPath: fileState.runnerLogPath
-        };
-        writeRunnerState(updatedState);
-        if (process.env.DEBUG) {
-          logger.debug(`[RUNNER RUN] Health check completed at ${updatedState.lastHeartbeat}`);
-        }
-      } catch (error) {
-        logger.debug('[RUNNER RUN] Failed to write heartbeat', error);
       }
 
       heartbeatRunning = false;
@@ -1406,6 +1413,22 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       if (restartOnStaleVersionAndHeartbeat) {
         clearInterval(restartOnStaleVersionAndHeartbeat);
         logger.debug('[RUNNER RUN] Health check interval cleared');
+      }
+
+      // For remote workers, kill all child session processes before disconnecting
+      if (options.mode === 'remote') {
+        for (const [pid, tracked] of pidToTrackedSession.entries()) {
+          logger.debug(`[RUNNER RUN] Killing child session PID ${pid} (session: ${tracked.happySessionId ?? 'unknown'})`);
+          try {
+            if (tracked.childProcess) {
+              killProcessByChildProcess(tracked.childProcess);
+            } else {
+              killProcess(pid);
+            }
+          } catch (error) {
+            logger.debug(`[RUNNER RUN] Failed to kill child PID ${pid}`, error);
+          }
+        }
       }
 
       // Update runner state before shutting down

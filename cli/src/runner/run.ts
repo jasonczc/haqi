@@ -115,6 +115,7 @@ export async function startRunner(): Promise<void> {
     logger.debug('[RUNNER RUN] Auth and machine setup complete');
 
     await runRunnerLoop({
+      mode: 'local',
       machineId,
       getAuthToken: () => getAuthToken(),
       getApiUrl: () => configuration.apiUrl,

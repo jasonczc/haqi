@@ -410,6 +410,12 @@ export class ApiMachineClient {
             return
         }
 
+        // Skip auto-start recovery when connected to a remote hub (not localhost)
+        const apiUrl = configuration.apiUrl
+        if (apiUrl && !apiUrl.includes('localhost') && !apiUrl.includes('127.0.0.1')) {
+            return
+        }
+
         const now = Date.now()
         if (now - this.lastLocalHubRecoveryAttemptAt < LOCAL_HUB_RECOVERY_MIN_INTERVAL_MS) {
             return
