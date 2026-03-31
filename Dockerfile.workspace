@@ -14,20 +14,50 @@ RUN cd daemon && bun install
 # Build daemon binary
 RUN cd daemon && bun build src/index.ts --compile --outfile dist/haqi-daemon
 
-# Stage 2: Runtime image
+# Stage 3: Install CLI deps
+FROM oven/bun:1 AS cli-builder
+
+WORKDIR /opt/haqi
+
+# Copy workspace structure but only cli + shared + hub
+COPY tsconfig.base.json ./
+COPY shared/package.json shared/tsconfig.json shared/
+COPY shared/src/ shared/src/
+COPY cli/package.json cli/tsconfig.json cli/
+COPY cli/src/ cli/src/
+COPY cli/bin/ cli/bin/
+COPY hub/package.json hub/tsconfig.json hub/
+COPY hub/src/ hub/src/
+
+# Copy daemon types (cli depends on @hapi/daemon/types)
+COPY daemon/package.json daemon/tsconfig.json daemon/
+COPY daemon/src/types.ts daemon/src/types.ts
+
+# Create a minimal root package.json with just needed workspaces
+RUN echo '{"private":true,"workspaces":["cli","shared","hub","daemon"]}' > package.json
+RUN bun install
+
+# Stage 3: Runtime image
 FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
     git curl jq ca-certificates iproute2 unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Bun (for running haqi CLI inside container)
+# Install Bun
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:$PATH"
 
-# Copy daemon binary from builder
+# Copy daemon binary
 COPY --from=builder /build/daemon/dist/haqi-daemon /usr/local/bin/haqi-daemon
 RUN chmod +x /usr/local/bin/haqi-daemon
+
+# Copy CLI with deps
+COPY --from=cli-builder /opt/haqi/ /opt/haqi/
+
+# Create haqi wrapper
+RUN printf '#!/bin/sh\ncd /opt/haqi/cli && exec bun src/index.ts "$@"\n' > /usr/local/bin/haqi && \
+    chmod +x /usr/local/bin/haqi
 
 WORKDIR /workspace
 ENTRYPOINT ["haqi-daemon"]

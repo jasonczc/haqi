@@ -77,7 +77,16 @@ export class DockerCliRuntime {
     }
 
     async pull(image: string): Promise<void> {
-        await runDockerCommand(['pull', image])
+        try {
+            await runDockerCommand(['pull', image])
+        } catch {
+            // Pull failed — check if image exists locally (e.g., locally built images)
+            try {
+                await runDockerCommand(['inspect', '--type=image', image])
+            } catch {
+                throw new Error(`Image ${image} not found locally or in registry`)
+            }
+        }
     }
 
     async run(spec: DockerRunSpec): Promise<string> {

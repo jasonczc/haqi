@@ -28,6 +28,7 @@ import { DockerCliRuntime } from '@/cloud/docker/dockerCli';
 import { DockerServiceOrchestrator } from '@/cloud/docker/serviceOrchestrator';
 import { buildSpawnEnvironment, startHostProcessExecutor } from '@/cloud/executors/HostProcessExecutor';
 import { startDockerSessionExecutor } from '@/cloud/executors/DockerSessionExecutor';
+import { startDaemonSessionExecutor } from '@/cloud/executors/DaemonSessionExecutor';
 import { ensureWorkspaceContainer } from '@/cloud/executors/WorkspaceContainerManager';
 import { mergePreviewTargets } from '@/cloud/preview/previewReporter';
 import type { PreparedWorkspace, PreparedWorkspaceCleanup, ResolvedEnvironmentTemplate } from '@/cloud/types';
@@ -464,7 +465,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
 
         const repositorySource = preparedWorkspace.source?.repository ?? options.workspaceSource?.repository;
         const isCloudRepoDockerSession = options.executionBackend !== 'local'
-          && options.runtimeKind === 'docker-session'
+          && (options.runtimeKind === 'docker-session' || options.runtimeKind === 'daemon-session')
           && Boolean(repositorySource);
         dockerRuntime = isCloudRepoDockerSession ? new DockerCliRuntime() : null;
 
@@ -701,7 +702,16 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         // In development mode, Bun path aliases only resolve reliably when cwd is cli project root.
         // Keep actual target directory in HAPI_WORKING_DIRECTORY to preserve session behavior.
         const executionCwd = isBunCompiled() ? spawnDirectory : projectPath();
-        const execution = resolvedEnvironment.runtimeKind === 'docker-session'
+        const execution = resolvedEnvironment.runtimeKind === 'daemon-session'
+          ? await startDaemonSessionExecutor({
+              runtime: dockerRuntime ?? new DockerCliRuntime(),
+              workspace: preparedWorkspace,
+              environment: resolvedEnvironment,
+              env: extraEnv,
+              options,
+              sessionLabel: spawnRequestId
+            })
+          : resolvedEnvironment.runtimeKind === 'docker-session'
           ? await startDockerSessionExecutor({
               runtime: dockerRuntime ?? new DockerCliRuntime(),
               workspace: preparedWorkspace,
