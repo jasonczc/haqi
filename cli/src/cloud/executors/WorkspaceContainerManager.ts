@@ -12,6 +12,10 @@ export async function ensureWorkspaceContainer(params: {
     environment: ResolvedEnvironmentTemplate | null
     checkpointId?: string
     sessionLabel: string
+    daemonMode?: {
+        daemonPort: number
+        authToken: string
+    }
 }): Promise<{
     containerId: string
     previewTargets: PreviewTarget[]
@@ -29,6 +33,14 @@ export async function ensureWorkspaceContainer(params: {
         protocol: port.protocol
     }))
 
+    if (params.daemonMode) {
+        portSpecs.push({
+            containerPort: params.daemonMode.daemonPort,
+            hostPort: undefined,
+            protocol: 'tcp'
+        })
+    }
+
     const mounts = [
         `${params.workspace.repoVolumePath}:${params.workspace.repoVolumePath}`
     ]
@@ -39,12 +51,14 @@ export async function ensureWorkspaceContainer(params: {
     const spec: DockerRunSpec = {
         image,
         name: `haqi-workspace-${params.sessionLabel}`,
-        command: keepaliveCommand(),
+        command: params.daemonMode
+            ? ['haqi-daemon', '--port', String(params.daemonMode.daemonPort), '--auth-token', params.daemonMode.authToken]
+            : keepaliveCommand(),
         workingDir: params.workspace.workingDirectory,
         mounts,
         ports: portSpecs,
         labels: {
-            'haqi.runtime': 'docker-session',
+            'haqi.runtime': params.daemonMode ? 'daemon-session' : 'docker-session',
             'haqi.workspace_id': params.workspace.workspaceId,
             ...(params.checkpointId ? { 'haqi.checkpoint_id': params.checkpointId } : {})
         },
