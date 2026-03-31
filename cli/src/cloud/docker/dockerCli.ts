@@ -181,6 +181,18 @@ export class DockerCliRuntime {
         }
     }
 
+    async findContainerByLabel(label: string, value: string): Promise<string | null> {
+        try {
+            const result = await runDockerCommand([
+                'ps', '-q', '--filter', `label=${label}=${value}`, '--filter', 'status=running'
+            ])
+            const id = result.stdout.trim().split('\n')[0]
+            return id || null
+        } catch {
+            return null
+        }
+    }
+
     async logs(containerId: string, tail: number = 200): Promise<string> {
         const result = await runDockerCommand(['logs', '--tail', String(tail), containerId])
         return [result.stdout, result.stderr].filter(Boolean).join('\n')

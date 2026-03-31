@@ -13,6 +13,7 @@ export type DaemonSessionResult = {
     daemonClient: DaemonClient
     pid: number
     daemonUrl: string
+    reused: boolean
 }
 
 export async function startDaemonSessionExecutor(params: {
@@ -23,7 +24,83 @@ export async function startDaemonSessionExecutor(params: {
     options: SpawnSessionOptions
     sessionLabel: string
 }): Promise<DaemonSessionResult> {
-    const authToken = crypto.randomUUID()
+    // Try to find an existing running container for this workspace
+    const workspaceId = params.workspace.workspaceId
+    const existingContainerId = workspaceId
+        ? await params.runtime.findContainerByLabel('haqi.workspace_id', workspaceId)
+        : null
+
+    let containerId: string
+    let authToken: string
+    let reused = false
+
+    if (existingContainerId) {
+        // Reattach to existing container
+        containerId = existingContainerId
+
+        // Read the auth token from container env
+        const inspectResult = await params.runtime.inspect(containerId)
+        if (inspectResult.status !== 'running') {
+            // Container exists but not running — remove and create new
+            await params.runtime.remove(containerId).catch(() => undefined)
+        } else {
+            // Try to get daemon port and check health
+            const mappedPort = inspectResult.portBindings[DAEMON_PORT]
+            if (mappedPort) {
+                // We need the auth token — read from container environment
+                const envResult = await params.runtime.exec({
+                    containerId,
+                    command: ['printenv', 'HAQI_DAEMON_AUTH_TOKEN'],
+                    workingDir: '/'
+                }).catch(() => null)
+                authToken = envResult?.stdout?.trim() ?? ''
+
+                if (authToken) {
+                    const client = new DaemonClient(`http://127.0.0.1:${mappedPort}`, authToken)
+                    try {
+                        await client.waitReady(5_000)
+                        // Daemon is alive — kill any existing process and spawn fresh
+                        const status = await client.status()
+                        if (status.running) {
+                            await client.kill()
+                            // Wait for process to exit
+                            await new Promise(r => setTimeout(r, 1000))
+                        }
+
+                        // Spawn new agent in existing container
+                        const spawnArgs = buildSpawnArgs(params.options)
+                        const spawnResponse = await client.spawn({
+                            command: ['haqi', ...spawnArgs],
+                            cwd: params.workspace.workingDirectory,
+                            env: {
+                                ...params.env,
+                                HAPI_WORKING_DIRECTORY: params.workspace.workingDirectory,
+                                HAPI_CONTAINER_ID: containerId
+                            }
+                        })
+
+                        if (spawnResponse.status === 'failed') {
+                            throw new Error(`Daemon spawn failed: ${spawnResponse.error ?? 'unknown'}`)
+                        }
+
+                        return {
+                            runtimeKind: 'daemon-session',
+                            containerId,
+                            daemonClient: client,
+                            pid: spawnResponse.pid,
+                            daemonUrl: `http://127.0.0.1:${mappedPort}`,
+                            reused: true
+                        }
+                    } catch {
+                        // Daemon not healthy — fall through to create new container
+                    }
+                }
+            }
+        }
+    }
+
+    // Create new container with daemon
+    authToken = crypto.randomUUID()
 
     const container = await ensureWorkspaceContainer({
         runtime: params.runtime,
@@ -36,11 +113,12 @@ export async function startDaemonSessionExecutor(params: {
             authToken
         }
     })
+    containerId = container.containerId
 
-    const inspect = await params.runtime.inspect(container.containerId)
+    const inspect = await params.runtime.inspect(containerId)
     const mappedPort = inspect.portBindings[DAEMON_PORT]
     if (!mappedPort) {
-        await params.runtime.remove(container.containerId).catch(() => undefined)
+        await params.runtime.remove(containerId).catch(() => undefined)
         throw new Error(`Daemon port ${DAEMON_PORT} not found in container port bindings`)
     }
 
@@ -49,6 +127,7 @@ export async function startDaemonSessionExecutor(params: {
 
     await client.waitReady(30_000)
 
+    // Run install hooks if this is a fresh container
     const installCmds = params.environment?.environment?.install
     if (installCmds) {
         const commands = Array.isArray(installCmds) ? installCmds : [installCmds]
@@ -59,6 +138,7 @@ export async function startDaemonSessionExecutor(params: {
         })
     }
 
+    // Spawn agent
     const spawnArgs = buildSpawnArgs(params.options)
     const spawnResponse = await client.spawn({
         command: ['haqi', ...spawnArgs],
@@ -66,20 +146,21 @@ export async function startDaemonSessionExecutor(params: {
         env: {
             ...params.env,
             HAPI_WORKING_DIRECTORY: params.workspace.workingDirectory,
-            HAPI_CONTAINER_ID: container.containerId
+            HAPI_CONTAINER_ID: containerId
         }
     })
 
     if (spawnResponse.status === 'failed') {
-        await params.runtime.remove(container.containerId).catch(() => undefined)
+        await params.runtime.remove(containerId).catch(() => undefined)
         throw new Error(`Daemon spawn failed: ${spawnResponse.error ?? 'unknown error'}`)
     }
 
     return {
         runtimeKind: 'daemon-session',
-        containerId: container.containerId,
+        containerId,
         daemonClient: client,
         pid: spawnResponse.pid,
-        daemonUrl
+        daemonUrl,
+        reused: false
     }
 }

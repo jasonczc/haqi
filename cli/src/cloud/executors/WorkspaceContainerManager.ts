@@ -48,6 +48,10 @@ export async function ensureWorkspaceContainer(params: {
         mounts.push(`${params.workspace.desktopStatePath}:${params.workspace.desktopStatePath}`)
     }
 
+    const envVars = params.daemonMode
+        ? [`HAQI_DAEMON_AUTH_TOKEN=${params.daemonMode.authToken}`]
+        : []
+
     const spec: DockerRunSpec = {
         image,
         name: `haqi-workspace-${params.sessionLabel}`,
@@ -56,6 +60,7 @@ export async function ensureWorkspaceContainer(params: {
             : keepaliveCommand(),
         workingDir: params.workspace.workingDirectory,
         mounts,
+        env: envVars,
         ports: portSpecs,
         labels: {
             'haqi.runtime': params.daemonMode ? 'daemon-session' : 'docker-session',
