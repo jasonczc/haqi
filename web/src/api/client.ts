@@ -979,6 +979,30 @@ export class ApiClient {
         )
     }
 
+    async getCloudContainers(): Promise<{ machines: Array<{ machineId: string; containers: any[] }> }> {
+        return await this.request('/api/cloud/containers') as { machines: Array<{ machineId: string; containers: any[] }> }
+    }
+
+    async containerStopSession(machineId: string, containerId: string): Promise<void> {
+        await this.request(`/api/machines/${machineId}/containers/stop-session`, {
+            method: 'POST',
+            body: JSON.stringify({ containerId })
+        })
+    }
+
+    async containerStop(machineId: string, containerId: string): Promise<void> {
+        await this.request(`/api/machines/${machineId}/containers/stop`, {
+            method: 'POST',
+            body: JSON.stringify({ containerId })
+        })
+    }
+
+    async containerRemove(machineId: string, containerId: string): Promise<void> {
+        await this.request(`/api/machines/${machineId}/containers/${containerId}`, {
+            method: 'DELETE'
+        })
+    }
+
     async getCloudEnvironments(): Promise<import('@/types/api').CloudEnvironmentsResponse> {
         return await this.request<import('@/types/api').CloudEnvironmentsResponse>('/api/machines/cloud/environments')
     }

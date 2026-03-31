@@ -219,6 +219,13 @@ export default {
   'cloud.workers.noWorkersOnline': 'No workers online',
   'cloud.workers.goToManagement': 'Go to Worker management',
 
+  // Cloud Containers
+  'cloud.containers.title': 'Containers',
+  'cloud.containers.empty': 'No workspace containers running.',
+  'cloud.containers.stopSession': 'Stop Session',
+  'cloud.containers.stop': 'Stop Container',
+  'cloud.containers.remove': 'Remove',
+
   // Chat
   'chat.placeholder': 'Type a message…',
   'chat.send': 'Send',

@@ -216,6 +216,13 @@ export default {
   'cloud.workers.noWorkersOnline': '暂无在线 Worker',
   'cloud.workers.goToManagement': '前往 Worker 管理',
 
+  // Cloud Containers
+  'cloud.containers.title': '容器管理',
+  'cloud.containers.empty': '没有运行中的工作区容器。',
+  'cloud.containers.stopSession': '停止会话',
+  'cloud.containers.stop': '停止容器',
+  'cloud.containers.remove': '删除',
+
   // Chat
   'chat.placeholder': '输入消息…',
   'chat.send': '发送',

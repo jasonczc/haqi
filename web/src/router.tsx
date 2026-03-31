@@ -68,6 +68,7 @@ import CloudRequestDetailPage from '@/routes/cloud/request'
 import CloudWorkspaceDetailPage from '@/routes/cloud/workspace'
 import CloudSecretsPage from '@/routes/cloud/secrets'
 import CloudWorkersPage from '@/routes/cloud/workers'
+import CloudContainersPage from '@/routes/cloud/containers'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
@@ -2034,6 +2035,12 @@ const cloudWorkersRoute = createRoute({
     component: CloudWorkersPage,
 })
 
+const cloudContainersRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/cloud/containers',
+    component: CloudContainersPage,
+})
+
 const groupsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/groups',
@@ -2077,6 +2084,7 @@ export const routeTree = rootRoute.addChildren([
     cloudWorkspaceDetailRoute,
     cloudSecretsRoute,
     cloudWorkersRoute,
+    cloudContainersRoute,
     sessionsRoute.addChildren([
         sessionsIndexRoute,
         newSessionRoute,
