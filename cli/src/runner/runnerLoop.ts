@@ -59,6 +59,11 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     configuration._setCliApiToken(options.getAuthToken());
     configuration._setApiUrl(options.getApiUrl());
 
+    // Propagate auth token and API URL to process.env so spawned child processes
+    // (agent sessions) inherit them and can connect back to the Hub.
+    process.env.CLI_API_TOKEN = options.getAuthToken();
+    process.env.HAPI_API_URL = options.getApiUrl();
+
     // Setup state - key by PID
     const pidToTrackedSession = new Map<number, TrackedSession>();
 
