@@ -21,6 +21,7 @@ import { backoff } from '@/utils/time'
 import { RpcHandlerManager } from './rpc/RpcHandlerManager'
 import { registerCommonHandlers } from '../modules/common/registerCommonHandlers'
 import type { SpawnSessionOptions, SpawnSessionResult } from '../modules/common/rpcTypes'
+import type { ContainerInfo } from '@/cloud/docker/containerManager'
 import { applyVersionedAck } from './versionedUpdate'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
 
@@ -64,6 +65,11 @@ type MachineRpcHandlers = {
     spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>
     stopSession: (sessionId: string) => boolean
     requestShutdown: () => void
+    containerList: () => Promise<ContainerInfo[]>
+    containerStopSession: (containerId: string) => Promise<void>
+    containerStop: (containerId: string) => Promise<void>
+    containerRemove: (containerId: string) => Promise<void>
+    containerLogs: (containerId: string) => Promise<string>
 }
 
 interface PathExistsRequest {
@@ -145,7 +151,7 @@ export class ApiMachineClient {
         })
     }
 
-    setRPCHandlers({ spawnSession, stopSession, requestShutdown }: MachineRpcHandlers): void {
+    setRPCHandlers({ spawnSession, stopSession, requestShutdown, containerList, containerStopSession, containerStop, containerRemove, containerLogs }: MachineRpcHandlers): void {
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
             const {
                 directory,
@@ -246,6 +252,29 @@ export class ApiMachineClient {
         this.rpcHandlerManager.registerHandler('stop-runner', () => {
             setTimeout(() => requestShutdown(), 100)
             return { message: 'Runner stop request acknowledged' }
+        })
+
+        this.rpcHandlerManager.registerHandler('container-list', async () => {
+            return await containerList()
+        })
+
+        this.rpcHandlerManager.registerHandler('container-stop-session', async (params: any) => {
+            await containerStopSession(params.containerId)
+            return { ok: true }
+        })
+
+        this.rpcHandlerManager.registerHandler('container-stop', async (params: any) => {
+            await containerStop(params.containerId)
+            return { ok: true }
+        })
+
+        this.rpcHandlerManager.registerHandler('container-remove', async (params: any) => {
+            await containerRemove(params.containerId)
+            return { ok: true }
+        })
+
+        this.rpcHandlerManager.registerHandler('container-logs', async (params: any) => {
+            return await containerLogs(params.containerId)
         })
     }
 

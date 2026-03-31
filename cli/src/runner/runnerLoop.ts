@@ -25,6 +25,7 @@ import { prepareWorkspace } from '@/cloud/workspace/prepareWorkspace';
 import { resolveEnvironmentTemplate } from '@/cloud/environment/resolveEnvironment';
 import { loadWorkspaceEnvironmentTemplate } from '@/cloud/environment/workspaceEnvironment';
 import { DockerCliRuntime } from '@/cloud/docker/dockerCli';
+import { listHaqiContainers, stopSessionInContainer } from '@/cloud/docker/containerManager';
 import { DockerServiceOrchestrator } from '@/cloud/docker/serviceOrchestrator';
 import { buildSpawnEnvironment, startHostProcessExecutor } from '@/cloud/executors/HostProcessExecutor';
 import { startDockerSessionExecutor } from '@/cloud/executors/DockerSessionExecutor';
@@ -1234,7 +1235,16 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     apiMachine.setRPCHandlers({
       spawnSession,
       stopSession,
-      requestShutdown: () => requestShutdown('hapi-app')
+      requestShutdown: () => requestShutdown('hapi-app'),
+      containerList: () => listHaqiContainers(),
+      containerStopSession: (containerId) => stopSessionInContainer(containerId),
+      containerStop: async (containerId) => { await new DockerCliRuntime().stop(containerId) },
+      containerRemove: async (containerId) => {
+        const rt = new DockerCliRuntime()
+        await rt.stop(containerId).catch(() => {})
+        await rt.remove(containerId)
+      },
+      containerLogs: async (containerId) => new DockerCliRuntime().logs(containerId)
     });
 
     // Connect to server
