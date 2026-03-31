@@ -696,7 +696,7 @@ export function NewSession(props: {
                 cloudEnvironmentsLoading={cloudEnvironmentsLoading}
                 cloudEnvironmentsError={cloudEnvironmentsError}
                 cloudWorkersLoading={cloudWorkersLoading}
-                hasSelectableWorkers={cloudWorkers.some((w) => w.active && w.selectable !== false)}
+                hasSelectableWorkers={cloudWorkers.some((w) => w.active && w.selectable === true)}
                 selectedEnvironmentSummary={selectedEnvironmentSummary}
                 selectedCheckpoint={selectedCheckpoint}
                 isDisabled={isFormDisabled}

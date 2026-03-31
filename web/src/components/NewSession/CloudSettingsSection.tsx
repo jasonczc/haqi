@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import type { CloudCheckpoint, CloudEnvironmentSummary, ExecutionBackend, RuntimeKind } from '@/types/api'
 import type { CloudInventorySummary, CloudRuntimeWarning } from './cloudInventory'
 import { useTranslation } from '@/lib/use-translation'
@@ -154,12 +155,12 @@ export function CloudSettingsSection(props: {
                     {showNoWorkerGuidance ? (
                         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
                             <div className="font-medium">{t('cloud.workers.noWorkersOnline')}</div>
-                            <a
-                                href="/cloud/workers"
+                            <Link
+                                to="/cloud/workers"
                                 className="mt-1 block text-[var(--app-link)] hover:underline"
                             >
                                 {t('cloud.workers.goToManagement')}
-                            </a>
+                            </Link>
                         </div>
                     ) : null}
 

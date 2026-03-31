@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback, useId, type ChangeEvent, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { useTranslation, type Locale } from '@/lib/use-translation'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
@@ -1651,6 +1652,21 @@ export default function SettingsPage() {
                         </div>
                     </div>
                     </SettingsSection>
+
+                    <div className="border-b border-[var(--app-divider)]">
+                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            Cloud
+                        </div>
+                        <div className="flex w-full items-center justify-between px-3 py-3">
+                            <span className="text-[var(--app-fg)]">{t('cloud.workers.title')}</span>
+                            <Link
+                                to="/cloud/workers"
+                                className="text-[var(--app-link)] hover:underline text-sm"
+                            >
+                                {t('cloud.workers.goToManagement')}
+                            </Link>
+                        </div>
+                    </div>
 
                     <SettingsSection
                         title={t('settings.group.dataDiagnostics.title')}

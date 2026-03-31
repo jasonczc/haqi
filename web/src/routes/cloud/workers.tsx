@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
+import { useTranslation } from '@/lib/use-translation'
 import type { CloudWorkerSummary } from '@/types/api'
 
 function formatLastSeen(updatedAt: number): string {
@@ -24,6 +25,7 @@ function formatMemory(memoryMb: number): string {
 
 export default function CloudWorkersPage() {
     const { api } = useAppContext()
+    const { t } = useTranslation()
 
     const workersQuery = useQuery({
         queryKey: queryKeys.cloudWorkers(),
@@ -37,9 +39,13 @@ export default function CloudWorkersPage() {
     if (workersQuery.isLoading) {
         return (
             <div className="flex min-h-[40vh] items-center justify-center">
-                <LoadingState label="Loading workers…" />
+                <LoadingState label={t('loading')} />
             </div>
         )
+    }
+
+    if (workersQuery.isError) {
+        return <div className="p-4 text-sm text-red-500">Failed to load workers</div>
     }
 
     const workers: CloudWorkerSummary[] = workersQuery.data?.workers ?? []
@@ -48,16 +54,16 @@ export default function CloudWorkersPage() {
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4">
             <div>
                 <div className="text-xs uppercase tracking-[0.12em] text-[var(--app-hint)]">Cloud</div>
-                <h1 className="text-xl font-semibold">Workers</h1>
+                <h1 className="text-xl font-semibold">{t('cloud.workers.title')}</h1>
             </div>
 
             {workers.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center">
-                    <div className="text-sm font-medium">No workers registered</div>
+                    <div className="text-sm font-medium">{t('cloud.workers.empty')}</div>
                     <div className="mt-1 text-sm text-[var(--app-hint)]">
-                        Generate an enrollment token to register a worker.{' '}
+                        {t('cloud.workers.empty.hint')}{' '}
                         <Link to="/cloud/secrets" className="underline hover:no-underline">
-                            Go to Secrets & Enrollment
+                            {t('cloud.workers.empty.link')}
                         </Link>
                     </div>
                 </div>
@@ -77,37 +83,37 @@ export default function CloudWorkersPage() {
                                                 : 'bg-[var(--app-bg-secondary)] text-[var(--app-hint)]'
                                         }`}
                                     >
-                                        {worker.active ? 'online' : 'offline'}
+                                        {worker.active ? t('cloud.workers.status.online') : t('cloud.workers.status.offline')}
                                     </span>
                                     <span className="font-mono text-sm font-medium">{worker.machineId}</span>
                                 </div>
                                 <div className="text-xs text-[var(--app-hint)]">
-                                    Last seen: {formatLastSeen(worker.updatedAt)}
+                                    {t('cloud.workers.lastSeen')}: {formatLastSeen(worker.updatedAt)}
                                 </div>
                             </div>
 
                             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
                                 {worker.provider ? (
                                     <span>
-                                        <span className="font-medium text-[var(--app-fg)]">Provider</span>{' '}
+                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.provider')}</span>{' '}
                                         {worker.provider}
                                     </span>
                                 ) : null}
                                 {worker.lifecycle ? (
                                     <span>
-                                        <span className="font-medium text-[var(--app-fg)]">Lifecycle</span>{' '}
+                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.lifecycle')}</span>{' '}
                                         {worker.lifecycle}
                                     </span>
                                 ) : null}
                                 {worker.region ? (
                                     <span>
-                                        <span className="font-medium text-[var(--app-fg)]">Region</span>{' '}
+                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.region')}</span>{' '}
                                         {worker.region}
                                     </span>
                                 ) : null}
                                 {worker.workerVersion ? (
                                     <span>
-                                        <span className="font-medium text-[var(--app-fg)]">Version</span>{' '}
+                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.version')}</span>{' '}
                                         {worker.workerVersion}
                                     </span>
                                 ) : null}
@@ -117,19 +123,19 @@ export default function CloudWorkersPage() {
                                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
                                     {worker.resources.cpu != null ? (
                                         <span>
-                                            <span className="font-medium text-[var(--app-fg)]">CPU</span>{' '}
+                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.cpu')}</span>{' '}
                                             {worker.resources.cpu} cores
                                         </span>
                                     ) : null}
                                     {worker.resources.memoryMb != null ? (
                                         <span>
-                                            <span className="font-medium text-[var(--app-fg)]">Memory</span>{' '}
+                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.memory')}</span>{' '}
                                             {formatMemory(worker.resources.memoryMb)}
                                         </span>
                                     ) : null}
                                     {worker.resources.diskGb != null ? (
                                         <span>
-                                            <span className="font-medium text-[var(--app-fg)]">Disk</span>{' '}
+                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.disk')}</span>{' '}
                                             {worker.resources.diskGb} GB
                                         </span>
                                     ) : null}
