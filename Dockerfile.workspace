@@ -1,20 +1,33 @@
+# Stage 1: Build daemon binary inside Linux
+FROM oven/bun:1 AS builder
+
+WORKDIR /build
+
+# Copy only what's needed for daemon build
+COPY tsconfig.base.json ./
+COPY daemon/package.json daemon/tsconfig.json daemon/
+COPY daemon/src/ daemon/src/
+
+# Install daemon deps only
+RUN cd daemon && bun install
+
+# Build daemon binary
+RUN cd daemon && bun build src/index.ts --compile --outfile dist/haqi-daemon
+
+# Stage 2: Runtime image
 FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y \
-    git curl jq ca-certificates iproute2 \
+    git curl jq ca-certificates iproute2 unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Bun
+# Install Bun (for running haqi CLI inside container)
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:$PATH"
 
-# Copy daemon binary (built from daemon/scripts/build.ts)
-COPY daemon/dist/haqi-daemon /usr/local/bin/haqi-daemon
+# Copy daemon binary from builder
+COPY --from=builder /build/daemon/dist/haqi-daemon /usr/local/bin/haqi-daemon
 RUN chmod +x /usr/local/bin/haqi-daemon
-
-# Copy CLI binary (for running agents inside container)
-COPY cli/dist-exe/bun-linux-x64/hapi /usr/local/bin/haqi
-RUN chmod +x /usr/local/bin/haqi
 
 WORKDIR /workspace
 ENTRYPOINT ["haqi-daemon"]
