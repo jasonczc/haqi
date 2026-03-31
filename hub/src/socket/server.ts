@@ -174,18 +174,31 @@ export function createSocketServer(deps: SocketServerDeps): {
         if (resolved.machineId) {
             socket.data.machineId = resolved.machineId
         }
+        if (resolved.kind === 'enrollment') {
+            socket.data.pendingWorkerEnrollment = {
+                workerSessionToken: resolved.workerSessionToken,
+                namespace: resolved.namespace,
+                machineId: resolved.machineId
+            }
+        }
         next()
     })
-    cliNs.on('connection', (socket) => registerCliHandlers(socket as CliSocketWithData, {
-        io,
-        store: deps.store,
-        rpcRegistry,
-        terminalRegistry,
-        onSessionAlive: deps.onSessionAlive,
-        onSessionEnd: deps.onSessionEnd,
-        onMachineAlive: deps.onMachineAlive,
-        onWebappEvent: deps.onWebappEvent
-    }))
+    cliNs.on('connection', (socket) => {
+        if (socket.data.pendingWorkerEnrollment) {
+            socket.emit('worker-enrolled', socket.data.pendingWorkerEnrollment)
+            socket.data.pendingWorkerEnrollment = undefined
+        }
+        registerCliHandlers(socket as CliSocketWithData, {
+            io,
+            store: deps.store,
+            rpcRegistry,
+            terminalRegistry,
+            onSessionAlive: deps.onSessionAlive,
+            onSessionEnd: deps.onSessionEnd,
+            onMachineAlive: deps.onMachineAlive,
+            onWebappEvent: deps.onWebappEvent
+        })
+    })
 
     terminalNs.use(async (socket, next) => {
         const auth = socket.handshake.auth as Record<string, unknown> | undefined

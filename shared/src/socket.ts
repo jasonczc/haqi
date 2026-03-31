@@ -129,6 +129,11 @@ export interface ServerToClientEvents {
     'terminal:resize': (data: TerminalResizePayload) => void
     'terminal:close': (data: TerminalClosePayload) => void
     error: (data: { message: string; code?: SocketErrorReason; scope?: 'session' | 'machine'; id?: string }) => void
+    'worker-enrolled': (data: {
+        workerSessionToken: string
+        machineId?: string
+        namespace: string
+    }) => void
 }
 
 export interface ClientToServerEvents {

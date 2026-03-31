@@ -6,6 +6,11 @@ export type SocketData = {
     userId?: number
     machineId?: string
     cliAuthKind?: 'legacy' | 'worker-session' | 'enrollment'
+    pendingWorkerEnrollment?: {
+        workerSessionToken: string
+        namespace: string
+        machineId?: string
+    }
 }
 
 export type SocketServer = Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, SocketData>
