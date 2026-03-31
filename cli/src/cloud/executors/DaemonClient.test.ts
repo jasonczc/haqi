@@ -1,41 +1,54 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import http from 'node:http'
 import { DaemonClient } from './DaemonClient'
 
 const AUTH_TOKEN = 'test-token'
-let mockServer: ReturnType<typeof Bun.serve>
+let mockServer: http.Server
+let serverPort: number
 let client: DaemonClient
 
 describe('DaemonClient', () => {
-    beforeAll(() => {
-        mockServer = Bun.serve({
-            async fetch(req) {
-                const url = new URL(req.url)
-                const auth = req.headers.get('Authorization')
-                if (auth !== `Bearer ${AUTH_TOKEN}`) {
-                    return new Response('Unauthorized', { status: 401 })
-                }
-                if (url.pathname === '/health') {
-                    return Response.json({ status: 'ok', pid: 1, uptimeMs: 100 })
-                }
-                if (url.pathname === '/process/spawn' && req.method === 'POST') {
-                    return Response.json({ pid: 42, status: 'running' })
-                }
-                if (url.pathname === '/process/kill' && req.method === 'POST') {
-                    return Response.json({ ok: true })
-                }
-                if (url.pathname === '/process/status') {
-                    return Response.json({ pid: 42, running: true, exitCode: null, signal: null, uptimeMs: 50 })
-                }
-                if (url.pathname === '/preview/ports') {
-                    return Response.json({ ports: [{ port: 3000, process: 'node' }] })
-                }
-                return new Response('Not found', { status: 404 })
+    beforeAll(async () => {
+        mockServer = http.createServer((req, res) => {
+            const auth = req.headers.authorization
+            if (auth !== `Bearer ${AUTH_TOKEN}`) {
+                res.writeHead(401)
+                res.end('Unauthorized')
+                return
+            }
+
+            res.setHeader('Content-Type', 'application/json')
+
+            if (req.url === '/health' && req.method === 'GET') {
+                res.end(JSON.stringify({ status: 'ok', pid: 1, uptimeMs: 100 }))
+            } else if (req.url === '/process/spawn' && req.method === 'POST') {
+                res.end(JSON.stringify({ pid: 42, status: 'running' }))
+            } else if (req.url === '/process/kill' && req.method === 'POST') {
+                res.end(JSON.stringify({ ok: true }))
+            } else if (req.url === '/process/status' && req.method === 'GET') {
+                res.end(JSON.stringify({ pid: 42, running: true, exitCode: null, signal: null, uptimeMs: 50 }))
+            } else if (req.url === '/preview/ports' && req.method === 'GET') {
+                res.end(JSON.stringify({ ports: [{ port: 3000, process: 'node' }] }))
+            } else {
+                res.writeHead(404)
+                res.end('Not found')
             }
         })
-        client = new DaemonClient(`http://localhost:${mockServer.port}`, AUTH_TOKEN)
+
+        await new Promise<void>((resolve) => {
+            mockServer.listen(0, () => {
+                const addr = mockServer.address()
+                serverPort = typeof addr === 'object' && addr ? addr.port : 0
+                resolve()
+            })
+        })
+
+        client = new DaemonClient(`http://localhost:${serverPort}`, AUTH_TOKEN)
     })
 
-    afterAll(() => { mockServer?.stop() })
+    afterAll(() => {
+        mockServer?.close()
+    })
 
     it('checks health', async () => {
         const health = await client.health()
