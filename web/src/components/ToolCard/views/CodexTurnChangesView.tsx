@@ -459,19 +459,23 @@ export function CodexTurnChangesView(props: ToolViewProps) {
         </div>
     )
 
+    const showTopSummary = !isMobileViewport || mobileView === 'list'
+
     return (
         <div className="flex flex-col gap-2" onKeyDown={handleNavigationKeyDown}>
-            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs text-[var(--app-hint)]">
-                <div>{statusLabel(summary.status)}</div>
-                <div>Files: {summary.files.length}</div>
-                <div>Patch apply: {summary.patchTotal} ({summary.patchSuccess} success, {summary.patchFailed} failed)</div>
-                <div>
-                    Diff: {summary.diffAvailable ? `+${summary.diffAdditions} / -${summary.diffDeletions}` : 'unavailable'}
+            {showTopSummary ? (
+                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs text-[var(--app-hint)]">
+                    <div>{statusLabel(summary.status)}</div>
+                    <div>Files: {summary.files.length}</div>
+                    <div>Patch apply: {summary.patchTotal} ({summary.patchSuccess} success, {summary.patchFailed} failed)</div>
+                    <div>
+                        Diff: {summary.diffAvailable ? `+${summary.diffAdditions} / -${summary.diffDeletions}` : 'unavailable'}
+                    </div>
+                    {summary.files.length > 1 ? (
+                        <div>Shortcut: ↑/↓ switch file</div>
+                    ) : null}
                 </div>
-                {summary.files.length > 1 ? (
-                    <div>Shortcut: ↑/↓ switch file</div>
-                ) : null}
-            </div>
+            ) : null}
 
             <div className="md:hidden">
                 {mobileView === 'list' ? renderFileList() : renderDiffPanel(true)}
