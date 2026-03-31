@@ -2564,6 +2564,22 @@ ${note.content}
         return await this.rpcGateway.getCodexStatus(sessionId)
     }
 
+    async rpcContainerList(machineId: string): Promise<unknown> {
+        return this.rpcGateway.containerList(machineId)
+    }
+
+    async rpcContainerStopSession(machineId: string, containerId: string): Promise<unknown> {
+        return this.rpcGateway.containerStopSession(machineId, containerId)
+    }
+
+    async rpcContainerStop(machineId: string, containerId: string): Promise<unknown> {
+        return this.rpcGateway.containerStop(machineId, containerId)
+    }
+
+    async rpcContainerRemove(machineId: string, containerId: string): Promise<unknown> {
+        return this.rpcGateway.containerRemove(machineId, containerId)
+    }
+
     private normalizeQueueText(value: string | undefined): string | undefined {
         if (typeof value !== 'string') {
             return undefined

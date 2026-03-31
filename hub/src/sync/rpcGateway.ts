@@ -598,6 +598,26 @@ export class RpcGateway {
         }
     }
 
+    async containerList(machineId: string): Promise<unknown> {
+        return this.machineRpc(machineId, 'container-list', {})
+    }
+
+    async containerStopSession(machineId: string, containerId: string): Promise<unknown> {
+        return this.machineRpc(machineId, 'container-stop-session', { containerId })
+    }
+
+    async containerStop(machineId: string, containerId: string): Promise<unknown> {
+        return this.machineRpc(machineId, 'container-stop', { containerId })
+    }
+
+    async containerRemove(machineId: string, containerId: string): Promise<unknown> {
+        return this.machineRpc(machineId, 'container-remove', { containerId })
+    }
+
+    async containerLogs(machineId: string, containerId: string): Promise<unknown> {
+        return this.machineRpc(machineId, 'container-logs', { containerId })
+    }
+
     async listMcpServers(sessionId: string): Promise<RpcMcpServersResponse> {
         try {
             return await this.sessionRpc(sessionId, 'listMcpServers', {}) as RpcMcpServersResponse
