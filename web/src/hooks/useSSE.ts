@@ -191,6 +191,7 @@ export function useSSE(options: {
         cloudSecrets: boolean
         cloudWorkerEnrollmentTokens: boolean
         cloudWorkers: boolean
+        cloudPreviews: boolean
         sessionIds: Set<string>
         requestIds: Set<string>
         workspaceIds: Set<string>
@@ -203,6 +204,7 @@ export function useSSE(options: {
         cloudSecrets: false,
         cloudWorkerEnrollmentTokens: false,
         cloudWorkers: false,
+        cloudPreviews: false,
         sessionIds: new Set(),
         requestIds: new Set(),
         workspaceIds: new Set(),
@@ -255,6 +257,7 @@ export function useSSE(options: {
             pendingInvalidationsRef.current.cloudSecrets = false
             pendingInvalidationsRef.current.cloudWorkerEnrollmentTokens = false
             pendingInvalidationsRef.current.cloudWorkers = false
+            pendingInvalidationsRef.current.cloudPreviews = false
             pendingInvalidationsRef.current.sessionIds.clear()
             pendingInvalidationsRef.current.requestIds.clear()
             pendingInvalidationsRef.current.workspaceIds.clear()
@@ -325,6 +328,7 @@ export function useSSE(options: {
                 && !pending.cloudSecrets
                 && !pending.cloudWorkerEnrollmentTokens
                 && !pending.cloudWorkers
+                && !pending.cloudPreviews
                 && pending.sessionIds.size === 0
                 && pending.requestIds.size === 0
                 && pending.workspaceIds.size === 0
@@ -340,6 +344,7 @@ export function useSSE(options: {
             const shouldInvalidateCloudSecrets = pending.cloudSecrets
             const shouldInvalidateCloudWorkerEnrollmentTokens = pending.cloudWorkerEnrollmentTokens
             const shouldInvalidateCloudWorkers = pending.cloudWorkers
+            const shouldInvalidateCloudPreviews = pending.cloudPreviews
             const sessionIds = Array.from(pending.sessionIds)
             const requestIds = Array.from(pending.requestIds)
             const workspaceIds = Array.from(pending.workspaceIds)
@@ -352,6 +357,7 @@ export function useSSE(options: {
             pending.cloudSecrets = false
             pending.cloudWorkerEnrollmentTokens = false
             pending.cloudWorkers = false
+            pending.cloudPreviews = false
             pending.sessionIds.clear()
             pending.requestIds.clear()
             pending.workspaceIds.clear()
@@ -390,6 +396,9 @@ export function useSSE(options: {
             }
             if (shouldInvalidateCloudWorkers) {
                 tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkers() }))
+            }
+            if (shouldInvalidateCloudPreviews) {
+                tasks.push(queryClient.invalidateQueries({ queryKey: queryKeys.previewUrlHistory }))
             }
 
             if (tasks.length === 0) {
@@ -460,6 +469,11 @@ export function useSSE(options: {
 
         const queueCloudWorkersInvalidation = () => {
             pendingInvalidationsRef.current.cloudWorkers = true
+            scheduleInvalidationFlush()
+        }
+
+        const queueCloudPreviewsInvalidation = () => {
+            pendingInvalidationsRef.current.cloudPreviews = true
             scheduleInvalidationFlush()
         }
 
@@ -711,6 +725,10 @@ export function useSSE(options: {
 
             if (event.type === 'review-loop-round-updated') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoop(event.loopId) })
+            }
+
+            if (event.type === 'preview-available') {
+                queueCloudPreviewsInvalidation()
             }
 
             onEventRef.current(event)
