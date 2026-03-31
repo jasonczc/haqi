@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
+import type { CloudWorkerSummary } from '@/types/api'
 
 function formatLastSeen(updatedAt: number): string {
     const now = Date.now()
@@ -25,7 +26,7 @@ export default function CloudWorkersPage() {
     const { api } = useAppContext()
 
     const workersQuery = useQuery({
-        queryKey: queryKeys.cloudWorkers,
+        queryKey: queryKeys.cloudWorkers(),
         enabled: Boolean(api),
         queryFn: async () => {
             if (!api) throw new Error('API unavailable')
@@ -41,7 +42,7 @@ export default function CloudWorkersPage() {
         )
     }
 
-    const workers = workersQuery.data?.workers ?? []
+    const workers: CloudWorkerSummary[] = workersQuery.data?.workers ?? []
 
     return (
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4">
