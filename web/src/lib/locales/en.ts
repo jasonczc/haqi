@@ -201,6 +201,22 @@ export default {
   'machine.executor.cloudManaged': 'Managed cloud',
   'machine.list.online': 'online',
 
+  // Cloud Workers
+  'cloud.workers.title': 'Workers',
+  'cloud.workers.status.online': 'online',
+  'cloud.workers.status.offline': 'offline',
+  'cloud.workers.empty': 'No workers registered',
+  'cloud.workers.empty.hint': 'Generate an enrollment token to register a worker.',
+  'cloud.workers.empty.link': 'Go to Secrets & Enrollment',
+  'cloud.workers.lastSeen': 'Last seen',
+  'cloud.workers.provider': 'Provider',
+  'cloud.workers.lifecycle': 'Lifecycle',
+  'cloud.workers.region': 'Region',
+  'cloud.workers.version': 'Version',
+  'cloud.workers.cpu': 'CPU',
+  'cloud.workers.memory': 'Memory',
+  'cloud.workers.disk': 'Disk',
+
   // Chat
   'chat.placeholder': 'Type a message…',
   'chat.send': 'Send',

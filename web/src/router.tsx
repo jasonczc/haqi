@@ -67,6 +67,7 @@ import ReviewLoopDetailPage from '@/routes/review-loops/detail'
 import CloudRequestDetailPage from '@/routes/cloud/request'
 import CloudWorkspaceDetailPage from '@/routes/cloud/workspace'
 import CloudSecretsPage from '@/routes/cloud/secrets'
+import CloudWorkersPage from '@/routes/cloud/workers'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
@@ -2027,6 +2028,12 @@ const cloudSecretsRoute = createRoute({
     component: CloudSecretsPage,
 })
 
+const cloudWorkersRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/cloud/workers',
+    component: CloudWorkersPage,
+})
+
 const groupsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/groups',
@@ -2069,6 +2076,7 @@ export const routeTree = rootRoute.addChildren([
     cloudRequestDetailRoute,
     cloudWorkspaceDetailRoute,
     cloudSecretsRoute,
+    cloudWorkersRoute,
     sessionsRoute.addChildren([
         sessionsIndexRoute,
         newSessionRoute,

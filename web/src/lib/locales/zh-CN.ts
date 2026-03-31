@@ -198,6 +198,22 @@ export default {
   'machine.unknown': '未知平台',
   'machine.list.online': '在线',
 
+  // Cloud Workers
+  'cloud.workers.title': 'Workers',
+  'cloud.workers.status.online': '在线',
+  'cloud.workers.status.offline': '离线',
+  'cloud.workers.empty': '暂无已注册 Worker',
+  'cloud.workers.empty.hint': '生成注册令牌以注册 Worker。',
+  'cloud.workers.empty.link': '前往密钥与注册页面',
+  'cloud.workers.lastSeen': '最后在线',
+  'cloud.workers.provider': 'Provider',
+  'cloud.workers.lifecycle': '生命周期',
+  'cloud.workers.region': '地区',
+  'cloud.workers.version': '版本',
+  'cloud.workers.cpu': 'CPU',
+  'cloud.workers.memory': '内存',
+  'cloud.workers.disk': '磁盘',
+
   // Chat
   'chat.placeholder': '输入消息…',
   'chat.send': '发送',
