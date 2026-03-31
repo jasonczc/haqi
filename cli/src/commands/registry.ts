@@ -12,6 +12,7 @@ import { mcpCommand } from './mcp'
 import { notifyCommand } from './notify'
 import { hubCommand } from './hub'
 import { workerCommand } from './worker'
+import { workspaceCommand } from './workspace'
 import type { CommandContext, CommandDefinition } from './types'
 
 const COMMANDS: CommandDefinition[] = [
@@ -28,7 +29,8 @@ const COMMANDS: CommandDefinition[] = [
     doctorCommand,
     runnerCommand,
     notifyCommand,
-    workerCommand
+    workerCommand,
+    workspaceCommand
 ]
 
 const commandMap = new Map<string, CommandDefinition>()
