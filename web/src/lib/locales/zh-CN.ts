@@ -241,6 +241,31 @@ export default {
   'cloud.containers.stop': '停止容器',
   'cloud.containers.remove': '删除',
 
+  // Cloud Requests
+  'cloud.requests.title': '请求',
+  'cloud.requests.empty': '暂无云端请求。',
+
+  // Cloud Workspaces
+  'cloud.workspaces.title': '工作区',
+  'cloud.workspaces.empty': '暂无云端工作区。',
+
+  // Cloud Enrollment Tokens
+  'cloud.tokens.title': '活跃令牌',
+  'cloud.tokens.empty': '暂无活跃注册令牌。',
+  'cloud.tokens.revoke': '撤销',
+  'cloud.tokens.confirmRevoke': '确认撤销此注册令牌？',
+  'cloud.tokens.label': '标签',
+  'cloud.tokens.preview': '令牌',
+  'cloud.tokens.created': '创建时间',
+  'cloud.tokens.expires': '过期时间',
+  'cloud.tokens.revoked': '已撤销',
+
+  // Recording
+  'recording.start': '开始录制',
+  'recording.stop': '停止录制',
+  'recording.download': '下载',
+  'recording.status': '录制中',
+
   // Chat
   'chat.placeholder': '输入消息…',
   'chat.send': '发送',

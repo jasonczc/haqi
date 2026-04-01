@@ -244,6 +244,31 @@ export default {
   'cloud.containers.stop': 'Stop Container',
   'cloud.containers.remove': 'Remove',
 
+  // Cloud Requests
+  'cloud.requests.title': 'Requests',
+  'cloud.requests.empty': 'No cloud requests.',
+
+  // Cloud Workspaces
+  'cloud.workspaces.title': 'Workspaces',
+  'cloud.workspaces.empty': 'No cloud workspaces.',
+
+  // Cloud Enrollment Tokens
+  'cloud.tokens.title': 'Active Tokens',
+  'cloud.tokens.empty': 'No active enrollment tokens.',
+  'cloud.tokens.revoke': 'Revoke',
+  'cloud.tokens.confirmRevoke': 'Revoke this enrollment token?',
+  'cloud.tokens.label': 'Label',
+  'cloud.tokens.preview': 'Token',
+  'cloud.tokens.created': 'Created',
+  'cloud.tokens.expires': 'Expires',
+  'cloud.tokens.revoked': 'Revoked',
+
+  // Recording
+  'recording.start': 'Start Recording',
+  'recording.stop': 'Stop Recording',
+  'recording.download': 'Download',
+  'recording.status': 'Recording',
+
   // Chat
   'chat.placeholder': 'Type a message…',
   'chat.send': 'Send',

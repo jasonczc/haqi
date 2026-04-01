@@ -96,7 +96,7 @@ export default function CloudCheckpointsPage() {
                     {checkpoints.map((checkpoint) => (
                         <div
                             key={checkpoint.id}
-                            className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4"
+                            className={`rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4${checkpoint.parentCheckpointId ? ' ml-6 border-l-2 border-l-[var(--app-link)]' : ''}`}
                         >
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div className="flex flex-col gap-1">
@@ -114,7 +114,12 @@ export default function CloudCheckpointsPage() {
                                         {checkpoint.parentCheckpointId ? (
                                             <span>
                                                 <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.parent')}</span>{' '}
-                                                <span className="font-mono">{checkpoint.parentCheckpointId}</span>
+                                                {(() => {
+                                                    const parent = checkpoints.find(c => c.id === checkpoint.parentCheckpointId)
+                                                    return parent
+                                                        ? <span className="font-mono">{parent.name} ({checkpoint.parentCheckpointId.slice(0, 8)})</span>
+                                                        : <span className="font-mono">{checkpoint.parentCheckpointId.slice(0, 12)}</span>
+                                                })()}
                                             </span>
                                         ) : null}
                                         {checkpoint.machineId ? (

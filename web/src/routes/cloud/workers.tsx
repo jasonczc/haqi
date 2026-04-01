@@ -25,6 +25,92 @@ function formatMemory(memoryMb: number): string {
     return `${memoryMb} MB`
 }
 
+function formatDate(ts: number): string {
+    return new Date(ts).toLocaleString()
+}
+
+function EnrollmentTokensSection() {
+    const { api } = useAppContext()
+    const { t } = useTranslation()
+    const queryClient = useQueryClient()
+
+    const tokensQuery = useQuery({
+        queryKey: queryKeys.cloudWorkerEnrollmentTokens,
+        enabled: Boolean(api),
+        queryFn: async () => {
+            if (!api) throw new Error('API unavailable')
+            return await api.getCloudWorkerEnrollmentTokens()
+        }
+    })
+
+    const revokeMutation = useMutation({
+        mutationFn: async (tokenId: string) => {
+            if (!api) throw new Error('API unavailable')
+            await api.revokeCloudWorkerEnrollmentToken(tokenId)
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkerEnrollmentTokens })
+    })
+
+    const tokens = tokensQuery.data?.tokens ?? []
+    const activeTokens = tokens.filter(tok => !tok.revokedAt)
+
+    if (tokensQuery.isLoading) {
+        return null
+    }
+
+    return (
+        <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
+            <h2 className="text-sm font-semibold">{t('cloud.tokens.title')}</h2>
+            {activeTokens.length === 0 ? (
+                <p className="mt-2 text-xs text-[var(--app-hint)]">{t('cloud.tokens.empty')}</p>
+            ) : (
+                <div className="mt-3 grid gap-2">
+                    {activeTokens.map((token) => (
+                        <div
+                            key={token.id}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2"
+                        >
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
+                                {token.label ? (
+                                    <span>
+                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.tokens.label')}</span>{' '}
+                                        {token.label}
+                                    </span>
+                                ) : null}
+                                <span>
+                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.tokens.preview')}</span>{' '}
+                                    <code className="font-mono">{token.tokenPreview}</code>
+                                </span>
+                                <span>
+                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.tokens.created')}</span>{' '}
+                                    {formatDate(token.createdAt)}
+                                </span>
+                                {token.expiresAt ? (
+                                    <span>
+                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.tokens.expires')}</span>{' '}
+                                        {formatDate(token.expiresAt)}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <button
+                                onClick={() => {
+                                    if (window.confirm(t('cloud.tokens.confirmRevoke'))) {
+                                        revokeMutation.mutate(token.id)
+                                    }
+                                }}
+                                disabled={revokeMutation.isPending}
+                                className="rounded bg-red-500/15 px-2 py-1 text-xs text-red-700 hover:bg-red-500/25 disabled:opacity-50"
+                            >
+                                {t('cloud.tokens.revoke')}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    )
+}
+
 export default function CloudWorkersPage() {
     const { api, baseUrl } = useAppContext()
     const { t } = useTranslation()
@@ -170,6 +256,8 @@ export default function CloudWorkersPage() {
                     </div>
                 ) : null}
             </section>
+
+            <EnrollmentTokensSection />
 
             {workers.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center">

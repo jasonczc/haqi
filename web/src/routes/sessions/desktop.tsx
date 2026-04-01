@@ -1,5 +1,7 @@
+import { useState, useCallback, useEffect } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
+import { useTranslation } from '@/lib/use-translation'
 
 function BackIcon() {
     return (
@@ -19,11 +21,80 @@ function BackIcon() {
     )
 }
 
+type RecordingStatus = 'idle' | 'recording' | 'loading'
+
 export default function DesktopPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId/desktop' })
     const goBack = useAppGoBack()
+    const { t } = useTranslation()
+    const [recordingStatus, setRecordingStatus] = useState<RecordingStatus>('idle')
+    const [recordings, setRecordings] = useState<string[]>([])
+    const [error, setError] = useState<string | null>(null)
 
     const desktopUrl = `/desktop/${sessionId}`
+    const daemonBase = `/preview/${sessionId}/9876`
+
+    const fetchRecordingStatus = useCallback(async () => {
+        try {
+            const res = await fetch(`${daemonBase}/recording/status`)
+            if (res.ok) {
+                const data = await res.json()
+                setRecordingStatus(data.recording ? 'recording' : 'idle')
+            }
+        } catch {
+            // daemon may not support recording — ignore
+        }
+    }, [daemonBase])
+
+    const fetchRecordings = useCallback(async () => {
+        try {
+            const res = await fetch(`${daemonBase}/recording/list`)
+            if (res.ok) {
+                const data = await res.json()
+                setRecordings(data.recordings ?? [])
+            }
+        } catch {
+            // ignore
+        }
+    }, [daemonBase])
+
+    useEffect(() => {
+        void fetchRecordingStatus()
+        void fetchRecordings()
+    }, [fetchRecordingStatus, fetchRecordings])
+
+    const handleStartRecording = async () => {
+        setError(null)
+        setRecordingStatus('loading')
+        try {
+            const res = await fetch(`${daemonBase}/recording/start`, { method: 'POST' })
+            if (!res.ok) {
+                const text = await res.text()
+                throw new Error(text || `HTTP ${res.status}`)
+            }
+            setRecordingStatus('recording')
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to start recording')
+            setRecordingStatus('idle')
+        }
+    }
+
+    const handleStopRecording = async () => {
+        setError(null)
+        setRecordingStatus('loading')
+        try {
+            const res = await fetch(`${daemonBase}/recording/stop`, { method: 'POST' })
+            if (!res.ok) {
+                const text = await res.text()
+                throw new Error(text || `HTTP ${res.status}`)
+            }
+            setRecordingStatus('idle')
+            void fetchRecordings()
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to stop recording')
+            setRecordingStatus('recording')
+        }
+    }
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
@@ -41,7 +112,43 @@ export default function DesktopPage() {
                         <div className="truncate font-semibold">Desktop</div>
                         <div className="truncate text-xs text-[var(--app-hint)]">{sessionId.slice(0, 8)}...</div>
                     </div>
+                    <div className="flex items-center gap-2">
+                        {recordingStatus === 'recording' ? (
+                            <button
+                                type="button"
+                                onClick={() => void handleStopRecording()}
+                                className="flex items-center gap-1.5 rounded-md bg-red-500/15 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-500/25 transition-colors"
+                            >
+                                <span className="inline-block h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+                                {t('recording.stop')}
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => void handleStartRecording()}
+                                disabled={recordingStatus === 'loading'}
+                                className="flex items-center gap-1.5 rounded-md bg-[var(--app-subtle-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] transition-colors disabled:opacity-50"
+                            >
+                                <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                                {t('recording.start')}
+                            </button>
+                        )}
+                        {recordings.length > 0 ? (
+                            <a
+                                href={`${daemonBase}/recording/download/${recordings[recordings.length - 1]}`}
+                                download
+                                className="rounded-md bg-[var(--app-subtle-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] transition-colors"
+                            >
+                                {t('recording.download')}
+                            </a>
+                        ) : null}
+                    </div>
                 </div>
+                {error ? (
+                    <div className="mx-auto max-w-content px-3 pb-2">
+                        <div className="rounded-md bg-red-500/10 px-3 py-1.5 text-xs text-red-700">{error}</div>
+                    </div>
+                ) : null}
             </div>
             <iframe
                 src={desktopUrl}
