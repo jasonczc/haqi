@@ -19,6 +19,7 @@ export type StoredCheckpoint = {
 }
 
 export type CreateCheckpointParams = {
+    id?: string
     namespace: string
     name: string
     repoUrl: string | null
@@ -79,7 +80,7 @@ export class CheckpointStore {
     }
 
     create(params: CreateCheckpointParams): string {
-        const id = randomUUID()
+        const id = params.id ?? randomUUID()
         const now = Date.now()
         this.db.prepare(`
             INSERT INTO cloud_checkpoints

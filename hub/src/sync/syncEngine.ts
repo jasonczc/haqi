@@ -2627,6 +2627,7 @@ ${note.content}
         const machineId = cloudWorker.id
 
         this.store.checkpoints.create({
+            id: checkpointId,
             namespace,
             name,
             repoUrl: metadata.repositoryUrl ?? null,
