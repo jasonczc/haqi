@@ -156,13 +156,15 @@ export async function startDaemonSessionExecutor(params: {
         }
     }
 
-    // Spawn agent
+    // Spawn agent — include Worker's auth env so the agent can connect back to Hub
     const spawnArgs = buildSpawnArgs(params.options)
     const spawnResponse = await client.spawn({
         command: ['haqi', ...spawnArgs],
         cwd: params.workspace.workingDirectory,
         env: {
             ...params.env,
+            CLI_API_TOKEN: process.env.CLI_API_TOKEN ?? '',
+            HAPI_API_URL: (process.env.HAPI_API_URL ?? '').replace('://localhost', '://host.docker.internal').replace('://127.0.0.1', '://host.docker.internal'),
             HAPI_WORKING_DIRECTORY: params.workspace.workingDirectory,
             HAPI_CONTAINER_ID: containerId
         }
