@@ -3129,6 +3129,10 @@ Remember: Call review_loop_reviewer_submit when you have formed your assessment.
         }
     }
 
+    async rpcPreviewForward(machineId: string, params: unknown): Promise<unknown> {
+        return this.rpcGateway.previewForward(machineId, params)
+    }
+
     private async notifyReviewLoopUser(payload: {
         loopId: string
         namespace: string

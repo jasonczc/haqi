@@ -598,6 +598,10 @@ export class RpcGateway {
         }
     }
 
+    async previewForward(machineId: string, params: unknown): Promise<unknown> {
+        return this.machineRpc(machineId, 'preview-forward', params)
+    }
+
     async checkpointCreate(machineId: string, params: { containerId: string; checkpointId: string; name: string }): Promise<unknown> {
         return this.machineRpc(machineId, 'checkpoint-create', params)
     }

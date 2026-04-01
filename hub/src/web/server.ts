@@ -107,13 +107,31 @@ function createWebApp(options: {
     app.route('/cli', createCliRoutes(options.getSyncEngine, options.store))
 
     app.route('/preview', createPreviewRoutes({
-        resolveSession: (_sessionId) => {
-            // TODO: resolve from syncEngine (Task 11)
-            return null
+        resolveSession: (sessionId) => {
+            const engine = options.getSyncEngine()
+            if (!engine) return null
+            const session = engine.getSession(sessionId)
+            if (!session) return null
+            const metadata = session.metadata as any
+            return metadata?.machineId ? { machineId: metadata.machineId } : null
         },
-        resolvePreviewTunnel: (_machineId, _sessionId, _port) => {
-            // TODO: resolve from preview tunnel registry (Task 11)
-            return null
+        resolvePreviewTunnel: (machineId, sessionId, port) => {
+            const engine = options.getSyncEngine()
+            if (!engine) return null
+            return {
+                forward: async (req) => {
+                    try {
+                        const result = await engine.rpcPreviewForward(machineId, { sessionId, port, ...req }) as any
+                        return {
+                            status: result?.status ?? 502,
+                            headers: result?.headers ?? {},
+                            body: result?.body
+                        }
+                    } catch {
+                        return { status: 502, headers: {}, body: 'Preview proxy error' }
+                    }
+                }
+            }
         }
     }))
 

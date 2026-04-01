@@ -14,6 +14,7 @@ export type DaemonSessionResult = {
     daemonClient: DaemonClient
     pid: number
     daemonUrl: string
+    daemonAuthToken: string
     reused: boolean
 }
 
@@ -90,6 +91,7 @@ export async function startDaemonSessionExecutor(params: {
                             daemonClient: client,
                             pid: spawnResponse.pid,
                             daemonUrl: `http://127.0.0.1:${mappedPort}`,
+                            daemonAuthToken: authToken,
                             reused: true
                         }
                     } catch {
@@ -181,6 +183,7 @@ export async function startDaemonSessionExecutor(params: {
         daemonClient: client,
         pid: spawnResponse.pid,
         daemonUrl,
+        daemonAuthToken: authToken,
         reused: false
     }
 }

@@ -72,6 +72,7 @@ type MachineRpcHandlers = {
     containerLogs: (containerId: string) => Promise<string>
     checkpointCreate: (params: { containerId: string; checkpointId: string; name: string }) => Promise<{ dockerImage: string; success: boolean; error?: string }>
     checkpointDelete: (params: { checkpointId: string; dockerImage: string }) => Promise<{ success: boolean }>
+    previewForward: (params: { sessionId: string; port: number; method: string; path: string; headers: Record<string, string>; body?: string }) => Promise<{ status: number; headers: Record<string, string>; body?: string }>
 }
 
 interface PathExistsRequest {
@@ -153,7 +154,7 @@ export class ApiMachineClient {
         })
     }
 
-    setRPCHandlers({ spawnSession, stopSession, requestShutdown, containerList, containerStopSession, containerStop, containerRemove, containerLogs, checkpointCreate, checkpointDelete }: MachineRpcHandlers): void {
+    setRPCHandlers({ spawnSession, stopSession, requestShutdown, containerList, containerStopSession, containerStop, containerRemove, containerLogs, checkpointCreate, checkpointDelete, previewForward }: MachineRpcHandlers): void {
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
             const {
                 directory,
@@ -287,6 +288,10 @@ export class ApiMachineClient {
 
         this.rpcHandlerManager.registerHandler('checkpoint-delete', async (params: any) => {
             return await checkpointDelete(params)
+        })
+
+        this.rpcHandlerManager.registerHandler('preview-forward', async (params: any) => {
+            return await previewForward(params)
         })
     }
 

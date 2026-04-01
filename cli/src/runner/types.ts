@@ -22,6 +22,7 @@ export interface TrackedSession {
   containerId?: string;
   cleanupPaths?: string[];
   childProcess?: ChildProcess;
+  daemonAuthToken?: string;
   error?: string;
   directoryCreated?: boolean;
   message?: string;

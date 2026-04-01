@@ -832,6 +832,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           serviceContainerIds: startedServices.map((service) => service.containerId),
           childProcess: 'childProcess' in execution ? execution.childProcess : undefined,
           containerId: 'containerId' in execution ? execution.containerId : undefined,
+          daemonAuthToken: 'daemonAuthToken' in execution ? execution.daemonAuthToken : undefined,
           cleanupPaths: [...preparedWorkspace.cleanupPaths, ...secretCleanupPaths],
           directoryCreated,
           message: directoryCreated && options.directory ? `The path '${options.directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
@@ -1262,6 +1263,40 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           return { success: true }
         } catch {
           return { success: true } // Image may already be gone
+        }
+      },
+      previewForward: async (params) => {
+        const session = Array.from(pidToTrackedSession.values())
+          .find(s => s.happySessionId === params.sessionId || s.spawnRequestId === params.sessionId)
+        if (!session?.containerId) {
+          return { status: 502, headers: {}, body: 'Session container not found' }
+        }
+
+        const inspect = await new DockerCliRuntime().inspect(session.containerId).catch(() => null)
+        const daemonPort = inspect?.portBindings[9876]
+        if (!daemonPort) {
+          return { status: 502, headers: {}, body: 'Daemon not available' }
+        }
+
+        try {
+          const url = `http://127.0.0.1:${daemonPort}/preview/proxy`
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.daemonAuthToken ?? ''}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              port: params.port,
+              method: params.method,
+              path: params.path,
+              headers: params.headers,
+              body: params.body
+            })
+          })
+          return await response.json() as { status: number; headers: Record<string, string>; body?: string }
+        } catch {
+          return { status: 502, headers: {}, body: 'Preview proxy failed' }
         }
       }
     });

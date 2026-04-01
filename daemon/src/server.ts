@@ -101,6 +101,35 @@ export async function startServer(options: ServerOptions) {
         return c.json({ ports })
     })
 
+    app.post('/preview/proxy', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        if (!body?.port || !body?.method || !body?.path) {
+            return c.json({ status: 400, headers: {}, body: 'Missing port/method/path' })
+        }
+        try {
+            const url = `http://127.0.0.1:${body.port}${body.path}`
+            const response = await fetch(url, {
+                method: body.method,
+                headers: body.headers ?? {},
+                body: body.method !== 'GET' && body.method !== 'HEAD' ? body.body : undefined
+            })
+            const responseHeaders: Record<string, string> = {}
+            response.headers.forEach((v, k) => { responseHeaders[k] = v })
+            const responseBody = await response.text()
+            return c.json({
+                status: response.status,
+                headers: responseHeaders,
+                body: responseBody
+            })
+        } catch (err) {
+            return c.json({
+                status: 502,
+                headers: {},
+                body: `Preview proxy error: ${err instanceof Error ? err.message : err}`
+            })
+        }
+    })
+
     console.log(`haqi-daemon listening on :${actualPort}`)
 
     return {
