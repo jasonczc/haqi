@@ -2057,8 +2057,13 @@ ${note.content}
                 ? 'You are setting up the development environment for this project. Analyze the project structure, install all dependencies, configure the development tools, and verify the setup works (e.g., build, test, or start the dev server). Report what you did and confirm everything is working.'
                 : ''
         )
-        if (setupPrompt) {
-            this.pendingInitialPrompts.set(request.spawnRequestId!, setupPrompt)
+        let promptToSend = setupPrompt
+        const repoUrl = request.workspaceSource?.repository?.url ?? ''
+        if (repoUrl.includes('github.com') && promptToSend) {
+            promptToSend += '\n\nWhen your task is complete, create a pull request using `gh pr create --fill` and report the PR URL.'
+        }
+        if (promptToSend) {
+            this.pendingInitialPrompts.set(request.spawnRequestId!, promptToSend)
         }
 
         if (request.executionBackend === 'cloud-self-hosted' || request.executionBackend === 'cloud-managed') {
@@ -2651,6 +2656,15 @@ ${note.content}
             }) as { success?: boolean; error?: string } | null | undefined
             if (result?.success) {
                 this.store.checkpoints.updateStatus(checkpointId, 'ready')
+                void this.sendMessage(sessionId, {
+                    text: `💾 Checkpoint saved: ${name}`,
+                    meta: {
+                        type: 'checkpoint',
+                        checkpointId,
+                        checkpointName: name,
+                        savedAt: Date.now()
+                    }
+                }).catch(() => {})
                 return { checkpointId }
             }
             this.store.checkpoints.updateStatus(checkpointId, 'failed')

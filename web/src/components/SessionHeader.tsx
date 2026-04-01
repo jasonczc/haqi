@@ -215,6 +215,10 @@ export function SessionHeader(props: {
     const repoSyncStatus = session.metadata?.repoSyncStatus
     const workspaceBranch = session.metadata?.workspaceBranch
     const containerId = session.metadata?.containerId
+    const prUrl = useMemo(() => {
+        const meta = session.metadata as any
+        return typeof meta?.pullRequestUrl === 'string' ? meta.pullRequestUrl : null
+    }, [session])
     const workspaceMode = session.metadata?.workspaceMode
     const workerId = session.metadata?.workerId
     const environmentId = session.metadata?.environmentId
@@ -450,6 +454,12 @@ export function SessionHeader(props: {
                             {previewCount > 0 ? (
                                 <span>previews: {previewCount}</span>
                             ) : null}
+                            {prUrl && (
+                                <a href={prUrl} target="_blank" rel="noopener noreferrer"
+                                   className="inline-flex items-center gap-1 text-xs text-[var(--app-link)] hover:underline">
+                                    PR ↗
+                                </a>
+                            )}
                         </div>
                     </div>
 
