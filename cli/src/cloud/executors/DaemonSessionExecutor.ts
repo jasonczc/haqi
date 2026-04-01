@@ -1,4 +1,5 @@
 import type { DockerCliRuntime } from '@/cloud/docker/dockerCli'
+import { runDockerCommand } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
 import type { SpawnSessionOptions } from '@/modules/common/rpcTypes'
 import { ensureWorkspaceContainer } from './WorkspaceContainerManager'
@@ -102,10 +103,25 @@ export async function startDaemonSessionExecutor(params: {
     // Create new container with daemon
     authToken = crypto.randomUUID()
 
+    // Resolve checkpoint image if a checkpointId is provided
+    let checkpointImage: string | undefined = params.options.checkpointId
+        ? `haqi-checkpoint:${params.options.checkpointId}`
+        : undefined
+
+    // Verify the checkpoint image exists locally; fall back to base image if not found
+    if (checkpointImage) {
+        try {
+            await runDockerCommand(['inspect', '--type=image', checkpointImage])
+        } catch {
+            checkpointImage = undefined
+        }
+    }
+
     const container = await ensureWorkspaceContainer({
         runtime: params.runtime,
         workspace: params.workspace,
         environment: params.environment,
+        checkpointImage,
         checkpointId: params.options.checkpointId,
         sessionLabel: params.sessionLabel,
         daemonMode: {
@@ -127,15 +143,17 @@ export async function startDaemonSessionExecutor(params: {
 
     await client.waitReady(30_000)
 
-    // Run install hooks if this is a fresh container
-    const installCmds = params.environment?.environment?.install
-    if (installCmds) {
-        const commands = Array.isArray(installCmds) ? installCmds : [installCmds]
-        await client.prepare({
-            commands,
-            cwd: params.workspace.workingDirectory,
-            env: params.env
-        })
+    if (!checkpointImage) {
+        // Only run install hooks for fresh containers (not checkpoint-based)
+        const installCmds = params.environment?.environment?.install
+        if (installCmds) {
+            const commands = Array.isArray(installCmds) ? installCmds : [installCmds]
+            await client.prepare({
+                commands,
+                cwd: params.workspace.workingDirectory,
+                env: params.env
+            })
+        }
     }
 
     // Spawn agent

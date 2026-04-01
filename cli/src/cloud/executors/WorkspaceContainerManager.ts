@@ -10,6 +10,7 @@ export async function ensureWorkspaceContainer(params: {
     runtime: DockerCliRuntime
     workspace: PreparedWorkspace
     environment: ResolvedEnvironmentTemplate | null
+    checkpointImage?: string
     checkpointId?: string
     sessionLabel: string
     daemonMode?: {
@@ -20,9 +21,9 @@ export async function ensureWorkspaceContainer(params: {
     containerId: string
     previewTargets: PreviewTarget[]
 }> {
-    const image = params.environment?.environment?.runtime?.image
+    const image = params.checkpointImage ?? params.environment?.environment?.runtime?.image
     if (!image) {
-        throw new Error('docker-session runtime requires environment.runtime.image')
+        throw new Error('daemon/docker-session requires environment.runtime.image or checkpointImage')
     }
 
     await params.runtime.pull(image)
