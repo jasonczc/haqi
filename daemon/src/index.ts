@@ -1,4 +1,5 @@
 import { startServer } from './server'
+import { DesktopManager } from './desktop/vnc'
 
 const port = parseInt(process.argv.find((_, i, a) => a[i - 1] === '--port') ?? '9876', 10)
 const authToken = process.argv.find((_, i, a) => a[i - 1] === '--auth-token') ?? process.env.HAQI_DAEMON_AUTH_TOKEN ?? ''
@@ -10,5 +11,13 @@ if (!authToken) {
 
 const server = await startServer({ port, authToken })
 
-process.on('SIGINT', () => { server.stop(); process.exit(0) })
-process.on('SIGTERM', () => { server.stop(); process.exit(0) })
+const desktop = new DesktopManager()
+try {
+    await desktop.start()
+    console.log('Desktop environment started')
+} catch (err) {
+    console.warn('Desktop environment failed to start (may not be available):', err)
+}
+
+process.on('SIGINT', () => { server.stop(); desktop.stop(); process.exit(0) })
+process.on('SIGTERM', () => { server.stop(); desktop.stop(); process.exit(0) })

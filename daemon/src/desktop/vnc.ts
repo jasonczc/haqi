@@ -36,13 +36,22 @@ export class DesktopManager {
 
         const { display, resolution, depth, vncPort, novncPort } = this.config
 
-        // Start Xvfb
-        this.xvfb = spawn('Xvfb', [display, '-screen', '0', `${resolution}x${depth}`], {
+        // Start Xtigervnc (combined X server + VNC server)
+        this.xvfb = spawn('Xtigervnc', [
+            display,
+            '-geometry', resolution,
+            '-depth', String(depth),
+            '-rfbport', String(vncPort),
+            '-SecurityTypes', 'None',
+            '-AlwaysShared',
+            '-AcceptKeyEvents',
+            '-AcceptPointerEvents'
+        ], {
             stdio: 'ignore',
             env: { ...process.env }
         })
 
-        await new Promise(r => setTimeout(r, 1000))
+        await new Promise(r => setTimeout(r, 1500))
 
         // Start XFCE desktop
         this.xfce = spawn('startxfce4', [], {
@@ -51,18 +60,6 @@ export class DesktopManager {
         })
 
         await new Promise(r => setTimeout(r, 2000))
-
-        // Start VNC server (x0vncserver connects to existing X display)
-        this.vnc = spawn('x0vncserver', [
-            '-display', display,
-            '-rfbport', String(vncPort),
-            '-SecurityTypes', 'None'
-        ], {
-            stdio: 'ignore',
-            env: { ...process.env, DISPLAY: display }
-        })
-
-        await new Promise(r => setTimeout(r, 500))
 
         // Start websockify (VNC -> WebSocket bridge)
         const novncPath = '/usr/share/novnc'

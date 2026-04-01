@@ -1,8 +1,12 @@
 import { Hono } from 'hono'
 import { ProcessManager } from './process/manager'
 import { OutputBuffer } from './process/output'
-import { SpawnRequestSchema, PrepareRequestSchema } from './types'
+import { SpawnRequestSchema, PrepareRequestSchema, ClickRequestSchema, TypeRequestSchema, KeyRequestSchema, ScrollRequestSchema, OpenBrowserRequestSchema } from './types'
 import type { HealthResponse } from './types'
+import { DesktopManager } from './desktop/vnc'
+import * as computerUse from './desktop/computerUse'
+import * as browser from './desktop/browser'
+import { RecordingManager } from './desktop/recording'
 
 type ServerOptions = {
     port: number
@@ -86,6 +90,209 @@ export async function startServer(options: ServerOptions) {
                 error: err instanceof Error ? err.message : String(err)
             })
         }
+    })
+
+    const desktopManager = new DesktopManager()
+    const recordingManager = new RecordingManager()
+
+    // Desktop control
+    app.get('/desktop/status', (c) => {
+        return c.json({ started: desktopManager.isStarted(), config: desktopManager.getConfig() })
+    })
+
+    app.post('/desktop/screenshot', async (c) => {
+        try {
+            const result = await computerUse.takeScreenshot()
+            return c.json(result)
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Screenshot failed' }, 500)
+        }
+    })
+
+    app.post('/desktop/click', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        const parsed = ClickRequestSchema.safeParse(body)
+        if (!parsed.success) return c.json({ error: 'Invalid request' }, 400)
+        try {
+            await computerUse.click(parsed.data)
+            return c.json({ ok: true })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Click failed' }, 500)
+        }
+    })
+
+    app.post('/desktop/type', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        const parsed = TypeRequestSchema.safeParse(body)
+        if (!parsed.success) return c.json({ error: 'Invalid request' }, 400)
+        try {
+            await computerUse.typeText(parsed.data)
+            return c.json({ ok: true })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Type failed' }, 500)
+        }
+    })
+
+    app.post('/desktop/key', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        const parsed = KeyRequestSchema.safeParse(body)
+        if (!parsed.success) return c.json({ error: 'Invalid request' }, 400)
+        try {
+            await computerUse.pressKey(parsed.data)
+            return c.json({ ok: true })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Key press failed' }, 500)
+        }
+    })
+
+    app.post('/desktop/scroll', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        const parsed = ScrollRequestSchema.safeParse(body)
+        if (!parsed.success) return c.json({ error: 'Invalid request' }, 400)
+        try {
+            await computerUse.scroll(parsed.data)
+            return c.json({ ok: true })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Scroll failed' }, 500)
+        }
+    })
+
+    app.get('/desktop/cursor', async (c) => {
+        try {
+            const pos = await computerUse.getCursorPosition()
+            return c.json(pos)
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Failed to get cursor' }, 500)
+        }
+    })
+
+    app.post('/desktop/open-browser', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        const parsed = OpenBrowserRequestSchema.safeParse(body)
+        if (!parsed.success) return c.json({ error: 'Invalid request' }, 400)
+        computerUse.openBrowser(parsed.data.url)
+        return c.json({ ok: true })
+    })
+
+    // Browser (Playwright)
+    app.post('/browser/navigate', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        if (!body?.url) return c.json({ error: 'url required' }, 400)
+        try {
+            const result = await browser.navigate(body.url)
+            return c.json(result)
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Navigate failed' }, 500)
+        }
+    })
+
+    app.post('/browser/click', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        if (!body?.selector) return c.json({ error: 'selector required' }, 400)
+        try {
+            await browser.browserClick(body.selector)
+            return c.json({ ok: true })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Browser click failed' }, 500)
+        }
+    })
+
+    app.post('/browser/type', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        if (!body?.selector || !body?.text) return c.json({ error: 'selector and text required' }, 400)
+        try {
+            await browser.browserType(body.selector, body.text)
+            return c.json({ ok: true })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Browser type failed' }, 500)
+        }
+    })
+
+    app.post('/browser/screenshot', async (c) => {
+        try {
+            const image = await browser.browserScreenshot()
+            return c.json({ image })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Browser screenshot failed' }, 500)
+        }
+    })
+
+    app.get('/browser/content', async (c) => {
+        try {
+            const html = await browser.browserContent()
+            return c.json({ content: html })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Browser content failed' }, 500)
+        }
+    })
+
+    app.post('/browser/evaluate', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        if (!body?.script) return c.json({ error: 'script required' }, 400)
+        try {
+            const result = await browser.browserEvaluate(body.script)
+            return c.json({ result })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Evaluate failed' }, 500)
+        }
+    })
+
+    // Recording
+    app.post('/recording/start', async (c) => {
+        const body = await c.req.json().catch(() => ({})) as { sessionId?: string }
+        const sessionId = body.sessionId ?? 'unknown'
+        try {
+            const filename = await recordingManager.start(sessionId)
+            return c.json({ filename })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Recording start failed' }, 500)
+        }
+    })
+
+    app.post('/recording/stop', (c) => {
+        const file = recordingManager.stop()
+        return c.json({ file })
+    })
+
+    app.get('/recording/status', (c) => {
+        return c.json(recordingManager.status())
+    })
+
+    app.get('/recording/list', async (c) => {
+        return c.json({ recordings: await recordingManager.listRecordings() })
+    })
+
+    app.get('/recording/download/:name', async (c) => {
+        const name = c.req.param('name')
+        const filePath = recordingManager.getFilePath(name)
+        const file = Bun.file(filePath)
+        if (!await file.exists()) return c.json({ error: 'File not found' }, 404)
+        return new Response(file.stream(), {
+            headers: {
+                'Content-Type': 'video/mp4',
+                'Content-Disposition': `attachment; filename="${name}"`
+            }
+        })
+    })
+
+    // Screenshot storage
+    app.post('/screenshot/capture', async (c) => {
+        try {
+            const result = await computerUse.takeScreenshot()
+            const id = `screenshot-${Date.now()}`
+            const path = `/tmp/haqi-recordings/${id}.png`
+            await Bun.write(path, Buffer.from(result.image, 'base64'))
+            return c.json({ id, width: result.width, height: result.height })
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Screenshot capture failed' }, 500)
+        }
+    })
+
+    app.get('/screenshot/:id', async (c) => {
+        const path = `/tmp/haqi-recordings/${c.req.param('id')}.png`
+        const file = Bun.file(path)
+        if (!await file.exists()) return c.json({ error: 'Not found' }, 404)
+        return new Response(file.stream(), { headers: { 'Content-Type': 'image/png' } })
     })
 
     const bunServer = Bun.serve({
