@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
+import { QuickSpawnDialog } from '@/components/QuickSpawnDialog'
 
 type NavItem = {
     label: string
@@ -152,9 +154,23 @@ export function CloudSidebar() {
     const pathname = useLocation({ select: location => location.pathname })
     const navigate = useNavigate()
     const counts = useCounts()
+    const [quickSpawnOpen, setQuickSpawnOpen] = useState(false)
+
+    const showOnboardBanner =
+        counts.workers === 0 &&
+        typeof localStorage !== 'undefined' &&
+        !localStorage.getItem('haqi-onboard-complete')
 
     return (
         <div className="flex h-full w-[260px] shrink-0 flex-col border-r border-[var(--app-border)] bg-[var(--app-bg)]">
+            {showOnboardBanner ? (
+                <Link
+                    to="/cloud/onboard"
+                    className="mx-2 mt-2 flex items-center gap-2 rounded-md border border-[var(--app-badge-info-border)] bg-[var(--app-badge-info-bg)] px-3 py-2 text-xs text-[var(--app-badge-info-text)] hover:opacity-80"
+                >
+                    <span className="flex-1">Get started → Set up your first cloud agent</span>
+                </Link>
+            ) : null}
             <div className="flex-1 overflow-y-auto py-2">
                 <nav className="flex flex-col gap-0.5 px-2">
                     {NAV_ITEMS.map((item) => {
@@ -194,11 +210,19 @@ export function CloudSidebar() {
                     variant="outline"
                     size="sm"
                     className="w-full justify-start"
-                    onClick={() => navigate({ to: '/sessions/new', search: { sessionType: 'cloud-self-hosted' } })}
+                    onClick={() => setQuickSpawnOpen(true)}
                 >
                     + New Session
                 </Button>
             </div>
+            <QuickSpawnDialog
+                open={quickSpawnOpen}
+                onClose={() => setQuickSpawnOpen(false)}
+                onSpawned={(sessionId) => {
+                    setQuickSpawnOpen(false)
+                    void navigate({ to: '/sessions/$sessionId', params: { sessionId } })
+                }}
+            />
         </div>
     )
 }
