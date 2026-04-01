@@ -158,7 +158,7 @@ export function savePreferredExecutionBackend(value: ExecutionBackend): void {
 export function loadPreferredRuntimeKind(): RuntimeKind {
     try {
         const stored = localStorage.getItem(RUNTIME_KIND_STORAGE_KEY)
-        if (stored === 'host-process' || stored === 'docker-session') {
+        if (stored === 'host-process' || stored === 'docker-session' || stored === 'daemon-session') {
             return stored
         }
     } catch {

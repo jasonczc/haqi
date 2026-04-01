@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Button } from '@/components/ui/button'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
@@ -24,8 +26,13 @@ function formatMemory(memoryMb: number): string {
 }
 
 export default function CloudWorkersPage() {
-    const { api } = useAppContext()
+    const { api, baseUrl } = useAppContext()
     const { t } = useTranslation()
+    const queryClient = useQueryClient()
+    const [tokenLabel, setTokenLabel] = useState('')
+    const [tokenTtl, setTokenTtl] = useState('60')
+    const [generatedToken, setGeneratedToken] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
 
     const workersQuery = useQuery({
         queryKey: queryKeys.cloudWorkers(),
@@ -35,6 +42,34 @@ export default function CloudWorkersPage() {
             return await api.getCloudWorkers()
         }
     })
+
+    const tokenMutation = useMutation({
+        mutationFn: async () => {
+            if (!api) throw new Error('API unavailable')
+            return await api.createCloudWorkerEnrollmentToken({
+                label: tokenLabel.trim() || undefined,
+                ttlMinutes: tokenTtl.trim() ? Number(tokenTtl.trim()) : undefined
+            })
+        },
+        onSuccess: async (result) => {
+            setGeneratedToken(result.token)
+            setTokenLabel('')
+            setCopied(false)
+            await queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkerEnrollmentTokens })
+        }
+    })
+
+    const hubUrl = baseUrl || window.location.origin
+    const installCommand = generatedToken
+        ? `haqi worker start --token ${generatedToken} --hub-url ${hubUrl}`
+        : ''
+
+    function handleCopy(text: string) {
+        void navigator.clipboard?.writeText(text).then(() => {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        }).catch(() => undefined)
+    }
 
     if (workersQuery.isLoading) {
         return (
@@ -56,6 +91,85 @@ export default function CloudWorkersPage() {
                 <div className="text-xs uppercase tracking-[0.12em] text-[var(--app-hint)]">Cloud</div>
                 <h1 className="text-xl font-semibold">{t('cloud.workers.title')}</h1>
             </div>
+
+            <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
+                <h2 className="text-sm font-semibold">Add Worker</h2>
+                <p className="mt-1 text-xs text-[var(--app-hint)]">
+                    Generate an enrollment token and use it to connect a new worker to this hub.
+                </p>
+                <div className="mt-3 flex flex-wrap items-end gap-3">
+                    <div className="min-w-[14rem] flex-1">
+                        <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                            Label (optional)
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="e.g. gpu-worker-1"
+                            value={tokenLabel}
+                            onChange={(event) => setTokenLabel(event.target.value)}
+                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        />
+                    </div>
+                    <div className="w-28">
+                        <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                            TTL (min)
+                        </label>
+                        <input
+                            type="number"
+                            min={1}
+                            value={tokenTtl}
+                            onChange={(event) => setTokenTtl(event.target.value)}
+                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        />
+                    </div>
+                    <Button
+                        type="button"
+                        onClick={() => tokenMutation.mutate()}
+                        disabled={tokenMutation.isPending}
+                    >
+                        {tokenMutation.isPending ? 'Generating…' : 'Generate Token'}
+                    </Button>
+                </div>
+                {tokenMutation.error instanceof Error ? (
+                    <div className="mt-2 text-sm text-red-600">{tokenMutation.error.message}</div>
+                ) : null}
+                {generatedToken ? (
+                    <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
+                        <div className="text-sm font-medium text-emerald-700">
+                            Token generated — copy it now, it will not be shown again.
+                        </div>
+                        <div className="mt-2 flex items-start gap-2">
+                            <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
+                                {generatedToken}
+                            </code>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCopy(generatedToken)}
+                            >
+                                {copied ? 'Copied' : 'Copy'}
+                            </Button>
+                        </div>
+                        <div className="mt-3">
+                            <div className="text-xs font-medium text-[var(--app-hint)]">Install command:</div>
+                            <div className="mt-1 flex items-start gap-2">
+                                <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
+                                    {installCommand}
+                                </code>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCopy(installCommand)}
+                                >
+                                    Copy
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+            </section>
 
             {workers.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center">

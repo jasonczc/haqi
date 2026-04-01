@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
@@ -76,8 +77,16 @@ export default function CloudContainersPage() {
             </div>
 
             {allContainers.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center text-sm text-[var(--app-hint)]">
-                    {t('cloud.containers.empty')}
+                <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center">
+                    <div className="text-sm text-[var(--app-hint)]">
+                        {t('cloud.containers.empty')}
+                    </div>
+                    <Link
+                        to="/sessions/new"
+                        className="mt-3 inline-block rounded-md bg-[var(--app-link)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                    >
+                        Create a new session
+                    </Link>
                 </div>
             ) : (
                 <div className="grid gap-3">

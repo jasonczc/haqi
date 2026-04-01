@@ -210,9 +210,22 @@ export function CloudSettingsSection(props: {
                                 />
                                 <span>{t('newSession.runtimeKind.dockerSession')}</span>
                             </label>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="radio"
+                                    name="runtimeKind"
+                                    checked={props.runtimeKind === 'daemon-session'}
+                                    onChange={() => props.onRuntimeKindChange('daemon-session')}
+                                    disabled={props.isDisabled}
+                                    className="accent-[var(--app-link)]"
+                                />
+                                <span>Daemon Session</span>
+                            </label>
                         </div>
                         <div className="pt-1 text-[11px] text-[var(--app-hint)]">
-                            Cloud runtime is container-backed and checkpoint-based.
+                            {props.runtimeKind === 'daemon-session'
+                                ? 'Long-running daemon container on the cloud worker.'
+                                : 'Cloud runtime is container-backed and checkpoint-based.'}
                         </div>
                     </div>
 

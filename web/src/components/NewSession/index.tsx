@@ -206,7 +206,7 @@ export function NewSession(props: {
 
     useEffect(() => {
         if (executionBackend !== 'local') {
-            if (runtimeKind !== 'docker-session') {
+            if (runtimeKind !== 'docker-session' && runtimeKind !== 'daemon-session') {
                 setRuntimeKind('docker-session')
             }
             if (machineId === AUTO_CLOUD_MACHINE_ID) return
