@@ -12,14 +12,14 @@ function formatDate(ts: number): string {
 
 function StatusBadge({ status }: { status: string }) {
     const colorMap: Record<string, string> = {
-        ready: 'bg-emerald-500/15 text-emerald-700',
-        provisioning: 'bg-amber-500/15 text-amber-700',
-        starting: 'bg-blue-500/15 text-blue-700',
-        active: 'bg-emerald-500/15 text-emerald-700',
-        stopped: 'bg-[var(--app-bg-secondary)] text-[var(--app-hint)]',
-        failed: 'bg-red-500/15 text-red-700',
+        ready: 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]',
+        provisioning: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)] border border-[var(--app-badge-warning-border)]',
+        starting: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
+        active: 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]',
+        stopped: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
+        failed: 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)] border border-[var(--app-badge-error-border)]',
     }
-    const classes = colorMap[status] ?? 'bg-[var(--app-bg-secondary)] text-[var(--app-hint)]'
+    const classes = colorMap[status] ?? 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
     return (
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${classes}`}>
             {status}
@@ -50,64 +50,68 @@ export default function CloudWorkspacesPage() {
     }
 
     if (workspacesQuery.isError) {
-        return <div className="p-4 text-sm text-red-500">Failed to load workspaces</div>
+        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load workspaces</div>
     }
 
     const workspaces = (workspacesQuery.data?.workspaces ?? []) as CloudWorkspace[]
 
     return (
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4">
-            <div>
-                <div className="text-xs uppercase tracking-[0.12em] text-[var(--app-hint)]">Cloud</div>
-                <h1 className="text-xl font-semibold">{t('cloud.workspaces.title')}</h1>
+        <div className="flex h-full flex-col">
+            <div className="border-b border-[var(--app-border)] px-4 py-3">
+                <h1 className="text-base font-semibold">{t('cloud.workspaces.title')}</h1>
             </div>
-
-            {workspaces.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center">
-                    <div className="text-sm font-medium text-[var(--app-hint)]">{t('cloud.workspaces.empty')}</div>
-                </div>
-            ) : (
-                <div className="grid gap-3">
-                    {workspaces.map((workspace) => (
-                        <Link
-                            key={workspace.id}
-                            to="/cloud/workspaces/$workspaceId"
-                            params={{ workspaceId: workspace.id }}
-                            className="block rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4 transition-colors hover:bg-[var(--app-subtle-bg)]"
-                        >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-2">
-                                        <StatusBadge status={workspace.status} />
-                                        <span className="font-mono text-sm font-medium">{workspace.id}</span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
-                                        {workspace.mode ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Mode</span>{' '}
-                                                {workspace.mode}
-                                            </span>
-                                        ) : null}
-                                        {workspace.machineId ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Worker</span>{' '}
-                                                {workspace.machineId}
-                                            </span>
-                                        ) : null}
-                                        {workspace.path ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Path</span>{' '}
-                                                <span className="font-mono">{workspace.path}</span>
-                                            </span>
-                                        ) : null}
-                                        <span>{formatDate(workspace.createdAt)}</span>
-                                    </div>
-                                </div>
+            <div className="flex-1 overflow-y-auto">
+                <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+                    {workspaces.length === 0 ? (
+                        <div className="flex flex-1 items-center justify-center p-8">
+                            <div className="text-center text-sm text-[var(--app-hint)]">
+                                <p>{t('cloud.workspaces.empty')}</p>
                             </div>
-                        </Link>
-                    ))}
+                        </div>
+                    ) : (
+                        <div className="grid gap-3">
+                            {workspaces.map((workspace) => (
+                                <Link
+                                    key={workspace.id}
+                                    to="/cloud/workspaces/$workspaceId"
+                                    params={{ workspaceId: workspace.id }}
+                                    className="block rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4 transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <StatusBadge status={workspace.status} />
+                                                <span className="font-mono text-sm font-medium">{workspace.id}</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
+                                                {workspace.mode ? (
+                                                    <span>
+                                                        <span className="font-medium text-[var(--app-fg)]">Mode</span>{' '}
+                                                        {workspace.mode}
+                                                    </span>
+                                                ) : null}
+                                                {workspace.machineId ? (
+                                                    <span>
+                                                        <span className="font-medium text-[var(--app-fg)]">Worker</span>{' '}
+                                                        {workspace.machineId}
+                                                    </span>
+                                                ) : null}
+                                                {workspace.path ? (
+                                                    <span>
+                                                        <span className="font-medium text-[var(--app-fg)]">Path</span>{' '}
+                                                        <span className="font-mono">{workspace.path}</span>
+                                                    </span>
+                                                ) : null}
+                                                <span>{formatDate(workspace.createdAt)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     )
 }

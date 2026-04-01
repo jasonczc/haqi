@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
@@ -33,6 +34,7 @@ function EnrollmentTokensSection() {
     const { api } = useAppContext()
     const { t } = useTranslation()
     const queryClient = useQueryClient()
+    const [revokeTokenId, setRevokeTokenId] = useState<string | null>(null)
 
     const tokensQuery = useQuery({
         queryKey: queryKeys.cloudWorkerEnrollmentTokens,
@@ -92,21 +94,33 @@ function EnrollmentTokensSection() {
                                     </span>
                                 ) : null}
                             </div>
-                            <button
-                                onClick={() => {
-                                    if (window.confirm(t('cloud.tokens.confirmRevoke'))) {
-                                        revokeMutation.mutate(token.id)
-                                    }
-                                }}
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => setRevokeTokenId(token.id)}
                                 disabled={revokeMutation.isPending}
-                                className="rounded bg-red-500/15 px-2 py-1 text-xs text-red-700 hover:bg-red-500/25 disabled:opacity-50"
                             >
                                 {t('cloud.tokens.revoke')}
-                            </button>
+                            </Button>
                         </div>
                     ))}
                 </div>
             )}
+            <ConfirmDialog
+                isOpen={!!revokeTokenId}
+                onClose={() => setRevokeTokenId(null)}
+                title={t('cloud.tokens.confirmRevoke')}
+                description={t('cloud.tokens.confirmRevoke')}
+                confirmLabel={t('cloud.tokens.revoke')}
+                confirmingLabel={t('cloud.tokens.revoke')}
+                onConfirm={async () => {
+                    if (revokeTokenId) {
+                        await revokeMutation.mutateAsync(revokeTokenId)
+                    }
+                }}
+                isPending={revokeMutation.isPending}
+                destructive
+            />
         </section>
     )
 }
@@ -166,200 +180,205 @@ export default function CloudWorkersPage() {
     }
 
     if (workersQuery.isError) {
-        return <div className="p-4 text-sm text-red-500">Failed to load workers</div>
+        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load workers</div>
     }
 
     const workers: CloudWorkerSummary[] = workersQuery.data?.workers ?? []
 
     return (
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4">
-            <div>
-                <div className="text-xs uppercase tracking-[0.12em] text-[var(--app-hint)]">Cloud</div>
-                <h1 className="text-xl font-semibold">{t('cloud.workers.title')}</h1>
+        <div className="flex h-full flex-col">
+            <div className="border-b border-[var(--app-border)] px-4 py-3">
+                <h1 className="text-base font-semibold">{t('cloud.workers.title')}</h1>
             </div>
-
-            <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
-                <h2 className="text-sm font-semibold">Add Worker</h2>
-                <p className="mt-1 text-xs text-[var(--app-hint)]">
-                    Generate an enrollment token and use it to connect a new worker to this hub.
-                </p>
-                <div className="mt-3 flex flex-wrap items-end gap-3">
-                    <div className="min-w-[14rem] flex-1">
-                        <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
-                            Label (optional)
-                        </label>
-                        <input
-                            type="text"
-                            placeholder="e.g. gpu-worker-1"
-                            value={tokenLabel}
-                            onChange={(event) => setTokenLabel(event.target.value)}
-                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
-                        />
-                    </div>
-                    <div className="w-28">
-                        <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
-                            TTL (min)
-                        </label>
-                        <input
-                            type="number"
-                            min={1}
-                            value={tokenTtl}
-                            onChange={(event) => setTokenTtl(event.target.value)}
-                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
-                        />
-                    </div>
-                    <Button
-                        type="button"
-                        onClick={() => tokenMutation.mutate()}
-                        disabled={tokenMutation.isPending}
-                    >
-                        {tokenMutation.isPending ? 'Generating…' : 'Generate Token'}
-                    </Button>
-                </div>
-                {tokenMutation.error instanceof Error ? (
-                    <div className="mt-2 text-sm text-red-600">{tokenMutation.error.message}</div>
-                ) : null}
-                {generatedToken ? (
-                    <div className="mt-3 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3">
-                        <div className="text-sm font-medium text-emerald-700">
-                            Token generated — copy it now, it will not be shown again.
-                        </div>
-                        <div className="mt-2 flex items-start gap-2">
-                            <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
-                                {generatedToken}
-                            </code>
+            <div className="flex-1 overflow-y-auto">
+                <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+                    <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
+                        <h2 className="text-sm font-semibold">Add Worker</h2>
+                        <p className="mt-1 text-xs text-[var(--app-hint)]">
+                            Generate an enrollment token and use it to connect a new worker to this hub.
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-end gap-3">
+                            <div className="min-w-[14rem] flex-1">
+                                <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                                    Label (optional)
+                                </label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. gpu-worker-1"
+                                    value={tokenLabel}
+                                    onChange={(event) => setTokenLabel(event.target.value)}
+                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                                />
+                            </div>
+                            <div className="w-28">
+                                <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                                    TTL (min)
+                                </label>
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={tokenTtl}
+                                    onChange={(event) => setTokenTtl(event.target.value)}
+                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                                />
+                            </div>
                             <Button
                                 type="button"
                                 size="sm"
-                                variant="outline"
-                                onClick={() => handleCopy(generatedToken)}
+                                onClick={() => tokenMutation.mutate()}
+                                disabled={tokenMutation.isPending}
                             >
-                                {copied ? 'Copied' : 'Copy'}
+                                {tokenMutation.isPending ? 'Generating...' : 'Generate Token'}
                             </Button>
                         </div>
-                        <div className="mt-3">
-                            <div className="text-xs font-medium text-[var(--app-hint)]">Install command:</div>
-                            <div className="mt-1 flex items-start gap-2">
-                                <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
-                                    {installCommand}
-                                </code>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleCopy(installCommand)}
-                                >
-                                    Copy
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                ) : null}
-            </section>
-
-            <EnrollmentTokensSection />
-
-            {workers.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center">
-                    <div className="text-sm font-medium">{t('cloud.workers.empty')}</div>
-                    <div className="mt-1 text-sm text-[var(--app-hint)]">
-                        {t('cloud.workers.empty.hint')}{' '}
-                        <Link to="/cloud/secrets" className="underline hover:no-underline">
-                            {t('cloud.workers.empty.link')}
-                        </Link>
-                    </div>
-                </div>
-            ) : (
-                <div className="grid gap-3">
-                    {workers.map((worker) => (
-                        <div
-                            key={worker.machineId}
-                            className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4"
-                        >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                    <span
-                                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                            worker.active
-                                                ? 'bg-emerald-500/15 text-emerald-700'
-                                                : 'bg-[var(--app-bg-secondary)] text-[var(--app-hint)]'
-                                        }`}
+                        {tokenMutation.error instanceof Error ? (
+                            <div className="mt-2 text-sm text-[var(--app-badge-error-text)]">{tokenMutation.error.message}</div>
+                        ) : null}
+                        {generatedToken ? (
+                            <div className="mt-3 rounded-md border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] p-3">
+                                <div className="text-sm font-medium text-[var(--app-badge-success-text)]">
+                                    Token generated — copy it now, it will not be shown again.
+                                </div>
+                                <div className="mt-2 flex items-start gap-2">
+                                    <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
+                                        {generatedToken}
+                                    </code>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleCopy(generatedToken)}
                                     >
-                                        {worker.active ? t('cloud.workers.status.online') : t('cloud.workers.status.offline')}
-                                    </span>
-                                    <span className="font-mono text-sm font-medium">{worker.machineId}</span>
+                                        {copied ? 'Copied' : 'Copy'}
+                                    </Button>
                                 </div>
-                                <div className="text-xs text-[var(--app-hint)]">
-                                    {t('cloud.workers.lastSeen')}: {formatLastSeen(worker.updatedAt)}
-                                </div>
-                            </div>
-
-                            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
-                                {worker.provider ? (
-                                    <span>
-                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.provider')}</span>{' '}
-                                        {worker.provider}
-                                    </span>
-                                ) : null}
-                                {worker.lifecycle ? (
-                                    <span>
-                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.lifecycle')}</span>{' '}
-                                        {worker.lifecycle}
-                                    </span>
-                                ) : null}
-                                {worker.region ? (
-                                    <span>
-                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.region')}</span>{' '}
-                                        {worker.region}
-                                    </span>
-                                ) : null}
-                                {worker.workerVersion ? (
-                                    <span>
-                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.version')}</span>{' '}
-                                        {worker.workerVersion}
-                                    </span>
-                                ) : null}
-                            </div>
-
-                            {worker.resources ? (
-                                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
-                                    {worker.resources.cpu != null ? (
-                                        <span>
-                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.cpu')}</span>{' '}
-                                            {worker.resources.cpu} cores
-                                        </span>
-                                    ) : null}
-                                    {worker.resources.memoryMb != null ? (
-                                        <span>
-                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.memory')}</span>{' '}
-                                            {formatMemory(worker.resources.memoryMb)}
-                                        </span>
-                                    ) : null}
-                                    {worker.resources.diskGb != null ? (
-                                        <span>
-                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.disk')}</span>{' '}
-                                            {worker.resources.diskGb} GB
-                                        </span>
-                                    ) : null}
-                                </div>
-                            ) : null}
-
-                            {worker.labels && worker.labels.length > 0 ? (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                    {worker.labels.map((label) => (
-                                        <span
-                                            key={label}
-                                            className="rounded bg-[var(--app-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--app-hint)]"
+                                <div className="mt-3">
+                                    <div className="text-xs font-medium text-[var(--app-hint)]">Install command:</div>
+                                    <div className="mt-1 flex items-start gap-2">
+                                        <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
+                                            {installCommand}
+                                        </code>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleCopy(installCommand)}
                                         >
-                                            {label}
-                                        </span>
-                                    ))}
+                                            Copy
+                                        </Button>
+                                    </div>
                                 </div>
-                            ) : null}
+                            </div>
+                        ) : null}
+                    </section>
+
+                    <EnrollmentTokensSection />
+
+                    {workers.length === 0 ? (
+                        <div className="flex flex-1 items-center justify-center p-8">
+                            <div className="text-center text-sm text-[var(--app-hint)]">
+                                <p>{t('cloud.workers.empty')}</p>
+                                <p className="mt-1">
+                                    {t('cloud.workers.empty.hint')}{' '}
+                                    <Link to="/cloud/secrets" className="underline hover:no-underline">
+                                        {t('cloud.workers.empty.link')}
+                                    </Link>
+                                </p>
+                            </div>
                         </div>
-                    ))}
+                    ) : (
+                        <div className="grid gap-3">
+                            {workers.map((worker) => (
+                                <div
+                                    key={worker.machineId}
+                                    className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                    worker.active
+                                                        ? 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]'
+                                                        : 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
+                                                }`}
+                                            >
+                                                {worker.active ? t('cloud.workers.status.online') : t('cloud.workers.status.offline')}
+                                            </span>
+                                            <span className="font-mono text-sm font-medium">{worker.machineId}</span>
+                                        </div>
+                                        <div className="text-xs text-[var(--app-hint)]">
+                                            {t('cloud.workers.lastSeen')}: {formatLastSeen(worker.updatedAt)}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
+                                        {worker.provider ? (
+                                            <span>
+                                                <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.provider')}</span>{' '}
+                                                {worker.provider}
+                                            </span>
+                                        ) : null}
+                                        {worker.lifecycle ? (
+                                            <span>
+                                                <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.lifecycle')}</span>{' '}
+                                                {worker.lifecycle}
+                                            </span>
+                                        ) : null}
+                                        {worker.region ? (
+                                            <span>
+                                                <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.region')}</span>{' '}
+                                                {worker.region}
+                                            </span>
+                                        ) : null}
+                                        {worker.workerVersion ? (
+                                            <span>
+                                                <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.version')}</span>{' '}
+                                                {worker.workerVersion}
+                                            </span>
+                                        ) : null}
+                                    </div>
+
+                                    {worker.resources ? (
+                                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
+                                            {worker.resources.cpu != null ? (
+                                                <span>
+                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.cpu')}</span>{' '}
+                                                    {worker.resources.cpu} cores
+                                                </span>
+                                            ) : null}
+                                            {worker.resources.memoryMb != null ? (
+                                                <span>
+                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.memory')}</span>{' '}
+                                                    {formatMemory(worker.resources.memoryMb)}
+                                                </span>
+                                            ) : null}
+                                            {worker.resources.diskGb != null ? (
+                                                <span>
+                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.disk')}</span>{' '}
+                                                    {worker.resources.diskGb} GB
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
+
+                                    {worker.labels && worker.labels.length > 0 ? (
+                                        <div className="mt-2 flex flex-wrap gap-1">
+                                            {worker.labels.map((label) => (
+                                                <span
+                                                    key={label}
+                                                    className="rounded bg-[var(--app-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--app-hint)]"
+                                                >
+                                                    {label}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     )
 }

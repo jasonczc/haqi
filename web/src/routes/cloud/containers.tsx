@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
@@ -22,6 +25,7 @@ export default function CloudContainersPage() {
     const { api } = useAppContext()
     const { t } = useTranslation()
     const queryClient = useQueryClient()
+    const [removeTarget, setRemoveTarget] = useState<{ machineId: string; containerId: string } | null>(null)
 
     const query = useQuery({
         queryKey: ['cloud-containers'],
@@ -63,85 +67,105 @@ export default function CloudContainersPage() {
     }
 
     if (query.isError) {
-        return <div className="p-4 text-sm text-red-500">Failed to load containers</div>
+        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load containers</div>
     }
 
     const machines: MachineContainers[] = (query.data?.machines ?? []) as MachineContainers[]
     const allContainers = machines.flatMap(m => m.containers.map(c => ({ ...c, machineId: m.machineId })))
 
     return (
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4">
-            <div>
-                <div className="text-xs uppercase tracking-[0.12em] text-[var(--app-hint)]">Cloud</div>
-                <h1 className="text-xl font-semibold">{t('cloud.containers.title')}</h1>
+        <div className="flex h-full flex-col">
+            <div className="border-b border-[var(--app-border)] px-4 py-3">
+                <h1 className="text-base font-semibold">{t('cloud.containers.title')}</h1>
             </div>
-
-            {allContainers.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center">
-                    <div className="text-sm text-[var(--app-hint)]">
-                        {t('cloud.containers.empty')}
-                    </div>
-                    <Link
-                        to="/sessions/new"
-                        className="mt-3 inline-block rounded-md bg-[var(--app-link)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-                    >
-                        Create a new session
-                    </Link>
-                </div>
-            ) : (
-                <div className="grid gap-3">
-                    {allContainers.map((c) => {
-                        const isRunning = c.status?.includes('Up')
-                        return (
-                            <div key={c.id} className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                isRunning
-                                                    ? 'bg-emerald-500/15 text-emerald-700'
-                                                    : 'bg-[var(--app-bg-secondary)] text-[var(--app-hint)]'
-                                            }`}>
-                                                {isRunning ? 'running' : 'stopped'}
-                                            </span>
-                                            <span className="font-mono text-sm">{c.name || c.id?.slice(0, 12)}</span>
-                                        </div>
-                                        <div className="mt-1 text-xs text-[var(--app-hint)]">
-                                            {c.runtime && <span className="mr-3">Runtime: {c.runtime}</span>}
-                                            {c.workspaceId && <span className="mr-3">Workspace: {c.workspaceId}</span>}
-                                            {c.ports && <span>Ports: {c.ports}</span>}
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-1.5">
-                                        {isRunning && (
-                                            <>
-                                                <button
-                                                    onClick={() => stopSessionMutation.mutate({ machineId: c.machineId, containerId: c.id })}
-                                                    className="rounded bg-amber-500/15 px-2 py-1 text-xs text-amber-700 hover:bg-amber-500/25"
-                                                >
-                                                    {t('cloud.containers.stopSession')}
-                                                </button>
-                                                <button
-                                                    onClick={() => stopMutation.mutate({ machineId: c.machineId, containerId: c.id })}
-                                                    className="rounded bg-orange-500/15 px-2 py-1 text-xs text-orange-700 hover:bg-orange-500/25"
-                                                >
-                                                    {t('cloud.containers.stop')}
-                                                </button>
-                                            </>
-                                        )}
-                                        <button
-                                            onClick={() => removeMutation.mutate({ machineId: c.machineId, containerId: c.id })}
-                                            className="rounded bg-red-500/15 px-2 py-1 text-xs text-red-700 hover:bg-red-500/25"
-                                        >
-                                            {t('cloud.containers.remove')}
-                                        </button>
-                                    </div>
-                                </div>
+            <div className="flex-1 overflow-y-auto">
+                <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+                    {allContainers.length === 0 ? (
+                        <div className="flex flex-1 items-center justify-center p-8">
+                            <div className="text-center text-sm text-[var(--app-hint)]">
+                                <p>{t('cloud.containers.empty')}</p>
+                                <Link
+                                    to="/sessions/new"
+                                    className="mt-3 inline-block text-[var(--app-link)] underline hover:no-underline"
+                                >
+                                    Create a new session
+                                </Link>
                             </div>
-                        )
-                    })}
+                        </div>
+                    ) : (
+                        <div className="grid gap-3">
+                            {allContainers.map((c) => {
+                                const isRunning = c.status?.includes('Up')
+                                return (
+                                    <div key={c.id} className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                        isRunning
+                                                            ? 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]'
+                                                            : 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
+                                                    }`}>
+                                                        {isRunning ? 'running' : 'stopped'}
+                                                    </span>
+                                                    <span className="font-mono text-sm">{c.name || c.id?.slice(0, 12)}</span>
+                                                </div>
+                                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                                    {c.runtime && <span className="mr-3">Runtime: {c.runtime}</span>}
+                                                    {c.workspaceId && <span className="mr-3">Workspace: {c.workspaceId}</span>}
+                                                    {c.ports && <span>Ports: {c.ports}</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-1.5">
+                                                {isRunning && (
+                                                    <>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => stopSessionMutation.mutate({ machineId: c.machineId, containerId: c.id })}
+                                                        >
+                                                            {t('cloud.containers.stopSession')}
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => stopMutation.mutate({ machineId: c.machineId, containerId: c.id })}
+                                                        >
+                                                            {t('cloud.containers.stop')}
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                <Button
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    onClick={() => setRemoveTarget({ machineId: c.machineId, containerId: c.id })}
+                                                >
+                                                    {t('cloud.containers.remove')}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
+            <ConfirmDialog
+                isOpen={!!removeTarget}
+                onClose={() => setRemoveTarget(null)}
+                title={t('cloud.containers.remove')}
+                description="This action cannot be undone."
+                confirmLabel={t('cloud.containers.remove')}
+                confirmingLabel={t('cloud.containers.remove')}
+                onConfirm={async () => {
+                    if (removeTarget) {
+                        await removeMutation.mutateAsync(removeTarget)
+                    }
+                }}
+                isPending={removeMutation.isPending}
+                destructive
+            />
         </div>
     )
 }

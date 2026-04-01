@@ -12,15 +12,15 @@ function formatDate(ts: number): string {
 
 function PhaseBadge({ phase }: { phase: string }) {
     const colorMap: Record<string, string> = {
-        succeeded: 'bg-emerald-500/15 text-emerald-700',
-        failed: 'bg-red-500/15 text-red-700',
-        canceled: 'bg-[var(--app-bg-secondary)] text-[var(--app-hint)]',
-        pending: 'bg-amber-500/15 text-amber-700',
-        scheduling: 'bg-amber-500/15 text-amber-700',
-        provisioning: 'bg-blue-500/15 text-blue-700',
-        starting: 'bg-blue-500/15 text-blue-700',
+        succeeded: 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]',
+        failed: 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)] border border-[var(--app-badge-error-border)]',
+        canceled: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
+        pending: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)] border border-[var(--app-badge-warning-border)]',
+        scheduling: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)] border border-[var(--app-badge-warning-border)]',
+        provisioning: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
+        starting: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
     }
-    const classes = colorMap[phase] ?? 'bg-[var(--app-bg-secondary)] text-[var(--app-hint)]'
+    const classes = colorMap[phase] ?? 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
     return (
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${classes}`}>
             {phase}
@@ -51,63 +51,67 @@ export default function CloudRequestsPage() {
     }
 
     if (requestsQuery.isError) {
-        return <div className="p-4 text-sm text-red-500">Failed to load requests</div>
+        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load requests</div>
     }
 
     const requests = (requestsQuery.data?.requests ?? []) as CloudSpawnRequest[]
 
     return (
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4">
-            <div>
-                <div className="text-xs uppercase tracking-[0.12em] text-[var(--app-hint)]">Cloud</div>
-                <h1 className="text-xl font-semibold">{t('cloud.requests.title')}</h1>
+        <div className="flex h-full flex-col">
+            <div className="border-b border-[var(--app-border)] px-4 py-3">
+                <h1 className="text-base font-semibold">{t('cloud.requests.title')}</h1>
             </div>
-
-            {requests.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center">
-                    <div className="text-sm font-medium text-[var(--app-hint)]">{t('cloud.requests.empty')}</div>
-                </div>
-            ) : (
-                <div className="grid gap-3">
-                    {requests.map((request) => (
-                        <Link
-                            key={request.id}
-                            to="/cloud/requests/$requestId"
-                            params={{ requestId: request.id }}
-                            className="block rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4 transition-colors hover:bg-[var(--app-subtle-bg)]"
-                        >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="flex flex-col gap-1">
-                                    <div className="flex items-center gap-2">
-                                        <PhaseBadge phase={request.phase} />
-                                        <span className="font-mono text-sm font-medium">{request.id}</span>
-                                    </div>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
-                                        {request.selectedMachineId ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Worker</span>{' '}
-                                                {request.selectedMachineId}
-                                            </span>
-                                        ) : null}
-                                        {request.request.agent ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Agent</span>{' '}
-                                                {request.request.agent}
-                                            </span>
-                                        ) : null}
-                                        <span>{formatDate(request.createdAt)}</span>
-                                    </div>
-                                </div>
-                                {request.error ? (
-                                    <div className="max-w-xs truncate rounded bg-red-500/10 px-2 py-1 text-xs text-red-700">
-                                        {request.error.message ?? request.error.code}
-                                    </div>
-                                ) : null}
+            <div className="flex-1 overflow-y-auto">
+                <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+                    {requests.length === 0 ? (
+                        <div className="flex flex-1 items-center justify-center p-8">
+                            <div className="text-center text-sm text-[var(--app-hint)]">
+                                <p>{t('cloud.requests.empty')}</p>
                             </div>
-                        </Link>
-                    ))}
+                        </div>
+                    ) : (
+                        <div className="grid gap-3">
+                            {requests.map((request) => (
+                                <Link
+                                    key={request.id}
+                                    to="/cloud/requests/$requestId"
+                                    params={{ requestId: request.id }}
+                                    className="block rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4 transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                >
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <PhaseBadge phase={request.phase} />
+                                                <span className="font-mono text-sm font-medium">{request.id}</span>
+                                            </div>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
+                                                {request.selectedMachineId ? (
+                                                    <span>
+                                                        <span className="font-medium text-[var(--app-fg)]">Worker</span>{' '}
+                                                        {request.selectedMachineId}
+                                                    </span>
+                                                ) : null}
+                                                {request.request.agent ? (
+                                                    <span>
+                                                        <span className="font-medium text-[var(--app-fg)]">Agent</span>{' '}
+                                                        {request.request.agent}
+                                                    </span>
+                                                ) : null}
+                                                <span>{formatDate(request.createdAt)}</span>
+                                            </div>
+                                        </div>
+                                        {request.error ? (
+                                            <div className="max-w-xs truncate rounded bg-[var(--app-badge-error-bg)] px-2 py-1 text-xs text-[var(--app-badge-error-text)]">
+                                                {request.error.message ?? request.error.code}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
                 </div>
-            )}
+            </div>
         </div>
     )
 }
