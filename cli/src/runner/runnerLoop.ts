@@ -1430,8 +1430,11 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         logger.debug(`[RUNNER RUN] Health check started at ${new Date().toLocaleString()}`);
       }
 
-      // Prune stale sessions
-      for (const [pid, _] of pidToTrackedSession.entries()) {
+      // Prune stale sessions (skip daemon-session — their PIDs are container-internal, not host PIDs)
+      for (const [pid, tracked] of pidToTrackedSession.entries()) {
+        if (tracked.runtimeKind === 'daemon-session') {
+          continue;
+        }
         if (!isProcessAlive(pid)) {
           logger.debug(`[RUNNER RUN] Removing stale session with PID ${pid} (process no longer exists)`);
           pidToTrackedSession.delete(pid);
