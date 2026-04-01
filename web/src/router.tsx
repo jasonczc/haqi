@@ -73,6 +73,7 @@ import CloudContainersPage from '@/routes/cloud/containers'
 import CloudCheckpointsPage from '@/routes/cloud/checkpoints'
 import CloudRequestsPage from '@/routes/cloud/requests'
 import CloudWorkspacesPage from '@/routes/cloud/workspaces'
+import { CloudSidebar } from '@/components/CloudSidebar'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
@@ -221,49 +222,19 @@ function CloseIcon(props: { className?: string }) {
     )
 }
 
-function CloudDropdown({ navigate }: { navigate: (opts: any) => void }) {
-    const [open, setOpen] = useState(false)
-
-    const items = [
-        { label: 'Workers', to: '/cloud/workers' },
-        { label: 'Containers', to: '/cloud/containers' },
-        { label: 'Checkpoints', to: '/cloud/checkpoints' },
-        { label: 'Secrets', to: '/cloud/secrets' },
-        { label: 'Requests', to: '/cloud/requests' },
-        { label: 'Workspaces', to: '/cloud/workspaces' },
-    ]
-
+function CloudLayout() {
     return (
-        <div className="relative">
-            <button
-                type="button"
-                onClick={() => setOpen(!open)}
-                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-            >
-                Cloud
-            </button>
-            {open ? (
-                <>
-                    <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-                    <div className="absolute left-0 top-full z-50 mt-1 min-w-[10rem] rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] py-1 shadow-lg">
-                        {items.map((item) => (
-                            <button
-                                key={item.to}
-                                type="button"
-                                className="block w-full px-3 py-1.5 text-left text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                onClick={() => {
-                                    setOpen(false)
-                                    navigate({ to: item.to })
-                                }}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
-                </>
-            ) : null}
+        <div className="flex h-full">
+            <CloudSidebar />
+            <div className="flex-1 overflow-y-auto">
+                <Outlet />
+            </div>
         </div>
     )
+}
+
+function CloudIndexPage() {
+    return <Navigate to="/cloud/workers" replace />
 }
 
 type NewSessionSearch = {
@@ -525,7 +496,13 @@ function SessionsPage() {
                             >
                                 Loops
                             </button>
-                            <CloudDropdown navigate={navigate} />
+                            <button
+                                type="button"
+                                onClick={() => navigate({ to: '/cloud/workers' })}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Cloud
+                            </button>
                         </div>
                         <div className="flex items-center gap-1.5">
                             {!isSessionsIndex ? (
@@ -1257,7 +1234,13 @@ function GroupsLayout() {
                             >
                                 Loops
                             </button>
-                            <CloudDropdown navigate={(opts: any) => { onClose?.(); navigate(opts) }} />
+                            <button
+                                type="button"
+                                onClick={() => { onClose?.(); navigate({ to: '/cloud/workers' }) }}
+                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Cloud
+                            </button>
                         </div>
                         <div className="flex items-center gap-1.5">
                             {!isGroupsIndex ? (
@@ -1764,7 +1747,13 @@ function ReviewLoopsLayout() {
                             >
                                 Loops
                             </button>
-                            <CloudDropdown navigate={(opts: any) => { onClose?.(); navigate(opts) }} />
+                            <button
+                                type="button"
+                                onClick={() => { onClose?.(); navigate({ to: '/cloud/workers' }) }}
+                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                            >
+                                Cloud
+                            </button>
                         </div>
                         <div className="flex items-center gap-1.5">
                             {!isLoopsIndex ? (
@@ -2081,51 +2070,63 @@ const debugDiffRoute = createRoute({
     component: DebugDiffPage,
 })
 
-const cloudRequestDetailRoute = createRoute({
+const cloudRoute = createRoute({
     getParentRoute: () => rootRoute,
-    path: '/cloud/requests/$requestId',
+    path: '/cloud',
+    component: CloudLayout,
+})
+
+const cloudIndexRoute = createRoute({
+    getParentRoute: () => cloudRoute,
+    path: '/',
+    component: CloudIndexPage,
+})
+
+const cloudRequestDetailRoute = createRoute({
+    getParentRoute: () => cloudRoute,
+    path: 'requests/$requestId',
     component: CloudRequestDetailPage,
 })
 
 const cloudWorkspaceDetailRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/cloud/workspaces/$workspaceId',
+    getParentRoute: () => cloudRoute,
+    path: 'workspaces/$workspaceId',
     component: CloudWorkspaceDetailPage,
 })
 
 const cloudSecretsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/cloud/secrets',
+    getParentRoute: () => cloudRoute,
+    path: 'secrets',
     component: CloudSecretsPage,
 })
 
 const cloudWorkersRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/cloud/workers',
+    getParentRoute: () => cloudRoute,
+    path: 'workers',
     component: CloudWorkersPage,
 })
 
 const cloudContainersRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/cloud/containers',
+    getParentRoute: () => cloudRoute,
+    path: 'containers',
     component: CloudContainersPage,
 })
 
 const cloudCheckpointsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/cloud/checkpoints',
+    getParentRoute: () => cloudRoute,
+    path: 'checkpoints',
     component: CloudCheckpointsPage,
 })
 
 const cloudRequestsRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/cloud/requests',
+    getParentRoute: () => cloudRoute,
+    path: 'requests',
     component: CloudRequestsPage,
 })
 
 const cloudWorkspacesRoute = createRoute({
-    getParentRoute: () => rootRoute,
-    path: '/cloud/workspaces',
+    getParentRoute: () => cloudRoute,
+    path: 'workspaces',
     component: CloudWorkspacesPage,
 })
 
@@ -2168,14 +2169,17 @@ const reviewLoopDetailRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
     indexRoute,
     debugDiffRoute,
-    cloudRequestDetailRoute,
-    cloudWorkspaceDetailRoute,
-    cloudSecretsRoute,
-    cloudWorkersRoute,
-    cloudContainersRoute,
-    cloudCheckpointsRoute,
-    cloudRequestsRoute,
-    cloudWorkspacesRoute,
+    cloudRoute.addChildren([
+        cloudIndexRoute,
+        cloudWorkersRoute,
+        cloudContainersRoute,
+        cloudCheckpointsRoute,
+        cloudSecretsRoute,
+        cloudRequestsRoute,
+        cloudRequestDetailRoute,
+        cloudWorkspacesRoute,
+        cloudWorkspaceDetailRoute,
+    ]),
     sessionsRoute.addChildren([
         sessionsIndexRoute,
         newSessionRoute,

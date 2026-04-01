@@ -85,12 +85,8 @@ export default function CloudCheckpointsPage() {
     const checkpoints = (checkpointsQuery.data?.checkpoints ?? []) as unknown as StoredCheckpoint[]
 
     return (
-        <div className="flex h-full flex-col">
-            <div className="border-b border-[var(--app-border)] px-4 py-3">
-                <h1 className="text-base font-semibold">{t('cloud.checkpoints.title')}</h1>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-                <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+        <>
+            <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
                     {checkpoints.length === 0 ? (
                         <div className="flex flex-1 items-center justify-center p-8">
                             <div className="text-center text-sm text-[var(--app-hint)]">
@@ -168,7 +164,6 @@ export default function CloudCheckpointsPage() {
                             ))}
                         </div>
                     )}
-                </div>
             </div>
             <ConfirmDialog
                 isOpen={!!deleteId}
@@ -185,6 +180,6 @@ export default function CloudCheckpointsPage() {
                 isPending={deleteMutation.isPending}
                 destructive
             />
-        </div>
+        </>
     )
 }

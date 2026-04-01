@@ -186,12 +186,7 @@ export default function CloudWorkersPage() {
     const workers: CloudWorkerSummary[] = workersQuery.data?.workers ?? []
 
     return (
-        <div className="flex h-full flex-col">
-            <div className="border-b border-[var(--app-border)] px-4 py-3">
-                <h1 className="text-base font-semibold">{t('cloud.workers.title')}</h1>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-                <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+        <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
                     <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
                         <h2 className="text-sm font-semibold">Add Worker</h2>
                         <p className="mt-1 text-xs text-[var(--app-hint)]">
@@ -377,8 +372,6 @@ export default function CloudWorkersPage() {
                             ))}
                         </div>
                     )}
-                </div>
-            </div>
         </div>
     )
 }

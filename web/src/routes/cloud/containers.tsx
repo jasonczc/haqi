@@ -74,12 +74,8 @@ export default function CloudContainersPage() {
     const allContainers = machines.flatMap(m => m.containers.map(c => ({ ...c, machineId: m.machineId })))
 
     return (
-        <div className="flex h-full flex-col">
-            <div className="border-b border-[var(--app-border)] px-4 py-3">
-                <h1 className="text-base font-semibold">{t('cloud.containers.title')}</h1>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-                <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+        <>
+            <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
                     {allContainers.length === 0 ? (
                         <div className="flex flex-1 items-center justify-center p-8">
                             <div className="text-center text-sm text-[var(--app-hint)]">
@@ -149,7 +145,6 @@ export default function CloudContainersPage() {
                             })}
                         </div>
                     )}
-                </div>
             </div>
             <ConfirmDialog
                 isOpen={!!removeTarget}
@@ -166,6 +161,6 @@ export default function CloudContainersPage() {
                 isPending={removeMutation.isPending}
                 destructive
             />
-        </div>
+        </>
     )
 }

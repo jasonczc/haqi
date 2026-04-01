@@ -161,12 +161,8 @@ export default function CloudSecretsPage() {
     }
 
     return (
-        <div className="flex h-full flex-col">
-            <div className="border-b border-[var(--app-border)] px-4 py-3">
-                <h1 className="text-base font-semibold">Secrets & Worker Enrollment</h1>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-                <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+        <>
+            <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
                     <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
                         <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
                             <h2 className="text-sm font-semibold">Secret Catalog</h2>
@@ -390,7 +386,6 @@ export default function CloudSecretsPage() {
                             ) : null}
                         </div>
                     </section>
-                </div>
             </div>
             <ConfirmDialog
                 isOpen={!!deleteSecretId}
@@ -422,6 +417,6 @@ export default function CloudSecretsPage() {
                 isPending={revokeTokenMutation.isPending}
                 destructive
             />
-        </div>
+        </>
     )
 }
