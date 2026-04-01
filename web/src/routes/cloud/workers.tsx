@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
@@ -30,11 +30,67 @@ function formatDate(ts: number): string {
     return new Date(ts).toLocaleString()
 }
 
+function ChevronDownIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <polyline points="6 9 12 15 18 9" />
+        </svg>
+    )
+}
+
+function CollapsibleSection(props: {
+    title: string
+    description: string
+    isExpanded: boolean
+    onToggle: () => void
+    children: React.ReactNode
+}) {
+    const sectionContentId = useId()
+    return (
+        <section className="border-b border-[var(--app-divider)]">
+            <button
+                type="button"
+                onClick={props.onToggle}
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                aria-expanded={props.isExpanded}
+                aria-controls={sectionContentId}
+            >
+                <div className="flex min-w-0 flex-col">
+                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
+                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                </div>
+                <ChevronDownIcon
+                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                        props.isExpanded ? 'rotate-180' : ''
+                    }`}
+                />
+            </button>
+            {props.isExpanded && (
+                <div id={sectionContentId}>
+                    {props.children}
+                </div>
+            )}
+        </section>
+    )
+}
+
 function EnrollmentTokensSection() {
     const { api } = useAppContext()
     const { t } = useTranslation()
     const queryClient = useQueryClient()
     const [revokeTokenId, setRevokeTokenId] = useState<string | null>(null)
+    const [isExpanded, setIsExpanded] = useState(true)
 
     const tokensQuery = useQuery({
         queryKey: queryKeys.cloudWorkerEnrollmentTokens,
@@ -61,38 +117,36 @@ function EnrollmentTokensSection() {
     }
 
     return (
-        <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
-            <h2 className="text-sm font-semibold">{t('cloud.tokens.title')}</h2>
+        <CollapsibleSection
+            title={t('cloud.tokens.title')}
+            description="Active enrollment tokens for this hub"
+            isExpanded={isExpanded}
+            onToggle={() => setIsExpanded(!isExpanded)}
+        >
             {activeTokens.length === 0 ? (
-                <p className="mt-2 text-xs text-[var(--app-hint)]">{t('cloud.tokens.empty')}</p>
+                <div className="px-3 py-4 text-center text-sm text-[var(--app-hint)]">
+                    {t('cloud.tokens.empty')}
+                </div>
             ) : (
-                <div className="mt-3 grid gap-2">
+                <div>
                     {activeTokens.map((token) => (
                         <div
                             key={token.id}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2"
+                            className="flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3"
                         >
-                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
+                            <div className="flex min-w-0 flex-col">
                                 {token.label ? (
-                                    <span>
-                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.tokens.label')}</span>{' '}
-                                        {token.label}
-                                    </span>
+                                    <span className="text-sm font-medium text-[var(--app-fg)]">{token.label}</span>
                                 ) : null}
-                                <span>
-                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.tokens.preview')}</span>{' '}
+                                <span className="text-xs text-[var(--app-hint)]">
                                     <code className="font-mono">{token.tokenPreview}</code>
                                 </span>
-                                <span>
-                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.tokens.created')}</span>{' '}
-                                    {formatDate(token.createdAt)}
-                                </span>
-                                {token.expiresAt ? (
-                                    <span>
-                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.tokens.expires')}</span>{' '}
-                                        {formatDate(token.expiresAt)}
-                                    </span>
-                                ) : null}
+                                <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--app-hint)]">
+                                    <span>{t('cloud.tokens.created')} {formatDate(token.createdAt)}</span>
+                                    {token.expiresAt ? (
+                                        <span>{t('cloud.tokens.expires')} {formatDate(token.expiresAt)}</span>
+                                    ) : null}
+                                </div>
                             </div>
                             <Button
                                 variant="destructive"
@@ -121,7 +175,7 @@ function EnrollmentTokensSection() {
                 isPending={revokeMutation.isPending}
                 destructive
             />
-        </section>
+        </CollapsibleSection>
     )
 }
 
@@ -133,6 +187,8 @@ export default function CloudWorkersPage() {
     const [tokenTtl, setTokenTtl] = useState('60')
     const [generatedToken, setGeneratedToken] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [addWorkerExpanded, setAddWorkerExpanded] = useState(true)
+    const [workersExpanded, setWorkersExpanded] = useState(true)
 
     const workersQuery = useQuery({
         queryKey: queryKeys.cloudWorkers(),
@@ -186,192 +242,189 @@ export default function CloudWorkersPage() {
     const workers: CloudWorkerSummary[] = workersQuery.data?.workers ?? []
 
     return (
-        <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
-                    <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
-                        <h2 className="text-sm font-semibold">Add Worker</h2>
-                        <p className="mt-1 text-xs text-[var(--app-hint)]">
-                            Generate an enrollment token and use it to connect a new worker to this hub.
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-end gap-3">
-                            <div className="min-w-[14rem] flex-1">
-                                <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
-                                    Label (optional)
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. gpu-worker-1"
-                                    value={tokenLabel}
-                                    onChange={(event) => setTokenLabel(event.target.value)}
-                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
-                                />
-                            </div>
-                            <div className="w-28">
-                                <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
-                                    TTL (min)
-                                </label>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    value={tokenTtl}
-                                    onChange={(event) => setTokenTtl(event.target.value)}
-                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
-                                />
-                            </div>
-                            <Button
-                                type="button"
-                                size="sm"
-                                onClick={() => tokenMutation.mutate()}
-                                disabled={tokenMutation.isPending}
-                            >
-                                {tokenMutation.isPending ? 'Generating...' : 'Generate Token'}
-                            </Button>
+        <div className="mx-auto w-full max-w-content">
+            <CollapsibleSection
+                title="Add Worker"
+                description="Generate an enrollment token and use it to connect a new worker to this hub."
+                isExpanded={addWorkerExpanded}
+                onToggle={() => setAddWorkerExpanded(!addWorkerExpanded)}
+            >
+                <div className="px-3 pb-3">
+                    <div className="flex flex-wrap items-end gap-3">
+                        <div className="min-w-[14rem] flex-1">
+                            <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                                Label (optional)
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="e.g. gpu-worker-1"
+                                value={tokenLabel}
+                                onChange={(event) => setTokenLabel(event.target.value)}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            />
                         </div>
-                        {tokenMutation.error instanceof Error ? (
-                            <div className="mt-2 text-sm text-[var(--app-badge-error-text)]">{tokenMutation.error.message}</div>
-                        ) : null}
-                        {generatedToken ? (
-                            <div className="mt-3 rounded-md border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] p-3">
-                                <div className="text-sm font-medium text-[var(--app-badge-success-text)]">
-                                    Token generated — copy it now, it will not be shown again.
-                                </div>
-                                <div className="mt-2 flex items-start gap-2">
+                        <div className="w-28">
+                            <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                                TTL (min)
+                            </label>
+                            <input
+                                type="number"
+                                min={1}
+                                value={tokenTtl}
+                                onChange={(event) => setTokenTtl(event.target.value)}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            />
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => tokenMutation.mutate()}
+                            disabled={tokenMutation.isPending}
+                        >
+                            {tokenMutation.isPending ? 'Generating...' : 'Generate Token'}
+                        </Button>
+                    </div>
+                    {tokenMutation.error instanceof Error ? (
+                        <div className="mt-2 text-sm text-[var(--app-badge-error-text)]">{tokenMutation.error.message}</div>
+                    ) : null}
+                    {generatedToken ? (
+                        <div className="mt-3 rounded-md border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] p-3">
+                            <div className="text-sm font-medium text-[var(--app-badge-success-text)]">
+                                Token generated — copy it now, it will not be shown again.
+                            </div>
+                            <div className="mt-2 flex items-start gap-2">
+                                <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
+                                    {generatedToken}
+                                </code>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCopy(generatedToken)}
+                                >
+                                    {copied ? 'Copied' : 'Copy'}
+                                </Button>
+                            </div>
+                            <div className="mt-3">
+                                <div className="text-xs font-medium text-[var(--app-hint)]">Install command:</div>
+                                <div className="mt-1 flex items-start gap-2">
                                     <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
-                                        {generatedToken}
+                                        {installCommand}
                                     </code>
                                     <Button
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => handleCopy(generatedToken)}
+                                        onClick={() => handleCopy(installCommand)}
                                     >
-                                        {copied ? 'Copied' : 'Copy'}
+                                        Copy
                                     </Button>
                                 </div>
-                                <div className="mt-3">
-                                    <div className="text-xs font-medium text-[var(--app-hint)]">Install command:</div>
-                                    <div className="mt-1 flex items-start gap-2">
-                                        <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
-                                            {installCommand}
-                                        </code>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleCopy(installCommand)}
-                                        >
-                                            Copy
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : null}
-                    </section>
-
-                    <EnrollmentTokensSection />
-
-                    {workers.length === 0 ? (
-                        <div className="flex flex-1 items-center justify-center p-8">
-                            <div className="text-center text-sm text-[var(--app-hint)]">
-                                <p>{t('cloud.workers.empty')}</p>
-                                <p className="mt-1">
-                                    {t('cloud.workers.empty.hint')}{' '}
-                                    <Link to="/cloud/secrets" className="underline hover:no-underline">
-                                        {t('cloud.workers.empty.link')}
-                                    </Link>
-                                </p>
                             </div>
                         </div>
-                    ) : (
-                        <div className="grid gap-3">
-                            {workers.map((worker) => (
-                                <div
-                                    key={worker.machineId}
-                                    className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4"
-                                >
-                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                    worker.active
-                                                        ? 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]'
-                                                        : 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
-                                                }`}
-                                            >
-                                                {worker.active ? t('cloud.workers.status.online') : t('cloud.workers.status.offline')}
-                                            </span>
-                                            <span className="font-mono text-sm font-medium">{worker.machineId}</span>
-                                        </div>
-                                        <div className="text-xs text-[var(--app-hint)]">
-                                            {t('cloud.workers.lastSeen')}: {formatLastSeen(worker.updatedAt)}
-                                        </div>
-                                    </div>
+                    ) : null}
+                </div>
+            </CollapsibleSection>
 
-                                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
+            <EnrollmentTokensSection />
+
+            <CollapsibleSection
+                title="Workers"
+                description={`${workers.length} worker${workers.length !== 1 ? 's' : ''} registered`}
+                isExpanded={workersExpanded}
+                onToggle={() => setWorkersExpanded(!workersExpanded)}
+            >
+                {workers.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-sm text-[var(--app-hint)]">
+                        <p>{t('cloud.workers.empty')}</p>
+                        <p className="mt-1">
+                            {t('cloud.workers.empty.hint')}{' '}
+                            <Link to="/cloud/secrets" className="underline hover:no-underline">
+                                {t('cloud.workers.empty.link')}
+                            </Link>
+                        </p>
+                    </div>
+                ) : (
+                    <div>
+                        {workers.map((worker) => (
+                            <div
+                                key={worker.machineId}
+                                className="border-b border-[var(--app-divider)] px-3 py-3"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className={`h-2 w-2 shrink-0 rounded-full ${
+                                                worker.active
+                                                    ? 'bg-emerald-500'
+                                                    : 'bg-[var(--app-hint)]'
+                                            }`}
+                                        />
+                                        <span className="font-mono text-sm font-medium text-[var(--app-fg)]">{worker.machineId}</span>
                                         {worker.provider ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.provider')}</span>{' '}
-                                                {worker.provider}
-                                            </span>
+                                            <span className="text-xs text-[var(--app-hint)]">{worker.provider}</span>
                                         ) : null}
+                                    </div>
+                                    <div className="flex items-center gap-3">
                                         {worker.lifecycle ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.lifecycle')}</span>{' '}
+                                            <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]">
                                                 {worker.lifecycle}
                                             </span>
                                         ) : null}
-                                        {worker.region ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.region')}</span>{' '}
-                                                {worker.region}
-                                            </span>
-                                        ) : null}
-                                        {worker.workerVersion ? (
-                                            <span>
-                                                <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.version')}</span>{' '}
-                                                {worker.workerVersion}
-                                            </span>
-                                        ) : null}
+                                        <span className="text-xs text-[var(--app-hint)]">
+                                            {formatLastSeen(worker.updatedAt)}
+                                        </span>
                                     </div>
-
-                                    {worker.resources ? (
-                                        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
-                                            {worker.resources.cpu != null ? (
-                                                <span>
-                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.cpu')}</span>{' '}
-                                                    {worker.resources.cpu} cores
-                                                </span>
-                                            ) : null}
-                                            {worker.resources.memoryMb != null ? (
-                                                <span>
-                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.memory')}</span>{' '}
-                                                    {formatMemory(worker.resources.memoryMb)}
-                                                </span>
-                                            ) : null}
-                                            {worker.resources.diskGb != null ? (
-                                                <span>
-                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.disk')}</span>{' '}
-                                                    {worker.resources.diskGb} GB
-                                                </span>
-                                            ) : null}
-                                        </div>
+                                </div>
+                                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 pl-4 text-xs text-[var(--app-hint)]">
+                                    {worker.region ? (
+                                        <span>
+                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.region')}</span>{' '}
+                                            {worker.region}
+                                        </span>
                                     ) : null}
-
-                                    {worker.labels && worker.labels.length > 0 ? (
-                                        <div className="mt-2 flex flex-wrap gap-1">
-                                            {worker.labels.map((label) => (
-                                                <span
-                                                    key={label}
-                                                    className="rounded bg-[var(--app-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--app-hint)]"
-                                                >
-                                                    {label}
-                                                </span>
-                                            ))}
-                                        </div>
+                                    {worker.workerVersion ? (
+                                        <span>
+                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.version')}</span>{' '}
+                                            {worker.workerVersion}
+                                        </span>
+                                    ) : null}
+                                    {worker.resources?.cpu != null ? (
+                                        <span>
+                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.cpu')}</span>{' '}
+                                            {worker.resources.cpu} cores
+                                        </span>
+                                    ) : null}
+                                    {worker.resources?.memoryMb != null ? (
+                                        <span>
+                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.memory')}</span>{' '}
+                                            {formatMemory(worker.resources.memoryMb)}
+                                        </span>
+                                    ) : null}
+                                    {worker.resources?.diskGb != null ? (
+                                        <span>
+                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.disk')}</span>{' '}
+                                            {worker.resources.diskGb} GB
+                                        </span>
                                     ) : null}
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                                {worker.labels && worker.labels.length > 0 ? (
+                                    <div className="mt-1.5 flex flex-wrap gap-1 pl-4">
+                                        {worker.labels.map((label) => (
+                                            <span
+                                                key={label}
+                                                className="rounded bg-[var(--app-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--app-hint)]"
+                                            >
+                                                {label}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </CollapsibleSection>
         </div>
     )
 }

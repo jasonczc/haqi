@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useId } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -28,6 +28,61 @@ const EMPTY_DRAFT: SecretDraft = {
     adapter: 'generic'
 }
 
+function ChevronDownIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <polyline points="6 9 12 15 18 9" />
+        </svg>
+    )
+}
+
+function CollapsibleSection(props: {
+    title: string
+    description: string
+    isExpanded: boolean
+    onToggle: () => void
+    children: React.ReactNode
+}) {
+    const sectionContentId = useId()
+    return (
+        <section className="border-b border-[var(--app-divider)]">
+            <button
+                type="button"
+                onClick={props.onToggle}
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                aria-expanded={props.isExpanded}
+                aria-controls={sectionContentId}
+            >
+                <div className="flex min-w-0 flex-col">
+                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
+                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                </div>
+                <ChevronDownIcon
+                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                        props.isExpanded ? 'rotate-180' : ''
+                    }`}
+                />
+            </button>
+            {props.isExpanded && (
+                <div id={sectionContentId}>
+                    {props.children}
+                </div>
+            )}
+        </section>
+    )
+}
+
 export default function CloudSecretsPage() {
     const { api } = useAppContext()
     const { t } = useTranslation()
@@ -38,6 +93,9 @@ export default function CloudSecretsPage() {
     const [tokenTtl, setTokenTtl] = useState('60')
     const [deleteSecretId, setDeleteSecretId] = useState<string | null>(null)
     const [revokeTokenId, setRevokeTokenId] = useState<string | null>(null)
+    const [secretsExpanded, setSecretsExpanded] = useState(true)
+    const [createExpanded, setCreateExpanded] = useState(false)
+    const [tokensExpanded, setTokensExpanded] = useState(true)
 
     const secretsQuery = useQuery({
         queryKey: queryKeys.cloudSecrets,
@@ -88,6 +146,7 @@ export default function CloudSecretsPage() {
         },
         onSuccess: async () => {
             setDraft(EMPTY_DRAFT)
+            setCreateExpanded(false)
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudSecrets })
         }
     })
@@ -162,185 +221,204 @@ export default function CloudSecretsPage() {
 
     return (
         <>
-            <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
-                    <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-                        <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
-                            <h2 className="text-sm font-semibold">Secret Catalog</h2>
-                            <div className="mt-3 grid gap-3">
-                                {secrets.map((secret) => (
-                                    <div key={secret.id} className="rounded-md border border-[var(--app-border)] p-3 text-sm">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
-                                                <div className="font-medium">{secret.name}</div>
-                                                <div className="mt-1 text-xs text-[var(--app-hint)]">
-                                                    {secret.adapter ?? 'generic'} · {secret.mountAs ?? 'env'}
-                                                    {secret.envName ? ` · ${secret.envName}` : ''}
-                                                    {secret.filePath ? ` · ${secret.filePath}` : ''}
-                                                </div>
-                                                {secret.description ? (
-                                                    <div className="mt-2 text-[var(--app-hint)]">{secret.description}</div>
-                                                ) : null}
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => {
-                                                        setDraft({
-                                                            id: secret.id,
-                                                            name: secret.name,
-                                                            value: '',
-                                                            description: secret.description ?? '',
-                                                            mountAs: secret.mountAs ?? 'env',
-                                                            envName: secret.envName ?? '',
-                                                            filePath: secret.filePath ?? '',
-                                                            adapter: secret.adapter ?? 'generic'
-                                                        })
-                                                    }}
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => {
-                                                        void navigator.clipboard?.writeText(secret.name).catch(() => undefined)
-                                                    }}
-                                                >
-                                                    Copy ref
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    onClick={() => setDeleteSecretId(secret.id)}
-                                                    disabled={deleteMutation.isPending}
-                                                >
-                                                    Delete
-                                                </Button>
-                                            </div>
-                                        </div>
+            <div className="mx-auto w-full max-w-content">
+                <CollapsibleSection
+                    title="Secrets"
+                    description={`${secrets.length} secret${secrets.length !== 1 ? 's' : ''} configured`}
+                    isExpanded={secretsExpanded}
+                    onToggle={() => setSecretsExpanded(!secretsExpanded)}
+                >
+                    {secrets.length === 0 ? (
+                        <div className="px-3 py-4 text-center text-sm text-[var(--app-hint)]">
+                            No cloud secrets yet.
+                        </div>
+                    ) : (
+                        <div>
+                            {secrets.map((secret) => (
+                                <div
+                                    key={secret.id}
+                                    className="flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3"
+                                >
+                                    <div className="flex min-w-0 flex-col">
+                                        <span className="text-sm font-medium text-[var(--app-fg)]">{secret.name}</span>
+                                        <span className="mt-0.5 text-xs text-[var(--app-hint)]">
+                                            {secret.adapter ?? 'generic'} · {secret.mountAs ?? 'env'}
+                                            {secret.envName ? ` · ${secret.envName}` : ''}
+                                            {secret.filePath ? ` · ${secret.filePath}` : ''}
+                                        </span>
+                                        {secret.description ? (
+                                            <span className="mt-0.5 text-xs text-[var(--app-hint)]">{secret.description}</span>
+                                        ) : null}
                                     </div>
-                                ))}
-                                {secrets.length === 0 ? (
-                                    <div className="flex items-center justify-center p-4">
-                                        <div className="text-center text-sm text-[var(--app-hint)]">
-                                            <p>No cloud secrets yet.</p>
-                                        </div>
-                                    </div>
-                                ) : null}
-                            </div>
-                        </section>
-
-                        <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
-                            <h2 className="text-sm font-semibold">{submitLabel}</h2>
-                            <div className="mt-3 grid gap-3 text-sm">
-                                <input
-                                    type="text"
-                                    placeholder="Secret name"
-                                    value={draft.name}
-                                    onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                                    className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2"
-                                />
-                                <textarea
-                                    placeholder={draft.id ? 'Leave empty to keep current value' : 'Secret value'}
-                                    value={draft.value}
-                                    onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))}
-                                    rows={4}
-                                    className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2"
-                                />
-                                <textarea
-                                    placeholder="Description"
-                                    value={draft.description}
-                                    onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
-                                    rows={2}
-                                    className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2"
-                                />
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <select
-                                        value={draft.adapter}
-                                        onChange={(event) => setDraft((current) => ({ ...current, adapter: event.target.value as SecretDraft['adapter'] }))}
-                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2"
-                                    >
-                                        <option value="generic">generic</option>
-                                        <option value="git">git</option>
-                                        <option value="claude">claude</option>
-                                        <option value="gemini">gemini</option>
-                                        <option value="codex">codex</option>
-                                    </select>
-                                    <select
-                                        value={draft.mountAs}
-                                        onChange={(event) => setDraft((current) => ({ ...current, mountAs: event.target.value as SecretDraft['mountAs'] }))}
-                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2"
-                                    >
-                                        <option value="env">env</option>
-                                        <option value="file">file</option>
-                                    </select>
-                                </div>
-                                <input
-                                    type="text"
-                                    placeholder="Env name (optional)"
-                                    value={draft.envName}
-                                    onChange={(event) => setDraft((current) => ({ ...current, envName: event.target.value }))}
-                                    className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="File path inside temp mount (optional)"
-                                    value={draft.filePath}
-                                    onChange={(event) => setDraft((current) => ({ ...current, filePath: event.target.value }))}
-                                    className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2"
-                                />
-                                <div className="text-xs text-[var(--app-hint)]">{helperText}</div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        onClick={() => saveMutation.mutate()}
-                                        disabled={saveMutation.isPending || !draft.name.trim()}
-                                    >
-                                        {submitLabel}
-                                    </Button>
-                                    {draft.id ? (
+                                    <div className="flex shrink-0 gap-1.5">
                                         <Button
                                             type="button"
                                             size="sm"
                                             variant="outline"
-                                            onClick={() => setDraft(EMPTY_DRAFT)}
+                                            onClick={() => {
+                                                setDraft({
+                                                    id: secret.id,
+                                                    name: secret.name,
+                                                    value: '',
+                                                    description: secret.description ?? '',
+                                                    mountAs: secret.mountAs ?? 'env',
+                                                    envName: secret.envName ?? '',
+                                                    filePath: secret.filePath ?? '',
+                                                    adapter: secret.adapter ?? 'generic'
+                                                })
+                                                setCreateExpanded(true)
+                                            }}
                                         >
-                                            {t('button.cancel')}
+                                            Edit
                                         </Button>
-                                    ) : null}
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                void navigator.clipboard?.writeText(secret.name).catch(() => undefined)
+                                            }}
+                                        >
+                                            Copy ref
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={() => setDeleteSecretId(secret.id)}
+                                            disabled={deleteMutation.isPending}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </div>
                                 </div>
-                                {saveMutation.error instanceof Error ? (
-                                    <div className="text-sm text-[var(--app-badge-error-text)]">{saveMutation.error.message}</div>
+                            ))}
+                        </div>
+                    )}
+                </CollapsibleSection>
+
+                <CollapsibleSection
+                    title={submitLabel}
+                    description="Add or update a cloud secret for worker containers"
+                    isExpanded={createExpanded}
+                    onToggle={() => setCreateExpanded(!createExpanded)}
+                >
+                    <div className="px-3 pb-3">
+                        <div className="grid gap-3 text-sm">
+                            <input
+                                type="text"
+                                placeholder="Secret name"
+                                value={draft.name}
+                                onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            />
+                            <textarea
+                                placeholder={draft.id ? 'Leave empty to keep current value' : 'Secret value'}
+                                value={draft.value}
+                                onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))}
+                                rows={4}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            />
+                            <textarea
+                                placeholder="Description"
+                                value={draft.description}
+                                onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
+                                rows={2}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            />
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <select
+                                    value={draft.adapter}
+                                    onChange={(event) => setDraft((current) => ({ ...current, adapter: event.target.value as SecretDraft['adapter'] }))}
+                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                                >
+                                    <option value="generic">generic</option>
+                                    <option value="git">git</option>
+                                    <option value="claude">claude</option>
+                                    <option value="gemini">gemini</option>
+                                    <option value="codex">codex</option>
+                                </select>
+                                <select
+                                    value={draft.mountAs}
+                                    onChange={(event) => setDraft((current) => ({ ...current, mountAs: event.target.value as SecretDraft['mountAs'] }))}
+                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                                >
+                                    <option value="env">env</option>
+                                    <option value="file">file</option>
+                                </select>
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Env name (optional)"
+                                value={draft.envName}
+                                onChange={(event) => setDraft((current) => ({ ...current, envName: event.target.value }))}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            />
+                            <input
+                                type="text"
+                                placeholder="File path inside temp mount (optional)"
+                                value={draft.filePath}
+                                onChange={(event) => setDraft((current) => ({ ...current, filePath: event.target.value }))}
+                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            />
+                            <div className="text-xs text-[var(--app-hint)]">{helperText}</div>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() => saveMutation.mutate()}
+                                    disabled={saveMutation.isPending || !draft.name.trim()}
+                                >
+                                    {submitLabel}
+                                </Button>
+                                {draft.id ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setDraft(EMPTY_DRAFT)}
+                                    >
+                                        {t('button.cancel')}
+                                    </Button>
                                 ) : null}
                             </div>
-                        </section>
+                            {saveMutation.error instanceof Error ? (
+                                <div className="text-sm text-[var(--app-badge-error-text)]">{saveMutation.error.message}</div>
+                            ) : null}
+                        </div>
                     </div>
+                </CollapsibleSection>
 
-                    <section className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4">
+                <CollapsibleSection
+                    title={t('cloud.tokens.title')}
+                    description="Enrollment tokens for connecting workers"
+                    isExpanded={tokensExpanded}
+                    onToggle={() => setTokensExpanded(!tokensExpanded)}
+                >
+                    <div className="border-b border-[var(--app-divider)] px-3 pb-3">
                         <div className="flex flex-wrap items-end gap-3">
                             <div className="min-w-[14rem] flex-1">
-                                <div className="mb-1 text-sm font-semibold">{t('cloud.tokens.title')}</div>
+                                <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                                    Token label
+                                </label>
                                 <input
                                     type="text"
                                     placeholder="Token label"
                                     value={tokenLabel}
                                     onChange={(event) => setTokenLabel(event.target.value)}
-                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm"
+                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
                                 />
                             </div>
                             <div className="w-28">
-                                <div className="mb-1 text-sm font-semibold">TTL (min)</div>
+                                <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                                    TTL (min)
+                                </label>
                                 <input
                                     type="number"
                                     min={1}
                                     value={tokenTtl}
                                     onChange={(event) => setTokenTtl(event.target.value)}
-                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm"
+                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
                                 />
                             </div>
                             <Button type="button" size="sm" onClick={() => tokenMutation.mutate()} disabled={tokenMutation.isPending}>
@@ -353,16 +431,27 @@ export default function CloudSecretsPage() {
                                 <div className="mt-1 break-all font-mono text-xs">{lastIssuedToken}</div>
                             </div>
                         ) : null}
-                        <div className="mt-4 grid gap-3">
+                    </div>
+                    {tokens.length === 0 ? (
+                        <div className="px-3 py-4 text-center text-sm text-[var(--app-hint)]">
+                            {t('cloud.tokens.empty')}
+                        </div>
+                    ) : (
+                        <div>
                             {tokens.map((token) => (
-                                <div key={token.id} className="flex items-center justify-between gap-3 rounded-md border border-[var(--app-border)] p-3 text-sm">
-                                    <div>
-                                        <div className="font-medium">{token.label ?? token.tokenPreview}</div>
-                                        <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                <div
+                                    key={token.id}
+                                    className="flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3"
+                                >
+                                    <div className="flex min-w-0 flex-col">
+                                        <span className="text-sm font-medium text-[var(--app-fg)]">
+                                            {token.label ?? token.tokenPreview}
+                                        </span>
+                                        <span className="mt-0.5 text-xs text-[var(--app-hint)]">
                                             {token.tokenPreview}
                                             {token.expiresAt ? ` · expires ${new Date(token.expiresAt).toLocaleString()}` : ''}
                                             {token.revokedAt ? ' · revoked' : ''}
-                                        </div>
+                                        </span>
                                     </div>
                                     {!token.revokedAt ? (
                                         <Button
@@ -377,15 +466,9 @@ export default function CloudSecretsPage() {
                                     ) : null}
                                 </div>
                             ))}
-                            {tokens.length === 0 ? (
-                                <div className="flex items-center justify-center p-4">
-                                    <div className="text-center text-sm text-[var(--app-hint)]">
-                                        <p>{t('cloud.tokens.empty')}</p>
-                                    </div>
-                                </div>
-                            ) : null}
                         </div>
-                    </section>
+                    )}
+                </CollapsibleSection>
             </div>
             <ConfirmDialog
                 isOpen={!!deleteSecretId}

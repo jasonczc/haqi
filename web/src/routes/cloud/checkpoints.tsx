@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useId } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
@@ -47,11 +47,67 @@ function StatusBadge({ status, t }: { status: StoredCheckpoint['status']; t: (ke
     )
 }
 
+function ChevronDownIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <polyline points="6 9 12 15 18 9" />
+        </svg>
+    )
+}
+
+function CollapsibleSection(props: {
+    title: string
+    description: string
+    isExpanded: boolean
+    onToggle: () => void
+    children: React.ReactNode
+}) {
+    const sectionContentId = useId()
+    return (
+        <section className="border-b border-[var(--app-divider)]">
+            <button
+                type="button"
+                onClick={props.onToggle}
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                aria-expanded={props.isExpanded}
+                aria-controls={sectionContentId}
+            >
+                <div className="flex min-w-0 flex-col">
+                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
+                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                </div>
+                <ChevronDownIcon
+                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                        props.isExpanded ? 'rotate-180' : ''
+                    }`}
+                />
+            </button>
+            {props.isExpanded && (
+                <div id={sectionContentId}>
+                    {props.children}
+                </div>
+            )}
+        </section>
+    )
+}
+
 export default function CloudCheckpointsPage() {
     const { api } = useAppContext()
     const { t } = useTranslation()
     const queryClient = useQueryClient()
     const [deleteId, setDeleteId] = useState<string | null>(null)
+    const [isExpanded, setIsExpanded] = useState(true)
 
     const checkpointsQuery = useQuery({
         queryKey: queryKeys.cloudCheckpoints,
@@ -86,84 +142,89 @@ export default function CloudCheckpointsPage() {
 
     return (
         <>
-            <div className="mx-auto flex w-full max-w-content flex-col gap-6 p-4">
+            <div className="mx-auto w-full max-w-content">
+                <CollapsibleSection
+                    title="Checkpoints"
+                    description={`${checkpoints.length} checkpoint${checkpoints.length !== 1 ? 's' : ''} available`}
+                    isExpanded={isExpanded}
+                    onToggle={() => setIsExpanded(!isExpanded)}
+                >
                     {checkpoints.length === 0 ? (
-                        <div className="flex flex-1 items-center justify-center p-8">
-                            <div className="text-center text-sm text-[var(--app-hint)]">
-                                <p>{t('cloud.checkpoints.empty')}</p>
-                            </div>
+                        <div className="px-3 py-6 text-center text-sm text-[var(--app-hint)]">
+                            <p>{t('cloud.checkpoints.empty')}</p>
                         </div>
                     ) : (
-                        <div className="grid gap-3">
+                        <div>
                             {checkpoints.map((checkpoint) => (
                                 <div
                                     key={checkpoint.id}
-                                    className={`rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4${checkpoint.parentCheckpointId ? ' ml-6 border-l-2 border-l-[var(--app-link)]' : ''}`}
+                                    className={`flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3${
+                                        checkpoint.parentCheckpointId ? ' pl-8' : ''
+                                    }`}
                                 >
-                                    <div className="flex flex-wrap items-start justify-between gap-3">
-                                        <div className="flex flex-col gap-1">
-                                            <div className="flex items-center gap-2">
-                                                <StatusBadge status={checkpoint.status} t={t} />
-                                                <span className="font-medium text-sm">{checkpoint.name}</span>
-                                            </div>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
-                                                {checkpoint.repoUrl ? (
-                                                    <span>
-                                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.repo')}</span>{' '}
-                                                        {checkpoint.repoUrl}
-                                                    </span>
-                                                ) : null}
-                                                {checkpoint.parentCheckpointId ? (
-                                                    <span>
-                                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.parent')}</span>{' '}
-                                                        {(() => {
-                                                            const parent = checkpoints.find(c => c.id === checkpoint.parentCheckpointId)
-                                                            return parent
-                                                                ? <span className="font-mono">{parent.name} ({checkpoint.parentCheckpointId.slice(0, 8)})</span>
-                                                                : <span className="font-mono">{checkpoint.parentCheckpointId.slice(0, 12)}</span>
-                                                        })()}
-                                                    </span>
-                                                ) : null}
-                                                {checkpoint.machineId ? (
-                                                    <span>
-                                                        <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.machine')}</span>{' '}
-                                                        <span className="font-mono">{checkpoint.machineId}</span>
-                                                    </span>
-                                                ) : null}
-                                                <span>{formatDate(checkpoint.createdAt)}</span>
-                                            </div>
+                                    <div className="flex min-w-0 flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <StatusBadge status={checkpoint.status} t={t} />
+                                            <span className="text-sm font-medium text-[var(--app-fg)]">{checkpoint.name}</span>
                                         </div>
-                                        <div className="flex gap-1.5">
-                                            <Link
-                                                to="/sessions/new"
-                                                search={{ checkpointId: checkpoint.id }}
-                                            >
-                                                <Button variant="outline" size="sm">
-                                                    {t('cloud.checkpoints.newSession')}
-                                                </Button>
-                                            </Link>
-                                            <Link
-                                                to="/sessions/new"
-                                                search={{ checkpointId: checkpoint.id, sessionType: 'setup' }}
-                                            >
-                                                <Button variant="outline" size="sm">
-                                                    {t('cloud.checkpoints.derive')}
-                                                </Button>
-                                            </Link>
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                onClick={() => setDeleteId(checkpoint.id)}
-                                                disabled={deleteMutation.isPending}
-                                            >
-                                                {t('cloud.checkpoints.delete')}
+                                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--app-hint)]">
+                                            {checkpoint.repoUrl ? (
+                                                <span>
+                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.repo')}</span>{' '}
+                                                    {checkpoint.repoUrl}
+                                                </span>
+                                            ) : null}
+                                            {checkpoint.parentCheckpointId ? (
+                                                <span>
+                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.parent')}</span>{' '}
+                                                    {(() => {
+                                                        const parent = checkpoints.find(c => c.id === checkpoint.parentCheckpointId)
+                                                        return parent
+                                                            ? <span className="font-mono">{parent.name} ({checkpoint.parentCheckpointId.slice(0, 8)})</span>
+                                                            : <span className="font-mono">{checkpoint.parentCheckpointId.slice(0, 12)}</span>
+                                                    })()}
+                                                </span>
+                                            ) : null}
+                                            {checkpoint.machineId ? (
+                                                <span>
+                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.machine')}</span>{' '}
+                                                    <span className="font-mono">{checkpoint.machineId}</span>
+                                                </span>
+                                            ) : null}
+                                            <span>{formatDate(checkpoint.createdAt)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex shrink-0 gap-1.5">
+                                        <Link
+                                            to="/sessions/new"
+                                            search={{ checkpointId: checkpoint.id }}
+                                        >
+                                            <Button variant="outline" size="sm">
+                                                {t('cloud.checkpoints.newSession')}
                                             </Button>
-                                        </div>
+                                        </Link>
+                                        <Link
+                                            to="/sessions/new"
+                                            search={{ checkpointId: checkpoint.id, sessionType: 'setup' }}
+                                        >
+                                            <Button variant="outline" size="sm">
+                                                {t('cloud.checkpoints.derive')}
+                                            </Button>
+                                        </Link>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => setDeleteId(checkpoint.id)}
+                                            disabled={deleteMutation.isPending}
+                                        >
+                                            {t('cloud.checkpoints.delete')}
+                                        </Button>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
+                </CollapsibleSection>
             </div>
             <ConfirmDialog
                 isOpen={!!deleteId}
