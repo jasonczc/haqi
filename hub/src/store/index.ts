@@ -16,6 +16,7 @@ import { createConversationTurnsSchema } from './turns'
 import { createGroupConversationTurnsSchema } from './groupTurns'
 import { createCloudTablesSchema } from './cloudTables'
 import { CloudStore } from './cloudStore'
+import { CheckpointStore } from './checkpointStore'
 
 export type {
     PreviewUrlHistoryEntry,
@@ -59,6 +60,8 @@ export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 export { ReviewLoopStore } from './reviewLoopStore'
 export { CloudStore } from './cloudStore'
+export { CheckpointStore } from './checkpointStore'
+export type { StoredCheckpoint, CreateCheckpointParams, DeleteCheckpointResult } from './checkpointStore'
 
 const SCHEMA_VERSION: number = 15
 const REQUIRED_TABLES = [
@@ -87,7 +90,8 @@ const REQUIRED_TABLES = [
     'cloud_secrets',
     'cloud_secret_access_events',
     'cloud_worker_enrollment_tokens',
-    'cloud_worker_sessions'
+    'cloud_worker_sessions',
+    'cloud_checkpoints'
 ] as const
 
 export class Store {
@@ -105,6 +109,7 @@ export class Store {
     readonly reports: ReportStore
     readonly reviewLoops: ReviewLoopStore
     readonly cloud: CloudStore
+    readonly checkpoints: CheckpointStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -152,6 +157,7 @@ export class Store {
         this.reports = new ReportStore(this.db)
         this.reviewLoops = new ReviewLoopStore(this.db)
         this.cloud = new CloudStore(this.db)
+        this.checkpoints = new CheckpointStore(this.db)
     }
 
     getDatabasePath(): string {

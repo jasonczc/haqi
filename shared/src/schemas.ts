@@ -842,7 +842,7 @@ export const MachineSpawnRequestSchema = z.object({
     thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'max', 'xhigh']).optional(),
     serviceTier: z.enum(['fast', 'flex']).optional(),
     yolo: z.boolean().optional(),
-    sessionType: z.enum(['simple', 'worktree']).optional(),
+    sessionType: z.enum(['simple', 'worktree', 'setup']).optional(),
     worktreeName: z.string().optional(),
     previewUrl: z.string().optional(),
     executionBackend: ExecutionBackendSchema.optional(),

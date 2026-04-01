@@ -145,5 +145,26 @@ export function createCloudTablesSchema(db: Database): void {
             ON cloud_worker_sessions(namespace, updated_at DESC);
         CREATE INDEX IF NOT EXISTS idx_cloud_worker_sessions_machine
             ON cloud_worker_sessions(machine_id, updated_at DESC);
+
+        CREATE TABLE IF NOT EXISTS cloud_checkpoints (
+            id TEXT PRIMARY KEY,
+            namespace TEXT NOT NULL,
+            name TEXT NOT NULL,
+            repo_url TEXT,
+            parent_checkpoint_id TEXT,
+            base_image TEXT NOT NULL,
+            docker_image TEXT NOT NULL,
+            machine_id TEXT NOT NULL,
+            workspace_path TEXT,
+            environment_json TEXT,
+            created_by_session TEXT,
+            status TEXT NOT NULL DEFAULT 'creating',
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_cloud_checkpoints_namespace_created
+            ON cloud_checkpoints(namespace, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_cloud_checkpoints_parent
+            ON cloud_checkpoints(parent_checkpoint_id);
     `)
 }
