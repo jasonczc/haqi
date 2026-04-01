@@ -7,6 +7,7 @@
  * - No E2E encryption; data is stored as JSON in SQLite
  */
 
+import { randomUUID } from 'node:crypto'
 import { inferClaudeModelModeFromModel, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
 import type {
     CloudSecret,
@@ -2560,6 +2561,80 @@ ${note.content}
 
     async getCodexStatus(sessionId: string): Promise<RpcCodexStatusResponse> {
         return await this.rpcGateway.getCodexStatus(sessionId)
+    }
+
+    async saveCheckpoint(
+        sessionId: string,
+        namespace: string,
+        name: string,
+        parentCheckpointId?: string
+    ): Promise<{ checkpointId: string } | { error: string }> {
+        const session = this.sessionCache.getSession(sessionId)
+        if (!session) return { error: 'Session not found' }
+        const metadata = session.metadata as SessionMetadataShape & { containerId?: string; repositoryUrl?: string; path?: string } | undefined
+        if (!metadata?.machineId || !metadata?.containerId) return { error: 'Session has no container' }
+
+        const checkpointId = randomUUID()
+        const dockerImage = `haqi-checkpoint:${checkpointId}`
+        const machineId = metadata.machineId
+
+        this.store.checkpoints.create({
+            namespace,
+            name,
+            repoUrl: metadata.repositoryUrl ?? null,
+            parentCheckpointId: parentCheckpointId ?? null,
+            baseImage: metadata.checkpointId ? `haqi-checkpoint:${metadata.checkpointId}` : 'haqi-workspace:dev',
+            dockerImage,
+            machineId,
+            workspacePath: metadata.path ?? '/workspace',
+            environmentJson: null,
+            createdBySession: sessionId
+        })
+
+        try {
+            const result = await this.rpcGateway.checkpointCreate(machineId, {
+                containerId: metadata.containerId,
+                checkpointId,
+                name
+            }) as { success?: boolean; error?: string } | null | undefined
+            if (result?.success) {
+                this.store.checkpoints.updateStatus(checkpointId, 'ready')
+                return { checkpointId }
+            }
+            this.store.checkpoints.updateStatus(checkpointId, 'failed')
+            return { error: result?.error ?? 'Checkpoint creation failed' }
+        } catch (err) {
+            this.store.checkpoints.updateStatus(checkpointId, 'failed')
+            return { error: err instanceof Error ? err.message : 'RPC failed' }
+        }
+    }
+
+    async deleteCheckpoint(
+        checkpointId: string,
+        namespace: string
+    ): Promise<{ ok: true } | { error: string }> {
+        const cp = this.store.checkpoints.getByNamespace(checkpointId, namespace)
+        if (!cp) return { error: 'Checkpoint not found' }
+
+        const deleteResult = this.store.checkpoints.delete(checkpointId)
+        if (!deleteResult.ok) return { error: `Cannot delete: ${deleteResult.reason}` }
+
+        try {
+            await this.rpcGateway.checkpointDelete(cp.machineId, {
+                checkpointId: cp.id,
+                dockerImage: cp.dockerImage
+            })
+        } catch {
+            // best-effort: image may already be gone
+        }
+
+        return { ok: true }
+    }
+
+    listCheckpointChildren(checkpointId: string, namespace: string): import('../store').StoredCheckpoint[] {
+        const cp = this.store.checkpoints.getByNamespace(checkpointId, namespace)
+        if (!cp) return []
+        return this.checkpointRegistry.listChildren(checkpointId)
     }
 
     async rpcContainerList(machineId: string): Promise<unknown> {

@@ -278,5 +278,44 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null): Hono<
         return c.json({ token })
     })
 
+    app.post('/cloud/checkpoints/save', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) return c.json({ error: 'Not connected' }, 503)
+        const namespace = c.get('namespace')
+        const body = await c.req.json().catch(() => null)
+        const parsed = z.object({
+            sessionId: z.string().min(1),
+            name: z.string().min(1),
+            parentCheckpointId: z.string().optional()
+        }).safeParse(body)
+        if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+
+        const result = await engine.saveCheckpoint(
+            parsed.data.sessionId,
+            namespace,
+            parsed.data.name,
+            parsed.data.parentCheckpointId
+        )
+        if ('error' in result) return c.json({ error: result.error }, 500)
+        return c.json(result)
+    })
+
+    app.delete('/cloud/checkpoints/:id', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) return c.json({ error: 'Not connected' }, 503)
+        const namespace = c.get('namespace')
+        const result = await engine.deleteCheckpoint(c.req.param('id'), namespace)
+        if ('error' in result) return c.json({ error: result.error }, 400)
+        return c.json(result)
+    })
+
+    app.get('/cloud/checkpoints/:id/children', (c) => {
+        const engine = getSyncEngine()
+        if (!engine) return c.json({ error: 'Not connected' }, 503)
+        const namespace = c.get('namespace')
+        const children = engine.listCheckpointChildren(c.req.param('id'), namespace)
+        return c.json({ children })
+    })
+
     return app
 }

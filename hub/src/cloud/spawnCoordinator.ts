@@ -400,7 +400,7 @@ export class SpawnCoordinator {
                 startedAt: existing.startedAt ?? Date.now()
             })
 
-            const selectedMachineId = this.selectMachine(namespace, existing.requestedMachineId, request, environment)
+            const selectedMachineId = this.selectMachine(namespace, existing.requestedMachineId, request, environment, checkpoint)
             if (!selectedMachineId) {
                 this.failRequest(namespace, requestId, {
                     phase: 'selecting-worker',
@@ -717,7 +717,8 @@ export class SpawnCoordinator {
         namespace: string,
         requestedMachineId: string | null,
         request: MachineSpawnRequest,
-        environment: EnvironmentTemplate | undefined
+        environment: EnvironmentTemplate | undefined,
+        checkpoint?: StoredCheckpoint | null
     ): string | null {
         const backend = request.executionBackend ?? 'cloud-self-hosted'
 
@@ -731,6 +732,15 @@ export class SpawnCoordinator {
                 return null
             }
             return explicit.id
+        }
+
+        // If checkpoint specifies a machineId, pin to that Worker (image lives there)
+        if (checkpoint?.machineId) {
+            const pinned = this.machineCache.getMachineByNamespace(checkpoint.machineId, namespace)
+            if (!pinned || !pinned.active) {
+                return null
+            }
+            return pinned.id
         }
 
         const pinnedWorkspace = this.workspaceManager.getPinnedWorkspace(namespace, request, environment?.id)
