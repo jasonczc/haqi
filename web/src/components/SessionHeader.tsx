@@ -23,6 +23,27 @@ function getSessionTitle(session: Session): string {
     return session.id.slice(0, 8)
 }
 
+function DesktopIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+    )
+}
+
 function FilesIcon(props: { className?: string }) {
     return (
         <svg
@@ -131,6 +152,7 @@ export function SessionHeader(props: {
     onToggleSidebar?: () => void
     sidebarVisible?: boolean
     onViewPreview?: () => void
+    onViewDesktop?: () => void
     onViewFiles?: () => void
     onViewMcpStatus?: () => void
     api: ApiClient | null
@@ -374,6 +396,18 @@ export function SessionHeader(props: {
                             aria-label="Preview"
                         >
                             <BrowserIcon />
+                        </button>
+                    ) : null}
+
+                    {props.onViewDesktop ? (
+                        <button
+                            type="button"
+                            onClick={props.onViewDesktop}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title="Remote Desktop"
+                            aria-label="Remote Desktop"
+                        >
+                            <DesktopIcon />
                         </button>
                     ) : null}
 

@@ -80,6 +80,7 @@ export async function startDaemonSessionExecutor(params: {
                                 HAPI_API_URL: (process.env.HAPI_API_URL ?? '').replace('://localhost', '://host.docker.internal').replace('://127.0.0.1', '://host.docker.internal'),
                                 HAPI_WORKING_DIRECTORY: params.workspace.workingDirectory,
                                 HAPI_CONTAINER_ID: containerId,
+                                HAPI_RUNTIME_KIND: 'daemon-session',
                                 ...(params.options.sessionType ? { HAPI_SESSION_TYPE: params.options.sessionType } : {}),
                                 ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {})
                             }
@@ -173,6 +174,7 @@ export async function startDaemonSessionExecutor(params: {
             HAPI_API_URL: (process.env.HAPI_API_URL ?? '').replace('://localhost', '://host.docker.internal').replace('://127.0.0.1', '://host.docker.internal'),
             HAPI_WORKING_DIRECTORY: params.workspace.workingDirectory,
             HAPI_CONTAINER_ID: containerId,
+            HAPI_RUNTIME_KIND: 'daemon-session',
             ...(params.options.sessionType ? { HAPI_SESSION_TYPE: params.options.sessionType } : {}),
             ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {})
         }

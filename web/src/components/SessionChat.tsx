@@ -803,6 +803,10 @@ export function SessionChat(props: {
         })
     }, [navigate, props.session.id])
 
+    const handleViewDesktop = useCallback(() => {
+        window.open(`/desktop/${props.session.id}`, '_blank')
+    }, [props.session.id])
+
     const handleSend = useCallback((text: string, attachments?: AttachmentMetadata[]) => {
         props.onSend(text, attachments)
         setForceScrollToken((token) => token + 1)
@@ -1317,6 +1321,7 @@ export function SessionChat(props: {
                 onToggleSidebar={props.onToggleSidebar}
                 sidebarVisible={props.sidebarVisible}
                 onViewPreview={handleViewPreview}
+                onViewDesktop={props.session.metadata?.containerId ? handleViewDesktop : undefined}
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 onViewMcpStatus={handleMcpStatus}
                 api={props.api}
