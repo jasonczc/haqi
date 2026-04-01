@@ -864,6 +864,7 @@ export const MachineSpawnRequestSchema = z.object({
         autoDetect: z.boolean().optional(),
         preferredPort: z.number().int().positive().optional()
     }).optional(),
+    initialPrompt: z.string().optional(),
     spawnRequestId: z.string().optional(),
     resolvedEnvironment: EnvironmentTemplateSchema.optional(),
     workspaceLease: CloudWorkspaceLeaseBindingSchema.optional(),

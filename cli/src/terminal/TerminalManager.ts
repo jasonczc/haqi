@@ -125,7 +125,7 @@ export class TerminalManager {
         const sessionPath = metadata?.path ?? process.cwd()
         const shell = resolveShell()
         const decoder = new TextDecoder()
-        const dockerContainerId = metadata?.runtimeKind === 'docker-session'
+        const dockerContainerId = (metadata?.runtimeKind === 'docker-session' || metadata?.runtimeKind === 'daemon-session')
             ? metadata.containerId?.trim()
             : undefined
         const command = dockerContainerId

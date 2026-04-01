@@ -23,7 +23,7 @@ export interface SpawnSessionOptions {
     serviceTier?: 'fast' | 'flex'
     yolo?: boolean
     token?: string
-    sessionType?: 'simple' | 'worktree'
+    sessionType?: 'simple' | 'worktree' | 'setup'
     worktreeName?: string
     executionBackend?: ExecutionBackend
     runtimeKind?: RuntimeKind
@@ -44,6 +44,7 @@ export interface SpawnSessionOptions {
         autoDetect?: boolean
         preferredPort?: number
     }
+    initialPrompt?: string
     spawnRequestId?: string
     resolvedEnvironment?: EnvironmentTemplate
     workspaceLease?: CloudWorkspaceLeaseBinding

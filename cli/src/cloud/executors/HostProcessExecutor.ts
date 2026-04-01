@@ -112,6 +112,20 @@ export function buildSpawnArgs(options: SpawnSessionOptions): string[] {
         }
     }
 
+    const prompt = options.initialPrompt ?? (
+        options.sessionType === 'setup'
+            ? 'You are setting up the development environment for this project. Analyze the project structure, install all dependencies, configure the development tools, and verify the setup works (e.g., build, test, or start the dev server). Report what you did and confirm everything is working.'
+            : undefined
+    )
+
+    if (prompt) {
+        if (agent === 'claude') {
+            args.push('-p', prompt)
+        } else if (agent === 'codex') {
+            args.push(prompt)
+        }
+    }
+
     return args
 }
 
