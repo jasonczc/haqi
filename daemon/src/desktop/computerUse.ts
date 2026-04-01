@@ -1,0 +1,56 @@
+import { exec, spawn } from 'node:child_process'
+import { promisify } from 'node:util'
+import { readFile } from 'node:fs/promises'
+import type { ScreenshotResponse, ClickRequest, TypeRequest, KeyRequest, ScrollRequest } from '../types'
+
+const execAsync = promisify(exec)
+
+const DISPLAY = process.env.DISPLAY || ':1'
+const ENV = { ...process.env, DISPLAY }
+
+export async function takeScreenshot(): Promise<ScreenshotResponse> {
+    const path = `/tmp/screenshot-${Date.now()}.png`
+    await execAsync(`scrot -o ${path}`, { env: ENV })
+    const buffer = await readFile(path)
+    const image = buffer.toString('base64')
+    // Get dimensions
+    const { stdout } = await execAsync(`identify -format '%wx%h' ${path}`, { env: ENV })
+    const [width, height] = stdout.split('x').map(Number)
+    return { image, width: width || 1280, height: height || 720 }
+}
+
+export async function click(req: ClickRequest): Promise<void> {
+    const button = req.button === 'right' ? '3' : req.button === 'middle' ? '2' : '1'
+    await execAsync(`xdotool mousemove --sync ${req.x} ${req.y} click ${button}`, { env: ENV })
+}
+
+export async function typeText(req: TypeRequest): Promise<void> {
+    await execAsync(`xdotool type --delay 50 -- "${req.text.replace(/"/g, '\\"')}"`, { env: ENV })
+}
+
+export async function pressKey(req: KeyRequest): Promise<void> {
+    await execAsync(`xdotool key -- ${req.key}`, { env: ENV })
+}
+
+export async function scroll(req: ScrollRequest): Promise<void> {
+    const clicks = req.clicks ?? 3
+    if (req.x !== undefined && req.y !== undefined) {
+        await execAsync(`xdotool mousemove --sync ${req.x} ${req.y}`, { env: ENV })
+    }
+    const button = req.direction === 'up' ? '4' : '5'
+    await execAsync(`xdotool click --repeat ${clicks} ${button}`, { env: ENV })
+}
+
+export async function getCursorPosition(): Promise<{ x: number; y: number }> {
+    const { stdout } = await execAsync('xdotool getmouselocation', { env: ENV })
+    const match = stdout.match(/x:(\d+)\s+y:(\d+)/)
+    return { x: Number(match?.[1] ?? 0), y: Number(match?.[2] ?? 0) }
+}
+
+export function openBrowser(url: string): void {
+    spawn('chromium-browser', ['--no-sandbox', '--disable-gpu', url], {
+        stdio: 'ignore',
+        detached: true,
+        env: ENV
+    }).unref()
+}

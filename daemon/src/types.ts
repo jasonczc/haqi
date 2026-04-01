@@ -84,6 +84,49 @@ export const CheckpointSaveResponseSchema = z.object({
 
 export type CheckpointSaveResponse = z.infer<typeof CheckpointSaveResponseSchema>
 
+export const ScreenshotResponseSchema = z.object({
+    image: z.string(),  // base64 PNG
+    width: z.number(),
+    height: z.number()
+})
+
+export type ScreenshotResponse = z.infer<typeof ScreenshotResponseSchema>
+
+export const ClickRequestSchema = z.object({
+    x: z.number(),
+    y: z.number(),
+    button: z.enum(['left', 'right', 'middle']).optional()
+})
+
+export type ClickRequest = z.infer<typeof ClickRequestSchema>
+
+export const TypeRequestSchema = z.object({
+    text: z.string()
+})
+
+export type TypeRequest = z.infer<typeof TypeRequestSchema>
+
+export const KeyRequestSchema = z.object({
+    key: z.string()  // e.g., 'ctrl+s', 'Return', 'Tab'
+})
+
+export type KeyRequest = z.infer<typeof KeyRequestSchema>
+
+export const ScrollRequestSchema = z.object({
+    x: z.number().optional(),
+    y: z.number().optional(),
+    direction: z.enum(['up', 'down']),
+    clicks: z.number().int().positive().optional()
+})
+
+export type ScrollRequest = z.infer<typeof ScrollRequestSchema>
+
+export const OpenBrowserRequestSchema = z.object({
+    url: z.string().url()
+})
+
+export type OpenBrowserRequest = z.infer<typeof OpenBrowserRequestSchema>
+
 export type PreviewTunnelMessage =
     | {
         type: 'request'
