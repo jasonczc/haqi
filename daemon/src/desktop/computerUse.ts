@@ -20,15 +20,18 @@ export async function takeScreenshot(): Promise<ScreenshotResponse> {
 }
 
 export async function click(req: ClickRequest): Promise<void> {
+    if (req.x < 0 || req.y < 0) throw new Error('Coordinates must be non-negative')
     const button = req.button === 'right' ? '3' : req.button === 'middle' ? '2' : '1'
     await execAsync(`xdotool mousemove --sync ${req.x} ${req.y} click ${button}`, { env: ENV })
 }
 
 export async function typeText(req: TypeRequest): Promise<void> {
+    if (!req.text) return
     await execAsync(`xdotool type --delay 50 -- "${req.text.replace(/"/g, '\\"')}"`, { env: ENV })
 }
 
 export async function pressKey(req: KeyRequest): Promise<void> {
+    if (!req.key.trim()) throw new Error('Key must not be empty')
     await execAsync(`xdotool key -- ${req.key}`, { env: ENV })
 }
 
