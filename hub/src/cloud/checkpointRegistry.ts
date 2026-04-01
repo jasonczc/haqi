@@ -1,57 +1,49 @@
-import type { CloudCheckpoint, EnvironmentTemplate } from '@hapi/protocol/types'
+import type { Store, StoredCheckpoint, CreateCheckpointParams } from '../store'
 
-function normalizeOptionalString(value: string | undefined): string | undefined {
-    const trimmed = value?.trim()
-    return trimmed ? trimmed : undefined
-}
-
-function buildCheckpointFromEnvironment(template: EnvironmentTemplate): CloudCheckpoint | null {
-    const runtime = template.runtime
-    const image = normalizeOptionalString(runtime?.image)
-    const checkpointId = normalizeOptionalString(runtime?.checkpointId) ?? normalizeOptionalString(template.id)
-    if (!checkpointId || !image) {
-        return null
-    }
-
-    return {
-        id: checkpointId,
-        image,
-        name: template.name ?? checkpointId,
-        description: template.description,
-        labels: template.features
-            ? Object.entries(template.features)
-                .filter(([, enabled]) => enabled)
-                .map(([name]) => name)
-            : undefined,
-        defaultEnvironment: template,
-        defaultDesktop: template.desktop
-    }
-}
+export type { StoredCheckpoint, CreateCheckpointParams }
 
 export class CheckpointRegistry {
-    private readonly checkpoints = new Map<string, CloudCheckpoint>()
+    constructor(private readonly store: Store) {}
 
-    list(): CloudCheckpoint[] {
-        return [...this.checkpoints.values()]
-            .sort((left, right) => left.id.localeCompare(right.id))
+    save(params: CreateCheckpointParams): string {
+        return this.store.checkpoints.create(params)
     }
 
-    get(id: string): CloudCheckpoint | null {
-        return this.checkpoints.get(id) ?? null
+    markReady(id: string): void {
+        this.store.checkpoints.updateStatus(id, 'ready')
     }
 
-    register(checkpoint: CloudCheckpoint): CloudCheckpoint {
-        const normalized: CloudCheckpoint = {
-            ...checkpoint,
-            id: checkpoint.id.trim(),
-            image: checkpoint.image.trim()
-        }
-        this.checkpoints.set(normalized.id, normalized)
-        return normalized
+    markFailed(id: string): void {
+        this.store.checkpoints.updateStatus(id, 'failed')
     }
 
-    registerFromEnvironment(template: EnvironmentTemplate): CloudCheckpoint | null {
-        const checkpoint = buildCheckpointFromEnvironment(template)
-        return checkpoint ? this.register(checkpoint) : null
+    get(id: string): StoredCheckpoint | null {
+        return this.store.checkpoints.get(id)
+    }
+
+    getByNamespace(id: string, namespace: string): StoredCheckpoint | null {
+        return this.store.checkpoints.getByNamespace(id, namespace)
+    }
+
+    list(namespace: string): StoredCheckpoint[] {
+        return this.store.checkpoints.listByNamespace(namespace)
+    }
+
+    listForRepo(namespace: string, repoUrl: string): StoredCheckpoint[] {
+        return this.store.checkpoints.listByNamespace(namespace, { repoUrl })
+    }
+
+    listChildren(id: string): StoredCheckpoint[] {
+        return this.store.checkpoints.listChildren(id)
+    }
+
+    resolveForSpawn(checkpointId: string, namespace: string): StoredCheckpoint | null {
+        const cp = this.store.checkpoints.getByNamespace(checkpointId, namespace)
+        if (!cp || cp.status !== 'ready') return null
+        return cp
+    }
+
+    remove(id: string): { ok: true } | { ok: false; reason: string; children?: string[] } {
+        return this.store.checkpoints.delete(id)
     }
 }

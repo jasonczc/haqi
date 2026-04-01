@@ -542,7 +542,7 @@ export class SyncEngine {
         )
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
         this.cloudEnvironmentRegistry = new CloudEnvironmentRegistry()
-        this.checkpointRegistry = new CheckpointRegistry()
+        this.checkpointRegistry = new CheckpointRegistry(store)
         this.previewRegistry = new PreviewRegistry()
         this.secretBroker = new SecretBroker(store)
         this.workspaceManager = new WorkspaceManager(store, (machineId) => {
@@ -588,7 +588,6 @@ export class SyncEngine {
 
     registerEnvironmentDefinition(template: import('@hapi/protocol/types').EnvironmentTemplate): void {
         this.cloudEnvironmentRegistry.register(template)
-        this.checkpointRegistry.registerFromEnvironment(template)
     }
 
     getEnvironmentDefinition(id: string): import('@hapi/protocol/types').EnvironmentTemplate | null {
@@ -607,8 +606,8 @@ export class SyncEngine {
         return this.cloudEnvironmentRegistry.list()
     }
 
-    listCloudCheckpoints(): import('@hapi/protocol/types').CloudCheckpoint[] {
-        return this.checkpointRegistry.list()
+    listCloudCheckpoints(namespace: string): import('../store').StoredCheckpoint[] {
+        return this.checkpointRegistry.list(namespace)
     }
 
     registerSessionPreviews(sessionId: string, previews: import('@hapi/protocol/types').PreviewTarget[] | undefined): void {
@@ -1107,14 +1106,13 @@ export class SyncEngine {
             })
 
             if (!this.cloudEnvironmentRegistry.get(environmentId)) {
-                const registered = this.cloudEnvironmentRegistry.register({
+                this.cloudEnvironmentRegistry.register({
                     id: environmentId,
                     runtime: {
                         ...(metadata.runtimeKind ? { kind: metadata.runtimeKind } : {}),
                         ...(metadata.checkpointId ? { checkpointId: metadata.checkpointId } : {})
                     }
                 })
-                this.checkpointRegistry.registerFromEnvironment(registered)
             }
         }
 

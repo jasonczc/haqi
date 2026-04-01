@@ -1,6 +1,5 @@
 import type {
     CloudRequestError,
-    CloudCheckpoint,
     CloudSecret,
     CloudSpawnPhase,
     CloudSpawnRequest,
@@ -14,6 +13,7 @@ import type {
 import { CloudSecretSchema, CloudSpawnRequestSchema, CloudWorkspaceSchema, MachineSpawnRequestSchema } from '@hapi/protocol/schemas'
 import type {
     Store,
+    StoredCheckpoint,
     StoredCloudSecret,
     StoredCloudSpawnRequest,
     StoredCloudWorkspace
@@ -392,7 +392,7 @@ export class SpawnCoordinator {
                 })
                 return
             }
-            const environment = mergeEnvironmentTemplates(checkpoint.defaultEnvironment, requestedEnvironment)
+            const environment = requestedEnvironment
 
             this.workspaceManager.expireLeases()
 
@@ -704,27 +704,13 @@ export class SpawnCoordinator {
     private resolveCheckpoint(
         request: MachineSpawnRequest,
         environment: EnvironmentTemplate | undefined
-    ): CloudCheckpoint | null {
+    ): StoredCheckpoint | null {
         const explicitId = request.checkpointId?.trim()
             || environment?.runtime?.checkpointId?.trim()
         if (explicitId) {
             return this.checkpointRegistry.get(explicitId)
         }
-
-        const image = environment?.runtime?.image?.trim()
-        if (!image) {
-            return null
-        }
-
-        const fallbackId = environment?.id?.trim() || image
-        return this.checkpointRegistry.get(fallbackId) ?? this.checkpointRegistry.register({
-            id: fallbackId,
-            image,
-            name: environment?.name ?? fallbackId,
-            description: environment?.description,
-            defaultEnvironment: environment,
-            defaultDesktop: environment?.desktop
-        })
+        return null
     }
 
     private selectMachine(

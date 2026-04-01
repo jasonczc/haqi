@@ -70,9 +70,10 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null): Hono<
         if (!engine) {
             return c.json({ error: 'Not connected' }, 503)
         }
+        const namespace = c.get('namespace')
 
         return c.json({
-            checkpoints: engine.listCloudCheckpoints()
+            checkpoints: engine.listCloudCheckpoints(namespace)
         })
     })
 
