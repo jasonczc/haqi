@@ -1253,8 +1253,10 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       checkpointCreate: async (params) => {
         const dockerImage = `haqi-checkpoint:${params.checkpointId}`
         try {
-          const { execSync } = await import('node:child_process')
-          execSync(`docker commit ${params.containerId} ${dockerImage}`, { timeout: 120_000 })
+          const runtime = new DockerCliRuntime()
+          await runtime.ensureAvailable()
+          const { runDockerCommand } = await import('@/cloud/docker/dockerCli')
+          await runDockerCommand(['commit', params.containerId, dockerImage])
           return { dockerImage, success: true }
         } catch (err) {
           return { dockerImage: '', success: false, error: err instanceof Error ? err.message : String(err) }
@@ -1262,8 +1264,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       },
       checkpointDelete: async (params) => {
         try {
-          const { execSync } = await import('node:child_process')
-          execSync(`docker rmi ${params.dockerImage}`, { timeout: 30_000 })
+          const { runDockerCommand } = await import('@/cloud/docker/dockerCli')
+          await runDockerCommand(['rmi', params.dockerImage])
           return { success: true }
         } catch {
           return { success: true } // Image may already be gone

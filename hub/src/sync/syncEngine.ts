@@ -2613,11 +2613,18 @@ ${note.content}
         const session = this.sessionCache.getSession(sessionId)
         if (!session) return { error: 'Session not found' }
         const metadata = session.metadata as SessionMetadataShape & { containerId?: string; repositoryUrl?: string; path?: string } | undefined
-        if (!metadata?.machineId || !metadata?.containerId) return { error: 'Session has no container' }
+        if (!metadata?.containerId) return { error: 'Session has no container' }
+
+        // Find the cloud Worker machine (not the agent's internal machine)
+        const machines = this.getOnlineMachinesByNamespace(namespace)
+        const cloudWorker = machines.find(m =>
+            m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
+        )
+        if (!cloudWorker) return { error: 'No cloud worker available for checkpoint' }
 
         const checkpointId = randomUUID()
         const dockerImage = `haqi-checkpoint:${checkpointId}`
-        const machineId = metadata.machineId
+        const machineId = cloudWorker.id
 
         this.store.checkpoints.create({
             namespace,
