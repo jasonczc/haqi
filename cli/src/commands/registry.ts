@@ -13,6 +13,7 @@ import { notifyCommand } from './notify'
 import { hubCommand } from './hub'
 import { workerCommand } from './worker'
 import { workspaceCommand } from './workspace'
+import { checkpointCommand } from './checkpoint'
 import type { CommandContext, CommandDefinition } from './types'
 
 const COMMANDS: CommandDefinition[] = [
@@ -30,7 +31,8 @@ const COMMANDS: CommandDefinition[] = [
     runnerCommand,
     notifyCommand,
     workerCommand,
-    workspaceCommand
+    workspaceCommand,
+    checkpointCommand
 ]
 
 const commandMap = new Map<string, CommandDefinition>()
