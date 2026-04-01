@@ -30,6 +30,7 @@ import { createContainerRoutes } from './routes/containers'
 import { createReportsRoutes } from './routes/reports'
 import { createPublicReportsRoutes } from './routes/publicReports'
 import { createPreviewRoutes } from './routes/preview'
+import { createDesktopRoutes } from './routes/desktop'
 import type { ReportPublicBaseUrlSettings } from '../config/reportPublicBaseUrl'
 import { createSettingsRoutes } from './routes/settings'
 import type { SSEManager } from '../sse/sseManager'
@@ -149,6 +150,28 @@ function createWebApp(options: {
                     }
                 }
             }
+        }
+    }))
+
+    app.route('/desktop', createDesktopRoutes({
+        resolveSession: (sessionId) => {
+            const engine = options.getSyncEngine()
+            if (!engine) return null
+            const session = engine.getSession(sessionId)
+            if (!session) return null
+            const metadata = session.metadata as any
+            if (!metadata?.machineId) return null
+            const containerId = metadata?.containerId
+            if (containerId && (metadata?.runtimeKind === 'daemon-session' || metadata?.runtimeKind === 'docker-session')) {
+                const machines = engine.getOnlineMachinesByNamespace(session.namespace)
+                const cloudWorker = machines.find(m =>
+                    m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
+                )
+                if (cloudWorker) {
+                    return { machineId: cloudWorker.id }
+                }
+            }
+            return { machineId: metadata.machineId }
         }
     }))
 

@@ -43,6 +43,12 @@ export async function ensureWorkspaceContainer(params: {
             hostPort: undefined,
             protocol: 'tcp'
         })
+        // noVNC port for remote desktop
+        portSpecs.push({
+            containerPort: 6080,
+            hostPort: undefined,
+            protocol: 'tcp'
+        })
     }
 
     const mounts = [
