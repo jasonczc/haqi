@@ -121,6 +121,65 @@ export class HappyBot implements NotificationChannel {
                 { reply_markup: keyboard }
             )
         })
+
+        // /cloud <task> - Spawn a cloud agent session
+        this.bot.command('cloud', async (ctx) => {
+            const task = ctx.message?.text?.replace(/^\/cloud(@\S+)?/, '').trim()
+            if (!task) {
+                await ctx.reply('Usage: /cloud <task description>')
+                return
+            }
+
+            if (!this.syncEngine) {
+                await ctx.reply('Hub not connected')
+                return
+            }
+
+            const namespace = this.getNamespaceForChatId(ctx.from?.id ?? null)
+            if (!namespace) {
+                await ctx.reply('Telegram account is not bound. Open the app to link your account.')
+                return
+            }
+
+            const machines = this.syncEngine.getOnlineMachinesByNamespace(namespace)
+            const worker = machines.find(
+                m => m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
+            )
+            if (!worker) {
+                await ctx.reply('No cloud workers online. Register one first.')
+                return
+            }
+
+            try {
+                const result = await this.syncEngine.spawnSession(worker.id, {
+                    runtimeKind: 'daemon-session',
+                    sessionType: 'simple',
+                    agent: 'claude',
+                    yolo: true,
+                    initialPrompt: task,
+                    environment: { runtime: { image: 'haqi-workspace:dev' } }
+                })
+
+                if (result.type === 'success') {
+                    const url = buildMiniAppDeepLink(this.publicUrl, `session_${result.sessionId}`)
+                    await ctx.reply(
+                        `Agent started\\!\n\nTask: ${escapeMarkdown(task)}\n\n[View session](${url})`,
+                        { parse_mode: 'MarkdownV2' }
+                    )
+                } else if (result.type === 'accepted') {
+                    const url = buildMiniAppDeepLink(this.publicUrl, `session_${result.requestId}`)
+                    await ctx.reply(
+                        `Agent queued\\!\n\nTask: ${escapeMarkdown(task)}\n\n[View request](${url})`,
+                        { parse_mode: 'MarkdownV2' }
+                    )
+                } else {
+                    const errMsg = 'message' in result ? result.message : 'unknown error'
+                    await ctx.reply(`Failed to start agent: ${errMsg ?? 'unknown error'}`)
+                }
+            } catch (err) {
+                await ctx.reply(`Error: ${err instanceof Error ? err.message : 'unknown'}`)
+            }
+        })
     }
 
     /**
@@ -238,6 +297,11 @@ export class HappyBot implements NotificationChannel {
             }
         }
     }
+}
+
+function escapeMarkdown(text: string): string {
+    // Escape special characters for MarkdownV2
+    return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, '\\$&')
 }
 
 function buildMiniAppDeepLink(baseUrl: string, startParam: string): string {
