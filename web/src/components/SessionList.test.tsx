@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '@/lib/i18n-context'
 import type { SessionSummary } from '@/types/api'
@@ -46,7 +46,64 @@ describe('SessionList project quick-create action', () => {
         cleanup()
     })
 
+    it('shows quick archive action on hover and archives after second click', async () => {
+        const archiveSession = vi.fn(async () => {})
+        const api = {
+            archiveSession,
+            getProjectOfflineSettings: vi.fn(async () => ({ directories: [] })),
+            updateProjectOfflineSettings: vi.fn(async ({ directories }: { directories: string[] }) => ({ directories }))
+        }
+
+        renderWithProviders(
+            <SessionList
+                sessions={[createSession({ active: true, metadata: { path: '/workspace/project-a', name: 'Demo Session', machineId: 'machine-1' } })]}
+                onSelect={vi.fn()}
+                onNewSession={vi.fn()}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                renderHeader={false}
+                api={api as any}
+            />
+        )
+
+        const sessionRow = screen.getByRole('button', { name: /demo session/i })
+        fireEvent.mouseEnter(sessionRow.parentElement as HTMLElement)
+
+        const archiveButton = screen.getByRole('button', { name: 'Archive' })
+        fireEvent.click(archiveButton)
+        expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+        expect(archiveSession).not.toHaveBeenCalled()
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+
+        await waitFor(() => {
+            expect(archiveSession).toHaveBeenCalledWith('session-1')
+        })
+    })
+
+    it('does not show quick archive action when disabled in settings', () => {
+        localStorage.setItem('hapi:sessionQuickArchive', '0')
+
+        renderWithProviders(
+            <SessionList
+                sessions={[createSession({ active: true, metadata: { path: '/workspace/project-a', name: 'Demo Session', machineId: 'machine-1' } })]}
+                onSelect={vi.fn()}
+                onNewSession={vi.fn()}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                renderHeader={false}
+                api={null}
+            />
+        )
+
+        const sessionRow = screen.getByRole('button', { name: /demo session/i })
+        fireEvent.mouseEnter(sessionRow.parentElement as HTMLElement)
+
+        expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument()
+    })
+
     beforeEach(() => {
+        localStorage.clear()
         localStorage.setItem('hapi-lang', 'en')
         Object.defineProperty(window, 'matchMedia', {
             writable: true,

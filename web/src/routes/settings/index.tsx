@@ -13,6 +13,7 @@ import {
     type SessionReopenPositionPreference
 } from '@/hooks/useSessionReopenPositionPreference'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
+import { useSessionQuickArchive } from '@/hooks/useSessionQuickArchive'
 import {
     useImageUploadCompression,
     type ImageUploadCompressionLevel,
@@ -330,6 +331,7 @@ export default function SettingsPage() {
     const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
     const { enterBehavior, setEnterBehavior } = useEnterBehavior()
     const { projectQuickCreateEnabled, setProjectQuickCreateEnabled } = useProjectQuickCreate()
+    const { sessionQuickArchiveEnabled, setSessionQuickArchiveEnabled } = useSessionQuickArchive()
     const selectedCodexMachine = activeMachines.find((machine) => machine.id === selectedCodexMachineId) ?? null
     const codexCurrentSummaryRows = useMemo(
         () => formatCodexCredentialSummary(codexCredentialState?.current.summary ?? null, t),
@@ -628,6 +630,10 @@ export default function SettingsPage() {
 
     const handleSkipArchiveConfirmToggle = (value: boolean) => {
         setSkipArchiveConfirmation(value)
+    }
+
+    const handleSessionQuickArchiveToggle = (value: boolean) => {
+        setSessionQuickArchiveEnabled(value)
     }
 
     const handleQueuePanelModeChange = (mode: QueueInlinePanelMode) => {
@@ -1724,6 +1730,21 @@ export default function SettingsPage() {
                             </span>
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3">
+                            <div className="flex flex-col">
+                                <span className="text-[var(--app-fg)]">
+                                    {t('settings.behavior.sessionQuickArchive')}
+                                </span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {t('settings.behavior.sessionQuickArchive.description')}
+                                </span>
+                            </div>
+                            <Switch
+                                checked={sessionQuickArchiveEnabled}
+                                onCheckedChange={handleSessionQuickArchiveToggle}
+                                ariaLabel={t('settings.behavior.sessionQuickArchive')}
+                            />
+                        </div>
+                        <div className="flex items-start justify-between gap-3 border-t border-[var(--app-divider)] px-3 py-3">
                             <div className="flex flex-col">
                                 <span className="text-[var(--app-fg)]">
                                     {t('settings.behavior.archiveConfirm')}

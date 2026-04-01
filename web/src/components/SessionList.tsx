@@ -1,5 +1,6 @@
 import {
     forwardRef,
+    useRef,
     useEffect,
     useMemo,
     useState,
@@ -25,6 +26,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
+import { useSessionQuickArchive } from '@/hooks/useSessionQuickArchive'
+import { SessionQuickArchiveButton } from '@/components/SessionQuickArchiveButton'
 import {
     applySessionGroupOrder,
     loadSessionGroupOrder,
@@ -336,6 +339,8 @@ function SessionItem(props: {
     const [renameOpen, setRenameOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
+    const [isQuickArchiveVisible, setIsQuickArchiveVisible] = useState(false)
+    const itemRef = useRef<HTMLDivElement | null>(null)
 
     const {
         archiveSession,
@@ -350,6 +355,7 @@ function SessionItem(props: {
         s.metadata?.flavor ?? null
     )
     const { skipArchiveConfirmation } = useArchiveConfirmation()
+    const { sessionQuickArchiveEnabled } = useSessionQuickArchive()
 
     const longPressHandlers = useLongPress({
         onLongPress: (point) => {
@@ -402,70 +408,97 @@ function SessionItem(props: {
 
     return (
         <>
-            <button
-                type="button"
-                {...longPressHandlers}
-                className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
-                style={{ WebkitTouchCallout: 'none' }}
-                aria-current={selected ? 'page' : undefined}
+            <div
+                ref={itemRef}
+                className="group/session-item relative"
+                onMouseEnter={() => setIsQuickArchiveVisible(true)}
+                onMouseLeave={() => setIsQuickArchiveVisible(false)}
+                onFocusCapture={() => setIsQuickArchiveVisible(true)}
+                onBlurCapture={(event) => {
+                    const nextTarget = event.relatedTarget
+                    if (nextTarget instanceof Node && itemRef.current?.contains(nextTarget)) {
+                        return
+                    }
+                    setIsQuickArchiveVisible(false)
+                }}
             >
-                <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
+                <button
+                    type="button"
+                    {...longPressHandlers}
+                    className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
+                    style={{ WebkitTouchCallout: 'none' }}
+                    aria-current={selected ? 'page' : undefined}
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
+                                <span
+                                    className={`h-2 w-2 rounded-full ${statusDotClass}`}
+                                />
+                            </span>
+                            <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
+                                {sessionName}
+                            </div>
+                        </div>
+                        <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+                            {effectiveThinking ? (
+                                <span className="text-[#007AFF] animate-pulse">
+                                    {t('session.item.thinking')}
+                                </span>
+                            ) : null}
+                            {(() => {
+                                const progress = getTodoProgress(s)
+                                if (!progress) return null
+                                return (
+                                    <span className="flex items-center gap-1 text-[var(--app-hint)]">
+                                        <BulbIcon className="h-3 w-3" />
+                                        {progress.completed}/{progress.total}
+                                    </span>
+                                )
+                            })()}
+                            {s.pendingRequestsCount > 0 ? (
+                                <span className="text-[var(--app-badge-warning-text)]">
+                                    {t('session.item.pending')} {s.pendingRequestsCount}
+                                </span>
+                            ) : null}
                             <span
-                                className={`h-2 w-2 rounded-full ${statusDotClass}`}
-                            />
-                        </span>
-                        <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
-                            {sessionName}
+                                className={`text-[var(--app-hint)] transition-opacity ${sessionQuickArchiveEnabled && isQuickArchiveVisible ? 'opacity-0 pointer-events-none' : ''}`}
+                            >
+                                {formatRelativeTime(s.updatedAt, t)}
+                            </span>
                         </div>
                     </div>
-                    <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-                        {effectiveThinking ? (
-                            <span className="text-[#007AFF] animate-pulse">
-                                {t('session.item.thinking')}
-                            </span>
-                        ) : null}
-                        {(() => {
-                            const progress = getTodoProgress(s)
-                            if (!progress) return null
-                            return (
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <BulbIcon className="h-3 w-3" />
-                                    {progress.completed}/{progress.total}
+                    {showPath ? (
+                        <div className="truncate text-xs text-[var(--app-hint)]">
+                            {s.metadata?.path ?? s.id}
+                        </div>
+                    ) : null}
+                    {!isCompact ? (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
+                            <span className="inline-flex items-center gap-2">
+                                <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
+                                    ❖
                                 </span>
-                            )
-                        })()}
-                        {s.pendingRequestsCount > 0 ? (
-                            <span className="text-[var(--app-badge-warning-text)]">
-                                {t('session.item.pending')} {s.pendingRequestsCount}
+                                {getAgentLabel(s)}
                             </span>
-                        ) : null}
-                        <span className="text-[var(--app-hint)]">
-                            {formatRelativeTime(s.updatedAt, t)}
-                        </span>
-                    </div>
-                </div>
-                {showPath ? (
-                    <div className="truncate text-xs text-[var(--app-hint)]">
-                        {s.metadata?.path ?? s.id}
-                    </div>
-                ) : null}
-                {!isCompact ? (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
-                        <span className="inline-flex items-center gap-2">
-                            <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
-                                ❖
-                            </span>
-                            {getAgentLabel(s)}
-                        </span>
-                        <span>{t('session.item.model')}: {s.metadata?.model?.trim() || s.modelMode || 'default'}</span>
-                        {s.metadata?.worktree?.branch ? (
-                            <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
-                        ) : null}
-                    </div>
-                ) : null}
-            </button>
+                            <span>{t('session.item.model')}: {s.metadata?.model?.trim() || s.modelMode || 'default'}</span>
+                            {s.metadata?.worktree?.branch ? (
+                                <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </button>
+
+                <SessionQuickArchiveButton
+                    enabled={sessionQuickArchiveEnabled}
+                    visible={isQuickArchiveVisible}
+                    isPending={isPending}
+                    compact={isCompact}
+                    onArchive={async () => {
+                        await archiveSession()
+                    }}
+                />
+            </div>
 
             <SessionActionMenu
                 isOpen={menuOpen}

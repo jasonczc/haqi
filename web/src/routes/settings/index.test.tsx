@@ -420,6 +420,7 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.behavior.imageCompression')
         expect(calledKeys).toContain('settings.behavior.defaultSendMode')
         expect(calledKeys).toContain('settings.behavior.projectQuickCreate')
+        expect(calledKeys).toContain('settings.behavior.sessionQuickArchive')
         expect(calledKeys).toContain('settings.behavior.imageCompression.level')
         expect(calledKeys).toContain('settings.behavior.imageCompression.targetSize')
         expect(calledKeys).toContain('settings.memory.injection.title')

@@ -81,6 +81,7 @@ export default {
   'session.action.newSameConfig': '新建（同配置）',
   'session.action.duplicate': '复制（含历史）',
   'session.action.archive': '归档',
+  'session.action.confirmArchive': '确认',
   'session.action.delete': '删除',
   'session.action.copy': '复制',
 
@@ -456,6 +457,8 @@ export default {
   'settings.behavior.enterBehavior.newline': 'Enter 换行，Shift+Enter 发送',
   'settings.behavior.archiveConfirm': '归档确认',
   'settings.behavior.archiveConfirm.description': '归档会话时跳过确认弹窗。',
+  'settings.behavior.sessionQuickArchive': '会话快速归档',
+  'settings.behavior.sessionQuickArchive.description': '在列表项悬浮时，把右侧时间替换为两步确认的归档按钮。',
   'settings.voice.title': '语音助手',
   'settings.voice.language': '语音语言',
   'settings.voice.autoDetect': '自动检测',

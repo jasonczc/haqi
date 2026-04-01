@@ -81,6 +81,7 @@ export default {
   'session.action.newSameConfig': 'New (same config)',
   'session.action.duplicate': 'Duplicate (with history)',
   'session.action.archive': 'Archive',
+  'session.action.confirmArchive': 'Confirm',
   'session.action.delete': 'Delete',
   'session.action.copy': 'Copy',
 
@@ -454,6 +455,8 @@ export default {
   'settings.behavior.enterBehavior.newline': 'Enter newline, Shift+Enter sends',
   'settings.behavior.archiveConfirm': 'Skip Archive Confirmation',
   'settings.behavior.archiveConfirm.description': 'Skip the archive confirmation dialog.',
+  'settings.behavior.sessionQuickArchive': 'Session Quick Archive',
+  'settings.behavior.sessionQuickArchive.description': 'On hover, replace the session time with a two-step archive button in the session list.',
   'settings.voice.title': 'Voice Assistant',
   'settings.voice.language': 'Voice Language',
   'settings.voice.autoDetect': 'Auto-detect',
