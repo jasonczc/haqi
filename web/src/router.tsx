@@ -73,6 +73,7 @@ import CloudContainersPage from '@/routes/cloud/containers'
 import CloudCheckpointsPage from '@/routes/cloud/checkpoints'
 import CloudRequestsPage from '@/routes/cloud/requests'
 import CloudWorkspacesPage from '@/routes/cloud/workspaces'
+import CloudOnboardPage from '@/routes/cloud/onboard'
 import { CloudSidebar } from '@/components/CloudSidebar'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
@@ -2130,6 +2131,12 @@ const cloudWorkspacesRoute = createRoute({
     component: CloudWorkspacesPage,
 })
 
+const cloudOnboardRoute = createRoute({
+    getParentRoute: () => cloudRoute,
+    path: 'onboard',
+    component: CloudOnboardPage,
+})
+
 const groupsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/groups',
@@ -2179,6 +2186,7 @@ export const routeTree = rootRoute.addChildren([
         cloudRequestDetailRoute,
         cloudWorkspacesRoute,
         cloudWorkspaceDetailRoute,
+        cloudOnboardRoute,
     ]),
     sessionsRoute.addChildren([
         sessionsIndexRoute,
