@@ -18,7 +18,7 @@ export function SessionTypeSelector(props: {
                 {t('newSession.type')}
             </label>
             <div className="flex flex-col gap-1.5">
-                {(['simple', 'worktree'] as const).map((type) => (
+                {(['simple', 'worktree', 'setup'] as const).map((type) => (
                     <div key={type} className="flex flex-col gap-2">
                         {type === 'worktree' ? (
                             <div className="flex items-center gap-2">
@@ -60,6 +60,23 @@ export function SessionTypeSelector(props: {
                                     </div>
                                 </div>
                             </div>
+                        ) : type === 'setup' ? (
+                            <label className="flex items-center gap-2 cursor-pointer min-h-[34px]">
+                                <input
+                                    id="session-type-setup"
+                                    type="radio"
+                                    name="sessionType"
+                                    value="setup"
+                                    checked={props.sessionType === 'setup'}
+                                    onChange={() => props.onSessionTypeChange('setup')}
+                                    disabled={props.isDisabled}
+                                    className="accent-[var(--app-link)]"
+                                />
+                                <span className="text-sm capitalize">Setup Environment</span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    Agent configures the development environment. Save as checkpoint when done.
+                                </span>
+                            </label>
                         ) : (
                             <label className="flex items-center gap-2 cursor-pointer min-h-[34px]">
                                 <input

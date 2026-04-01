@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import type { Session } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
@@ -7,6 +7,8 @@ import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
 
 function getSessionTitle(session: Session): string {
@@ -40,6 +42,47 @@ function DesktopIcon(props: { className?: string }) {
             <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
             <line x1="8" y1="21" x2="16" y2="21" />
             <line x1="12" y1="17" x2="12" y2="21" />
+        </svg>
+    )
+}
+
+function TerminalIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+        </svg>
+    )
+}
+
+function SaveIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
         </svg>
     )
 }
@@ -153,6 +196,7 @@ export function SessionHeader(props: {
     sidebarVisible?: boolean
     onViewPreview?: () => void
     onViewDesktop?: () => void
+    onViewTerminal?: () => void
     onViewFiles?: () => void
     onViewMcpStatus?: () => void
     api: ApiClient | null
@@ -196,6 +240,10 @@ export function SessionHeader(props: {
     const [renameOpen, setRenameOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
+    const [checkpointDialogOpen, setCheckpointDialogOpen] = useState(false)
+    const [checkpointName, setCheckpointName] = useState('')
+    const [checkpointSaving, setCheckpointSaving] = useState(false)
+    const { addToast } = useToast()
 
     const {
         archiveSession,
@@ -234,6 +282,24 @@ export function SessionHeader(props: {
             console.error('Failed to archive session', error)
         })
     }
+
+    const handleSaveCheckpoint = useCallback(async () => {
+        const name = checkpointName.trim()
+        if (!name || !api) return
+        setCheckpointSaving(true)
+        try {
+            const result = await api.saveCheckpoint(session.id, name)
+            addToast({ title: 'Checkpoint Saved', body: `ID: ${result.checkpointId}`, sessionId: session.id, url: '' })
+            setCheckpointDialogOpen(false)
+            setCheckpointName('')
+        } catch (err) {
+            addToast({ title: 'Error', body: err instanceof Error ? err.message : 'Failed to save checkpoint', sessionId: session.id, url: '' })
+        } finally {
+            setCheckpointSaving(false)
+        }
+    }, [api, session.id, checkpointName, addToast])
+
+    const showSaveCheckpoint = session.active && Boolean(containerId)
 
     const handleSpawnSameConfig = () => {
         void spawnSameConfigSession()
@@ -411,6 +477,18 @@ export function SessionHeader(props: {
                         </button>
                     ) : null}
 
+                    {props.onViewTerminal ? (
+                        <button
+                            type="button"
+                            onClick={props.onViewTerminal}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title="Terminal"
+                            aria-label="Terminal"
+                        >
+                            <TerminalIcon />
+                        </button>
+                    ) : null}
+
                     {props.onViewFiles ? (
                         <button
                             type="button"
@@ -419,6 +497,18 @@ export function SessionHeader(props: {
                             title={t('session.title')}
                         >
                             <FilesIcon />
+                        </button>
+                    ) : null}
+
+                    {showSaveCheckpoint ? (
+                        <button
+                            type="button"
+                            onClick={() => setCheckpointDialogOpen(true)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title="Save Checkpoint"
+                            aria-label="Save Checkpoint"
+                        >
+                            <SaveIcon />
                         </button>
                     ) : null}
 
@@ -494,6 +584,51 @@ export function SessionHeader(props: {
                 isPending={isPending}
                 destructive
             />
+
+            <Dialog open={checkpointDialogOpen} onOpenChange={setCheckpointDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Save Checkpoint</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3 pt-2">
+                        <input
+                            type="text"
+                            placeholder="Checkpoint name"
+                            value={checkpointName}
+                            onChange={(e) => setCheckpointName(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && checkpointName.trim()) {
+                                    void handleSaveCheckpoint()
+                                }
+                            }}
+                            disabled={checkpointSaving}
+                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setCheckpointDialogOpen(false)
+                                    setCheckpointName('')
+                                }}
+                                disabled={checkpointSaving}
+                                className="rounded-md px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)]"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void handleSaveCheckpoint()}
+                                disabled={checkpointSaving || !checkpointName.trim()}
+                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white hover:opacity-90 disabled:opacity-60"
+                            >
+                                {checkpointSaving ? 'Saving...' : 'Save'}
+                            </button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </>
     )
 }

@@ -1322,6 +1322,7 @@ export function SessionChat(props: {
                 sidebarVisible={props.sidebarVisible}
                 onViewPreview={handleViewPreview}
                 onViewDesktop={props.session.metadata?.containerId ? handleViewDesktop : undefined}
+                onViewTerminal={props.session.active ? handleViewTerminal : undefined}
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 onViewMcpStatus={handleMcpStatus}
                 api={props.api}

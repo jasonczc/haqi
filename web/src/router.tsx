@@ -222,6 +222,8 @@ function CloseIcon(props: { className?: string }) {
 type NewSessionSearch = {
     directory?: string
     machineId?: string
+    checkpointId?: string
+    sessionType?: string
 }
 
 type SessionsLayoutContextValue = {
@@ -906,6 +908,8 @@ function NewSessionPage() {
                     isLoading={machinesLoading}
                     initialDirectory={search.directory}
                     initialMachineId={search.machineId}
+                    initialCheckpointId={search.checkpointId}
+                    initialSessionType={search.sessionType}
                     formId={formId}
                     onCancel={handleCancel}
                     onSuccess={handleSuccess}
@@ -1994,6 +1998,8 @@ const newSessionRoute = createRoute({
     validateSearch: (search: Record<string, unknown>): NewSessionSearch => {
         const directoryRaw = typeof search.directory === 'string' ? search.directory : undefined
         const machineIdRaw = typeof search.machineId === 'string' ? search.machineId : undefined
+        const checkpointIdRaw = typeof search.checkpointId === 'string' ? search.checkpointId : undefined
+        const sessionTypeRaw = typeof search.sessionType === 'string' ? search.sessionType : undefined
 
         const result: NewSessionSearch = {}
         if (directoryRaw && directoryRaw.trim().length > 0) {
@@ -2001,6 +2007,12 @@ const newSessionRoute = createRoute({
         }
         if (machineIdRaw && machineIdRaw.trim().length > 0) {
             result.machineId = machineIdRaw
+        }
+        if (checkpointIdRaw && checkpointIdRaw.trim().length > 0) {
+            result.checkpointId = checkpointIdRaw
+        }
+        if (sessionTypeRaw && sessionTypeRaw.trim().length > 0) {
+            result.sessionType = sessionTypeRaw
         }
         return result
     },

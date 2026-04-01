@@ -1666,6 +1666,33 @@ export default function SettingsPage() {
                                 {t('cloud.workers.goToManagement')}
                             </Link>
                         </div>
+                        <div className="flex w-full items-center justify-between px-3 py-3">
+                            <span className="text-[var(--app-fg)]">Containers</span>
+                            <Link
+                                to="/cloud/containers"
+                                className="text-[var(--app-link)] hover:underline text-sm"
+                            >
+                                Manage Containers
+                            </Link>
+                        </div>
+                        <div className="flex w-full items-center justify-between px-3 py-3">
+                            <span className="text-[var(--app-fg)]">Checkpoints</span>
+                            <Link
+                                to="/cloud/checkpoints"
+                                className="text-[var(--app-link)] hover:underline text-sm"
+                            >
+                                Manage Checkpoints
+                            </Link>
+                        </div>
+                        <div className="flex w-full items-center justify-between px-3 py-3">
+                            <span className="text-[var(--app-fg)]">Secrets</span>
+                            <Link
+                                to="/cloud/secrets"
+                                className="text-[var(--app-link)] hover:underline text-sm"
+                            >
+                                Manage Secrets
+                            </Link>
+                        </div>
                     </div>
 
                     <SettingsSection

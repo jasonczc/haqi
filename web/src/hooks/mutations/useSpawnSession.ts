@@ -21,7 +21,7 @@ type SpawnInput = {
     thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
     serviceTier?: 'fast' | 'flex'
     yolo?: boolean
-    sessionType?: 'simple' | 'worktree'
+    sessionType?: 'simple' | 'worktree' | 'setup'
     worktreeName?: string
     previewUrl?: string
     executionBackend?: ExecutionBackend

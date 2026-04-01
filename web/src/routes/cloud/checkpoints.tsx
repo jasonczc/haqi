@@ -129,14 +129,14 @@ export default function CloudCheckpointsPage() {
                                 <div className="flex gap-1.5">
                                     <Link
                                         to="/sessions/new"
-                                        search={{ checkpointId: checkpoint.id } as any}
+                                        search={{ checkpointId: checkpoint.id }}
                                         className="rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)]"
                                     >
                                         {t('cloud.checkpoints.newSession')}
                                     </Link>
                                     <Link
                                         to="/sessions/new"
-                                        search={{ checkpointId: checkpoint.id, sessionType: 'setup' } as any}
+                                        search={{ checkpointId: checkpoint.id, sessionType: 'setup' }}
                                         className="rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)]"
                                     >
                                         {t('cloud.checkpoints.derive')}

@@ -102,6 +102,8 @@ export function NewSession(props: {
     isLoading?: boolean
     initialDirectory?: string
     initialMachineId?: string
+    initialCheckpointId?: string
+    initialSessionType?: string
     formId?: string
     onSuccess: (result: SpawnResponse) => void
     onCancel: () => void
@@ -139,14 +141,19 @@ export function NewSession(props: {
         ?? 'auto'
     ))
     const [yoloMode, setYoloMode] = useState(() => lastSessionConfig?.yoloMode ?? loadPreferredYoloMode())
-    const [sessionType, setSessionType] = useState<SessionType>(() => lastSessionConfig?.sessionType ?? loadPreferredSessionType())
+    const [sessionType, setSessionType] = useState<SessionType>(() => {
+        if (props.initialSessionType === 'simple' || props.initialSessionType === 'worktree' || props.initialSessionType === 'setup') {
+            return props.initialSessionType
+        }
+        return lastSessionConfig?.sessionType ?? loadPreferredSessionType()
+    })
     const [worktreeName, setWorktreeName] = useState(() => lastSessionConfig?.worktreeName ?? '')
     const [previewUrlInput, setPreviewUrlInput] = useState(() => lastSessionConfig?.previewUrl ?? '')
     const [executionBackend, setExecutionBackend] = useState<ExecutionBackend>(() => lastSessionConfig?.executionBackend ?? loadPreferredExecutionBackend())
     const [runtimeKind, setRuntimeKind] = useState<RuntimeKind>(() => lastSessionConfig?.runtimeKind ?? loadPreferredRuntimeKind())
     const [launchMode, setLaunchMode] = useState<'interactive' | 'background'>(() => lastSessionConfig?.launchMode ?? 'interactive')
     const [environmentId, setEnvironmentId] = useState(() => lastSessionConfig?.environmentId ?? '')
-    const [checkpointId, setCheckpointId] = useState(() => lastSessionConfig?.checkpointId ?? '')
+    const [checkpointId, setCheckpointId] = useState(() => props.initialCheckpointId ?? lastSessionConfig?.checkpointId ?? '')
     const [repositoryUrl, setRepositoryUrl] = useState(() => lastSessionConfig?.repositoryUrl ?? '')
     const [repositoryBranch, setRepositoryBranch] = useState(() => lastSessionConfig?.repositoryBranch ?? '')
     const [workspaceMode, setWorkspaceMode] = useState<'ephemeral' | 'persistent' | 'snapshot-derived'>(() => lastSessionConfig?.workspaceMode ?? 'ephemeral')
@@ -467,7 +474,7 @@ export function NewSession(props: {
 
         if (!machineId) return
         if (executionBackend === 'local' && !trimmedDirectory) return
-        if (executionBackend !== 'local' && (!trimmedRepositoryUrl || !trimmedCheckpointId)) return
+        if (executionBackend !== 'local' && !trimmedRepositoryUrl && !trimmedCheckpointId) return
 
         setError(null)
         try {
@@ -614,7 +621,7 @@ export function NewSession(props: {
         && !isFormDisabled
         && (
             (executionBackend === 'local' && directory.trim())
-            || (executionBackend !== 'local' && repositoryUrl.trim() && checkpointId.trim())
+            || (executionBackend !== 'local' && (repositoryUrl.trim() || checkpointId.trim()))
         )
     )
 
