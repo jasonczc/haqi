@@ -1244,7 +1244,26 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         await rt.stop(containerId).catch(() => {})
         await rt.remove(containerId)
       },
-      containerLogs: async (containerId) => new DockerCliRuntime().logs(containerId)
+      containerLogs: async (containerId) => new DockerCliRuntime().logs(containerId),
+      checkpointCreate: async (params) => {
+        const dockerImage = `haqi-checkpoint:${params.checkpointId}`
+        try {
+          const { execSync } = await import('node:child_process')
+          execSync(`docker commit ${params.containerId} ${dockerImage}`, { timeout: 120_000 })
+          return { dockerImage, success: true }
+        } catch (err) {
+          return { dockerImage: '', success: false, error: err instanceof Error ? err.message : String(err) }
+        }
+      },
+      checkpointDelete: async (params) => {
+        try {
+          const { execSync } = await import('node:child_process')
+          execSync(`docker rmi ${params.dockerImage}`, { timeout: 30_000 })
+          return { success: true }
+        } catch {
+          return { success: true } // Image may already be gone
+        }
+      }
     });
 
     // Connect to server

@@ -57,6 +57,12 @@ export async function startServer(options: ServerOptions) {
         return c.json(processManager.status())
     })
 
+    app.post('/checkpoint/save', async (c) => {
+        const { execSync } = await import('node:child_process')
+        const hostname = execSync('hostname').toString().trim()
+        return c.json({ containerId: hostname, success: true })
+    })
+
     app.post('/runtime/prepare', async (c) => {
         const body = await c.req.json().catch(() => null)
         const parsed = PrepareRequestSchema.safeParse(body)

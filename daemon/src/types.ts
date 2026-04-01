@@ -73,6 +73,17 @@ export type ProcessEvent = {
     timestamp: number
 }
 
+export const CheckpointSaveRequestSchema = z.object({})
+
+export type CheckpointSaveRequest = z.infer<typeof CheckpointSaveRequestSchema>
+
+export const CheckpointSaveResponseSchema = z.object({
+    containerId: z.string(),
+    success: z.boolean()
+})
+
+export type CheckpointSaveResponse = z.infer<typeof CheckpointSaveResponseSchema>
+
 export type PreviewTunnelMessage =
     | {
         type: 'request'
