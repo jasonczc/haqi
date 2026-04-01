@@ -72,7 +72,7 @@ type MachineRpcHandlers = {
     containerLogs: (containerId: string) => Promise<string>
     checkpointCreate: (params: { containerId: string; checkpointId: string; name: string }) => Promise<{ dockerImage: string; success: boolean; error?: string }>
     checkpointDelete: (params: { checkpointId: string; dockerImage: string }) => Promise<{ success: boolean }>
-    previewForward: (params: { sessionId: string; port: number; method: string; path: string; headers: Record<string, string>; body?: string }) => Promise<{ status: number; headers: Record<string, string>; body?: string }>
+    previewForward: (params: { sessionId: string; containerId?: string; port: number; method: string; path: string; headers: Record<string, string>; body?: string }) => Promise<{ status: number; headers: Record<string, string>; body?: string }>
 }
 
 interface PathExistsRequest {

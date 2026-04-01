@@ -876,7 +876,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           });
         }
 
-        logger.debug(`[RUNNER RUN] Waiting for session webhook for PID ${pid}`);
+        // Daemon-session containers need longer to start (pull image + boot daemon + spawn agent)
+        const webhookTimeoutMs = execution.runtimeKind === 'daemon-session' ? 60_000 : 15_000;
+        logger.debug(`[RUNNER RUN] Waiting for session webhook for PID ${pid} (timeout: ${webhookTimeoutMs}ms)`);
         spawnResult = await new Promise<SpawnSessionResult>((resolve) => {
           const timeout = setTimeout(() => {
             pidToAwaiter.delete(pid);
@@ -889,7 +891,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               type: 'error',
               errorMessage: buildWebhookFailureMessage('timeout')
             });
-          }, 15_000);
+          }, webhookTimeoutMs);
 
           pidToAwaiter.set(pid, (completedSession) => {
             clearTimeout(timeout);
@@ -1266,8 +1268,13 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         }
       },
       previewForward: async (params) => {
+        // Match by sessionId, spawnRequestId, or containerId
         const session = Array.from(pidToTrackedSession.values())
-          .find(s => s.happySessionId === params.sessionId || s.spawnRequestId === params.sessionId)
+          .find(s =>
+            s.happySessionId === params.sessionId
+            || s.spawnRequestId === params.sessionId
+            || s.containerId === params.containerId
+          )
         if (!session?.containerId) {
           return { status: 502, headers: {}, body: 'Session container not found' }
         }

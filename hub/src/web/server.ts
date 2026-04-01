@@ -113,15 +113,32 @@ function createWebApp(options: {
             const session = engine.getSession(sessionId)
             if (!session) return null
             const metadata = session.metadata as any
-            return metadata?.machineId ? { machineId: metadata.machineId } : null
+            if (!metadata?.machineId) return null
+            // For daemon-session, the session's machineId may be the agent's (local) machine,
+            // not the Worker that owns the container. Find the Worker by looking for a cloud
+            // machine that has the container. Fall back to the session's machineId.
+            const containerId = metadata?.containerId
+            if (containerId && (metadata?.runtimeKind === 'daemon-session' || metadata?.runtimeKind === 'docker-session')) {
+                const machines = engine.getOnlineMachinesByNamespace(session.namespace)
+                const cloudWorker = machines.find(m =>
+                    m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
+                )
+                if (cloudWorker) {
+                    return { machineId: cloudWorker.id }
+                }
+            }
+            return { machineId: metadata.machineId }
         },
         resolvePreviewTunnel: (machineId, sessionId, port) => {
             const engine = options.getSyncEngine()
             if (!engine) return null
+            // Get containerId from session metadata for fallback matching
+            const session = engine.getSession(sessionId)
+            const containerId = (session?.metadata as any)?.containerId
             return {
                 forward: async (req) => {
                     try {
-                        const result = await engine.rpcPreviewForward(machineId, { sessionId, port, ...req }) as any
+                        const result = await engine.rpcPreviewForward(machineId, { sessionId, containerId, port, ...req }) as any
                         return {
                             status: result?.status ?? 502,
                             headers: result?.headers ?? {},
