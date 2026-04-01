@@ -2104,6 +2104,9 @@ ${note.content}
             secrets: request.secrets,
             labels: request.labels,
             preview: request.preview,
+            initialPrompt: request.initialPrompt,
+            checkpointId: request.checkpointId,
+            launchMode: request.launchMode,
             spawnRequestId: request.spawnRequestId
         })
 
