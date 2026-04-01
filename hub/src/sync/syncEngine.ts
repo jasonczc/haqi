@@ -510,6 +510,7 @@ export class SyncEngine {
     private readonly localQueueTextBySession: Map<string, Map<string, string>> = new Map()
     private readonly localQueueTextBySessionPreview: Map<string, Map<string, string>> = new Map()
     private readonly sentInitialPrompts: Set<string> = new Set()
+    private readonly pendingInitialPrompts: Map<string, string> = new Map()
     private inactivityTimer: NodeJS.Timeout | null = null
     private groupNoteFileSyncTimer: NodeJS.Timeout | null = null
 
@@ -1088,24 +1089,23 @@ export class SyncEngine {
         this.syncCloudRegistriesFromSession(session)
 
         // Auto-send initial prompt for setup sessions
+        // Look up pending prompt by spawnRequestId from session metadata
         const meta = metadata as Record<string, unknown> | null
-        const initialPrompt = typeof meta?.initialPrompt === 'string' ? meta.initialPrompt.trim() : ''
-        const sessionType = typeof meta?.sessionType === 'string' ? meta.sessionType : ''
+        const spawnRequestId = typeof meta?.spawnRequestId === 'string' ? meta.spawnRequestId : ''
 
-        const promptToSend = initialPrompt || (
-            sessionType === 'setup'
-                ? 'You are setting up the development environment for this project. Analyze the project structure, install all dependencies, configure the development tools, and verify the setup works (e.g., build, test, or start the dev server). Report what you did and confirm everything is working.'
-                : ''
-        )
-
-        if (promptToSend && session && !this.sentInitialPrompts.has(session.id)) {
-            this.sentInitialPrompts.add(session.id)
-            void this.sendMessage(session.id, {
-                text: promptToSend,
-                sentFrom: 'webapp'
-            }).catch((err) => {
-                console.warn(`[SyncEngine] Failed to send initial prompt for session ${session.id}:`, err)
-            })
+        if (spawnRequestId && session && !this.sentInitialPrompts.has(session.id)) {
+            const pendingPrompt = this.pendingInitialPrompts.get(spawnRequestId)
+            if (pendingPrompt) {
+                this.sentInitialPrompts.add(session.id)
+                this.pendingInitialPrompts.delete(spawnRequestId)
+                // Send asynchronously — don't block session creation
+                void this.sendMessage(session.id, {
+                    text: pendingPrompt,
+                    sentFrom: 'webapp'
+                }).catch((err) => {
+                    console.warn(`[SyncEngine] Failed to send initial prompt for session ${session.id}:`, err)
+                })
+            }
         }
 
         return session
@@ -2046,6 +2046,21 @@ ${note.content}
         machineId: string,
         request: MachineSpawnRequest
     ): Promise<import('@hapi/protocol/types').SpawnResponse> {
+        // Ensure spawnRequestId exists for tracking initial prompts
+        if (!request.spawnRequestId) {
+            request = { ...request, spawnRequestId: `spawn-${Date.now()}-${Math.random().toString(16).slice(2, 8)}` }
+        }
+
+        // Store initial prompt for setup sessions (will be sent when session registers)
+        const setupPrompt = request.initialPrompt?.trim() || (
+            request.sessionType === 'setup'
+                ? 'You are setting up the development environment for this project. Analyze the project structure, install all dependencies, configure the development tools, and verify the setup works (e.g., build, test, or start the dev server). Report what you did and confirm everything is working.'
+                : ''
+        )
+        if (setupPrompt) {
+            this.pendingInitialPrompts.set(request.spawnRequestId!, setupPrompt)
+        }
+
         if (request.executionBackend === 'cloud-self-hosted' || request.executionBackend === 'cloud-managed') {
             const machine = this.machineCache.getMachine(machineId)
             if (!machine) {
@@ -2088,7 +2103,8 @@ ${note.content}
             persistentWorkspace: request.persistentWorkspace,
             secrets: request.secrets,
             labels: request.labels,
-            preview: request.preview
+            preview: request.preview,
+            spawnRequestId: request.spawnRequestId
         })
 
         if (result.type === 'success' && request.previewUrl) {

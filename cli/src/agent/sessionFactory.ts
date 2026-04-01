@@ -144,7 +144,9 @@ export function buildSessionMetadata(options: {
         languageServers: options.languageServers,
         terminalDescriptors: options.terminalDescriptors,
         setupStatus: options.setupStatus,
-        previewUrls: options.previewUrls
+        previewUrls: options.previewUrls,
+        sessionType: (process.env.HAPI_SESSION_TYPE as 'simple' | 'worktree' | 'setup' | undefined) || undefined,
+        initialPrompt: process.env.HAPI_INITIAL_PROMPT || undefined
     }
 }
 
