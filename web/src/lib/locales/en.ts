@@ -219,6 +219,24 @@ export default {
   'cloud.workers.noWorkersOnline': 'No workers online',
   'cloud.workers.goToManagement': 'Go to Worker management',
 
+  // Cloud Checkpoints
+  'cloud.checkpoints.title': 'Checkpoints',
+  'cloud.checkpoints.empty': 'No checkpoints. Create one by running a Setup Environment session.',
+  'cloud.checkpoints.name': 'Name',
+  'cloud.checkpoints.status': 'Status',
+  'cloud.checkpoints.repo': 'Repository',
+  'cloud.checkpoints.parent': 'Parent',
+  'cloud.checkpoints.machine': 'Worker',
+  'cloud.checkpoints.newSession': 'New Session',
+  'cloud.checkpoints.derive': 'Derive',
+  'cloud.checkpoints.delete': 'Delete',
+  'cloud.checkpoints.confirmDelete': 'Delete this checkpoint?',
+  'cloud.checkpoints.ready': 'Ready',
+  'cloud.checkpoints.creating': 'Creating',
+  'cloud.checkpoints.failed': 'Failed',
+  'cloud.checkpoints.saveCheckpoint': 'Save as Checkpoint',
+  'cloud.checkpoints.setupBanner': 'Environment Setup Session — configure, then save as checkpoint',
+
   // Cloud Containers
   'cloud.containers.title': 'Containers',
   'cloud.containers.empty': 'No workspace containers running.',

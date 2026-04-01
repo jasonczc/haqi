@@ -216,6 +216,24 @@ export default {
   'cloud.workers.noWorkersOnline': '暂无在线 Worker',
   'cloud.workers.goToManagement': '前往 Worker 管理',
 
+  // Cloud Checkpoints
+  'cloud.checkpoints.title': '检查点',
+  'cloud.checkpoints.empty': '暂无检查点。运行环境初始化会话后可创建检查点。',
+  'cloud.checkpoints.name': '名称',
+  'cloud.checkpoints.status': '状态',
+  'cloud.checkpoints.repo': '仓库',
+  'cloud.checkpoints.parent': '父检查点',
+  'cloud.checkpoints.machine': 'Worker',
+  'cloud.checkpoints.newSession': '新建会话',
+  'cloud.checkpoints.derive': '派生',
+  'cloud.checkpoints.delete': '删除',
+  'cloud.checkpoints.confirmDelete': '确认删除此检查点？',
+  'cloud.checkpoints.ready': '就绪',
+  'cloud.checkpoints.creating': '创建中',
+  'cloud.checkpoints.failed': '失败',
+  'cloud.checkpoints.saveCheckpoint': '保存为检查点',
+  'cloud.checkpoints.setupBanner': '环境初始化会话 — 配置完成后保存为检查点',
+
   // Cloud Containers
   'cloud.containers.title': '容器管理',
   'cloud.containers.empty': '没有运行中的工作区容器。',

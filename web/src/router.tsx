@@ -69,6 +69,7 @@ import CloudWorkspaceDetailPage from '@/routes/cloud/workspace'
 import CloudSecretsPage from '@/routes/cloud/secrets'
 import CloudWorkersPage from '@/routes/cloud/workers'
 import CloudContainersPage from '@/routes/cloud/containers'
+import CloudCheckpointsPage from '@/routes/cloud/checkpoints'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
@@ -2041,6 +2042,12 @@ const cloudContainersRoute = createRoute({
     component: CloudContainersPage,
 })
 
+const cloudCheckpointsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/cloud/checkpoints',
+    component: CloudCheckpointsPage,
+})
+
 const groupsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/groups',
@@ -2085,6 +2092,7 @@ export const routeTree = rootRoute.addChildren([
     cloudSecretsRoute,
     cloudWorkersRoute,
     cloudContainersRoute,
+    cloudCheckpointsRoute,
     sessionsRoute.addChildren([
         sessionsIndexRoute,
         newSessionRoute,

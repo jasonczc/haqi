@@ -873,6 +873,21 @@ export class ApiClient {
         return await this.request<CloudCheckpointsResponse>('/api/cloud/checkpoints')
     }
 
+    async saveCheckpoint(sessionId: string, name: string, parentCheckpointId?: string): Promise<{ checkpointId: string }> {
+        return await this.request('/api/cloud/checkpoints/save', {
+            method: 'POST',
+            body: JSON.stringify({ sessionId, name, parentCheckpointId })
+        }) as { checkpointId: string }
+    }
+
+    async deleteCheckpoint(id: string): Promise<void> {
+        await this.request(`/api/cloud/checkpoints/${id}`, { method: 'DELETE' })
+    }
+
+    async getCheckpointChildren(id: string): Promise<{ children: any[] }> {
+        return await this.request(`/api/cloud/checkpoints/${id}/children`) as any
+    }
+
     async getCloudRequests(limit?: number): Promise<CloudRequestsResponse> {
         const params = new URLSearchParams()
         if (typeof limit === 'number' && Number.isFinite(limit)) {
