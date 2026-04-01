@@ -126,6 +126,8 @@ type SessionMetadataShape = {
     checkpointId?: string
     runtimeKind?: 'host-process' | 'docker-session'
     previewUrls?: import('@hapi/protocol/types').PreviewTarget[]
+    initialPrompt?: string
+    sessionType?: string
 }
 
 type MirroredPayload = {
@@ -507,6 +509,7 @@ export class SyncEngine {
     private readonly pendingNoteRefreshMirroredByTaskKey: Set<string> = new Set()
     private readonly localQueueTextBySession: Map<string, Map<string, string>> = new Map()
     private readonly localQueueTextBySessionPreview: Map<string, Map<string, string>> = new Map()
+    private readonly sentInitialPrompts: Set<string> = new Set()
     private inactivityTimer: NodeJS.Timeout | null = null
     private groupNoteFileSyncTimer: NodeJS.Timeout | null = null
 
@@ -1083,6 +1086,28 @@ export class SyncEngine {
     getOrCreateSession(tag: string, metadata: unknown, agentState: unknown, namespace: string): Session {
         const session = this.sessionCache.getOrCreateSession(tag, metadata, agentState, namespace)
         this.syncCloudRegistriesFromSession(session)
+
+        // Auto-send initial prompt for setup sessions
+        const meta = metadata as Record<string, unknown> | null
+        const initialPrompt = typeof meta?.initialPrompt === 'string' ? meta.initialPrompt.trim() : ''
+        const sessionType = typeof meta?.sessionType === 'string' ? meta.sessionType : ''
+
+        const promptToSend = initialPrompt || (
+            sessionType === 'setup'
+                ? 'You are setting up the development environment for this project. Analyze the project structure, install all dependencies, configure the development tools, and verify the setup works (e.g., build, test, or start the dev server). Report what you did and confirm everything is working.'
+                : ''
+        )
+
+        if (promptToSend && session && !this.sentInitialPrompts.has(session.id)) {
+            this.sentInitialPrompts.add(session.id)
+            void this.sendMessage(session.id, {
+                text: promptToSend,
+                sentFrom: 'webapp'
+            }).catch((err) => {
+                console.warn(`[SyncEngine] Failed to send initial prompt for session ${session.id}:`, err)
+            })
+        }
+
         return session
     }
 

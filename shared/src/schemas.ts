@@ -525,7 +525,9 @@ export const MetadataSchema = z.object({
         phase: z.string(),
         message: z.string().optional(),
         updatedAt: z.number()
-    }).optional()
+    }).optional(),
+    initialPrompt: z.string().optional(),
+    sessionType: z.enum(['simple', 'worktree', 'setup']).optional()
 })
 
 export type Metadata = z.infer<typeof MetadataSchema>

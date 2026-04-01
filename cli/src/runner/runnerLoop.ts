@@ -1001,7 +1001,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               repositoryUrl: repositorySource?.url ?? metadata.repositoryUrl,
               repositoryProvider: repositorySource?.provider ?? metadata.repositoryProvider,
               repositoryRef: repositorySource?.ref ?? metadata.repositoryRef,
-              repositoryCommit: repositoryCommit ?? repositorySource?.ref?.commit ?? metadata.repositoryCommit
+              repositoryCommit: repositoryCommit ?? repositorySource?.ref?.commit ?? metadata.repositoryCommit,
+              initialPrompt: options.initialPrompt,
+              sessionType: options.sessionType
             };
             trackedSession.happySessionMetadataFromLocalWebhook = nextMetadata;
           }
