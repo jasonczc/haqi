@@ -44,6 +44,19 @@ RUN apt-get update && apt-get install -y \
     git curl jq ca-certificates iproute2 unzip \
     && rm -rf /var/lib/apt/lists/*
 
+# Desktop environment for Computer Use
+RUN apt-get update && apt-get install -y \
+    xvfb xfce4 xfce4-terminal dbus-x11 \
+    tigervnc-standalone-server tigervnc-common \
+    novnc websockify \
+    chromium-browser \
+    xdotool scrot imagemagick \
+    ffmpeg \
+    fonts-liberation fonts-noto-color-emoji \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV DISPLAY=:1
+
 # Install Bun
 RUN curl -fsSL https://bun.sh/install | bash
 ENV PATH="/root/.bun/bin:$PATH"
