@@ -198,7 +198,7 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     const workspaceBranch = options.workspaceBranch ?? process.env.HAPI_WORKSPACE_BRANCH
     const containerId = options.containerId ?? process.env.HAPI_CONTAINER_ID
     const runtimeKind = options.runtimeKind ?? (
-        process.env.HAPI_RUNTIME_KIND === 'docker-session' || process.env.HAPI_RUNTIME_KIND === 'host-process'
+        process.env.HAPI_RUNTIME_KIND === 'docker-session' || process.env.HAPI_RUNTIME_KIND === 'host-process' || process.env.HAPI_RUNTIME_KIND === 'daemon-session'
             ? process.env.HAPI_RUNTIME_KIND
             : undefined
     )
