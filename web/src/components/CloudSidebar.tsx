@@ -72,7 +72,30 @@ function FolderIcon() {
     )
 }
 
+function AutomationsIcon() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M12 8v8" />
+            <path d="M8 12h8" />
+        </svg>
+    )
+}
+
+function DashboardIcon() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+        </svg>
+    )
+}
+
 const NAV_ITEMS: NavItem[] = [
+    { label: 'Dashboard', path: '/cloud/dashboard', icon: <DashboardIcon /> },
+    { label: 'Automations', path: '/cloud/automations', icon: <AutomationsIcon /> },
     { label: 'Workers', path: '/cloud/workers', icon: <ServerIcon />, countKey: 'workers' },
     { label: 'Containers', path: '/cloud/containers', icon: <BoxIcon />, countKey: 'containers' },
     { label: 'Checkpoints', path: '/cloud/checkpoints', icon: <CameraIcon />, countKey: 'checkpoints' },
@@ -162,11 +185,11 @@ export function CloudSidebar() {
         !localStorage.getItem('haqi-onboard-complete')
 
     return (
-        <div className="flex h-full w-[260px] shrink-0 flex-col border-r border-[var(--app-border)] bg-[var(--app-bg)]">
+        <div className="flex h-full w-[var(--sidebar-width)] shrink-0 flex-col border-r border-[var(--border-tertiary)] bg-[var(--bg-chrome)]">
             {showOnboardBanner ? (
                 <Link
                     to="/cloud/onboard"
-                    className="mx-2 mt-2 flex items-center gap-2 rounded-md border border-[var(--app-badge-info-border)] bg-[var(--app-badge-info-bg)] px-3 py-2 text-xs text-[var(--app-badge-info-text)] hover:opacity-80"
+                    className="mx-2 mt-2 flex items-center gap-2 rounded-md border border-[var(--border-tertiary)] bg-[var(--bg-accent-secondary)] px-3 py-2 text-xs text-[var(--accent)] hover:opacity-80"
                 >
                     <span className="flex-1">Get started → Set up your first cloud agent</span>
                 </Link>
@@ -179,16 +202,16 @@ export function CloudSidebar() {
                             <Link
                                 key={item.path}
                                 to={item.path}
-                                className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+                                className={`flex items-center gap-2.5 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] transition-colors ${
                                     isActive
-                                        ? 'bg-[var(--app-subtle-bg)] font-medium text-[var(--app-fg)]'
-                                        : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'
+                                        ? 'bg-[var(--bg-tertiary)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]'
+                                        : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)]'
                                 }`}
                             >
                                 <span className="shrink-0">{item.icon}</span>
                                 <span className="flex-1">{item.label}</span>
                                 {item.countKey && counts[item.countKey] != null ? (
-                                    <span className="text-xs text-[var(--app-hint)]">
+                                    <span className="text-[var(--font-size-xs)] text-[var(--text-quaternary)]">
                                         {counts[item.countKey]}
                                     </span>
                                 ) : null}
@@ -197,7 +220,7 @@ export function CloudSidebar() {
                     })}
                 </nav>
             </div>
-            <div className="border-t border-[var(--app-border)] px-3 py-3 flex flex-col gap-2">
+            <div className="border-t border-[var(--border-tertiary)] px-3 py-3 flex flex-col gap-2">
                 <Button
                     variant="outline"
                     size="sm"
