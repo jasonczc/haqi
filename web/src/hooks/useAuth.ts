@@ -37,6 +37,10 @@ function isNotBoundError(error: unknown): boolean {
     return error instanceof ApiError && error.status === 401 && error.code === 'not_bound'
 }
 
+function isUnauthorizedAuthError(error: unknown): boolean {
+    return error instanceof ApiError && error.status === 401 && error.code !== 'not_bound'
+}
+
 export function useAuth(authSource: AuthSource | null, baseUrl: string): {
     token: string | null
     user: AuthResponse['user'] | null
@@ -44,6 +48,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
     isLoading: boolean
     error: string | null
     needsBinding: boolean
+    requiresLogin: boolean
     bind: (accessToken: string) => Promise<void>
 } {
     const [token, setToken] = useState<string | null>(null)
@@ -51,6 +56,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [error, setError] = useState<string | null>(null)
     const [needsBinding, setNeedsBinding] = useState<boolean>(false)
+    const [requiresLogin, setRequiresLogin] = useState<boolean>(false)
     const refreshPromiseRef = useRef<Promise<string | null> | null>(null)
     const tokenRef = useRef<string | null>(null)
     const lastRefreshAttemptRef = useRef<number>(0)
@@ -97,6 +103,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
                 setUser(auth.user)
                 setError(null)
                 setNeedsBinding(false)
+                setRequiresLogin(false)
                 return auth.token
             } catch (error) {
                 if (currentSource.type === 'telegram' && isNotBoundError(error)) {
@@ -105,19 +112,22 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
                     setUser(null)
                     setError(null)
                     setNeedsBinding(true)
+                    setRequiresLogin(false)
                     return null
                 }
-                const isExpired = expMs ? Date.now() >= expMs : false
-                if (options?.hardFail || isExpired) {
+                if (isUnauthorizedAuthError(error)) {
                     tokenRef.current = null
                     setToken(null)
                     setUser(null)
+                    setNeedsBinding(false)
+                    setRequiresLogin(true)
                     const msg = currentSource.type === 'telegram'
                         ? 'Session expired. Reopen the Mini App from Telegram.'
                         : 'Session expired. Please login again.'
                     setError(msg)
+                    return null
                 }
-                return null
+                throw error
             }
         }
 
@@ -149,6 +159,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
             setToken(auth.token)
             setUser(auth.user)
             setNeedsBinding(false)
+            setRequiresLogin(false)
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Binding failed')
             throw error
@@ -174,12 +185,14 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
             if (!authSource) {
                 // No auth source - waiting for login
                 setNeedsBinding(false)
+                setRequiresLogin(false)
                 return
             }
 
             setIsLoading(true)
             setError(null)
             setNeedsBinding(false)
+            setRequiresLogin(false)
             try {
                 const client = new ApiClient('', { baseUrl }) // temporary for auth call
                 const auth = await client.authenticate(getAuthPayload(authSource))
@@ -187,6 +200,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
                 setToken(auth.token)
                 setUser(auth.user)
                 setNeedsBinding(false)
+                setRequiresLogin(false)
             } catch (e) {
                 if (isCancelled) return
                 if (authSource.type === 'telegram' && isNotBoundError(e)) {
@@ -194,9 +208,11 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
                     setUser(null)
                     setError(null)
                     setNeedsBinding(true)
+                    setRequiresLogin(false)
                     return
                 }
                 setNeedsBinding(false)
+                setRequiresLogin(authSource.type === 'accessToken' && isUnauthorizedAuthError(e))
                 setError(e instanceof Error ? e.message : 'Auth failed')
             } finally {
                 if (!isCancelled) {
@@ -220,6 +236,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
         setUser(null)
         setError(null)
         setNeedsBinding(false)
+        setRequiresLogin(false)
     }, [baseUrl])
 
     useEffect(() => {
@@ -244,9 +261,14 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
 
         const refresh = async () => {
             if (isCancelled) return
-            const refreshed = await refreshAuth({ force: true })
+            let refreshed: string | null = null
+            try {
+                refreshed = await refreshAuth({ force: true })
+            } catch {
+                refreshed = null
+            }
             if (isCancelled) return
-            if (!refreshed && Date.now() < expMs) {
+            if (!refreshed) {
                 schedule(15_000)
             }
         }
@@ -267,7 +289,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
         }
 
         const handleActive = () => {
-            void refreshAuth({ minTtlMs: 60_000 })
+            void refreshAuth({ minTtlMs: 60_000 }).catch(() => {})
         }
 
         const handleVisibilityChange = () => {
@@ -285,5 +307,5 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
         }
     }, [authSource, refreshAuth])
 
-    return { token, user, api, isLoading, error, needsBinding, bind }
+    return { token, user, api, isLoading, error, needsBinding, requiresLogin, bind }
 }

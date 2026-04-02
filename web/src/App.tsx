@@ -44,7 +44,7 @@ function AppInner() {
     const { t } = useTranslation()
     const { serverUrl, baseUrl, setServerUrl, clearServerUrl } = useServerUrl()
     const { authSource, isLoading: isAuthSourceLoading, setAccessToken } = useAuthSource(baseUrl)
-    const { token, api, isLoading: isAuthLoading, error: authError, needsBinding, bind } = useAuth(authSource, baseUrl)
+    const { token, api, isLoading: isAuthLoading, error: authError, needsBinding, requiresLogin, bind } = useAuth(authSource, baseUrl)
     const goBack = useAppGoBack()
     const pathname = useLocation({ select: (location) => location.pathname })
     const matchRoute = useMatchRoute()
@@ -323,8 +323,8 @@ function AppInner() {
 
     // Auth error
     if (authError || !token || !api) {
-        // If using access token and auth failed, show login again
-        if (authSource.type === 'accessToken') {
+        // Only real token rejection should send browser users back to login.
+        if (authSource.type === 'accessToken' && requiresLogin) {
             return (
                 <LoginPrompt
                     onLogin={setAccessToken}
@@ -335,6 +335,20 @@ function AppInner() {
                     requireServerUrl={REQUIRE_SERVER_URL}
                     error={authError ?? t('login.error.authFailed')}
                 />
+            )
+        }
+
+        if (authSource.type === 'accessToken') {
+            return (
+                <div className="p-4 space-y-3">
+                    <div className="text-base font-semibold">{t('login.title')}</div>
+                    <div className="text-sm text-red-600">
+                        {authError ?? t('login.error.authFailed')}
+                    </div>
+                    <div className="text-xs text-[var(--app-hint)]">
+                        Network or hub unavailable. Token kept. Retry after connection recovers.
+                    </div>
+                </div>
             )
         }
 
