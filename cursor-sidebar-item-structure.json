@@ -1,0 +1,143 @@
+{
+  "tag": "A",
+  "class": "group relative cursor-pointer rounded-md text-base hover:tex",
+  "text": null,
+  "display": "flex",
+  "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+  "width": 263,
+  "height": 32,
+  "children": [
+    {
+      "tag": "DIV",
+      "class": "flex min-w-0 items-center flex-1 gap-2",
+      "text": null,
+      "display": "flex",
+      "gap": "8px",
+      "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+      "width": 251,
+      "height": 18,
+      "children": [
+        {
+          "tag": "DIV",
+          "class": "flex w-[16px] flex-shrink-0 items-center justify-center text",
+          "text": null,
+          "display": "flex",
+          "color": "oklab(0.489481 0.0000222422 0.00000981271)",
+          "width": 16,
+          "height": 12,
+          "children": [
+            {
+              "tag": "SPAN",
+              "class": "flex items-center gap-2 text-secondary",
+              "text": null,
+              "display": "flex",
+              "gap": "8px",
+              "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.7)",
+              "width": 12,
+              "height": 12,
+              "children": [
+                {
+                  "tag": "svg",
+                  "text": null,
+                  "display": "block",
+                  "color": "oklab(0.662144 0.0000300854 0.000013268)",
+                  "width": 12,
+                  "height": 12
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tag": "DIV",
+          "class": "min-w-0 flex-1 truncate text-base",
+          "text": "Ctf 相关内容",
+          "display": "block",
+          "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+          "width": 166,
+          "height": 18
+        },
+        {
+          "tag": "DIV",
+          "class": "flex flex-shrink-0 items-center gap-1 pr-0.5 text-base text-",
+          "text": null,
+          "display": "flex",
+          "gap": "4px",
+          "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+          "width": 53,
+          "height": 18,
+          "children": [
+            {
+              "tag": "SPAN",
+              "class": "text-tertiary",
+              "text": null,
+              "display": "block",
+              "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+              "width": 32,
+              "height": 18
+            },
+            {
+              "tag": "SPAN",
+              "class": "text-tertiary",
+              "text": null,
+              "display": "block",
+              "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+              "width": 14,
+              "height": 18
+            }
+          ]
+        },
+        {
+          "tag": "DIV",
+          "class": "absolute right-0 top-0 bottom-0 z-40 flex items-center overf",
+          "text": null,
+          "display": "flex",
+          "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+          "width": 64,
+          "height": 32,
+          "children": [
+            {
+              "tag": "DIV",
+              "class": "pointer-events-none h-full w-4 shrink-0",
+              "text": null,
+              "display": "block",
+              "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+              "width": 16,
+              "height": 32
+            },
+            {
+              "tag": "DIV",
+              "class": "flex h-full items-center gap-1 bg-quaternary-opaque pr-1",
+              "text": null,
+              "display": "flex",
+              "gap": "4px",
+              "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+              "width": 48,
+              "height": 32,
+              "children": [
+                {
+                  "tag": "SPAN",
+                  "class": "text-base text-tertiary",
+                  "text": "2d",
+                  "display": "block",
+                  "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+                  "width": 16,
+                  "height": 18
+                },
+                {
+                  "tag": "BUTTON",
+                  "class": "flex h-6 w-6 items-center justify-center rounded-md text-ter",
+                  "text": null,
+                  "display": "flex",
+                  "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+                  "width": 24,
+                  "height": 24
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

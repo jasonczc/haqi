@@ -1,0 +1,92 @@
+{
+  "items": [
+    {
+      "text": "Ctf 相关内容+342-42d",
+      "height": 32,
+      "padding": "0px 6px",
+      "gap": "normal",
+      "fontSize": "13px",
+      "children": [
+        {
+          "tag": "DIV",
+          "text": "Ctf 相关内容+342-42d",
+          "fontSize": "13px",
+          "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+          "width": 251
+        }
+      ]
+    },
+    {
+      "text": "代理总结需求+612982-983d",
+      "height": 32,
+      "padding": "0px 6px",
+      "gap": "normal",
+      "fontSize": "13px",
+      "children": [
+        {
+          "tag": "DIV",
+          "text": "代理总结需求+612982-983d",
+          "fontSize": "13px",
+          "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+          "width": 251
+        }
+      ]
+    },
+    {
+      "text": "Cloud agent features+2043d",
+      "height": 32,
+      "padding": "0px 6px",
+      "gap": "normal",
+      "fontSize": "13px",
+      "children": [
+        {
+          "tag": "DIV",
+          "text": "Cloud agent features+2043d",
+          "fontSize": "13px",
+          "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+          "width": 251
+        }
+      ]
+    },
+    {
+      "text": "Haqi 云 agent 功能+13560-5943d",
+      "height": 32,
+      "padding": "0px 6px",
+      "gap": "normal",
+      "fontSize": "13px",
+      "children": [
+        {
+          "tag": "DIV",
+          "text": "Haqi 云 agent 功能+13560-5943d",
+          "fontSize": "13px",
+          "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+          "width": 251
+        }
+      ]
+    },
+    {
+      "text": "Haqi 云代理功能3d",
+      "height": 32,
+      "padding": "0px 6px",
+      "gap": "normal",
+      "fontSize": "13px",
+      "children": [
+        {
+          "tag": "DIV",
+          "text": "Haqi 云代理功能3d",
+          "fontSize": "13px",
+          "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+          "width": 251
+        }
+      ]
+    }
+  ],
+  "headerStyle": {
+    "fontSize": "12px",
+    "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+    "fontWeight": "400",
+    "textTransform": "none",
+    "padding": "0px",
+    "letterSpacing": "normal"
+  }
+}

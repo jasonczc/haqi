@@ -1,0 +1,40 @@
+- generic [ref=e1]:
+  - region "Notifications alt+T"
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - button "Toggle left sidebar" [pressed] [ref=e9] [cursor=pointer]:
+            - img [ref=e11]
+          - button "Search agents (Ctrl+K)" [ref=e14] [cursor=pointer]:
+            - generic [ref=e15]: 
+        - navigation [ref=e16]:
+          - button "New Agent" [ref=e17] [cursor=pointer]:
+            - generic [ref=e19]: 
+            - text: New Agent
+          - button "Automations" [ref=e20] [cursor=pointer]:
+            - generic [ref=e22]: 
+            - text: Automations
+          - button "Dashboard" [ref=e23] [cursor=pointer]:
+            - generic [ref=e25]: 
+            - text: Dashboard
+      - main [ref=e33]:
+        - generic [ref=e35]:
+          - generic [ref=e40]:
+            - generic [ref=e41]:
+              - textbox [active] [ref=e42]:
+                - paragraph [ref=e43]
+              - generic: Ask Cursor to build, fix bugs, explore
+            - generic [ref=e45]:
+              - button "Codex 5.3 High" [ref=e48] [cursor=pointer]:
+                - generic [ref=e51]: Codex 5.3 High
+                - img [ref=e52]
+              - button "Add file" [ref=e55] [cursor=pointer]:
+                - img [ref=e56]
+          - generic [ref=e59]:
+            - paragraph [ref=e60]: Running on Auto
+            - paragraph [ref=e61]: Usage limits reached. This Agent is running on Auto for free.
+            - generic [ref=e62]:
+              - button "Edit limits" [ref=e63] [cursor=pointer]
+              - button "Continue with Auto" [ref=e64] [cursor=pointer]
+  - alert [ref=e66]
