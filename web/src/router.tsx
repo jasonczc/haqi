@@ -341,7 +341,7 @@ function HomeComposer(props: { onNewSession: () => void; sessions: SessionSummar
                 </div>
 
                 {/* Recent runs cards */}
-                <div className="mt-8 w-full space-y-2">
+                <div className="mt-8 w-full space-y-3">
                     {props.sessions.slice(0, 8).map(s => {
                         const title = s.metadata?.name || s.metadata?.summary?.text || s.metadata?.path?.split('/').pop() || s.id.slice(0, 8)
                         const model = s.metadata?.model || s.modelMode || 'default'
@@ -350,28 +350,44 @@ function HomeComposer(props: { onNewSession: () => void; sessions: SessionSummar
                         const additions = meta?.prAdditions as number | undefined
                         const deletions = meta?.prDeletions as number | undefined
                         return (
-                            <div key={s.id} className="flex items-center gap-4 rounded-lg border border-[var(--border-quaternary)] bg-[var(--bg-editor)] p-4 hover:bg-[var(--bg-quaternary)] transition-colors cursor-pointer">
+                            <div key={s.id} className="flex rounded-lg border border-[var(--border-quaternary)] bg-[var(--bg-editor)] overflow-hidden hover:border-[var(--border-tertiary)] transition-colors cursor-pointer">
                                 {/* Left: stats */}
-                                <div className="flex flex-col items-center gap-1 min-w-[80px]">
-                                    {(additions || deletions) && (
-                                        <div className="flex items-center gap-1.5 text-[var(--font-size-sm)]">
+                                <div className="flex flex-col items-center justify-center gap-1.5 px-5 py-3 min-w-[120px] border-r border-[var(--border-quaternary)]">
+                                    {(additions || deletions) ? (
+                                        <div className="flex items-center gap-1 text-[var(--font-size-sm)]">
                                             {additions ? <span className="text-[var(--added)]">+{additions}</span> : null}
                                             {deletions ? <span className="text-[var(--removed)]">-{deletions}</span> : null}
                                         </div>
-                                    )}
+                                    ) : null}
                                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                        s.active ? 'bg-[var(--bg-success-secondary)] text-[var(--success)]' : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
+                                        s.active
+                                            ? 'bg-[var(--bg-success-secondary)] text-[var(--success)]'
+                                            : s.thinking
+                                                ? 'bg-[var(--bg-accent-secondary)] text-[var(--accent)]'
+                                                : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
                                     }`}>
-                                        {s.active ? 'Active' : 'Done'}
+                                        <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                                            <circle cx="5" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                                            <circle cx="5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                                            <path d="M5 5.5v5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                                        </svg>
+                                        {s.active ? 'Active' : 'Branch'}
                                     </span>
                                 </div>
                                 {/* Right: info */}
-                                <div className="min-w-0 flex-1">
-                                    <div className="truncate text-[var(--font-size-base)] font-[var(--font-weight-normal)] text-[var(--text-primary)]">
+                                <div className="flex-1 px-4 py-3">
+                                    <div className="truncate text-[var(--font-size-base)] text-[var(--text-primary)]">
                                         {title}
                                     </div>
-                                    <div className="mt-0.5 flex items-center gap-2 text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
-                                        <span>{model}</span>
+                                    <div className="mt-1 flex items-center gap-2 text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
+                                        <span className="flex items-center gap-1">
+                                            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[var(--text-quaternary)]">
+                                                <circle cx="5" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                                                <circle cx="5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                                                <path d="M5 5.5v5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                                            </svg>
+                                            {model}
+                                        </span>
                                         {s.metadata?.path && <span>{s.metadata.path.split('/').pop()}</span>}
                                         {time && <span>{time}</span>}
                                     </div>
