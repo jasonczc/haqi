@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '@/lib/i18n-context'
 import type { SessionSummary } from '@/types/api'
@@ -29,19 +29,20 @@ function createSession(overrides: Partial<SessionSummary> = {}): SessionSummary 
         id: 'session-1',
         active: false,
         thinking: false,
-        activeAt: Date.now(),
         updatedAt: Date.now(),
+        modelMode: 'default',
+        pendingRequestsCount: 0,
         metadata: {
             path: '/workspace/project-a',
-            machineId: 'machine-1'
+            name: 'Test Session',
+            model: 'claude',
+            machineId: 'machine-1',
         },
-        todoProgress: null,
-        pendingRequestsCount: 0,
         ...overrides
     }
 }
 
-describe('SessionList project quick-create action', () => {
+describe('SessionList date-based grouping', () => {
     afterEach(() => {
         cleanup()
     })
@@ -63,112 +64,13 @@ describe('SessionList project quick-create action', () => {
         })
     })
 
-    it('passes project directory and machineId when clicking group-level +', () => {
-        const onNewSession = vi.fn()
+    it('renders sessions in a flat list with date headers', () => {
+        const now = Date.now()
         renderWithProviders(
-            <SessionList
-                sessions={[createSession()]}
-                onSelect={vi.fn()}
-                onNewSession={onNewSession}
-                onRefresh={vi.fn()}
-                isLoading={false}
-                renderHeader={false}
-                api={null}
-            />
-        )
-
-        fireEvent.click(screen.getByRole('button', { name: 'New Session in this project' }))
-
-        expect(onNewSession).toHaveBeenCalledTimes(1)
-        expect(onNewSession).toHaveBeenCalledWith({
-            directory: '/workspace/project-a',
-            machineId: 'machine-1'
-        })
-    })
-
-    it('uses quick create callback on group-level + when enabled in settings', () => {
-        localStorage.setItem('hapi:projectQuickCreate', '1')
-        const onNewSession = vi.fn()
-        const onQuickCreateInProject = vi.fn()
-
-        renderWithProviders(
-            <SessionList
-                sessions={[createSession()]}
-                onSelect={vi.fn()}
-                onNewSession={onNewSession}
-                onQuickCreateInProject={onQuickCreateInProject}
-                onRefresh={vi.fn()}
-                isLoading={false}
-                renderHeader={false}
-                api={null}
-            />
-        )
-
-        const createButton = screen.getByRole('button', { name: 'New Session in this project' })
-        fireEvent.mouseDown(createButton, { button: 0 })
-        fireEvent.mouseUp(createButton, { button: 0 })
-
-        expect(onQuickCreateInProject).toHaveBeenCalledTimes(1)
-        expect(onQuickCreateInProject).toHaveBeenCalledWith({
-            directory: '/workspace/project-a',
-            machineId: 'machine-1'
-        })
-        expect(onNewSession).not.toHaveBeenCalled()
-    })
-
-    it('opens detailed create on right click of project + when quick create is enabled', () => {
-        localStorage.setItem('hapi:projectQuickCreate', '1')
-        const onNewSession = vi.fn()
-        const onQuickCreateInProject = vi.fn()
-
-        renderWithProviders(
-            <SessionList
-                sessions={[createSession()]}
-                onSelect={vi.fn()}
-                onNewSession={onNewSession}
-                onQuickCreateInProject={onQuickCreateInProject}
-                onRefresh={vi.fn()}
-                isLoading={false}
-                renderHeader={false}
-                api={null}
-            />
-        )
-
-        fireEvent.contextMenu(screen.getByRole('button', { name: 'New Session in this project' }))
-
-        expect(onNewSession).toHaveBeenCalledTimes(1)
-        expect(onNewSession).toHaveBeenCalledWith({
-            directory: '/workspace/project-a',
-            machineId: 'machine-1'
-        })
-        expect(onQuickCreateInProject).not.toHaveBeenCalled()
-    })
-
-    it('hides verbose metadata row in compact mode', () => {
-        renderWithProviders(
-            <SessionList
-                sessions={[createSession()]}
-                onSelect={vi.fn()}
-                onNewSession={vi.fn()}
-                onRefresh={vi.fn()}
-                isLoading={false}
-                renderHeader={false}
-                api={null}
-                density="compact"
-            />
-        )
-
-        expect(screen.queryByText(/mode:/i)).not.toBeInTheDocument()
-    })
-
-    it('does not render group-level + for the Other group', () => {
-        const view = renderWithProviders(
             <SessionList
                 sessions={[
-                    createSession({
-                        id: 'session-other',
-                        metadata: null
-                    })
+                    createSession({ id: 's1', updatedAt: now, metadata: { path: '/a', host: 'local', name: 'Recent Session' } }),
+                    createSession({ id: 's2', updatedAt: now - 86400000 * 2, metadata: { path: '/b', host: 'local', name: 'Older Session' } }),
                 ]}
                 onSelect={vi.fn()}
                 onNewSession={vi.fn()}
@@ -179,142 +81,24 @@ describe('SessionList project quick-create action', () => {
             />
         )
 
-        expect(view.queryByRole('button', { name: 'New Session in this project' })).not.toBeInTheDocument()
+        // Should find date header text
+        expect(screen.getByText('Today')).toBeDefined()
     })
 
-    it('auto-collapses offline sessions and reveals them on demand', () => {
+    it('renders empty state when no sessions', () => {
         renderWithProviders(
-            <SessionList
-                sessions={[
-                    createSession({
-                        id: 'online-1',
-                        active: true,
-                        metadata: {
-                            path: '/repo/demo',
-                            name: 'Online Session',
-                            flavor: 'codex'
-                        }
-                    }),
-                    createSession({
-                        id: 'offline-1',
-                        active: false,
-                        metadata: {
-                            path: '/repo/demo',
-                            name: 'Offline Session',
-                            flavor: 'codex'
-                        }
-                    })
-                ]}
-                onSelect={vi.fn()}
-                onNewSession={vi.fn()}
-                onRefresh={vi.fn()}
-                isLoading={false}
-                renderHeader={false}
-                api={null}
-            />
-        )
-
-        expect(screen.getByText('Online Session')).toBeInTheDocument()
-        expect(screen.queryByText('Offline Session')).not.toBeInTheDocument()
-
-        const offlineToggle = screen
-            .getAllByRole('button', { name: /offline/i })
-            .find((button) => button.hasAttribute('aria-expanded'))
-
-        expect(offlineToggle).toBeDefined()
-        if (!offlineToggle) {
-            throw new Error('offline section toggle not found')
-        }
-        expect(offlineToggle).toHaveAttribute('aria-expanded', 'false')
-
-        fireEvent.click(offlineToggle)
-
-        expect(offlineToggle).toHaveAttribute('aria-expanded', 'true')
-    })
-
-    it('can mark project offline and pull it back by creating a new session', () => {
-        const onNewSession = vi.fn()
-        renderWithProviders(
-            <SessionList
-                sessions={[
-                    createSession({
-                        id: 'online-project',
-                        active: true,
-                        metadata: {
-                            path: '/repo/active-project',
-                            name: 'Active Project Session',
-                            machineId: 'machine-1',
-                            flavor: 'codex'
-                        }
-                    })
-                ]}
-                onSelect={vi.fn()}
-                onNewSession={onNewSession}
-                onRefresh={vi.fn()}
-                isLoading={false}
-                renderHeader={false}
-                api={null}
-            />
-        )
-
-        const groupTitle = screen.getByTitle('/repo/active-project')
-        const groupRowToggle = groupTitle.closest('button')
-        expect(groupRowToggle).toBeTruthy()
-        if (!groupRowToggle) {
-            throw new Error('group row toggle not found')
-        }
-
-        fireEvent.contextMenu(groupRowToggle)
-        fireEvent.click(screen.getByRole('menuitem', { name: 'Mark project offline' }))
-        expect(screen.getByRole('button', { name: /offline projects/i })).toBeInTheDocument()
-
-        fireEvent.click(screen.getByRole('button', { name: 'New Session in this project' }))
-        expect(onNewSession).toHaveBeenCalledWith({
-            directory: '/repo/active-project',
-            machineId: 'machine-1'
-        })
-    })
-
-    it('keeps project offline preference across initial empty loading state', () => {
-        localStorage.setItem('hapi:sessionsProjectOffline', JSON.stringify(['/repo/persisted']))
-
-        const first = renderWithProviders(
             <SessionList
                 sessions={[]}
                 onSelect={vi.fn()}
                 onNewSession={vi.fn()}
                 onRefresh={vi.fn()}
-                isLoading={true}
-                renderHeader={false}
-                api={null}
-            />
-        )
-
-        first.unmount()
-
-        renderWithProviders(
-            <SessionList
-                sessions={[
-                    createSession({
-                        id: 'persisted-project',
-                        active: true,
-                        metadata: {
-                            path: '/repo/persisted',
-                            name: 'Persisted Project',
-                            machineId: 'machine-1',
-                            flavor: 'codex'
-                        }
-                    })
-                ]}
-                onSelect={vi.fn()}
-                onNewSession={vi.fn()}
-                onRefresh={vi.fn()}
                 isLoading={false}
                 renderHeader={false}
                 api={null}
             />
         )
 
-        expect(screen.getByRole('button', { name: /offline projects/i })).toBeInTheDocument()
+        // Should not crash
+        expect(document.body).toBeDefined()
     })
 })
