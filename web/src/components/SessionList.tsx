@@ -368,10 +368,6 @@ function SessionItem(props: {
     const sessionName = getSessionTitle(s)
     const effectiveActive = forceOffline ? false : s.active
     const effectiveThinking = forceOffline ? false : s.thinking
-    const statusDotClass = effectiveActive
-        ? (effectiveThinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
-        : 'bg-[var(--app-hint)]'
-    const isCompact = density === 'compact'
 
     const handleArchive = () => {
         if (!skipArchiveConfirmation) {
@@ -405,66 +401,53 @@ function SessionItem(props: {
             <button
                 type="button"
                 {...longPressHandlers}
-                className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
+                className={`group flex w-full items-center gap-2 rounded-[6px] px-1.5 text-left transition-colors select-none h-8 ${
+                    selected ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-quaternary)]'
+                }`}
                 style={{ WebkitTouchCallout: 'none' }}
                 aria-current={selected ? 'page' : undefined}
             >
-                <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
-                            <span
-                                className={`h-2 w-2 rounded-full ${statusDotClass}`}
-                            />
-                        </span>
-                        <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
-                            {sessionName}
-                        </div>
-                    </div>
-                    <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-                        {effectiveThinking ? (
-                            <span className="text-[#007AFF] animate-pulse">
-                                {t('session.item.thinking')}
-                            </span>
-                        ) : null}
-                        {(() => {
-                            const progress = getTodoProgress(s)
-                            if (!progress) return null
-                            return (
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <BulbIcon className="h-3 w-3" />
-                                    {progress.completed}/{progress.total}
-                                </span>
-                            )
-                        })()}
-                        {s.pendingRequestsCount > 0 ? (
-                            <span className="text-[var(--app-badge-warning-text)]">
-                                {t('session.item.pending')} {s.pendingRequestsCount}
-                            </span>
-                        ) : null}
-                        <span className="text-[var(--app-hint)]">
-                            {formatRelativeTime(s.updatedAt, t)}
-                        </span>
-                    </div>
+                <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${
+                    effectiveThinking ? 'bg-[var(--accent)]' :
+                    effectiveActive ? 'bg-[var(--success)]' :
+                    'bg-[var(--text-quaternary)]'
+                }`} />
+                <div className="truncate text-[var(--font-size-base)] font-[var(--font-weight-normal)] text-[var(--text-primary)]">
+                    {sessionName}
                 </div>
-                {showPath ? (
-                    <div className="truncate text-xs text-[var(--app-hint)]">
-                        {s.metadata?.path ?? s.id}
-                    </div>
-                ) : null}
-                {!isCompact ? (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
-                        <span className="inline-flex items-center gap-2">
-                            <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
-                                ❖
-                            </span>
-                            {getAgentLabel(s)}
+                <div className="flex items-center gap-2 shrink-0 text-[var(--font-size-xs)]">
+                    {effectiveThinking ? (
+                        <span className="text-[var(--accent)] animate-pulse">
+                            {t('session.item.thinking')}
                         </span>
-                        <span>{t('session.item.model')}: {s.metadata?.model?.trim() || s.modelMode || 'default'}</span>
-                        {s.metadata?.worktree?.branch ? (
-                            <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
-                        ) : null}
-                    </div>
-                ) : null}
+                    ) : null}
+                    {(() => {
+                        const progress = getTodoProgress(s)
+                        if (!progress) return null
+                        return (
+                            <span className="flex items-center gap-1 text-[var(--text-quaternary)]">
+                                <BulbIcon className="h-3 w-3" />
+                                {progress.completed}/{progress.total}
+                            </span>
+                        )
+                    })()}
+                    {s.pendingRequestsCount > 0 ? (
+                        <span className="text-[var(--app-badge-warning-text)]">
+                            {t('session.item.pending')} {s.pendingRequestsCount}
+                        </span>
+                    ) : null}
+                    <span className="text-[var(--text-quaternary)]">
+                        {formatRelativeTime(s.updatedAt, t)}
+                    </span>
+                    <button
+                        type="button"
+                        className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                        onClick={(e) => { e.stopPropagation(); handleArchive(); }}
+                        title="Archive"
+                    >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
             </button>
 
             <SessionActionMenu
@@ -647,7 +630,7 @@ function SessionGroupRow(props: {
                     collapsed={isCollapsed}
                 />
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className={`font-medium break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`} title={group.directory}>
+                    <span className="px-2 py-1 text-[var(--font-size-xs)] uppercase tracking-[0.05em] text-[var(--text-quaternary)] font-[var(--font-weight-normal)] break-words" title={group.directory}>
                         {group.displayName}
                     </span>
                     {isProjectOffline ? (
