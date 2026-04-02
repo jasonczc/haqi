@@ -411,11 +411,11 @@ function SessionsPage() {
     const { addToast } = useToast()
     const { sessions, isLoading, error, refetch } = useSessions(api)
     const { spawnSession, isPending: isQuickCreatingSession } = useSpawnSession(api)
-    const { density, toggleDensity } = useSessionListDensity()
-    const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
+    const { density } = useSessionListDensity()
+    const { sidebarWidth } = useSessionSidebarWidth()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-    const [sessionSearchQuery, setSessionSearchQuery] = useState('')
+    const [sessionSearchQuery] = useState('')
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
     const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
     const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
@@ -532,16 +532,9 @@ function SessionsPage() {
         t
     ])
 
-    const projectCount = new Set(visibleSessions.map(s => s.metadata?.worktree?.basePath ?? s.metadata?.path ?? 'Other')).size
     const isSessionChatRoute = Boolean(chatRouteMatch && chatRouteMatch.sessionId !== 'new')
     const isSessionsIndex = pathname === '/sessions' || pathname === '/sessions/'
     const showDesktopSidebar = isSessionsIndex || !desktopSidebarHidden
-    const toggleDensityLabel = density === 'comfortable'
-        ? t('sessions.display.toggleToCompact')
-        : t('sessions.display.toggleToComfortable')
-    const desktopSidebarToggleLabel = showDesktopSidebar
-        ? t('sessions.sidebar.hideDesktop')
-        : t('sessions.sidebar.showDesktop')
     const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
 
     useEffect(() => {
