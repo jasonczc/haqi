@@ -141,7 +141,9 @@ function RunStatusIcon(props: { active: boolean; thinking: boolean }) {
     }
     return (
         <svg width="12" height="12" viewBox="0 0 16 16" className="text-[var(--text-quaternary)]">
-            <circle cx="8" cy="8" r="3" fill="currentColor" />
+            <circle cx="5" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M5 5.5v5" stroke="currentColor" strokeWidth="1.5" />
         </svg>
     )
 }

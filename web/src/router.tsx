@@ -53,7 +53,7 @@ import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Button } from '@/components/ui/button'
-import type { GroupDetail } from '@/types/api'
+import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
@@ -274,7 +274,18 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
     return next
 }
 
-function HomeComposer(props: { onNewSession: () => void }) {
+function formatHomeTime(updatedAt: number): string {
+    const ms = updatedAt < 1e12 ? updatedAt * 1000 : updatedAt
+    const delta = Date.now() - ms
+    const mins = Math.floor(delta / 60000)
+    if (mins < 60) return `${mins}m`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h`
+    const days = Math.floor(hours / 24)
+    return `${days}d`
+}
+
+function HomeComposer(props: { onNewSession: () => void; sessions: SessionSummary[] }) {
     return (
         <div className="flex flex-1 flex-col items-center justify-start pt-[15vh] px-8">
             <div className="w-full max-w-2xl">
@@ -288,7 +299,7 @@ function HomeComposer(props: { onNewSession: () => void }) {
                 </button>
 
                 {/* Prompt input area */}
-                <div className="rounded-xl border border-[var(--border-tertiary)] bg-[var(--bg-editor)] overflow-hidden">
+                <div className="rounded-lg border border-[var(--border-quaternary)] bg-[var(--bg-editor)] overflow-hidden">
                     <textarea
                         placeholder="Ask Cursor to build, fix bugs, explore"
                         rows={4}
@@ -318,15 +329,56 @@ function HomeComposer(props: { onNewSession: () => void }) {
 
                 {/* Suggested prompts */}
                 <div className="flex items-center gap-2 mt-3">
-                    <button className="rounded-full border border-[var(--border-tertiary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)] transition-colors">
+                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
                         Run security audit
                     </button>
-                    <button className="rounded-full border border-[var(--border-tertiary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)] transition-colors">
+                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
                         Improve AGENTS.md
                     </button>
-                    <button className="rounded-full border border-[var(--border-tertiary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)] transition-colors">
+                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
                         Solve a TODO
                     </button>
+                </div>
+
+                {/* Recent runs cards */}
+                <div className="mt-8 w-full space-y-2">
+                    {props.sessions.slice(0, 8).map(s => {
+                        const title = s.metadata?.name || s.metadata?.summary?.text || s.metadata?.path?.split('/').pop() || s.id.slice(0, 8)
+                        const model = s.metadata?.model || s.modelMode || 'default'
+                        const time = formatHomeTime(s.updatedAt)
+                        const meta = s.metadata as any
+                        const additions = meta?.prAdditions as number | undefined
+                        const deletions = meta?.prDeletions as number | undefined
+                        return (
+                            <div key={s.id} className="flex items-center gap-4 rounded-lg border border-[var(--border-quaternary)] bg-[var(--bg-editor)] p-4 hover:bg-[var(--bg-quaternary)] transition-colors cursor-pointer">
+                                {/* Left: stats */}
+                                <div className="flex flex-col items-center gap-1 min-w-[80px]">
+                                    {(additions || deletions) && (
+                                        <div className="flex items-center gap-1.5 text-[var(--font-size-sm)]">
+                                            {additions ? <span className="text-[var(--added)]">+{additions}</span> : null}
+                                            {deletions ? <span className="text-[var(--removed)]">-{deletions}</span> : null}
+                                        </div>
+                                    )}
+                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                        s.active ? 'bg-[var(--bg-success-secondary)] text-[var(--success)]' : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
+                                    }`}>
+                                        {s.active ? 'Active' : 'Done'}
+                                    </span>
+                                </div>
+                                {/* Right: info */}
+                                <div className="min-w-0 flex-1">
+                                    <div className="truncate text-[var(--font-size-base)] font-[var(--font-weight-normal)] text-[var(--text-primary)]">
+                                        {title}
+                                    </div>
+                                    <div className="mt-0.5 flex items-center gap-2 text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
+                                        <span>{model}</span>
+                                        {s.metadata?.path && <span>{s.metadata.path.split('/').pop()}</span>}
+                                        {time && <span>{time}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
         </div>
@@ -602,18 +654,6 @@ function SessionsPage() {
                             </button>
                         </div>
                     ) : null}
-                    {/* Cursor-style search */}
-                    <div className="px-2 pb-1.5">
-                        <div className="flex items-center gap-2 rounded-[6px] bg-[var(--bg-quaternary)] px-2.5 py-1.5">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-quaternary)] shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                            <input
-                                value={sessionSearchQuery}
-                                onChange={(e) => setSessionSearchQuery(e.target.value)}
-                                placeholder={t('sessions.search.placeholder')}
-                                className="w-full bg-transparent text-[var(--font-size-base)] text-[var(--text-primary)] placeholder:text-[var(--text-quaternary)] outline-none"
-                            />
-                        </div>
-                    </div>
                 </div>
 
                 <div className="flex min-h-0 flex-1 flex-col">
@@ -672,23 +712,10 @@ function SessionsPage() {
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
             <div className="cursor-theme flex h-full min-h-0">
                 <div
-                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--bg-chrome)] lg:border-r lg:border-[var(--border-tertiary)]`}
+                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--bg-chrome)]`}
                     style={sidebarStyle}
                 >
                     {renderSidebarContent()}
-                </div>
-
-                <div
-                    className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label={t('sessions.sidebar.resize')}
-                    title={t('sessions.sidebar.resize')}
-                    onPointerDown={startSidebarResize}
-                >
-                    <div
-                        className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
-                    />
                 </div>
 
                 {!isSessionsIndex && !showDesktopSidebar && !isSessionChatRoute ? (
@@ -731,7 +758,7 @@ function SessionsPage() {
 
                 <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--bg-editor)]`}>
                     {isSessionsIndex ? (
-                        <HomeComposer onNewSession={openNewSession} />
+                        <HomeComposer onNewSession={openNewSession} sessions={visibleSessions} />
                     ) : (
                         <div className="flex-1 min-h-0">
                             <Outlet />
