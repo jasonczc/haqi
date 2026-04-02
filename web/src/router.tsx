@@ -74,7 +74,11 @@ import CloudCheckpointsPage from '@/routes/cloud/checkpoints'
 import CloudRequestsPage from '@/routes/cloud/requests'
 import CloudWorkspacesPage from '@/routes/cloud/workspaces'
 import CloudOnboardPage from '@/routes/cloud/onboard'
+import CloudAutomationsPage from '@/routes/cloud/automations'
+import CloudDashboardPage from '@/routes/cloud/dashboard'
 import { CloudSidebar } from '@/components/CloudSidebar'
+import { RunWorkbench } from '@/components/RunWorkbench'
+import { useGitHubPr } from '@/hooks/useGitHubPr'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
@@ -225,9 +229,9 @@ function CloseIcon(props: { className?: string }) {
 
 function CloudLayout() {
     return (
-        <div className="flex h-full">
+        <div className="cursor-theme flex h-full">
             <CloudSidebar />
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto bg-[var(--bg-editor)]">
                 <Outlet />
             </div>
         </div>
@@ -473,7 +477,34 @@ function SessionsPage() {
 
         return (
             <>
-                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
+                <div className="bg-[var(--bg-chrome)] pt-[env(safe-area-inset-top)]">
+                    {/* Cursor-style nav */}
+                    <nav className="flex flex-col gap-0.5 px-2 pt-2 pb-1">
+                        <button
+                            type="button"
+                            onClick={() => openNewSession()}
+                            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                            New Agent
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate({ to: '/cloud/automations' })}
+                            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            Automations
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate({ to: '/cloud/dashboard' })}
+                            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            Dashboard
+                        </button>
+                    </nav>
                     {/* Tab switcher row */}
                     <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
                         <div className="flex items-center gap-1">
@@ -600,9 +631,9 @@ function SessionsPage() {
 
     return (
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
-            <div className="flex h-full min-h-0">
+            <div className="cursor-theme flex h-full min-h-0">
                 <div
-                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--app-bg)] lg:border-r lg:border-[var(--app-divider)]`}
+                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--bg-chrome)] lg:border-r lg:border-[var(--border-tertiary)]`}
                     style={sidebarStyle}
                 >
                     {renderSidebarContent()}
@@ -659,7 +690,7 @@ function SessionsPage() {
                     </div>
                 ) : null}
 
-                <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
+                <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--bg-editor)]`}>
                     <div className="flex-1 min-h-0">
                         <Outlet />
                     </div>
@@ -795,6 +826,16 @@ function SessionPage() {
         void refetchTurns()
     }, [refetchMessages, refetchSession, refetchTurns])
 
+    // ── Workbench panel state ──
+    const isCloudSession = Boolean(
+        session?.metadata?.executionBackend === 'cloud-self-hosted'
+        || session?.metadata?.executionBackend === 'cloud-managed'
+        || session?.metadata?.containerId
+        || session?.metadata?.workspaceId
+    )
+    const [workbenchOpen, setWorkbenchOpen] = useState(isCloudSession)
+    const { prInfo, checks, commits, files, branchStatus } = useGitHubPr(api, session ?? null)
+
     if (!session) {
         return (
             <div className="flex-1 flex items-center justify-center p-4">
@@ -804,38 +845,85 @@ function SessionPage() {
     }
 
     return (
-        <SessionChat
-            api={api}
-            session={session}
-            messages={messages}
-            messagesWarning={messagesWarning}
-            hasMoreMessages={messagesHasMore}
-            isLoadingMessages={messagesLoading}
-            isLoadingMoreMessages={messagesLoadingMore}
-            turns={turns}
-            turnsWarning={turnsWarning}
-            hasMoreTurns={turnsHasMore}
-            isLoadingTurns={turnsLoading}
-            isLoadingMoreTurns={turnsLoadingMore}
-            isSending={isSending}
-            pendingCount={pendingCount}
-            newestMessageSeq={newestSeq}
-            messagesVersion={messagesVersion}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            onBack={goBack}
-            onRefresh={refreshSelectedSession}
-            onLoadMore={loadMoreMessages}
-            onLoadMoreTurns={loadMoreTurns}
-            onSend={sendMessage}
-            onFlushPending={flushPending}
-            onAtBottomChange={setAtBottom}
-            onRetryMessage={retryMessage}
-            autocompleteSuggestions={getAutocompleteSuggestions}
-            onToggleSidebar={sessionsLayout?.toggleSidebarFromHeader}
-            sidebarVisible={sessionsLayout?.showDesktopSidebar ?? false}
-            density={density}
-        />
+        <div className="flex h-full min-h-0">
+            {/* Left: Chat */}
+            <div className={`flex min-w-0 flex-col ${workbenchOpen ? 'flex-1' : 'w-full'}`}>
+                <SessionChat
+                    api={api}
+                    session={session}
+                    messages={messages}
+                    messagesWarning={messagesWarning}
+                    hasMoreMessages={messagesHasMore}
+                    isLoadingMessages={messagesLoading}
+                    isLoadingMoreMessages={messagesLoadingMore}
+                    turns={turns}
+                    turnsWarning={turnsWarning}
+                    hasMoreTurns={turnsHasMore}
+                    isLoadingTurns={turnsLoading}
+                    isLoadingMoreTurns={turnsLoadingMore}
+                    isSending={isSending}
+                    pendingCount={pendingCount}
+                    newestMessageSeq={newestSeq}
+                    messagesVersion={messagesVersion}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                    onBack={goBack}
+                    onRefresh={refreshSelectedSession}
+                    onLoadMore={loadMoreMessages}
+                    onLoadMoreTurns={loadMoreTurns}
+                    onSend={sendMessage}
+                    onFlushPending={flushPending}
+                    onAtBottomChange={setAtBottom}
+                    onRetryMessage={retryMessage}
+                    autocompleteSuggestions={getAutocompleteSuggestions}
+                    onToggleSidebar={sessionsLayout?.toggleSidebarFromHeader}
+                    sidebarVisible={sessionsLayout?.showDesktopSidebar ?? false}
+                    onToggleWorkbench={() => setWorkbenchOpen(v => !v)}
+                    workbenchOpen={workbenchOpen}
+                    density={density}
+                />
+            </div>
+
+            {/* Right: RunWorkbench (Cursor-style panel) */}
+            {workbenchOpen && (
+                <div className="hidden w-[420px] min-w-[360px] max-w-[50vw] lg:flex">
+                    <RunWorkbench
+                        session={session}
+                        api={api}
+                        prInfo={prInfo}
+                        checks={checks}
+                        commits={commits}
+                        files={files}
+                        branchStatus={branchStatus}
+                        onClose={() => setWorkbenchOpen(false)}
+                        onMerge={api ? async () => {
+                            try {
+                                const result = await api.mergeGitHubPr(session.id)
+                                if (result.merged) {
+                                    addToast({ title: 'PR Merged', body: `SHA: ${result.sha?.slice(0, 7)}`, sessionId: session.id, url: '' })
+                                } else if (result.error) {
+                                    addToast({ title: 'Merge failed', body: result.error, sessionId: session.id, url: '' })
+                                }
+                            } catch (err) {
+                                addToast({ title: 'Merge failed', body: err instanceof Error ? err.message : 'Unknown error', sessionId: session.id, url: '' })
+                            }
+                        } : undefined}
+                        onUpdateBranch={api ? async () => {
+                            try {
+                                const result = await api.updateGitHubBranch(session.id)
+                                if (result.updated) {
+                                    addToast({ title: 'Branch updated', body: 'Branch is now up to date.', sessionId: session.id, url: '' })
+                                } else if (result.error) {
+                                    addToast({ title: 'Update failed', body: result.error, sessionId: session.id, url: '' })
+                                }
+                            } catch (err) {
+                                addToast({ title: 'Update failed', body: err instanceof Error ? err.message : 'Unknown error', sessionId: session.id, url: '' })
+                            }
+                        } : undefined}
+                    />
+                </div>
+            )}
+        </div>
     )
 }
 
@@ -2137,6 +2225,18 @@ const cloudOnboardRoute = createRoute({
     component: CloudOnboardPage,
 })
 
+const cloudAutomationsRoute = createRoute({
+    getParentRoute: () => cloudRoute,
+    path: 'automations',
+    component: CloudAutomationsPage,
+})
+
+const cloudDashboardRoute = createRoute({
+    getParentRoute: () => cloudRoute,
+    path: 'dashboard',
+    component: CloudDashboardPage,
+})
+
 const groupsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/groups',
@@ -2187,6 +2287,8 @@ export const routeTree = rootRoute.addChildren([
         cloudWorkspacesRoute,
         cloudWorkspaceDetailRoute,
         cloudOnboardRoute,
+        cloudAutomationsRoute,
+        cloudDashboardRoute,
     ]),
     sessionsRoute.addChildren([
         sessionsIndexRoute,
