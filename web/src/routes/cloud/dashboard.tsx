@@ -168,7 +168,7 @@ export default function CloudDashboardPage() {
     }, [activityData])
 
     return (
-        <div className="mx-auto max-w-4xl px-6 py-8">
+        <div>
             {/* Activity section */}
             <div className="rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] p-5 mb-6">
                 <div className="flex items-center justify-between mb-4">

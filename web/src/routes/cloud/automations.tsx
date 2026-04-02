@@ -76,7 +76,7 @@ export default function CloudAutomationsPage() {
     const [prompt, setPrompt] = useState('')
 
     return (
-        <div className="mx-auto max-w-4xl px-6 py-8">
+        <div>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>

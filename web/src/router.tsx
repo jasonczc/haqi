@@ -76,7 +76,7 @@ import CloudWorkspacesPage from '@/routes/cloud/workspaces'
 import CloudOnboardPage from '@/routes/cloud/onboard'
 import CloudAutomationsPage from '@/routes/cloud/automations'
 import CloudDashboardPage from '@/routes/cloud/dashboard'
-import { CloudSidebar } from '@/components/CloudSidebar'
+// CloudSidebar removed — sidebar is now built into CloudLayout
 import { RunWorkbench } from '@/components/RunWorkbench'
 import { useGitHubPr } from '@/hooks/useGitHubPr'
 import { useGroups } from '@/hooks/queries/useGroups'
@@ -227,12 +227,100 @@ function CloseIcon(props: { className?: string }) {
     )
 }
 
+function NavIcon(props: { name: string }) {
+    const icons: Record<string, JSX.Element> = {
+        home: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+        settings: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+        cloud: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>,
+        bug: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3 3 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/></svg>,
+        key: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>,
+        calendar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+        folder: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>,
+        box: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>,
+        list: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
+        camera: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>,
+    }
+    return icons[props.name] || null
+}
+
 function CloudLayout() {
+    const navigate = useNavigate()
+    const pathname = useLocation({ select: l => l.pathname })
+
+    const navItems = [
+        { label: 'Overview', path: '/cloud/dashboard', icon: 'home' },
+        { label: 'Settings', path: '/settings', icon: 'settings' },
+        { label: 'Cloud Agents', path: '/cloud/workers', icon: 'cloud' },
+        { label: 'Bugbot', path: '/cloud/bugbot', icon: 'bug' },
+        { separator: true },
+        { label: 'Secrets', path: '/cloud/secrets', icon: 'key' },
+        { label: 'Automations', path: '/cloud/automations', icon: 'calendar' },
+        { separator: true },
+        { label: 'Workspaces', path: '/cloud/workspaces', icon: 'folder' },
+        { label: 'Containers', path: '/cloud/containers', icon: 'box' },
+        { label: 'Requests', path: '/cloud/requests', icon: 'list' },
+        { label: 'Checkpoints', path: '/cloud/checkpoints', icon: 'camera' },
+    ]
+
     return (
-        <div className="cursor-theme flex h-full">
-            <CloudSidebar />
-            <div className="flex-1 overflow-y-auto bg-[var(--bg-editor)]">
-                <Outlet />
+        <div className="cursor-theme flex h-full bg-[var(--bg-chrome)]">
+            {/* Left sidebar */}
+            <div className="flex w-[300px] shrink-0 flex-col py-6 px-4">
+                {/* Back to Agents */}
+                <button
+                    type="button"
+                    onClick={() => navigate({ to: '/sessions' })}
+                    className="flex items-center gap-2 mb-6 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+                    Back to Agents
+                </button>
+
+                {/* User card */}
+                <div className="flex items-center gap-3 mb-6 px-2">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--bg-tertiary)] text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-secondary)]">
+                        H
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className="truncate text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]">haqi</div>
+                        <div className="text-[var(--font-size-sm)] text-[var(--text-tertiary)]">Self-hosted</div>
+                    </div>
+                    <button className="rounded-[6px] p-1 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                    </button>
+                </div>
+
+                {/* Nav items */}
+                <nav className="flex flex-col gap-0.5">
+                    {navItems.map((item, i) => {
+                        if ('separator' in item && item.separator) {
+                            return <div key={i} className="my-2 h-px bg-[var(--border-quaternary)]" />
+                        }
+                        const isActive = pathname === item.path || pathname.startsWith(item.path + '/')
+                        return (
+                            <button
+                                key={item.path}
+                                type="button"
+                                onClick={() => navigate({ to: item.path })}
+                                className={`flex items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-[var(--font-size-base)] transition-colors ${
+                                    isActive
+                                        ? 'bg-[var(--bg-tertiary)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]'
+                                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)]'
+                                }`}
+                            >
+                                <NavIcon name={item.icon} />
+                                {item.label}
+                            </button>
+                        )
+                    })}
+                </nav>
+            </div>
+
+            {/* Right content */}
+            <div className="flex-1 overflow-y-auto bg-[var(--bg-chrome)]">
+                <div className="mx-auto max-w-4xl px-6 py-8">
+                    <Outlet />
+                </div>
             </div>
         </div>
     )
