@@ -741,22 +741,24 @@ export class SpawnCoordinator {
             return explicit.id
         }
 
-        // If checkpoint specifies a machineId, pin to that Worker (image lives there)
+        // If checkpoint specifies a machineId, prefer that Worker (image lives there)
+        // But fall through to general selection if that worker is offline
         if (checkpoint?.machineId) {
             const pinned = this.machineCache.getMachineByNamespace(checkpoint.machineId, namespace)
-            if (!pinned || !pinned.active) {
-                return null
+            if (pinned?.active) {
+                return pinned.id
             }
-            return pinned.id
+            // Worker offline — fall through to select any available worker
+            // (works for self-hosted where all workers share the same Docker images)
         }
 
         const pinnedWorkspace = this.workspaceManager.getPinnedWorkspace(namespace, request, environment?.id)
         if (pinnedWorkspace?.machineId) {
             const pinned = this.machineCache.getMachineByNamespace(pinnedWorkspace.machineId, namespace)
-            if (!pinned || !pinned.active) {
-                return null
+            if (pinned?.active) {
+                return pinned.id
             }
-            return pinned.id
+            // Pinned worker offline — fall through to general selection
         }
 
         const candidates = this.machineCache.getMachinesByNamespace(namespace).filter((machine) => {

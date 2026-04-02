@@ -89,7 +89,8 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         const body = await c.req.json().catch(() => null)
         const parsed = MachineSpawnRequestSchema.safeParse(body)
         if (!parsed.success) {
-            return c.json({ error: 'Invalid body' }, 400)
+            const issues = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
+            return c.json({ error: `Invalid body: ${issues}` }, 400)
         }
 
         const previewUrl = normalizePreviewUrl(parsed.data.previewUrl)
