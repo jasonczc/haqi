@@ -2,7 +2,9 @@ import type { DockerCliRuntime } from '@/cloud/docker/dockerCli'
 import { runDockerCommand } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
 import type { SpawnSessionOptions } from '@/modules/common/rpcTypes'
+import type { ResolvedSecret } from '@hapi/protocol/types'
 import { ensureWorkspaceContainer } from './WorkspaceContainerManager'
+import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInContainer'
 import { DaemonClient } from './DaemonClient'
 import { buildSpawnArgs } from './HostProcessExecutor'
 
@@ -15,6 +17,7 @@ export type DaemonSessionResult = {
     pid: number
     daemonUrl: string
     daemonAuthToken: string
+    noVncPort?: number
     reused: boolean
 }
 
@@ -25,6 +28,9 @@ export async function startDaemonSessionExecutor(params: {
     env: Record<string, string>
     options: SpawnSessionOptions
     sessionLabel: string
+    repositorySource?: { url: string; provider?: string; cloneDepth?: number; ref?: any; withSubmodules?: boolean; withLfs?: boolean } | null
+    repositoryCredential?: ResolvedSecret
+    controlPort?: number
 }): Promise<DaemonSessionResult> {
     // Try to find an existing running container for this workspace
     const workspaceId = params.workspace.workspaceId
@@ -144,11 +150,24 @@ export async function startDaemonSessionExecutor(params: {
         await params.runtime.remove(containerId).catch(() => undefined)
         throw new Error(`Daemon port ${DAEMON_PORT} not found in container port bindings`)
     }
+    const noVncPort = inspect.portBindings[6080] ?? undefined
 
     const daemonUrl = `http://127.0.0.1:${mappedPort}`
     const client = new DaemonClient(daemonUrl, authToken)
 
     await client.waitReady(30_000)
+
+    // Sync repository inside the running container
+    if (params.repositorySource) {
+        await syncRepositoryInContainer({
+            runtime: params.runtime,
+            containerId,
+            workspace: params.workspace,
+            repository: params.repositorySource as any,
+            repoSyncPolicy: params.options.repoSyncPolicy ?? 'fetch-reset',
+            repositoryCredential: params.repositoryCredential
+        })
+    }
 
     if (!checkpointImage) {
         // Only run install hooks for fresh containers (not checkpoint-based)
@@ -165,6 +184,10 @@ export async function startDaemonSessionExecutor(params: {
 
     // Spawn agent — include Worker's auth env so the agent can connect back to Hub
     const spawnArgs = buildSpawnArgs(params.options)
+    // Build callback URL so the container agent can POST session webhook back to the worker
+    const callbackUrl = params.controlPort
+        ? `http://host.docker.internal:${params.controlPort}`
+        : undefined
     const spawnResponse = await client.spawn({
         command: ['haqi', ...spawnArgs],
         cwd: params.workspace.workingDirectory,
@@ -175,6 +198,8 @@ export async function startDaemonSessionExecutor(params: {
             HAPI_WORKING_DIRECTORY: params.workspace.workingDirectory,
             HAPI_CONTAINER_ID: containerId,
             HAPI_RUNTIME_KIND: 'daemon-session',
+            ...(callbackUrl ? { HAPI_RUNNER_CALLBACK_URL: callbackUrl } : {}),
+            ...(noVncPort ? { HAPI_NOVNC_PORT: String(noVncPort) } : {}),
             ...(params.options.sessionType ? { HAPI_SESSION_TYPE: params.options.sessionType } : {}),
             ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {})
         }
@@ -192,6 +217,7 @@ export async function startDaemonSessionExecutor(params: {
         pid: spawnResponse.pid,
         daemonUrl,
         daemonAuthToken: authToken,
+        noVncPort,
         reused: false
     }
 }

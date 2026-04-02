@@ -724,6 +724,13 @@ export class SyncEngine {
         return this.spawnCoordinator.revokeEnrollmentToken(namespace, tokenId)
     }
 
+    updateCloudWorkerEnrollmentToken(tokenId: string, namespace: string, updates: {
+        label?: string | null
+        expiresAt?: number | null
+    }): CloudWorkerEnrollmentToken | null {
+        return this.spawnCoordinator.updateEnrollmentToken(namespace, tokenId, updates)
+    }
+
     private resolveNamespace(event: SyncEvent): string | undefined {
         if (event.namespace) {
             return event.namespace

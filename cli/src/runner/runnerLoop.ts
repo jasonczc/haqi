@@ -293,6 +293,12 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       };
 
       const cleanupPreparedWorkspace = async () => {
+        // Stop and remove any Docker container before cleaning up bind-mounted paths
+        if (workspaceContainerId && dockerRuntime) {
+          await dockerRuntime.stop(workspaceContainerId).catch(() => undefined);
+          await dockerRuntime.remove(workspaceContainerId).catch(() => undefined);
+          workspaceContainerId = undefined;
+        }
         const cleanupPaths = [
           ...(preparedWorkspaceCleanup?.cleanupPaths ?? preparedWorkspace?.cleanupPaths ?? []),
           ...secretCleanupPaths
@@ -381,6 +387,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               };
             }
           }
+        } else if ((options.runtimeKind === 'daemon-session' || options.runtimeKind === 'docker-session') && !spawnDirectory) {
+          // Docker/daemon sessions without a repo can run with no local directory
+          logger.debug(`[RUNNER RUN] Docker session without local directory — will use container workspace`);
         } else if (sessionType === 'simple' && !spawnDirectory) {
           spawnFailed = true;
           syncCloudRunnerState({
@@ -465,22 +474,23 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         updateWorkspacePreparation('workspace-ready', 30);
 
         const repositorySource = preparedWorkspace.source?.repository ?? options.workspaceSource?.repository;
-        const isCloudRepoDockerSession = options.executionBackend !== 'local'
-          && (options.runtimeKind === 'docker-session' || options.runtimeKind === 'daemon-session')
-          && Boolean(repositorySource);
-        dockerRuntime = isCloudRepoDockerSession ? new DockerCliRuntime() : null;
+        const isCloudDockerSession = options.executionBackend !== 'local'
+          && (options.runtimeKind === 'docker-session' || options.runtimeKind === 'daemon-session');
+        dockerRuntime = isCloudDockerSession ? new DockerCliRuntime() : null;
 
         resolvedEnvironment = resolveEnvironmentTemplate({
           runtimeKind: options.runtimeKind,
           environmentId: options.environmentId,
           environment: options.environment,
           resolvedEnvironment: options.resolvedEnvironment,
-          workspaceEnvironment: isCloudRepoDockerSession ? null : (preparedWorkspace.environment ?? null),
+          workspaceEnvironment: isCloudDockerSession ? null : (preparedWorkspace.environment ?? null),
           workspaceSource: options.workspaceSource,
           workspacePath: preparedWorkspace.workingDirectory
         });
 
-        if (isCloudRepoDockerSession && dockerRuntime && repositorySource) {
+        // For daemon-session: DaemonSessionExecutor handles container creation + repo sync internally.
+        // For docker-session: create container here and sync repo.
+        if (isCloudDockerSession && dockerRuntime && resolvedEnvironment.runtimeKind !== 'daemon-session') {
           updateWorkspacePreparation('pulling-checkpoint', 20);
           await dockerRuntime.ensureAvailable();
           const workspaceContainer = await ensureWorkspaceContainer({
@@ -493,32 +503,34 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           workspaceContainerId = workspaceContainer.containerId;
           workspaceContainerPreviewTargets = workspaceContainer.previewTargets;
 
-          updateWorkspacePreparation('syncing-repo', 30);
-          const syncResult = await syncRepositoryInContainer({
-            runtime: dockerRuntime,
-            containerId: workspaceContainer.containerId,
-            workspace: preparedWorkspace,
-            repository: repositorySource,
-            repoSyncPolicy: options.repoSyncPolicy ?? 'fetch-reset',
-            repositoryCredential
-          });
-          repoSyncStatus = syncResult.repoStatus;
-          repositoryCommit = syncResult.repositoryCommit;
+          if (repositorySource) {
+            updateWorkspacePreparation('syncing-repo', 30);
+            const syncResult = await syncRepositoryInContainer({
+              runtime: dockerRuntime,
+              containerId: workspaceContainer.containerId,
+              workspace: preparedWorkspace,
+              repository: repositorySource,
+              repoSyncPolicy: options.repoSyncPolicy ?? 'fetch-reset',
+              repositoryCredential
+            });
+            repoSyncStatus = syncResult.repoStatus;
+            repositoryCommit = syncResult.repositoryCommit;
 
-          const workspaceEnvironment = await loadWorkspaceEnvironmentTemplate([
-            preparedWorkspace.workingDirectory,
-            preparedWorkspace.repoVolumePath
-          ]);
-          preparedWorkspace.environment = workspaceEnvironment ?? undefined;
-          resolvedEnvironment = resolveEnvironmentTemplate({
-            runtimeKind: options.runtimeKind,
-            environmentId: options.environmentId,
-            environment: options.environment,
-            resolvedEnvironment: options.resolvedEnvironment,
-            workspaceEnvironment,
-            workspaceSource: options.workspaceSource,
-            workspacePath: preparedWorkspace.workingDirectory
-          });
+            const workspaceEnvironment = await loadWorkspaceEnvironmentTemplate([
+              preparedWorkspace.workingDirectory,
+              preparedWorkspace.repoVolumePath
+            ]);
+            preparedWorkspace.environment = workspaceEnvironment ?? undefined;
+            resolvedEnvironment = resolveEnvironmentTemplate({
+              runtimeKind: options.runtimeKind,
+              environmentId: options.environmentId,
+              environment: options.environment,
+              resolvedEnvironment: options.resolvedEnvironment,
+              workspaceEnvironment,
+              workspaceSource: options.workspaceSource,
+              workspacePath: preparedWorkspace.workingDirectory
+            });
+          }
         }
 
         updateWorkspacePreparation('environment-ready', 45);
@@ -710,7 +722,10 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               environment: resolvedEnvironment,
               env: extraEnv,
               options,
-              sessionLabel: spawnRequestId
+              sessionLabel: spawnRequestId,
+              repositorySource: repositorySource ?? null,
+              repositoryCredential,
+              controlPort
             })
           : resolvedEnvironment.runtimeKind === 'docker-session'
           ? await startDockerSessionExecutor({
@@ -833,6 +848,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           childProcess: 'childProcess' in execution ? execution.childProcess : undefined,
           containerId: 'containerId' in execution ? execution.containerId : undefined,
           daemonAuthToken: 'daemonAuthToken' in execution ? execution.daemonAuthToken : undefined,
+          noVncPort: 'noVncPort' in execution ? (execution as any).noVncPort : undefined,
           cleanupPaths: [...preparedWorkspace.cleanupPaths, ...secretCleanupPaths],
           directoryCreated,
           message: directoryCreated && options.directory ? `The path '${options.directory}' did not exist. We created a new folder and spawned a new session there.` : undefined
@@ -1157,10 +1173,10 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       });
     };
 
-    // Start control server (local mode only)
+    // Start control server — needed for session webhook registration in both modes
     let controlPort = 0;
     let stopControlServer = async () => {};
-    if (options.mode === 'local') {
+    {
       const controlServer = await startRunnerControlServer({
         getChildren: getCurrentChildren,
         stopSession,

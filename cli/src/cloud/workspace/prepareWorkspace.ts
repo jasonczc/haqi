@@ -64,7 +64,9 @@ function resolveWorkspaceRoot(options: {
         ? resolve(options.workspaceLease.baseDir)
         : options.workspace?.baseDir
             ? resolve(options.workspace.baseDir)
-            : join(os.tmpdir(), 'haqi-cloud-workspaces')
+            // Use /tmp on macOS instead of os.tmpdir() (/var/folders/...) because
+            // Docker Desktop only shares /tmp (/private/tmp), not /var/folders.
+            : join(process.platform === 'darwin' ? '/tmp' : os.tmpdir(), 'haqi-cloud-workspaces')
     const workspaceName = options.workspaceLease?.name?.trim()
         || options.workspace?.name?.trim()
         || options.workspaceLease?.workspaceKey?.trim()

@@ -20,10 +20,12 @@ function StepAddWorker(props: { onNext: () => void }) {
     const { api, baseUrl } = useAppContext()
     const queryClient = useQueryClient()
     const [tokenLabel, setTokenLabel] = useState('')
-    const [tokenTtl, setTokenTtl] = useState('60')
+    const [tokenTtl, setTokenTtl] = useState('1440')
     const [generatedToken, setGeneratedToken] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
     const autoAdvanced = useRef(false)
+    const [startingLocal, setStartingLocal] = useState(false)
+    const [localStartError, setLocalStartError] = useState<string | null>(null)
 
     const tokenMutation = useMutation({
         mutationFn: async () => {
@@ -70,15 +72,50 @@ function StepAddWorker(props: { onNext: () => void }) {
         }).catch(() => undefined)
     }
 
+    async function handleStartLocal() {
+        if (!api) return
+        setStartingLocal(true)
+        setLocalStartError(null)
+        try {
+            await api.startLocalWorker()
+            void queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkers() })
+        } catch (err) {
+            setLocalStartError(err instanceof Error ? err.message : 'Failed to start worker')
+        } finally {
+            setStartingLocal(false)
+        }
+    }
+
     return (
         <div className="flex flex-col gap-5">
             <div>
                 <h2 className="text-base font-semibold text-[var(--app-fg)]">Step 1: Add a Worker</h2>
                 <p className="mt-1 text-sm text-[var(--app-hint)]">
-                    Generate an enrollment token and run the install command on your machine to connect a worker.
+                    A worker runs on your machine and executes cloud agent tasks.
                     This page will automatically advance once a worker comes online.
                 </p>
             </div>
+
+            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-4">
+                <div className="text-sm font-medium text-[var(--app-fg)]">Quick Start</div>
+                <p className="mt-1 text-xs text-[var(--app-hint)]">
+                    Start a worker process directly on this machine with one click.
+                </p>
+                <Button
+                    type="button"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void handleStartLocal()}
+                    disabled={startingLocal}
+                >
+                    {startingLocal ? 'Starting...' : 'Start Worker on This Machine'}
+                </Button>
+                {localStartError ? (
+                    <div className="mt-1 text-xs text-[var(--app-badge-error-text)]">{localStartError}</div>
+                ) : null}
+            </div>
+
+            <div className="text-xs text-[var(--app-hint)]">Or generate a token to connect a remote worker:</div>
 
             <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-[14rem] flex-1">

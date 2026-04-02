@@ -985,6 +985,41 @@ export class ApiClient {
         })
     }
 
+    async startLocalWorker(): Promise<{ started: boolean; pid?: number; alreadyRunning?: boolean; startedAt?: number }> {
+        return await this.request<{ started: boolean; pid?: number; alreadyRunning?: boolean; startedAt?: number }>('/api/cloud/start-local-worker', {
+            method: 'POST'
+        })
+    }
+
+    async getLocalWorkerStatus(): Promise<{
+        running: boolean
+        pid?: number
+        exitCode?: number | null
+        startedAt?: number
+        logs: string[]
+    }> {
+        return await this.request('/api/cloud/local-worker') as any
+    }
+
+    async stopLocalWorker(): Promise<{ stopped: boolean; reason?: string }> {
+        return await this.request<{ stopped: boolean; reason?: string }>('/api/cloud/local-worker', {
+            method: 'DELETE'
+        })
+    }
+
+    async updateCloudWorkerEnrollmentToken(tokenId: string, updates: {
+        label?: string | null
+        extendMinutes?: number
+    }): Promise<{ token: import('@/types/api').CloudWorkerEnrollmentToken }> {
+        return await this.request<{ token: import('@/types/api').CloudWorkerEnrollmentToken }>(
+            `/api/cloud/worker-enrollment-tokens/${encodeURIComponent(tokenId)}`,
+            {
+                method: 'PATCH',
+                body: JSON.stringify(updates)
+            }
+        )
+    }
+
     async revokeCloudWorkerEnrollmentToken(tokenId: string): Promise<{ token: import('@/types/api').CloudWorkerEnrollmentToken }> {
         return await this.request<{ token: import('@/types/api').CloudWorkerEnrollmentToken }>(
             `/api/cloud/worker-enrollment-tokens/${encodeURIComponent(tokenId)}`,

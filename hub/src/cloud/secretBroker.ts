@@ -198,6 +198,14 @@ export class SecretBroker {
         return record ? toCloudWorkerEnrollmentToken(record) : null
     }
 
+    updateEnrollmentToken(namespace: string, id: string, updates: {
+        label?: string | null
+        expiresAt?: number | null
+    }): CloudWorkerEnrollmentToken | null {
+        const record = this.store.cloud.updateEnrollmentToken(id, namespace, updates)
+        return record ? toCloudWorkerEnrollmentToken(record) : null
+    }
+
     resolveEnrollmentToken(token: string): CloudWorkerEnrollmentToken | null {
         const record = this.resolveEnrollmentTokenRecord(token)
         return record ? toCloudWorkerEnrollmentToken(record) : null

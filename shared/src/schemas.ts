@@ -502,6 +502,7 @@ export const MetadataSchema = z.object({
     repoSyncStatus: RepoStatusSchema.optional(),
     workspaceBranch: z.string().optional(),
     containerId: z.string().optional(),
+    noVncPort: z.number().optional(),
     workspaceSource: WorkspaceSourceSchema.optional(),
     workspaceMode: WorkspaceModeSchema.optional(),
     repositoryUrl: z.string().optional(),

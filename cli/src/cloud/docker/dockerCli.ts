@@ -48,6 +48,7 @@ export type DockerRunSpec = {
     image: string
     name?: string
     command?: string[]
+    entrypoint?: string
     env?: string[]
     workingDir?: string
     mounts?: string[]
@@ -115,6 +116,9 @@ export class DockerCliRuntime {
         }
         for (const [key, value] of Object.entries(spec.labels ?? {})) {
             args.push('--label', `${key}=${value}`)
+        }
+        if (spec.entrypoint) {
+            args.push('--entrypoint', spec.entrypoint)
         }
         args.push(spec.image)
         if (spec.command?.length) {

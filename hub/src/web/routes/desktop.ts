@@ -1,7 +1,22 @@
 import { Hono } from 'hono'
+import { execSync } from 'node:child_process'
 
 type DesktopDeps = {
-    resolveSession: (sessionId: string) => { machineId: string } | null
+    resolveSession: (sessionId: string) => { machineId: string; containerId?: string } | null
+}
+
+function getContainerHostPort(containerId: string, containerPort: number): number | null {
+    try {
+        const output = execSync(
+            `docker port ${containerId} ${containerPort}/tcp 2>/dev/null`,
+            { timeout: 3000, encoding: 'utf-8' }
+        ).trim()
+        // Output: "0.0.0.0:12345" or ":::12345"
+        const match = output.match(/:(\d+)$/)
+        return match ? parseInt(match[1], 10) : null
+    } catch {
+        return null
+    }
 }
 
 export function createDesktopRoutes(deps: DesktopDeps): Hono {
@@ -13,7 +28,14 @@ export function createDesktopRoutes(deps: DesktopDeps): Hono {
         const session = deps.resolveSession(sessionId)
         if (!session) return c.text('Session not found', 404)
 
-        const novncSrc = `/preview/${sessionId}/6080/vnc.html?autoconnect=true&resize=scale`
+        // For local Docker containers, connect directly to the host-mapped noVNC port.
+        // This is necessary because the preview proxy doesn't support WebSocket.
+        const hostPort = session.containerId
+            ? getContainerHostPort(session.containerId, 6080)
+            : null
+        const novncSrc = hostPort
+            ? `http://localhost:${hostPort}/vnc.html?autoconnect=true&resize=scale`
+            : `/preview/${sessionId}/6080/vnc.html?autoconnect=true&resize=scale`
 
         const html = `<!DOCTYPE html>
 <html>

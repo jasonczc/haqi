@@ -168,10 +168,10 @@ function createWebApp(options: {
                     m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
                 )
                 if (cloudWorker) {
-                    return { machineId: cloudWorker.id }
+                    return { machineId: cloudWorker.id, containerId }
                 }
             }
-            return { machineId: metadata.machineId }
+            return { machineId: metadata.machineId, containerId }
         }
     }))
 
@@ -193,7 +193,7 @@ function createWebApp(options: {
     app.route('/api', createGroupsRoutes(options.getSyncEngine))
     app.route('/api', createReviewLoopsRoutes(options.getSyncEngine))
     app.route('/api', createMemoryRoutes())
-    app.route('/api', createCloudRoutes(options.getSyncEngine))
+    app.route('/api', createCloudRoutes(options.getSyncEngine, options.fallbackPublicUrl))
     app.route('/api', createContainerRoutes(options.getSyncEngine))
     app.route('/api', createSettingsRoutes(options.store))
     const reportPublicBaseUrlState: { value: ReportPublicBaseUrlSettings } = {

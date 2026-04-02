@@ -23,6 +23,7 @@ export interface TrackedSession {
   cleanupPaths?: string[];
   childProcess?: ChildProcess;
   daemonAuthToken?: string;
+  noVncPort?: number;
   error?: string;
   directoryCreated?: boolean;
   message?: string;

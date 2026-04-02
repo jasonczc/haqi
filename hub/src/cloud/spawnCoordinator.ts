@@ -283,6 +283,13 @@ export class SpawnCoordinator {
         return this.secretBroker.revokeEnrollmentToken(namespace, id)
     }
 
+    updateEnrollmentToken(namespace: string, id: string, updates: {
+        label?: string | null
+        expiresAt?: number | null
+    }) {
+        return this.secretBroker.updateEnrollmentToken(namespace, id, updates)
+    }
+
     resolveEnrollmentToken(token: string) {
         return this.secretBroker.resolveEnrollmentToken(token)
     }
@@ -370,7 +377,7 @@ export class SpawnCoordinator {
 
             const request = requestParse.data
             const namespace = existing.namespace
-            if (!request.workspaceSource?.repository) {
+            if (!request.workspaceSource?.repository && request.sessionType !== 'setup') {
                 this.failRequest(namespace, requestId, {
                     phase: 'queued',
                     code: 'cloud_repo_required',
@@ -382,7 +389,7 @@ export class SpawnCoordinator {
             }
             const requestedEnvironment = this.resolveEnvironment(request)
             const checkpoint = this.resolveCheckpoint(request, requestedEnvironment)
-            if (!checkpoint) {
+            if (!checkpoint && request.sessionType !== 'setup') {
                 this.failRequest(namespace, requestId, {
                     phase: 'queued',
                     code: 'checkpoint_not_found',
@@ -535,7 +542,7 @@ export class SpawnCoordinator {
             const spawnPayload: MachineSpawnRequest = {
                 ...request,
                 spawnRequestId: requestId,
-                checkpointId: checkpoint.id,
+                checkpointId: checkpoint?.id,
                 repoSyncPolicy: request.repoSyncPolicy ?? 'fetch-reset',
                 environment,
                 resolvedEnvironment: environment,
@@ -553,7 +560,7 @@ export class SpawnCoordinator {
                     source: request.workspaceSource,
                     environmentId: environment?.id,
                     environmentVersion: environment?.version,
-                    checkpointId: checkpoint.id,
+                    checkpointId: checkpoint?.id,
                     workspaceBranch: workspace.workspaceBranch,
                     expiresAt: lease.expiresAt ?? undefined
                 },

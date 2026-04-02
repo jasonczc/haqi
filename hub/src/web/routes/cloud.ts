@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
+import { spawn } from 'node:child_process'
+import { resolve } from 'node:path'
 import { CLOUD_PROVIDER_NAMES } from '../../cloud/provider'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
@@ -33,7 +35,7 @@ const cloudEnrollmentTokenCreateSchema = z.object({
     ttlMinutes: z.coerce.number().int().positive().optional()
 })
 
-export function createCloudRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
+export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl?: string): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
     app.get('/cloud/workers', (c) => {
@@ -265,6 +267,28 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null): Hono<
         return c.json(token)
     })
 
+    app.patch('/cloud/worker-enrollment-tokens/:id', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) return c.json({ error: 'Not connected' }, 503)
+        const namespace = c.get('namespace')
+        const body = await c.req.json().catch(() => ({}))
+        const parsed = z.object({
+            label: z.string().trim().nullable().optional(),
+            extendMinutes: z.coerce.number().int().positive().optional()
+        }).safeParse(body)
+        if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+
+        const updates: { label?: string | null; expiresAt?: number | null } = {}
+        if ('label' in parsed.data) updates.label = parsed.data.label
+        if (parsed.data.extendMinutes) {
+            updates.expiresAt = Date.now() + parsed.data.extendMinutes * 60_000
+        }
+
+        const token = engine.updateCloudWorkerEnrollmentToken(c.req.param('id'), namespace, updates)
+        if (!token) return c.json({ error: 'Token not found' }, 404)
+        return c.json({ token })
+    })
+
     app.delete('/cloud/worker-enrollment-tokens/:id', (c) => {
         const engine = getSyncEngine()
         if (!engine) {
@@ -315,6 +339,141 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null): Hono<
         const namespace = c.get('namespace')
         const children = engine.listCheckpointChildren(c.req.param('id'), namespace)
         return c.json({ children })
+    })
+
+    // Local worker process state
+    let localWorkerProcess: {
+        pid: number
+        exitCode: number | null
+        logs: string[]
+        startedAt: number
+    } | null = null
+
+    // Start a local worker process on this machine
+    app.post('/cloud/start-local-worker', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) return c.json({ error: 'Not connected' }, 503)
+        const namespace = c.get('namespace')
+
+        // If already running, return existing info
+        if (localWorkerProcess && localWorkerProcess.exitCode === null) {
+            try {
+                process.kill(localWorkerProcess.pid, 0) // check if alive
+                return c.json({
+                    started: true,
+                    alreadyRunning: true,
+                    pid: localWorkerProcess.pid,
+                    startedAt: localWorkerProcess.startedAt
+                })
+            } catch {
+                // process died without us knowing
+                localWorkerProcess.exitCode = -1
+                localWorkerProcess.logs.push('[hub] Worker process no longer running')
+            }
+        }
+
+        // Create enrollment token
+        const tokenResult = engine.createCloudWorkerEnrollmentToken({
+            namespace,
+            label: 'local-worker (auto)',
+            ttlMinutes: 10
+        })
+
+        // Hub URL for the worker to connect to.
+        // Derive from the actual request origin to avoid stale publicUrl config.
+        const requestHost = c.req.header('host') || `localhost:${process.env.PORT || '3006'}`
+        const requestProto = c.req.header('x-forwarded-proto') || 'http'
+        const effectiveHubUrl = `${requestProto}://${requestHost}`
+
+        const cliDir = resolve(import.meta.dir, '..', '..', '..', '..', 'cli')
+        const cliEntryPoint = resolve(cliDir, 'src', 'index.ts')
+
+        const logs: string[] = []
+        const maxLogLines = 200
+
+        function appendLog(line: string) {
+            logs.push(line)
+            if (logs.length > maxLogLines) logs.shift()
+        }
+
+        appendLog(`[hub] Starting worker: cwd=${cliDir} bun ${cliEntryPoint} worker start --hub-url ${effectiveHubUrl}`)
+
+        // Use `bun <file>` directly, NOT `bun run <file>`, to avoid bun
+        // interpreting script args (like --token) as its own flags.
+        // Set cwd to cli/ so that tsconfig paths (@/*) resolve correctly.
+        const child = spawn(
+            'bun', [cliEntryPoint, 'worker', 'start', '--token', tokenResult.token, '--hub-url', effectiveHubUrl],
+            {
+                cwd: cliDir,
+                detached: true,
+                stdio: ['ignore', 'pipe', 'pipe'],
+                env: { ...process.env }
+            }
+        )
+
+        localWorkerProcess = {
+            pid: child.pid!,
+            exitCode: null,
+            logs,
+            startedAt: Date.now()
+        }
+
+        child.stdout?.on('data', (data: Buffer) => {
+            for (const line of data.toString().split('\n').filter(Boolean)) {
+                appendLog(`[stdout] ${line}`)
+            }
+        })
+        child.stderr?.on('data', (data: Buffer) => {
+            for (const line of data.toString().split('\n').filter(Boolean)) {
+                appendLog(`[stderr] ${line}`)
+            }
+        })
+        child.on('exit', (code) => {
+            if (localWorkerProcess && localWorkerProcess.pid === child.pid) {
+                localWorkerProcess.exitCode = code ?? -1
+                appendLog(`[hub] Worker process exited with code ${code}`)
+            }
+        })
+        child.unref()
+
+        return c.json({
+            started: true,
+            pid: child.pid,
+            startedAt: localWorkerProcess.startedAt
+        })
+    })
+
+    // Get local worker status and logs
+    app.get('/cloud/local-worker', (c) => {
+        if (!localWorkerProcess) {
+            return c.json({ running: false, logs: [] })
+        }
+
+        let alive = localWorkerProcess.exitCode === null
+        if (alive) {
+            try { process.kill(localWorkerProcess.pid, 0) } catch { alive = false }
+        }
+
+        return c.json({
+            running: alive,
+            pid: localWorkerProcess.pid,
+            exitCode: localWorkerProcess.exitCode,
+            startedAt: localWorkerProcess.startedAt,
+            logs: localWorkerProcess.logs
+        })
+    })
+
+    // Stop local worker
+    app.delete('/cloud/local-worker', (c) => {
+        if (!localWorkerProcess) {
+            return c.json({ stopped: false, reason: 'No local worker running' })
+        }
+        try {
+            process.kill(localWorkerProcess.pid, 'SIGTERM')
+            return c.json({ stopped: true, pid: localWorkerProcess.pid })
+        } catch {
+            return c.json({ stopped: false, reason: 'Process already exited' })
+        }
     })
 
     return app

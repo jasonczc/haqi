@@ -923,6 +923,27 @@ export class CloudStore {
         return this.getEnrollmentTokenByNamespace(id, namespace)
     }
 
+    updateEnrollmentToken(id: string, namespace: string, updates: {
+        label?: string | null
+        expiresAt?: number | null
+    }): StoredCloudWorkerEnrollmentToken | null {
+        const existing = this.getEnrollmentTokenByNamespace(id, namespace)
+        if (!existing) return null
+
+        if ('label' in updates) {
+            this.db.prepare(`
+                UPDATE cloud_worker_enrollment_tokens SET label = ? WHERE id = ? AND namespace = ?
+            `).run(normalizeOptionalString(updates.label) ?? null, id, namespace)
+        }
+        if ('expiresAt' in updates) {
+            this.db.prepare(`
+                UPDATE cloud_worker_enrollment_tokens SET expires_at = ? WHERE id = ? AND namespace = ?
+            `).run(updates.expiresAt ?? null, id, namespace)
+        }
+
+        return this.getEnrollmentTokenByNamespace(id, namespace)
+    }
+
     /**
      * CAS-style revoke: only succeeds if the token is not already revoked.
      * Returns true if this call performed the revocation, false if already revoked or not found.

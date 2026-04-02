@@ -6,7 +6,7 @@ import type { DockerCliRuntime, DockerRunSpec } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
 
 function keepaliveCommand(): string[] {
-    return ['sh', '-lc', 'trap "exit 0" TERM INT; while true; do sleep 3600; done']
+    return ['-lc', 'trap "exit 0" TERM INT; while true; do sleep 3600; done']
 }
 
 export async function ensureWorkspaceContainer(params: {
@@ -24,10 +24,9 @@ export async function ensureWorkspaceContainer(params: {
     containerId: string
     previewTargets: PreviewTarget[]
 }> {
-    const image = params.checkpointImage ?? params.environment?.environment?.runtime?.image
-    if (!image) {
-        throw new Error('daemon/docker-session requires environment.runtime.image or checkpointImage')
-    }
+    const image = params.checkpointImage
+        ?? params.environment?.environment?.runtime?.image
+        ?? 'haqi-workspace:dev'
 
     await params.runtime.pull(image)
 
@@ -81,8 +80,11 @@ export async function ensureWorkspaceContainer(params: {
     const spec: DockerRunSpec = {
         image,
         name: `haqi-workspace-${params.sessionLabel}`,
+        // Override entrypoint: image default is haqi-daemon which needs auth args.
+        // In keepalive mode we just need a shell; in daemon mode we launch haqi-daemon explicitly.
+        entrypoint: params.daemonMode ? 'haqi-daemon' : 'sh',
         command: params.daemonMode
-            ? ['haqi-daemon', '--port', String(params.daemonMode.daemonPort), '--auth-token', params.daemonMode.authToken]
+            ? ['--port', String(params.daemonMode.daemonPort), '--auth-token', params.daemonMode.authToken]
             : keepaliveCommand(),
         workingDir: params.workspace.workingDirectory,
         mounts,

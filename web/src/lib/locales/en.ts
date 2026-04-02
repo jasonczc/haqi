@@ -207,6 +207,7 @@ export default {
   'cloud.workers.status.offline': 'offline',
   'cloud.workers.empty': 'No workers registered',
   'cloud.workers.empty.hint': 'Generate an enrollment token to register a worker.',
+  'cloud.workers.empty.hintWithToken': 'Waiting for a worker to connect using an enrollment token. Run the install command on your machine.',
   'cloud.workers.empty.link': 'Go to Secrets & Enrollment',
   'cloud.workers.lastSeen': 'Last seen',
   'cloud.workers.provider': 'Provider',

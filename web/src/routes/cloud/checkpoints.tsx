@@ -1,9 +1,10 @@
 import { useState, useId } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
+import { QuickSpawnDialog } from '@/components/QuickSpawnDialog'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { useTranslation } from '@/lib/use-translation'
@@ -105,9 +106,11 @@ function CollapsibleSection(props: {
 export default function CloudCheckpointsPage() {
     const { api } = useAppContext()
     const { t } = useTranslation()
+    const navigate = useNavigate()
     const queryClient = useQueryClient()
     const [deleteId, setDeleteId] = useState<string | null>(null)
     const [isExpanded, setIsExpanded] = useState(true)
+    const [spawnOpen, setSpawnOpen] = useState(false)
 
     const checkpointsQuery = useQuery({
         queryKey: queryKeys.cloudCheckpoints,
@@ -152,6 +155,19 @@ export default function CloudCheckpointsPage() {
                     {checkpoints.length === 0 ? (
                         <div className="px-3 py-6 text-center text-sm text-[var(--app-hint)]">
                             <p>{t('cloud.checkpoints.empty')}</p>
+                            <p className="mt-2 text-xs">
+                                Start a Setup session to configure an environment, then save it as a checkpoint.
+                            </p>
+                            <div className="mt-3 flex items-center justify-center gap-2">
+                                <Button size="sm" onClick={() => setSpawnOpen(true)}>
+                                    Start Setup Session
+                                </Button>
+                                <Link to="/cloud/onboard">
+                                    <Button variant="outline" size="sm">
+                                        Onboarding Guide
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
                     ) : (
                         <div>
@@ -240,6 +256,15 @@ export default function CloudCheckpointsPage() {
                 }}
                 isPending={deleteMutation.isPending}
                 destructive
+            />
+            <QuickSpawnDialog
+                open={spawnOpen}
+                onClose={() => setSpawnOpen(false)}
+                defaultSetup
+                onSpawned={(sessionId) => {
+                    setSpawnOpen(false)
+                    void navigate({ to: '/sessions/$sessionId', params: { sessionId } })
+                }}
             />
         </>
     )

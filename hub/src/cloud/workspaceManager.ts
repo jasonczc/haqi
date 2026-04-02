@@ -76,7 +76,10 @@ function buildWorkspaceReuseKey(
 }
 
 function resolveWorkspaceBaseDir(request: MachineSpawnRequest): string {
-    return request.workspace?.baseDir?.trim() || join(os.tmpdir(), 'haqi-cloud-workspaces')
+    // Use /tmp on macOS instead of os.tmpdir() (/var/folders/...) because
+    // Docker Desktop only shares /tmp (/private/tmp), not /var/folders.
+    const defaultBase = process.platform === 'darwin' ? '/tmp' : os.tmpdir()
+    return request.workspace?.baseDir?.trim() || join(defaultBase, 'haqi-cloud-workspaces')
 }
 
 function buildWorkspaceRoot(request: MachineSpawnRequest, workspaceId: string, workspaceKey: string | null): string {

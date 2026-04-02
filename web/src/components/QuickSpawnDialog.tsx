@@ -30,13 +30,14 @@ export function QuickSpawnDialog(props: {
     open: boolean
     onClose: () => void
     onSpawned?: (sessionId: string) => void
+    defaultSetup?: boolean
 }) {
     const { api } = useAppContext()
     const navigate = useNavigate()
 
     const [task, setTask] = useState('')
     const [checkpointId, setCheckpointId] = useState('')
-    const [setupMode, setSetupMode] = useState(false)
+    const [setupMode, setSetupMode] = useState(props.defaultSetup ?? false)
     const [advancedOpen, setAdvancedOpen] = useState(false)
     const [agent, setAgent] = useState('claude')
     const [model, setModel] = useState('')
@@ -107,6 +108,9 @@ export function QuickSpawnDialog(props: {
 
             const result = await api.spawnSession(activeWorker.machineId, {
                 runtimeKind: 'daemon-session',
+                executionBackend: (activeWorker.executorType === 'cloud-self-hosted' || activeWorker.executorType === 'cloud-managed')
+                    ? activeWorker.executorType
+                    : 'cloud-self-hosted',
                 sessionType: setupMode ? 'setup' : 'simple',
                 agent: agent as 'claude',
                 yolo: true,

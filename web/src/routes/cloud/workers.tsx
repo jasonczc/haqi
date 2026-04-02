@@ -1,4 +1,4 @@
-import { useState, useId } from 'react'
+import { useState, useId, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
@@ -90,6 +90,8 @@ function EnrollmentTokensSection() {
     const { t } = useTranslation()
     const queryClient = useQueryClient()
     const [revokeTokenId, setRevokeTokenId] = useState<string | null>(null)
+    const [editingTokenId, setEditingTokenId] = useState<string | null>(null)
+    const [editLabel, setEditLabel] = useState('')
     const [isExpanded, setIsExpanded] = useState(true)
 
     const tokensQuery = useQuery({
@@ -109,11 +111,35 @@ function EnrollmentTokensSection() {
         onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkerEnrollmentTokens })
     })
 
+    const extendMutation = useMutation({
+        mutationFn: async (tokenId: string) => {
+            if (!api) throw new Error('API unavailable')
+            await api.updateCloudWorkerEnrollmentToken(tokenId, { extendMinutes: 60 })
+        },
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkerEnrollmentTokens })
+    })
+
+    const labelMutation = useMutation({
+        mutationFn: async ({ tokenId, label }: { tokenId: string; label: string }) => {
+            if (!api) throw new Error('API unavailable')
+            await api.updateCloudWorkerEnrollmentToken(tokenId, { label: label.trim() || null })
+        },
+        onSuccess: () => {
+            setEditingTokenId(null)
+            void queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkerEnrollmentTokens })
+        }
+    })
+
     const tokens = tokensQuery.data?.tokens ?? []
     const activeTokens = tokens.filter(tok => !tok.revokedAt)
 
     if (tokensQuery.isLoading) {
         return null
+    }
+
+    function startEditLabel(token: { id: string; label?: string | null }) {
+        setEditingTokenId(token.id)
+        setEditLabel(token.label ?? '')
     }
 
     return (
@@ -129,35 +155,101 @@ function EnrollmentTokensSection() {
                 </div>
             ) : (
                 <div>
-                    {activeTokens.map((token) => (
-                        <div
-                            key={token.id}
-                            className="flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3"
-                        >
-                            <div className="flex min-w-0 flex-col">
-                                {token.label ? (
-                                    <span className="text-sm font-medium text-[var(--app-fg)]">{token.label}</span>
-                                ) : null}
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    <code className="font-mono">{token.tokenPreview}</code>
-                                </span>
-                                <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--app-hint)]">
-                                    <span>{t('cloud.tokens.created')} {formatDate(token.createdAt)}</span>
-                                    {token.expiresAt ? (
-                                        <span>{t('cloud.tokens.expires')} {formatDate(token.expiresAt)}</span>
+                    <div className="border-b border-[var(--app-divider)] px-3 py-2 text-xs text-[var(--app-hint)]">
+                        Full tokens are shown only once at creation. Revoke and regenerate if needed.
+                    </div>
+                    {activeTokens.map((token) => {
+                        const isExpired = token.expiresAt ? token.expiresAt < Date.now() : false
+                        const isEditing = editingTokenId === token.id
+                        return (
+                            <div
+                                key={token.id}
+                                className="border-b border-[var(--app-divider)] px-3 py-3"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="flex min-w-0 flex-col">
+                                        <div className="flex items-center gap-2">
+                                            {isEditing ? (
+                                                <form
+                                                    className="flex items-center gap-1"
+                                                    onSubmit={(e) => {
+                                                        e.preventDefault()
+                                                        labelMutation.mutate({ tokenId: token.id, label: editLabel })
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="text"
+                                                        value={editLabel}
+                                                        onChange={(e) => setEditLabel(e.target.value)}
+                                                        placeholder="Label"
+                                                        className="w-32 rounded border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--app-link)]"
+                                                        autoFocus
+                                                    />
+                                                    <Button type="submit" size="sm" disabled={labelMutation.isPending}>
+                                                        {labelMutation.isPending ? '...' : 'Save'}
+                                                    </Button>
+                                                    <Button type="button" variant="outline" size="sm" onClick={() => setEditingTokenId(null)}>
+                                                        Cancel
+                                                    </Button>
+                                                </form>
+                                            ) : (
+                                                <>
+                                                    {token.label ? (
+                                                        <span className="text-sm font-medium text-[var(--app-fg)]">{token.label}</span>
+                                                    ) : (
+                                                        <span className="text-sm text-[var(--app-hint)] italic">no label</span>
+                                                    )}
+                                                    <code className="font-mono text-xs text-[var(--app-hint)]">{token.tokenPreview}</code>
+                                                    {isExpired ? (
+                                                        <span className="rounded bg-[var(--app-badge-error-bg)] px-1.5 py-0.5 text-xs text-[var(--app-badge-error-text)]">
+                                                            expired
+                                                        </span>
+                                                    ) : (
+                                                        <span className="rounded bg-[var(--app-badge-success-bg)] px-1.5 py-0.5 text-xs text-[var(--app-badge-success-text)]">
+                                                            active
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--app-hint)]">
+                                            <span>{t('cloud.tokens.created')} {formatDate(token.createdAt)}</span>
+                                            {token.expiresAt ? (
+                                                <span>{t('cloud.tokens.expires')} {formatDate(token.expiresAt)}</span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    {!isEditing ? (
+                                        <div className="flex shrink-0 items-center gap-1">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => startEditLabel(token)}
+                                            >
+                                                Rename
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => extendMutation.mutate(token.id)}
+                                                disabled={extendMutation.isPending}
+                                            >
+                                                {extendMutation.isPending ? '...' : '+1h'}
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                size="sm"
+                                                onClick={() => setRevokeTokenId(token.id)}
+                                                disabled={revokeMutation.isPending}
+                                            >
+                                                {t('cloud.tokens.revoke')}
+                                            </Button>
+                                        </div>
                                     ) : null}
                                 </div>
                             </div>
-                            <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => setRevokeTokenId(token.id)}
-                                disabled={revokeMutation.isPending}
-                            >
-                                {t('cloud.tokens.revoke')}
-                            </Button>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
             <ConfirmDialog
@@ -179,20 +271,200 @@ function EnrollmentTokensSection() {
     )
 }
 
+function WorkersEmptyState() {
+    const { api } = useAppContext()
+    const { t } = useTranslation()
+    const queryClient = useQueryClient()
+    const [starting, setStarting] = useState(false)
+    const [startError, setStartError] = useState<string | null>(null)
+    const [showLogs, setShowLogs] = useState(false)
+    const logsEndRef = useRef<HTMLDivElement>(null)
+
+    const localWorkerQuery = useQuery({
+        queryKey: ['cloud-local-worker'],
+        enabled: Boolean(api),
+        refetchInterval: 3000,
+        queryFn: async () => {
+            if (!api) throw new Error('API unavailable')
+            return await api.getLocalWorkerStatus()
+        }
+    })
+
+    const localWorker = localWorkerQuery.data
+    const hasLocalWorker = localWorker && (localWorker.running || (localWorker.logs?.length ?? 0) > 0)
+
+    // Auto-scroll logs
+    useEffect(() => {
+        if (showLogs) logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, [localWorker?.logs?.length, showLogs])
+
+    async function handleStartLocal() {
+        if (!api) return
+        setStarting(true)
+        setStartError(null)
+        try {
+            await api.startLocalWorker()
+            setShowLogs(true)
+            void queryClient.invalidateQueries({ queryKey: ['cloud-local-worker'] })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkers() })
+        } catch (err) {
+            setStartError(err instanceof Error ? err.message : 'Failed to start worker')
+        } finally {
+            setStarting(false)
+        }
+    }
+
+    async function handleStopLocal() {
+        if (!api) return
+        try {
+            await api.stopLocalWorker()
+            void queryClient.invalidateQueries({ queryKey: ['cloud-local-worker'] })
+        } catch { /* ignore */ }
+    }
+
+    return (
+        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">
+            <p className="text-center">{t('cloud.workers.empty')}</p>
+
+            {/* Local worker status */}
+            {hasLocalWorker ? (
+                <div className="mt-3 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${localWorker!.running ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                            <span className="text-sm font-medium text-[var(--app-fg)]">
+                                Local Worker {localWorker!.running ? '(running)' : '(stopped)'}
+                            </span>
+                            {localWorker!.pid ? (
+                                <span className="text-xs text-[var(--app-hint)]">pid {localWorker!.pid}</span>
+                            ) : null}
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowLogs(v => !v)}
+                            >
+                                {showLogs ? 'Hide Logs' : 'Logs'}
+                            </Button>
+                            {localWorker!.running ? (
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => void handleStopLocal()}
+                                >
+                                    Stop
+                                </Button>
+                            ) : (
+                                <Button
+                                    size="sm"
+                                    onClick={() => void handleStartLocal()}
+                                    disabled={starting}
+                                >
+                                    {starting ? 'Starting...' : 'Restart'}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                    {localWorker!.exitCode != null && localWorker!.exitCode !== 0 ? (
+                        <div className="mt-1 text-xs text-[var(--app-badge-error-text)]">
+                            Exited with code {localWorker!.exitCode}
+                        </div>
+                    ) : null}
+                    {localWorker!.running ? (
+                        <div className="mt-1 text-xs text-[var(--app-hint)]">
+                            Waiting for worker to finish enrollment and connect...
+                        </div>
+                    ) : null}
+                    {showLogs && localWorker!.logs?.length ? (
+                        <div className="mt-2 max-h-48 overflow-y-auto rounded bg-black/80 p-2 font-mono text-xs text-green-400">
+                            {localWorker!.logs.map((line, i) => (
+                                <div key={i} className="whitespace-pre-wrap break-all">{line}</div>
+                            ))}
+                            <div ref={logsEndRef} />
+                        </div>
+                    ) : null}
+                </div>
+            ) : (
+                <div className="mt-3 text-center">
+                    <Button
+                        size="sm"
+                        onClick={() => void handleStartLocal()}
+                        disabled={starting}
+                    >
+                        {starting ? 'Starting...' : 'Start Worker on This Machine'}
+                    </Button>
+                    {startError ? (
+                        <p className="mt-2 text-[var(--app-badge-error-text)]">{startError}</p>
+                    ) : null}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function WorkerActions({ worker }: { worker: CloudWorkerSummary }) {
+    const { api } = useAppContext()
+    const queryClient = useQueryClient()
+    const [stopping, setStopping] = useState(false)
+
+    const localWorkerQuery = useQuery({
+        queryKey: ['cloud-local-worker'],
+        enabled: Boolean(api),
+        queryFn: async () => {
+            if (!api) throw new Error('API unavailable')
+            return await api.getLocalWorkerStatus()
+        }
+    })
+
+    const isLocalWorker = localWorkerQuery.data?.running
+        && worker.runnerState?.pid === localWorkerQuery.data?.pid
+
+    async function handleStop() {
+        if (!api) return
+        setStopping(true)
+        try {
+            await api.stopLocalWorker()
+            void queryClient.invalidateQueries({ queryKey: ['cloud-local-worker'] })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkers() })
+        } catch { /* ignore */ } finally {
+            setStopping(false)
+        }
+    }
+
+    return (
+        <div className="flex items-center gap-1">
+            {isLocalWorker ? (
+                <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => void handleStop()}
+                    disabled={stopping}
+                >
+                    {stopping ? 'Stopping...' : 'Stop'}
+                </Button>
+            ) : worker.active ? (
+                <span className="text-xs text-[var(--app-hint)]">remote</span>
+            ) : null}
+        </div>
+    )
+}
+
 export default function CloudWorkersPage() {
     const { api, baseUrl } = useAppContext()
     const { t } = useTranslation()
     const queryClient = useQueryClient()
     const [tokenLabel, setTokenLabel] = useState('')
-    const [tokenTtl, setTokenTtl] = useState('60')
+    const [tokenTtl, setTokenTtl] = useState('1440')
     const [generatedToken, setGeneratedToken] = useState<string | null>(null)
-    const [copied, setCopied] = useState(false)
+    const [copiedField, setCopiedField] = useState<string | null>(null)
     const [addWorkerExpanded, setAddWorkerExpanded] = useState(true)
     const [workersExpanded, setWorkersExpanded] = useState(true)
 
     const workersQuery = useQuery({
         queryKey: queryKeys.cloudWorkers(),
         enabled: Boolean(api),
+        refetchInterval: 5000,
         queryFn: async () => {
             if (!api) throw new Error('API unavailable')
             return await api.getCloudWorkers()
@@ -210,7 +482,7 @@ export default function CloudWorkersPage() {
         onSuccess: async (result) => {
             setGeneratedToken(result.token)
             setTokenLabel('')
-            setCopied(false)
+            setCopiedField(null)
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkerEnrollmentTokens })
         }
     })
@@ -220,10 +492,10 @@ export default function CloudWorkersPage() {
         ? `haqi worker start --token ${generatedToken} --hub-url ${hubUrl}`
         : ''
 
-    function handleCopy(text: string) {
+    function handleCopy(text: string, field: string) {
         void navigator.clipboard?.writeText(text).then(() => {
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
+            setCopiedField(field)
+            setTimeout(() => setCopiedField(null), 2000)
         }).catch(() => undefined)
     }
 
@@ -300,9 +572,9 @@ export default function CloudWorkersPage() {
                                     type="button"
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleCopy(generatedToken)}
+                                    onClick={() => handleCopy(generatedToken, 'token')}
                                 >
-                                    {copied ? 'Copied' : 'Copy'}
+                                    {copiedField === 'token' ? 'Copied' : 'Copy Token'}
                                 </Button>
                             </div>
                             <div className="mt-3">
@@ -315,9 +587,9 @@ export default function CloudWorkersPage() {
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => handleCopy(installCommand)}
+                                        onClick={() => handleCopy(installCommand, 'cmd')}
                                     >
-                                        Copy
+                                        {copiedField === 'cmd' ? 'Copied' : 'Copy Command'}
                                     </Button>
                                 </div>
                             </div>
@@ -335,15 +607,7 @@ export default function CloudWorkersPage() {
                 onToggle={() => setWorkersExpanded(!workersExpanded)}
             >
                 {workers.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-sm text-[var(--app-hint)]">
-                        <p>{t('cloud.workers.empty')}</p>
-                        <p className="mt-1">
-                            {t('cloud.workers.empty.hint')}{' '}
-                            <Link to="/cloud/secrets" className="underline hover:no-underline">
-                                {t('cloud.workers.empty.link')}
-                            </Link>
-                        </p>
-                    </div>
+                    <WorkersEmptyState />
                 ) : (
                     <div>
                         {workers.map((worker) => (
@@ -365,7 +629,7 @@ export default function CloudWorkersPage() {
                                             <span className="text-xs text-[var(--app-hint)]">{worker.provider}</span>
                                         ) : null}
                                     </div>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
                                         {worker.lifecycle ? (
                                             <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]">
                                                 {worker.lifecycle}
@@ -374,6 +638,7 @@ export default function CloudWorkersPage() {
                                         <span className="text-xs text-[var(--app-hint)]">
                                             {formatLastSeen(worker.updatedAt)}
                                         </span>
+                                        <WorkerActions worker={worker} />
                                     </div>
                                 </div>
                                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 pl-4 text-xs text-[var(--app-hint)]">

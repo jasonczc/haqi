@@ -44,6 +44,19 @@ export default defineConfig({
                 target: hubTarget,
                 changeOrigin: true
             },
+            '/cli': {
+                target: hubTarget,
+                changeOrigin: true
+            },
+            '/desktop': {
+                target: hubTarget,
+                changeOrigin: true
+            },
+            '/preview': {
+                target: hubTarget,
+                changeOrigin: true,
+                ws: true
+            },
             '/socket.io': {
                 target: hubTarget,
                 ws: true

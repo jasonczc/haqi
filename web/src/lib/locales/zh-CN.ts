@@ -204,6 +204,7 @@ export default {
   'cloud.workers.status.offline': '离线',
   'cloud.workers.empty': '暂无已注册 Worker',
   'cloud.workers.empty.hint': '生成注册令牌以注册 Worker。',
+  'cloud.workers.empty.hintWithToken': '等待 Worker 使用注册令牌连接中。请在你的机器上运行安装命令。',
   'cloud.workers.empty.link': '前往密钥与注册页面',
   'cloud.workers.lastSeen': '最后在线',
   'cloud.workers.provider': 'Provider',

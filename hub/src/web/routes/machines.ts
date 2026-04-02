@@ -102,14 +102,14 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         if (parsed.data.executionBackend === 'cloud-self-hosted' || parsed.data.executionBackend === 'cloud-managed') {
-            if (!parsed.data.workspaceSource?.repository) {
-                return c.json({ error: 'Cloud sessions require workspaceSource.repository' }, 400)
-            }
             if (parsed.data.directory?.trim()) {
                 return c.json({ error: 'Cloud sessions do not accept directory; use workspaceSource.repository' }, 400)
             }
-            if (!parsed.data.checkpointId?.trim()) {
-                return c.json({ error: 'Cloud sessions require checkpointId' }, 400)
+            // Setup sessions can run without a checkpoint (fresh image) and without a repo
+            if (parsed.data.sessionType !== 'setup') {
+                if (!parsed.data.checkpointId?.trim() && !parsed.data.workspaceSource?.repository) {
+                    return c.json({ error: 'Cloud sessions require checkpointId or workspaceSource.repository' }, 400)
+                }
             }
         }
 

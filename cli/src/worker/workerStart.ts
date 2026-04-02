@@ -1,8 +1,9 @@
 import chalk from 'chalk'
 import os from 'node:os'
+import { readFileSync, unlinkSync } from 'node:fs'
+import { join } from 'node:path'
 import { io } from 'socket.io-client'
 import { logger } from '@/ui/logger'
-import { acquireRunnerLock } from '@/persistence'
 import { isWindows } from '@/utils/process'
 import { readWorkerConfig, writeWorkerConfig } from './workerConfig'
 import { detectWorkerCapabilities } from './detectCapabilities'
@@ -20,7 +21,10 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
     let config = await readWorkerConfig()
 
     // 2. Determine if enrollment is needed
-    const needsEnrollment = !config?.workerSessionToken
+    // Re-enroll if: no session token, OR a new --token was provided, OR --hub-url differs from saved config
+    const hubUrlChanged = options.hubUrl && config?.hubUrl && options.hubUrl !== config.hubUrl
+    const hasNewToken = !!options.token
+    const needsEnrollment = !config?.workerSessionToken || hasNewToken || hubUrlChanged
 
     if (needsEnrollment) {
         const enrollmentToken = options.token
@@ -144,8 +148,9 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
         requestShutdown('exception', error.message)
     })
 
-    // 5. Acquire lock (prevent multiple instances)
-    const lockHandle = await acquireRunnerLock(5, 200)
+    // 5. Acquire worker lock (separate from runner lock — they can coexist)
+    const workerLockFile = join(os.homedir(), '.hapi', 'worker.lock')
+    const lockHandle = await acquireWorkerLock(workerLockFile)
     if (!lockHandle) {
         console.error(chalk.red('Another worker is already running'))
         process.exit(1)
@@ -178,4 +183,32 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
         logger.debug('[WORKER START][FATAL] Failed unexpectedly - exiting with code 1', error)
         process.exit(1)
     }
+}
+
+function isProcessAlive(pid: number): boolean {
+    try { process.kill(pid, 0); return true } catch { return false }
+}
+
+async function acquireWorkerLock(lockFile: string, maxAttempts = 5): Promise<import('node:fs/promises').FileHandle | null> {
+    const { open: openAsync } = await import('node:fs/promises')
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            const fh = await openAsync(lockFile, 'wx')
+            await fh.writeFile(String(process.pid))
+            return fh
+        } catch (error: any) {
+            if (error.code === 'EEXIST') {
+                try {
+                    const lockPid = readFileSync(lockFile, 'utf-8').trim()
+                    if (lockPid && !isNaN(Number(lockPid)) && !isProcessAlive(Number(lockPid))) {
+                        unlinkSync(lockFile)
+                        continue
+                    }
+                } catch { /* corrupted lock */ }
+            }
+            if (attempt === maxAttempts) return null
+            await new Promise(r => setTimeout(r, attempt * 200))
+        }
+    }
+    return null
 }

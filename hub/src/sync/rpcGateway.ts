@@ -187,10 +187,12 @@ export class RpcGateway {
         request: MachineSpawnRequest
     ): Promise<SpawnResponse> {
         try {
+            // Spawn can take minutes: clone repo, pull image, start container, wait daemon
             const result = await this.machineRpc(
                 machineId,
                 'spawn-happy-session',
-                request
+                request,
+                300_000 // 5 min
             )
             if (result && typeof result === 'object') {
                 const obj = result as Record<string, unknown>
@@ -648,11 +650,11 @@ export class RpcGateway {
         return await this.rpcCall(`${sessionId}:${method}`, params)
     }
 
-    private async machineRpc(machineId: string, method: string, params: unknown): Promise<unknown> {
-        return await this.rpcCall(`${machineId}:${method}`, params)
+    private async machineRpc(machineId: string, method: string, params: unknown, timeoutMs?: number): Promise<unknown> {
+        return await this.rpcCall(`${machineId}:${method}`, params, timeoutMs)
     }
 
-    private async rpcCall(method: string, params: unknown): Promise<unknown> {
+    private async rpcCall(method: string, params: unknown, timeoutMs?: number): Promise<unknown> {
         const socketId = this.rpcRegistry.getSocketIdForMethod(method)
         if (!socketId) {
             throw new Error(`RPC handler not registered: ${method}`)
@@ -663,7 +665,7 @@ export class RpcGateway {
             throw new Error(`RPC socket disconnected: ${method}`)
         }
 
-        const response = await socket.timeout(30_000).emitWithAck('rpc-request', {
+        const response = await socket.timeout(timeoutMs ?? 30_000).emitWithAck('rpc-request', {
             method,
             params: JSON.stringify(params)
         }) as unknown

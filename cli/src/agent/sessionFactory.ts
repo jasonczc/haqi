@@ -82,6 +82,7 @@ export function buildSessionMetadata(options: {
     repoSyncStatus?: Metadata['repoSyncStatus']
     workspaceBranch?: string
     containerId?: string
+    noVncPort?: number
     runtimeKind?: Metadata['runtimeKind']
     executionBackend?: Metadata['executionBackend']
     environmentId?: string
@@ -130,6 +131,7 @@ export function buildSessionMetadata(options: {
         repoSyncStatus: options.repoSyncStatus,
         workspaceBranch: options.workspaceBranch,
         containerId: options.containerId,
+        noVncPort: options.noVncPort,
         runtimeKind: options.runtimeKind,
         executionBackend: options.executionBackend,
         environmentId: options.environmentId,
@@ -199,6 +201,7 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     })()
     const workspaceBranch = options.workspaceBranch ?? process.env.HAPI_WORKSPACE_BRANCH
     const containerId = options.containerId ?? process.env.HAPI_CONTAINER_ID
+    const noVncPort = process.env.HAPI_NOVNC_PORT ? parseInt(process.env.HAPI_NOVNC_PORT, 10) : undefined
     const runtimeKind = options.runtimeKind ?? (
         process.env.HAPI_RUNTIME_KIND === 'docker-session' || process.env.HAPI_RUNTIME_KIND === 'host-process' || process.env.HAPI_RUNTIME_KIND === 'daemon-session'
             ? process.env.HAPI_RUNTIME_KIND
@@ -361,6 +364,7 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         repoSyncStatus,
         workspaceBranch,
         containerId,
+        noVncPort,
         runtimeKind,
         executionBackend,
         environmentId,
