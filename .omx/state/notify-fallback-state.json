@@ -12,9 +12,9 @@
   "dispatch_drain": {
     "enabled": true,
     "max_per_tick": 5,
-    "run_count": 38371,
+    "run_count": 42564,
     "leader_only": true,
-    "last_tick_at": "2026-04-02T07:52:54.073Z",
+    "last_tick_at": "2026-04-02T08:18:06.462Z",
     "last_result": {
       "processed": 0,
       "skipped": 0,
@@ -26,17 +26,17 @@
     "enabled": true,
     "leader_only": true,
     "stale_threshold_ms": 180000,
-    "precomputed_leader_stale": true,
-    "last_tick_at": "2026-04-02T07:52:54.073Z",
+    "precomputed_leader_stale": false,
+    "last_tick_at": "2026-04-02T08:18:06.463Z",
     "last_error": null,
-    "run_count": 38371
+    "run_count": 42564
   },
   "ralph_continue_steer": {
     "enabled": true,
     "cadence_ms": 60000,
     "message": "Ralph loop active continue",
     "active": false,
-    "last_state_check_at": "2026-04-02T07:52:54.155Z",
+    "last_state_check_at": "2026-04-02T08:18:06.543Z",
     "last_sent_at": "",
     "cooldown_anchor_at": "",
     "last_reason": "blocked_by_current_session",
@@ -52,7 +52,7 @@
   "fallback_auto_nudge": {
     "enabled": true,
     "stall_ms": 5000,
-    "last_tick_at": "2026-04-02T07:52:54.153Z",
+    "last_tick_at": "2026-04-02T08:18:06.541Z",
     "last_turn_at": "2026-04-02T06:00:43.336Z",
     "last_turn_count": 1,
     "last_message": "按代码看，不是“大块都没做”，而是很多关键体验已经有骨架，但还缺数据接线和闭环。\n\n**已有底座**\n`RunWorkbench`、`GitPanel`、`SetupPanel`、`SecretsPa",
