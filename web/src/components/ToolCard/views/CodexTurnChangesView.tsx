@@ -22,6 +22,11 @@ type ChangeSummary = {
     diffDeletions: number
 }
 
+type ParsedDiffSection = {
+    path: string
+    unifiedDiff: string
+}
+
 const MIN_LIST_WIDTH = 220
 const MAX_LIST_WIDTH = 520
 const MIN_DIFF_WIDTH = 360
@@ -69,6 +74,95 @@ function asNumber(value: unknown): number {
     return typeof value === 'number' && Number.isFinite(value) ? value : 0
 }
 
+function normalizePath(path: string): string {
+    return path
+        .replace(/\\/g, '/')
+        .replace(/^\.\/+/, '')
+        .replace(/^\/+/, '')
+        .replace(/\/+/g, '/')
+        .trim()
+}
+
+function parseDiffHeaderPath(line: string): string | null {
+    const match = line.match(/^diff --git a\/(.+?) b\/(.+)$/)
+    if (!match) return null
+    return match[2]?.trim() || null
+}
+
+function parsePlusPath(line: string): string | null {
+    const rawPath = line.replace(/^\+\+\+\s+/, '').trim()
+    if (!rawPath || rawPath === '/dev/null') return null
+    if (rawPath.startsWith('b/')) return rawPath.slice(2)
+    return rawPath
+}
+
+function splitUnifiedDiffByFile(unifiedDiff: string): ParsedDiffSection[] {
+    const sections: ParsedDiffSection[] = []
+    const lines = unifiedDiff.split('\n')
+
+    let currentPath: string | null = null
+    let currentLines: string[] = []
+
+    const flush = () => {
+        if (!currentPath || currentLines.length === 0) {
+            currentPath = null
+            currentLines = []
+            return
+        }
+
+        sections.push({
+            path: currentPath,
+            unifiedDiff: currentLines.join('\n')
+        })
+        currentPath = null
+        currentLines = []
+    }
+
+    for (const line of lines) {
+        if (line.startsWith('diff --git ')) {
+            flush()
+            currentPath = parseDiffHeaderPath(line)
+            currentLines = [line]
+            continue
+        }
+
+        if (currentLines.length === 0) {
+            if (!line.trim()) continue
+            currentLines = [line]
+        } else {
+            currentLines.push(line)
+        }
+
+        if (line.startsWith('+++ ')) {
+            currentPath = parsePlusPath(line) ?? currentPath
+        }
+    }
+
+    flush()
+    return sections
+}
+
+function pickMatchingUnifiedDiff(unifiedDiff: string, expectedPath: string): string {
+    const sections = splitUnifiedDiffByFile(unifiedDiff)
+    if (sections.length <= 1) return unifiedDiff
+
+    const normalizedExpectedPath = normalizePath(expectedPath)
+    const exact = sections.find((section) => normalizePath(section.path) === normalizedExpectedPath)
+    if (exact) return exact.unifiedDiff
+
+    const suffixMatches = sections.filter((section) => {
+        const normalizedSectionPath = normalizePath(section.path)
+        return normalizedExpectedPath.endsWith(`/${normalizedSectionPath}`)
+            || normalizedSectionPath.endsWith(`/${normalizedExpectedPath}`)
+    })
+
+    if (suffixMatches.length === 1) {
+        return suffixMatches[0].unifiedDiff
+    }
+
+    return unifiedDiff
+}
+
 function normalizeSummary(input: unknown): ChangeSummary | null {
     if (!isObject(input)) return null
 
@@ -79,11 +173,12 @@ function normalizeSummary(input: unknown): ChangeSummary | null {
             const path = typeof entry.path === 'string' ? entry.path.trim() : ''
             if (!path) return null
 
+            const unifiedDiff = typeof entry.unified_diff === 'string' ? entry.unified_diff : null
             return {
                 path,
                 additions: asNumber(entry.additions),
                 deletions: asNumber(entry.deletions),
-                unifiedDiff: typeof entry.unified_diff === 'string' ? entry.unified_diff : null
+                unifiedDiff: unifiedDiff ? pickMatchingUnifiedDiff(unifiedDiff, path) : null
             }
         })
         .filter((entry): entry is ChangeFile => entry !== null)
