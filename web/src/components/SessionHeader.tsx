@@ -11,6 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
 
+function extractRepoShortName(url: string): string {
+    const match = url.match(/([^/]+\/[^/.]+?)(?:\.git)?$/)
+    return match ? match[1] : url
+}
+
 function getSessionTitle(session: Session): string {
     if (session.metadata?.name) {
         return session.metadata.name
@@ -199,43 +204,15 @@ export function SessionHeader(props: {
     onViewTerminal?: () => void
     onViewFiles?: () => void
     onViewMcpStatus?: () => void
+    onToggleWorkbench?: () => void
+    workbenchOpen?: boolean
     api: ApiClient | null
     onSessionDeleted?: () => void
 }) {
     const { t } = useTranslation()
     const { session, api, onSessionDeleted } = props
     const title = useMemo(() => getSessionTitle(session), [session])
-    const worktreeBranch = session.metadata?.worktree?.branch
-    const executionBackend = session.metadata?.executionBackend
-    const runtimeKind = session.metadata?.runtimeKind
-    const workspaceId = session.metadata?.workspaceId
-    const spawnRequestId = session.metadata?.spawnRequestId
-    const checkpointId = session.metadata?.checkpointId
-    const launchMode = session.metadata?.launchMode
-    const repoSyncStatus = session.metadata?.repoSyncStatus
-    const workspaceBranch = session.metadata?.workspaceBranch
     const containerId = session.metadata?.containerId
-    const prUrl = useMemo(() => {
-        const meta = session.metadata as any
-        return typeof meta?.pullRequestUrl === 'string' ? meta.pullRequestUrl : null
-    }, [session])
-    const workspaceMode = session.metadata?.workspaceMode
-    const workerId = session.metadata?.workerId
-    const environmentId = session.metadata?.environmentId
-    const environmentVersion = session.metadata?.environmentVersion
-    const repositoryRef = session.metadata?.repositoryRef
-    const repositoryProvider = session.metadata?.repositoryProvider
-    const terminalDescriptorCount = session.metadata?.terminalDescriptors?.length ?? 0
-    const languageServerCount = session.metadata?.languageServers?.length ?? 0
-    const setupStatus = session.metadata?.setupStatus
-    const serviceEndpointCount = session.metadata?.serviceEndpoints?.length ?? 0
-    const previewCount = session.metadata?.previewUrls?.length ?? 0
-    const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
-    const displayThinkEffort = session.metadata?.thinkEffort?.trim()
-    const displayServiceTier = session.metadata?.serviceTier?.trim()
-    const sidebarToggleLabel = props.sidebarVisible
-        ? t('sessions.sidebar.hideDesktop')
-        : t('sessions.sidebar.showDesktop')
 
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -332,205 +309,53 @@ export function SessionHeader(props: {
 
     return (
         <>
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3">
-                    <div className="flex items-center gap-1">
-                        {/* Back button */}
-                        <button
-                            type="button"
-                            onClick={props.onBack}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+            <div className="bg-[var(--bg-editor)] pt-[env(safe-area-inset-top)]">
+                <div className="flex items-center h-11 gap-2 px-4 border-b border-[var(--border-quaternary)]">
+                    {/* Back button */}
+                    <button
+                        type="button"
+                        onClick={props.onBack}
+                        className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                         >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <polyline points="15 18 9 12 15 6" />
-                            </svg>
-                        </button>
+                            <polyline points="15 18 9 12 15 6" />
+                        </svg>
+                    </button>
 
-                        {props.onToggleSidebar ? (
-                            <button
-                                type="button"
-                                onClick={props.onToggleSidebar}
-                                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                title={sidebarToggleLabel}
-                                aria-label={sidebarToggleLabel}
-                            >
-                                <SidebarIcon />
-                            </button>
-                        ) : null}
-                    </div>
-
-                    {/* Session info - two lines: title and path */}
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">
+                    {/* Single-line title area */}
+                    <div className="min-w-0 flex-1 flex items-center gap-2">
+                        <span className="truncate text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
                             {title}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[var(--app-hint)]">
-                            <span className="inline-flex items-center gap-1">
-                                <span aria-hidden="true">❖</span>
-                                {session.metadata?.flavor?.trim() || 'unknown'}
+                        </span>
+                        {session.metadata?.repositoryUrl && (
+                            <span className="truncate text-[var(--font-size-base)] text-[var(--text-tertiary)]">
+                                {extractRepoShortName(session.metadata.repositoryUrl)}
                             </span>
-                            <span>
-                                {t('session.item.model')}: {displayModel}
-                                {displayThinkEffort ? ` · ${t('session.item.thinkLevel')}: ${displayThinkEffort}` : ''}
-                                {displayServiceTier ? ` · ${t('newSession.serviceTier')}: ${displayServiceTier}` : ''}
-                            </span>
-                            {executionBackend ? (
-                                <span>{executionBackend}{runtimeKind ? ` · ${runtimeKind}` : ''}</span>
-                            ) : null}
-                            {containerId ? (
-                                <span>container-backed</span>
-                            ) : null}
-                            {workerId ? (
-                                <span>worker: {workerId}</span>
-                            ) : null}
-                            {checkpointId ? (
-                                <span>checkpoint: {checkpointId}</span>
-                            ) : null}
-                            {environmentId ? (
-                                <span>env: {environmentId}{environmentVersion ? ` @ ${environmentVersion}` : ''}</span>
-                            ) : null}
-                            {launchMode ? (
-                                <span>launch: {launchMode}</span>
-                            ) : null}
-                            {workspaceMode ? (
-                                <span>workspace: {workspaceMode}</span>
-                            ) : null}
-                            {repositoryProvider ? (
-                                <span>repo: {repositoryProvider}</span>
-                            ) : null}
-                            {repositoryRef?.branch ? (
-                                <span>branch: {repositoryRef.branch}</span>
-                            ) : null}
-                            {workspaceBranch ? (
-                                <span>ws-branch: {workspaceBranch}</span>
-                            ) : null}
-                            {repositoryRef?.commit ? (
-                                <span>commit: {repositoryRef.commit.slice(0, 12)}</span>
-                            ) : null}
-                            {repoSyncStatus ? (
-                                <span>repo: {repoSyncStatus}</span>
-                            ) : null}
-                            {spawnRequestId ? (
-                                <span>
-                                    request:{' '}
-                                    <a href={`/cloud/requests/${encodeURIComponent(spawnRequestId)}`} className="text-[var(--app-link)] hover:underline">
-                                        {spawnRequestId}
-                                    </a>
-                                </span>
-                            ) : null}
-                            {workspaceId ? (
-                                <span>
-                                    workspace:{' '}
-                                    <a href={`/cloud/workspaces/${encodeURIComponent(workspaceId)}`} className="text-[var(--app-link)] hover:underline">
-                                        {workspaceId}
-                                    </a>
-                                </span>
-                            ) : null}
-                            {serviceEndpointCount > 0 ? (
-                                <span>services: {serviceEndpointCount}</span>
-                            ) : null}
-                            {languageServerCount > 0 ? (
-                                <span>lsp: {languageServerCount}</span>
-                            ) : null}
-                            {terminalDescriptorCount > 0 ? (
-                                <span>terminals: {terminalDescriptorCount}</span>
-                            ) : null}
-                            {setupStatus ? (
-                                <span>setup: {setupStatus.phase}</span>
-                            ) : null}
-                            {worktreeBranch ? (
-                                <span>{t('session.item.worktree')}: {worktreeBranch}</span>
-                            ) : null}
-                            {previewCount > 0 ? (
-                                <span>previews: {previewCount}</span>
-                            ) : null}
-                            {prUrl && (
-                                <a href={prUrl} target="_blank" rel="noopener noreferrer"
-                                   className="inline-flex items-center gap-1 text-xs text-[var(--app-link)] hover:underline">
-                                    PR ↗
-                                </a>
-                            )}
-                        </div>
+                        )}
                     </div>
 
-                    {props.onViewPreview ? (
+                    {props.onToggleWorkbench ? (
                         <button
                             type="button"
-                            onClick={props.onViewPreview}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title="Preview"
-                            aria-label="Preview"
+                            onClick={props.onToggleWorkbench}
+                            className={`flex h-7 items-center gap-1.5 rounded-[6px] px-2 text-[var(--font-size-base)] transition-colors ${
+                                props.workbenchOpen
+                                    ? 'bg-[var(--bg-neutral)] text-[var(--bg-editor)]'
+                                    : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                            }`}
+                            title="Toggle workbench"
                         >
-                            <BrowserIcon />
-                        </button>
-                    ) : null}
-
-                    {props.onViewDesktop ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewDesktop}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title="Remote Desktop"
-                            aria-label="Remote Desktop"
-                        >
-                            <DesktopIcon />
-                        </button>
-                    ) : null}
-
-                    {props.onViewTerminal ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewTerminal}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title="Terminal"
-                            aria-label="Terminal"
-                        >
-                            <TerminalIcon />
-                        </button>
-                    ) : null}
-
-                    {props.onViewFiles ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewFiles}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('session.title')}
-                        >
-                            <FilesIcon />
-                        </button>
-                    ) : null}
-
-                    {showSaveCheckpoint ? (
-                        <button
-                            type="button"
-                            onClick={() => setCheckpointDialogOpen(true)}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title="Save Checkpoint"
-                            aria-label="Save Checkpoint"
-                        >
-                            <SaveIcon />
-                        </button>
-                    ) : null}
-
-                    {props.onViewMcpStatus ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewMcpStatus}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('session.mcpStatus')}
-                            aria-label={t('session.mcpStatus')}
-                        >
-                            <PlugIcon />
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>
                         </button>
                     ) : null}
 
@@ -542,7 +367,7 @@ export function SessionHeader(props: {
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
                         aria-controls={menuOpen ? menuId : undefined}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
                         title={t('session.more')}
                     >
                         <MoreVerticalIcon />
