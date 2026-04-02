@@ -426,6 +426,8 @@ export default {
   'settings.behavior.sessionReopenPosition.restore.description': 'Resume from the exact place you were reading.',
   'settings.behavior.sessionReopenPosition.bottom-if-unread': 'Latest only when unread',
   'settings.behavior.sessionReopenPosition.bottom-if-unread.description': 'Restore position unless new messages arrived while you were away.',
+  'settings.behavior.mobileQueueEmptyState': 'Show Empty Mobile Queue Row',
+  'settings.behavior.mobileQueueEmptyState.description': 'When queue mode is on, keep showing the QUEUE row above the composer on mobile even if the queue is empty.',
   'settings.behavior.projectQuickCreate': 'Project + Quick Create',
   'settings.behavior.projectQuickCreate.description': 'Click project + to create immediately. Long-press or right-click opens detailed create.',
   'settings.behavior.briefCardAdaptive': 'Brief Card Adaptive Height',

@@ -375,6 +375,14 @@ describe('SettingsPage', () => {
         expect(window.localStorage.getItem('hapi:sessionReopenPosition:v1')).toBe('restore')
     })
 
+    it('persists mobile empty queue row preference', () => {
+        renderWithProviders(<SettingsPage />)
+
+        fireEvent.click(screen.getByRole('switch', { name: /Show Empty Mobile Queue Row/i }))
+
+        expect(window.localStorage.getItem('hapi:mobileQueueEmptyState')).toBe('show')
+    })
+
     it('displays the App Version with correct value', () => {
         renderWithProviders(<SettingsPage />)
         expandGroup(/About/)
@@ -420,6 +428,7 @@ describe('SettingsPage', () => {
         expect(calledKeys).toContain('settings.behavior.imageCompression')
         expect(calledKeys).toContain('settings.behavior.defaultSendMode')
         expect(calledKeys).toContain('settings.behavior.projectQuickCreate')
+        expect(calledKeys).toContain('settings.behavior.mobileQueueEmptyState')
         expect(calledKeys).toContain('settings.behavior.sessionQuickArchive')
         expect(calledKeys).toContain('settings.behavior.imageCompression.level')
         expect(calledKeys).toContain('settings.behavior.imageCompression.targetSize')

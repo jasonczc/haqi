@@ -8,6 +8,7 @@ import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useEnterBehavior } from '@/hooks/useEnterBehavior'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useCodexSendModePreference } from '@/hooks/useCodexSendModePreference'
+import { useMobileQueueEmptyStatePreference } from '@/hooks/useMobileQueueEmptyStatePreference'
 import {
     useSessionReopenPositionPreference,
     type SessionReopenPositionPreference
@@ -261,6 +262,7 @@ export default function SettingsPage() {
     const { fontScale, setFontScale } = useFontScale()
     const { themePreference, setThemePreference } = useThemePreference()
     const { queueInlinePanelMode, setQueueInlinePanelMode } = useQueueInlinePanel()
+    const { mobileQueueEmptyStatePreference, setMobileQueueEmptyStatePreference } = useMobileQueueEmptyStatePreference()
     const { codexSendModeDefault, setCodexSendModeDefault } = useCodexSendModePreference()
     const { sessionReopenPosition, setSessionReopenPosition } = useSessionReopenPositionPreference()
     const {
@@ -1481,6 +1483,21 @@ export default function SettingsPage() {
                                     })}
                                 </div>
                             )}
+                        </div>
+                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
+                            <div className="flex flex-col">
+                                <span className="text-[var(--app-fg)]">
+                                    {t('settings.behavior.mobileQueueEmptyState')}
+                                </span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {t('settings.behavior.mobileQueueEmptyState.description')}
+                                </span>
+                            </div>
+                            <Switch
+                                checked={mobileQueueEmptyStatePreference === 'show'}
+                                onCheckedChange={(checked) => setMobileQueueEmptyStatePreference(checked ? 'show' : 'hide')}
+                                ariaLabel={t('settings.behavior.mobileQueueEmptyState')}
+                            />
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
                             <div className="flex flex-col">

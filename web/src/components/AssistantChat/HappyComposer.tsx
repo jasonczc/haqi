@@ -31,6 +31,7 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useEnterBehavior } from '@/hooks/useEnterBehavior'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { isClaudeFlavor, supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
+import { useMobileQueueEmptyStatePreference } from '@/hooks/useMobileQueueEmptyStatePreference'
 import { markSkillUsed } from '@/lib/recent-skills'
 import { preserveUploadPathsForQueue } from '@/lib/attachmentAdapter'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
@@ -454,6 +455,7 @@ export function HappyComposer(props: {
     }, [rawServiceTier])
 
     const api = useAssistantApi()
+    const { mobileQueueEmptyStatePreference } = useMobileQueueEmptyStatePreference()
     const composerText = useAssistantState(({ composer }) => composer.text)
     const attachments = useAssistantState(({ composer }) => composer.attachments)
     const threadIsRunning = useAssistantState(({ thread }) => thread.isRunning)
@@ -470,9 +472,10 @@ export function HappyComposer(props: {
         && codexSendMode === 'queue'
         && codexQueueInlinePanelMode !== 'off'
     const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
-    const inlineQueueInQueue = codexQueueSummary?.inQueue ?? false
-    const inlineQueueTaskRunning = codexQueueSummary?.taskRunning ?? false
     const inlineQueueNextPreview = codexQueueSummary?.nextPreview?.trim() ?? ''
+    const hideEmptyInlineQueuePanelOnMobile = mobileQueueEmptyStatePreference === 'hide'
+        && inlineQueuePendingCount <= 0
+        && codexQueueEntries.length <= 0
     const inlineQueueHeadline = useMemo(() => {
         if (inlineQueueNextPreview.length > 0) {
             return `${t('queue.inline.next')}: ${inlineQueueNextPreview}`
@@ -1286,7 +1289,7 @@ export function HappyComposer(props: {
                     >
                         <div className={`overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
                             {showInlineQueuePanel ? (
-                                <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
+                                <div className={`border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2 ${hideEmptyInlineQueuePanelOnMobile ? 'hidden sm:block' : ''}`}>
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
                                             {t('queue.dialog.title')}
@@ -1294,18 +1297,9 @@ export function HappyComposer(props: {
                                         <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
                                             {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                         </span>
-                                        {inlineQueueTaskRunning ? (
-                                            <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
-                                                {t('queue.inline.running')}
-                                            </span>
-                                        ) : null}
-                                        {inlineQueueInQueue ? (
-                                            <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
-                                                {t('queue.summary.inQueue')}
-                                            </span>
-                                        ) : null}
                                         <span
-                                            className="min-w-0 flex-1 break-all text-xs text-[var(--app-hint)]"
+                                            className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-[var(--app-hint)]"
+                                            title={inlineQueueHeadline}
                                         >
                                             {inlineQueueHeadline}
                                         </span>
