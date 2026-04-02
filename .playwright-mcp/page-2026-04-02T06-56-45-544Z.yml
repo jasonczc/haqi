@@ -1,0 +1,35 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - navigation [ref=e7]:
+          - button "New Agent" [ref=e8]:
+            - img [ref=e9]
+            - text: New Agent
+          - button "Automations" [ref=e11]:
+            - img [ref=e12]
+            - text: Automations
+          - button "Dashboard" [ref=e14]:
+            - img [ref=e15]
+            - text: Dashboard
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - button "Sessions" [ref=e22]
+            - button "Groups" [ref=e23]
+            - button "Loops" [ref=e24]
+            - button "Cloud" [ref=e25]
+          - generic [ref=e26]:
+            - button "Switch to compact view" [ref=e27]:
+              - img [ref=e28]
+            - button "Settings" [ref=e29]:
+              - img [ref=e30]
+            - button "New Session" [ref=e33]:
+              - img [ref=e34]
+        - generic [ref=e36]: 0 sessions in 0 projects
+        - textbox "Search sessions…" [ref=e38]
+      - status [ref=e45]
+    - separator "Resize sidebar" [ref=e46]
+  - generic [ref=e50]:
+    - img [ref=e52]
+    - button "Open Tanstack query devtools" [ref=e100] [cursor=pointer]:
+      - img [ref=e101]

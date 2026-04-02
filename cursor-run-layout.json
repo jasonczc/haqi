@@ -1,0 +1,95 @@
+{
+  "panels": [
+    {
+      "idx": 0,
+      "width": 1516,
+      "height": 867,
+      "left": 0,
+      "bg": "rgba(0, 0, 0, 0)",
+      "display": "flex",
+      "flexDirection": "column",
+      "childCount": 1
+    },
+    {
+      "idx": 1,
+      "width": 1236,
+      "height": 867,
+      "left": 280,
+      "bg": "rgba(0, 0, 0, 0)",
+      "display": "block",
+      "flexDirection": "row",
+      "childCount": 1
+    }
+  ],
+  "workbenchTabBar": {
+    "width": 50,
+    "height": 26,
+    "bg": "rgba(0, 0, 0, 0)",
+    "borderBottom": "0px solid rgb(229, 231, 235)"
+  },
+  "tabButtons": [
+    {
+      "text": "Plan",
+      "fontSize": "13px",
+      "fontWeight": "400",
+      "padding": "0px 12px",
+      "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+      "height": 26
+    },
+    {
+      "text": "Git",
+      "fontSize": "13px",
+      "fontWeight": "400",
+      "padding": "0px 12px",
+      "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+      "height": 26
+    },
+    {
+      "text": "Desktop",
+      "fontSize": "13px",
+      "fontWeight": "400",
+      "padding": "0px 12px",
+      "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+      "height": 26
+    },
+    {
+      "text": "Terminal",
+      "fontSize": "13px",
+      "fontWeight": "400",
+      "padding": "0px 12px",
+      "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.48)",
+      "height": 26
+    }
+  ],
+  "workbenchPanel": {
+    "width": 50,
+    "left": 836,
+    "bg": "rgba(0, 0, 0, 0)",
+    "borderLeft": "0px solid rgb(229, 231, 235)"
+  },
+  "sessionListItem": {
+    "width": 263,
+    "height": 32,
+    "padding": "0px 6px",
+    "fontSize": "13px",
+    "bg": "rgba(0, 0, 0, 0)",
+    "borderRadius": "6px",
+    "gap": "normal"
+  },
+  "workedForText": {
+    "fontSize": "13px",
+    "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+    "fontWeight": "400"
+  },
+  "runTitleBar": {
+    "fontSize": "16px",
+    "fontWeight": "400",
+    "color": "oklab(0.191244 0.00000869483 0.0000038445 / 0.94)",
+    "padding": "0px",
+    "height": 867
+  },
+  "viewport": {
+    "width": 1516,
+    "height": 867
+  }
+}

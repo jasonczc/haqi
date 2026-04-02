@@ -66,7 +66,6 @@ export function SessionHeader(props: {
     const { t } = useTranslation()
     const { session, api, onSessionDeleted } = props
     const title = useMemo(() => getSessionTitle(session), [session])
-    const containerId = session.metadata?.containerId
 
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -134,7 +133,7 @@ export function SessionHeader(props: {
         }
     }, [api, session.id, checkpointName, addToast])
 
-    const showSaveCheckpoint = session.active && Boolean(containerId)
+
 
     const handleSpawnSameConfig = () => {
         void spawnSameConfigSession()

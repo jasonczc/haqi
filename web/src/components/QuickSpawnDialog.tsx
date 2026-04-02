@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { RepoPicker } from '@/components/RepoPicker'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import type { CloudCheckpoint } from '@hapi/protocol/types'
@@ -247,20 +248,12 @@ export function QuickSpawnDialog(props: {
                                     />
                                 </div>
 
-                                {/* Repo URL */}
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-medium text-[var(--app-hint)]">
-                                        Repository URL
-                                    </label>
-                                    <input
-                                        type="url"
-                                        value={repoUrl}
-                                        onChange={(e) => setRepoUrl(e.target.value)}
-                                        placeholder="https://github.com/owner/repo"
-                                        disabled={isSpawning}
-                                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
-                                    />
-                                </div>
+                                {/* Repo picker (Cursor-style) */}
+                                <RepoPicker
+                                    value={repoUrl}
+                                    onChange={setRepoUrl}
+                                    disabled={isSpawning}
+                                />
 
                                 {/* Worker status */}
                                 <div className="text-xs text-[var(--app-hint)]">

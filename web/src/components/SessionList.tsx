@@ -323,7 +323,7 @@ function SessionItem(props: {
     forceOffline?: boolean
 }) {
     const { t } = useTranslation()
-    const { session: s, onSelect, showPath = true, api, selected = false, density, forceOffline = false } = props
+    const { session: s, onSelect, api, selected = false, forceOffline = false } = props
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -617,31 +617,29 @@ function SessionGroupRow(props: {
             <button
                 type="button"
                 onClick={() => onToggleGroup(group.directory, isCollapsed)}
-                className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-[var(--app-secondary-bg)]"
+                className="flex min-w-0 flex-1 items-center gap-1.5 rounded-[6px] px-1.5 h-8 text-left transition-colors hover:bg-[var(--bg-quaternary)]"
             >
                 <ChevronIcon
-                    className="h-4 w-4 text-[var(--app-hint)]"
+                    className="h-3.5 w-3.5 text-[var(--text-quaternary)] shrink-0"
                     collapsed={isCollapsed}
                 />
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className="px-2 py-1 text-[var(--font-size-xs)] uppercase tracking-[0.05em] text-[var(--text-quaternary)] font-[var(--font-weight-normal)] break-words" title={group.directory}>
-                        {group.displayName}
+                <span className="truncate text-[var(--font-size-xs)] text-[var(--text-quaternary)]" title={group.directory}>
+                    {group.displayName}
+                </span>
+                {isProjectOffline ? (
+                    <span className="shrink-0 rounded bg-[var(--bg-quaternary)] px-1 py-0.5 text-[10px] text-[var(--text-quaternary)]">
+                        {t('misc.offline')}
                     </span>
-                    {isProjectOffline ? (
-                        <span className="shrink-0 rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                            {t('misc.offline')}
-                        </span>
-                    ) : null}
-                    <span className="shrink-0 text-xs text-[var(--app-hint)]">
-                        ({group.sessions.length})
-                    </span>
-                </div>
+                ) : null}
+                <span className="shrink-0 text-[var(--font-size-xs)] text-[var(--text-quaternary)]">
+                    ({group.sessions.length})
+                </span>
             </button>
             {group.directory !== 'Other' ? (
                 <button
                     type="button"
                     {...plusButtonHandlers}
-                    className="shrink-0 rounded p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-secondary-bg)]"
+                    className="shrink-0 rounded-[6px] p-1 text-[var(--text-quaternary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
                     title={t('sessions.newInProject')}
                     aria-label={t('sessions.newInProject')}
                 >

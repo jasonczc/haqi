@@ -505,102 +505,30 @@ function SessionsPage() {
                             Dashboard
                         </button>
                     </nav>
-                    {/* Tab switcher row */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
-                        <div className="flex items-center gap-1">
+                    {inDrawer && onClose ? (
+                        <div className="flex justify-end px-2 py-1">
                             <button
                                 type="button"
-                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
+                                onClick={onClose}
+                                className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                                title={t('sessions.sidebar.close')}
+                                aria-label={t('sessions.sidebar.close')}
                             >
-                                Sessions
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/groups' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Groups
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/review-loops' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Loops
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/cloud/workers' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Cloud
+                                <CloseIcon className="h-4 w-4" />
                             </button>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                            {!isSessionsIndex ? (
-                                <button
-                                    type="button"
-                                    onClick={toggleDesktopSidebar}
-                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                    title={desktopSidebarToggleLabel}
-                                    aria-label={desktopSidebarToggleLabel}
-                                >
-                                    <SidebarIcon className="h-4 w-4" />
-                                </button>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={toggleDensity}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={toggleDensityLabel}
-                                aria-label={toggleDensityLabel}
-                            >
-                                <DensityIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/settings' })}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={t('settings.title')}
-                            >
-                                <SettingsIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => openNewSession()}
-                                className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
-                                title={t('sessions.new')}
-                            >
-                                <PlusIcon className="h-5 w-5" />
-                            </button>
-                            {inDrawer && onClose ? (
-                                <>
-                                    <span className="mx-0.5 h-5 w-px bg-[var(--app-divider)]" aria-hidden="true" />
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                        title={t('sessions.sidebar.close')}
-                                        aria-label={t('sessions.sidebar.close')}
-                                    >
-                                        <CloseIcon className="h-4 w-4" />
-                                    </button>
-                                </>
-                            ) : null}
+                    ) : null}
+                    {/* Cursor-style search */}
+                    <div className="px-2 pb-1.5">
+                        <div className="flex items-center gap-2 rounded-[6px] bg-[var(--bg-quaternary)] px-2.5 py-1.5">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-quaternary)] shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input
+                                value={sessionSearchQuery}
+                                onChange={(e) => setSessionSearchQuery(e.target.value)}
+                                placeholder={t('sessions.search.placeholder')}
+                                className="w-full bg-transparent text-[var(--font-size-base)] text-[var(--text-primary)] placeholder:text-[var(--text-quaternary)] outline-none"
+                            />
                         </div>
-                    </div>
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
-                        <div className="text-xs text-[var(--app-hint)]">
-                            {t('sessions.count', { n: visibleSessions.length, m: projectCount })}
-                        </div>
-                    </div>
-                    <div className="mx-auto w-full max-w-content px-3 pb-2">
-                        <input
-                            value={sessionSearchQuery}
-                            onChange={(e) => setSessionSearchQuery(e.target.value)}
-                            placeholder={t('sessions.search.placeholder')}
-                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
-                        />
                     </div>
                 </div>
 

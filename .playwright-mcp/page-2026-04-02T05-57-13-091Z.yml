@@ -1,0 +1,29 @@
+- generic [active] [ref=e1]:
+  - region "Notifications alt+T"
+  - main [ref=e2]:
+    - generic [ref=e4]:
+      - generic [ref=e7]:
+        - generic [ref=e8]:
+          - button "Toggle left sidebar" [pressed] [ref=e9] [cursor=pointer]:
+            - img [ref=e11]
+          - button "Search agents (Ctrl+K)" [ref=e14] [cursor=pointer]:
+            - generic [ref=e15]: 
+        - navigation [ref=e16]:
+          - button "New Agent" [ref=e17] [cursor=pointer]:
+            - generic [ref=e19]: 
+            - text: New Agent
+          - button "Automations" [ref=e20] [cursor=pointer]:
+            - generic [ref=e22]: 
+            - text: Automations
+          - button "Dashboard" [ref=e23] [cursor=pointer]:
+            - generic [ref=e25]: 
+            - text: Dashboard
+      - main [ref=e33]:
+        - generic [ref=e42]:
+          - generic [ref=e46]:
+            - button "More options" [ref=e47] [cursor=pointer]:
+              - img [ref=e48]
+            - button "Toggle app panel" [ref=e52] [cursor=pointer]:
+              - img [ref=e54]
+          - generic [ref=e60]: 
+  - alert [ref=e65]

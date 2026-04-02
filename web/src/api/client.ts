@@ -1280,4 +1280,41 @@ export class ApiClient {
             body: JSON.stringify(options || {})
         })
     }
+
+    // ── GitHub PR integration ────────────────────────────────────────
+
+    async getGitHubPr(sessionId: string): Promise<{
+        pr: any
+        checks: any[]
+        commits: any[]
+        files: any[]
+        branchStatus: { behind_by: number; ahead_by: number } | null
+        error?: string
+    }> {
+        return await this.request(`/api/sessions/${sessionId}/github/pr`)
+    }
+
+    async mergeGitHubPr(sessionId: string): Promise<{ merged: boolean; sha?: string; error?: string }> {
+        return await this.request(`/api/sessions/${sessionId}/github/merge`, { method: 'POST' })
+    }
+
+    async updateGitHubBranch(sessionId: string): Promise<{ updated: boolean; error?: string }> {
+        return await this.request(`/api/sessions/${sessionId}/github/update-branch`, { method: 'POST' })
+    }
+
+    async listGitHubRepos(sessionId: string): Promise<{
+        repos: Array<{
+            fullName: string
+            name: string
+            owner: string
+            private: boolean
+            url: string
+            cloneUrl: string
+            defaultBranch: string
+            updatedAt: string
+        }>
+        error?: string
+    }> {
+        return await this.request(`/api/sessions/${sessionId}/github/repos`)
+    }
 }

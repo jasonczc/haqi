@@ -1,0 +1,37 @@
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "Welcome to Cursor 登录 The new way to build software" [level=1] [ref=e7]
+      - generic [ref=e8]:
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - generic [ref=e12]:
+              - generic [ref=e14]: 邮箱
+              - textbox "邮箱" [active] [ref=e16]:
+                - /placeholder: 您的邮箱地址
+            - button "继续" [ref=e17] [cursor=pointer]:
+              - generic [ref=e18]: 继续
+          - generic [ref=e19]:
+            - link "使用 Google 继续" [ref=e21] [cursor=pointer]:
+              - /url: api/login?provider=GoogleOAuth&state=%257B%2522returnTo%2522%253A%2522https%253A%252F%252Fcursor.com%252Fagents%2522%252C%2522nonce%2522%253A%25229f4b189e-4149-4510-8553-6784896349c4%2522%257D&redirect_uri=https%3A%2F%2Fcursor.com%2Fapi%2Fauth%2Fcallback&client_id=client_01GS6W3C96KW4WRS6Z93JCE2RJ&source=signin&authorization_session_id=01KN667AVX3RHE7N1S6QYH4SG3
+              - img [ref=e22]
+              - generic [ref=e28]: 使用 Google 继续
+            - link "使用 GitHub 继续" [ref=e30] [cursor=pointer]:
+              - /url: api/login?provider=GitHubOAuth&state=%257B%2522returnTo%2522%253A%2522https%253A%252F%252Fcursor.com%252Fagents%2522%252C%2522nonce%2522%253A%25229f4b189e-4149-4510-8553-6784896349c4%2522%257D&redirect_uri=https%3A%2F%2Fcursor.com%2Fapi%2Fauth%2Fcallback&client_id=client_01GS6W3C96KW4WRS6Z93JCE2RJ&source=signin&authorization_session_id=01KN667AVX3RHE7N1S6QYH4SG3
+              - img [ref=e31]
+              - generic [ref=e33]: 使用 GitHub 继续
+            - link "使用 Apple 继续" [ref=e35] [cursor=pointer]:
+              - /url: api/login?provider=AppleOAuth&state=%257B%2522returnTo%2522%253A%2522https%253A%252F%252Fcursor.com%252Fagents%2522%252C%2522nonce%2522%253A%25229f4b189e-4149-4510-8553-6784896349c4%2522%257D&redirect_uri=https%3A%2F%2Fcursor.com%2Fapi%2Fauth%2Fcallback&client_id=client_01GS6W3C96KW4WRS6Z93JCE2RJ&source=signin&authorization_session_id=01KN667AVX3RHE7N1S6QYH4SG3
+              - img [ref=e36]
+              - generic [ref=e38]: 使用 Apple 继续
+        - paragraph [ref=e39]:
+          - text: 还没有账户？
+          - link "注册" [ref=e40] [cursor=pointer]:
+            - /url: /sign-up?state=%257B%2522returnTo%2522%253A%2522https%253A%252F%252Fcursor.com%252Fagents%2522%252C%2522nonce%2522%253A%25229f4b189e-4149-4510-8553-6784896349c4%2522%257D&redirect_uri=https%3A%2F%2Fcursor.com%2Fapi%2Fauth%2Fcallback&authorization_session_id=01KN667AVX3RHE7N1S6QYH4SG3
+    - generic [ref=e41]:
+      - link "服务条款" [ref=e42] [cursor=pointer]:
+        - /url: https://www.cursor.com/terms-of-service
+      - text: 和
+      - link "隐私政策" [ref=e43] [cursor=pointer]:
+        - /url: https://www.cursor.com/privacy
+  - alert [ref=e44]

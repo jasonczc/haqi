@@ -676,6 +676,22 @@ export class SyncEngine {
         return this.spawnCoordinator.getSecret(namespace, secretId)
     }
 
+    /**
+     * Resolve the decrypted value of a named secret.
+     * Returns null if the secret doesn't exist.
+     */
+    resolveCloudSecretValue(namespace: string, name: string): string | null {
+        try {
+            const resolved = this.secretBroker.resolveSecrets({
+                namespace,
+                secretNames: [name]
+            })
+            return resolved.length > 0 ? resolved[0].value : null
+        } catch {
+            return null
+        }
+    }
+
     createCloudSecret(options: {
         namespace: string
         name: string

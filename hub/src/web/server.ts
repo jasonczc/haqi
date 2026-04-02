@@ -33,6 +33,7 @@ import { createPreviewRoutes } from './routes/preview'
 import { createDesktopRoutes } from './routes/desktop'
 import type { ReportPublicBaseUrlSettings } from '../config/reportPublicBaseUrl'
 import { createSettingsRoutes } from './routes/settings'
+import { createGitHubRoutes } from './routes/github'
 import type { SSEManager } from '../sse/sseManager'
 import type { VisibilityTracker } from '../visibility/visibilityTracker'
 import type { Server as BunServer } from 'bun'
@@ -196,6 +197,7 @@ function createWebApp(options: {
     app.route('/api', createCloudRoutes(options.getSyncEngine, options.fallbackPublicUrl))
     app.route('/api', createContainerRoutes(options.getSyncEngine))
     app.route('/api', createSettingsRoutes(options.store))
+    app.route('/api', createGitHubRoutes(options.getSyncEngine))
     const reportPublicBaseUrlState: { value: ReportPublicBaseUrlSettings } = {
         value: options.reportPublicBaseUrl
     }
