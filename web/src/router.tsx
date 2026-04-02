@@ -274,6 +274,65 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
     return next
 }
 
+function HomeComposer(props: { onNewSession: () => void }) {
+    return (
+        <div className="flex flex-1 flex-col items-center justify-start pt-[15vh] px-8">
+            <div className="w-full max-w-2xl">
+                {/* Select repository button */}
+                <button
+                    type="button"
+                    className="flex items-center gap-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-3"
+                >
+                    Select repository
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+
+                {/* Prompt input area */}
+                <div className="rounded-xl border border-[var(--border-tertiary)] bg-[var(--bg-editor)] overflow-hidden">
+                    <textarea
+                        placeholder="Ask Cursor to build, fix bugs, explore"
+                        rows={4}
+                        className="w-full resize-none bg-transparent px-4 py-3 text-[var(--font-size-base)] text-[var(--text-primary)] placeholder:text-[var(--text-quaternary)] focus:outline-none"
+                    />
+                    <div className="flex items-center justify-between px-3 pb-2">
+                        <div className="flex items-center gap-2">
+                            <button className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors">
+                                Codex 5.3 High
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                            <button className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors">
+                                MCPs
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <button className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                            </button>
+                            <button className="rounded-full p-2 bg-[var(--bg-neutral)] text-[var(--bg-editor)]">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Suggested prompts */}
+                <div className="flex items-center gap-2 mt-3">
+                    <button className="rounded-full border border-[var(--border-tertiary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)] transition-colors">
+                        Run security audit
+                    </button>
+                    <button className="rounded-full border border-[var(--border-tertiary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)] transition-colors">
+                        Improve AGENTS.md
+                    </button>
+                    <button className="rounded-full border border-[var(--border-tertiary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)] transition-colors">
+                        Solve a TODO
+                    </button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 function SessionsPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
@@ -671,9 +730,13 @@ function SessionsPage() {
                 ) : null}
 
                 <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--bg-editor)]`}>
-                    <div className="flex-1 min-h-0">
-                        <Outlet />
-                    </div>
+                    {isSessionsIndex ? (
+                        <HomeComposer onNewSession={openNewSession} />
+                    ) : (
+                        <div className="flex-1 min-h-0">
+                            <Outlet />
+                        </div>
+                    )}
                 </div>
             </div>
         </SessionsLayoutContext.Provider>
