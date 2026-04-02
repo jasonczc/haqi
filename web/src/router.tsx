@@ -478,6 +478,24 @@ function SessionsPage() {
         return (
             <>
                 <div className="bg-[var(--bg-chrome)] pt-[env(safe-area-inset-top)]">
+                    {/* Top bar */}
+                    <div className="flex items-center gap-1 px-2 pt-2 pb-0.5">
+                        <button
+                            type="button"
+                            onClick={() => toggleDesktopSidebar?.()}
+                            className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            title="Toggle sidebar"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+                        </button>
+                        <button
+                            type="button"
+                            className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            title="Search agents (⌘K)"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        </button>
+                    </div>
                     {/* Cursor-style nav */}
                     <nav className="flex flex-col gap-0.5 px-2 pt-2 pb-1">
                         <button
@@ -558,6 +576,33 @@ function SessionsPage() {
                             api={api}
                             density={density}
                         />
+                    </div>
+                </div>
+                {/* User card — bottom of sidebar */}
+                <div className="border-t border-[var(--border-quaternary)] px-2 py-2">
+                    <div className="flex items-center gap-2 rounded-[6px] px-2 py-1.5">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg-tertiary)] text-[var(--font-size-sm)] font-[var(--font-weight-semibold)] text-[var(--text-secondary)]">
+                            H
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="truncate text-[var(--font-size-base)] text-[var(--text-primary)]">haqi</div>
+                            <div className="text-[var(--font-size-xs)] text-[var(--text-tertiary)]">Self-hosted</div>
+                        </div>
+                        <button
+                            type="button"
+                            className="rounded-[6px] p-1 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            title="More options"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate({ to: '/settings' })}
+                            className="rounded-[6px] p-1 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            title="Customize thread list"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+                        </button>
                     </div>
                 </div>
             </>
