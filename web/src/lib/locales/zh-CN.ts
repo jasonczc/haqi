@@ -67,9 +67,10 @@ export default {
   'session.item.thinking': '思考中',
   'session.item.completed': '工作完成',
   'session.time.justNow': '刚刚',
-  'session.time.minutesAgo': '{n} 分钟前',
-  'session.time.hoursAgo': '{n} 小时前',
-  'session.time.daysAgo': '{n} 天前',
+  'session.time.minutesAgo': '{n}分',
+  'session.time.hoursAgo': '{n}时',
+  'session.time.daysAgo': '{n}天',
+  'session.time.weeksAgo': '{n}周',
 
   // Session header
   'session.title': '文件',

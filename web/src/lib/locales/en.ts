@@ -66,10 +66,11 @@ export default {
   'session.item.pending': 'pending',
   'session.item.thinking': 'thinking',
   'session.item.completed': 'done',
-  'session.time.justNow': 'just now',
-  'session.time.minutesAgo': '{n}m ago',
-  'session.time.hoursAgo': '{n}h ago',
-  'session.time.daysAgo': '{n}d ago',
+  'session.time.justNow': 'now',
+  'session.time.minutesAgo': '{n}m',
+  'session.time.hoursAgo': '{n}h',
+  'session.time.daysAgo': '{n}d',
+  'session.time.weeksAgo': '{n}w',
 
   // Session header
   'session.title': 'Files',

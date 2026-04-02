@@ -310,7 +310,34 @@ function formatRelativeTime(value: number, t: (key: string, params?: Record<stri
     if (hours < 24) return t('session.time.hoursAgo', { n: hours })
     const days = Math.floor(hours / 24)
     if (days < 7) return t('session.time.daysAgo', { n: days })
+    const weeks = Math.floor(days / 7)
+    if (weeks < 52) return t('session.time.weeksAgo', { n: weeks })
     return new Date(ms).toLocaleDateString()
+}
+
+function RunStatusIcon(props: { active: boolean; thinking: boolean }) {
+    if (props.thinking) {
+        return (
+            <svg width="12" height="12" viewBox="0 0 16 16" className="animate-spin text-[var(--accent)]">
+                <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="28 12" />
+            </svg>
+        )
+    }
+    if (props.active) {
+        return (
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="text-[var(--success)]">
+                <circle cx="4" cy="4" r="2" fill="currentColor" />
+                <circle cx="4" cy="12" r="2" fill="currentColor" />
+                <circle cx="12" cy="12" r="2" fill="currentColor" />
+                <path d="M4 6v4M8 12h2" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+        )
+    }
+    return (
+        <svg width="12" height="12" viewBox="0 0 16 16" className="text-[var(--text-quaternary)]">
+            <circle cx="8" cy="8" r="3" fill="currentColor" />
+        </svg>
+    )
 }
 
 function SessionItem(props: {
@@ -395,52 +422,51 @@ function SessionItem(props: {
             <button
                 type="button"
                 {...longPressHandlers}
-                className={`group flex w-full items-center gap-2 rounded-[6px] px-1.5 text-left transition-colors select-none h-8 ${
+                className={`group relative flex w-full items-center rounded-md text-left transition-colors select-none h-8 px-1.5 ${
                     selected ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-quaternary)]'
                 }`}
                 style={{ WebkitTouchCallout: 'none' }}
                 aria-current={selected ? 'page' : undefined}
             >
-                <span className={`h-[7px] w-[7px] shrink-0 rounded-full ${
-                    effectiveThinking ? 'bg-[var(--accent)]' :
-                    effectiveActive ? 'bg-[var(--success)]' :
-                    'bg-[var(--text-quaternary)]'
-                }`} />
-                <div className="truncate text-[var(--font-size-base)] font-[var(--font-weight-normal)] text-[var(--text-primary)]">
-                    {sessionName}
-                </div>
-                <div className="flex items-center gap-2 shrink-0 text-[var(--font-size-xs)]">
-                    {effectiveThinking ? (
-                        <span className="text-[var(--accent)] animate-pulse">
-                            {t('session.item.thinking')}
-                        </span>
-                    ) : null}
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                    {/* PR status icon — 16px container */}
+                    <div className="flex w-4 shrink-0 items-center justify-center">
+                        <RunStatusIcon active={effectiveActive} thinking={effectiveThinking} />
+                    </div>
+                    {/* Title */}
+                    <div className="min-w-0 flex-1 truncate text-[var(--font-size-base)] text-[var(--text-primary)]">
+                        {sessionName}
+                    </div>
+                    {/* Line counts (if available) */}
                     {(() => {
-                        const progress = getTodoProgress(s)
-                        if (!progress) return null
+                        const meta = s.metadata as any
+                        const additions = meta?.prAdditions as number | undefined
+                        const deletions = meta?.prDeletions as number | undefined
+                        if (!additions && !deletions) return null
                         return (
-                            <span className="flex items-center gap-1 text-[var(--text-quaternary)]">
-                                <BulbIcon className="h-3 w-3" />
-                                {progress.completed}/{progress.total}
-                            </span>
+                            <div className="flex shrink-0 items-center gap-1 text-[var(--text-tertiary)]">
+                                {additions ? <span className="text-[var(--added)]">+{additions}</span> : null}
+                                {deletions ? <span className="text-[var(--removed)]">-{deletions}</span> : null}
+                            </div>
                         )
                     })()}
-                    {s.pendingRequestsCount > 0 ? (
-                        <span className="text-[var(--app-badge-warning-text)]">
-                            {t('session.item.pending')} {s.pendingRequestsCount}
-                        </span>
-                    ) : null}
-                    <span className="text-[var(--text-quaternary)]">
-                        {formatRelativeTime(s.updatedAt, t)}
-                    </span>
-                    <button
-                        type="button"
-                        className="hidden group-hover:flex h-5 w-5 items-center justify-center rounded text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                        onClick={(e) => { e.stopPropagation(); handleArchive(); }}
-                        title="Archive"
-                    >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
+                    {/* Hover overlay: time + archive */}
+                    <div className="absolute right-0 inset-y-0 z-10 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="h-full w-4 shrink-0" style={{ background: 'linear-gradient(to right, transparent, var(--bg-chrome))' }} />
+                        <div className="flex h-full items-center gap-1 bg-[var(--bg-chrome)] pr-1">
+                            <span className="text-[var(--font-size-base)] text-[var(--text-tertiary)]">
+                                {formatRelativeTime(s.updatedAt, t)}
+                            </span>
+                            <button
+                                type="button"
+                                className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                                onClick={(e) => { e.stopPropagation(); handleArchive(); }}
+                                title="Archive"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8"/><path d="M10 12h4"/></svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </button>
 
@@ -684,7 +710,7 @@ function OfflineSectionRow(props: {
                 className="h-3.5 w-3.5 text-[var(--app-hint)]"
                 collapsed={isCollapsed}
             />
-            <span className="uppercase tracking-wide">{label ?? t('misc.offline')}</span>
+            <span>{label ?? t('misc.offline')}</span>
             <span className="text-[var(--app-hint)]">
                 ({count})
             </span>
