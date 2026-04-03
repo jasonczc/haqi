@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { execFileSync } from 'node:child_process'
 import { z } from 'zod'
-import { PROTOCOL_VERSION } from '@hapi/protocol'
+import { PROTOCOL_VERSION, normalizeClaudeModelValue } from '@hapi/protocol'
 import type { StartOptions } from '@/claude/runClaude'
 import { configuration } from '@/configuration'
 import { isRunnerRunningCurrentlyInstalledHappyVersion } from '@/runner/controlClient'
@@ -47,8 +47,9 @@ export const claudeCommand: CommandDefinition = {
                 if (!model) {
                     throw new Error('Missing --model value')
                 }
-                options.model = model
-                unknownArgs.push('--model', model)
+                const normalizedModel = normalizeClaudeModelValue(model) ?? model
+                options.model = normalizedModel
+                unknownArgs.push('--model', normalizedModel)
             } else if (arg === '--effort') {
                 const effort = args[++i]
                 if (!effort) {

@@ -18,6 +18,7 @@ import { maybeAutoStartServer } from '@/utils/autoStartServer';
 import { isBunCompiled, projectPath } from '@/projectPath';
 
 import { cleanupRunnerState, getInstalledCliMtimeMs, isRunnerRunningCurrentlyInstalledHappyVersion, stopRunner } from './controlClient';
+import { normalizeClaudeModelValue } from '@hapi/protocol';
 import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { join } from 'path';
@@ -373,7 +374,8 @@ export async function startRunner(): Promise<void> {
         }
         args.push('--hapi-starting-mode', 'remote', '--started-by', 'runner');
         if (options.model && agent !== 'opencode') {
-          args.push('--model', options.model);
+          const resolvedModel = (agent === 'claude' ? normalizeClaudeModelValue(options.model) : undefined) ?? options.model;
+          args.push('--model', resolvedModel);
         }
         if (agent === 'codex' && thinkEffort) {
           args.push('--effort', thinkEffort);

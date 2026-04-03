@@ -262,11 +262,12 @@ function buildClaudeModelOptions(
 ): ComposerModelOption[] {
     const options: ComposerModelOption[] = [
         { value: 'auto', label: 'Default (recommended)' },
-        { value: 'us.anthropic.claude-sonnet-4-6', label: 'Sonnet 4.6' },
-        { value: 'us.anthropic.claude-sonnet-4-6[1m]', label: 'Sonnet (1M context)' },
-        { value: 'global.anthropic.claude-opus-4-6-v1', label: 'Opus 4.6' },
-        { value: 'global.anthropic.claude-opus-4-6-v1[1m]', label: 'Opus (1M context)' },
-        { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
+        { value: 'sonnet', label: 'Sonnet (latest)' },
+        { value: 'opus', label: 'Opus (latest)' },
+        { value: 'haiku', label: 'Haiku (latest)' },
+        { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
+        { value: 'claude-opus-4-6', label: 'Opus 4.6' },
+        { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
     ]
 
     if (currentModel && !options.some((option) => option.value === currentModel)) {

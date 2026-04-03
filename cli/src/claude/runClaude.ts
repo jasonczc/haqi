@@ -18,6 +18,7 @@ import { isModelModeAllowedForFlavor, isPermissionModeAllowedForFlavor } from '@
 import { ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas';
 import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import { findClaudeThinkEffortFromArgs, type ClaudeThinkEffort, resolveClaudeModelSelection } from './modelMode';
+import { normalizeClaudeModelValue } from '@hapi/protocol';
 import { isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
 
 export interface StartOptions {
@@ -105,7 +106,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (lowered === 'default' || lowered === 'auto') {
             return undefined;
         }
-        return trimmed;
+        return normalizeClaudeModelValue(trimmed) ?? trimmed;
     };
 
     const resolveConfiguredModel = (value: unknown): string | undefined => {

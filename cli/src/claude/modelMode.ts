@@ -1,5 +1,5 @@
 import type { SessionModelMode } from '@/api/types'
-import { inferClaudeModelModeFromModel } from '@hapi/protocol'
+import { inferClaudeModelModeFromModel, normalizeClaudeModelValue } from '@hapi/protocol'
 
 export type ClaudeThinkEffort = 'low' | 'medium' | 'high' | 'max'
 
@@ -79,7 +79,8 @@ export function resolveClaudeModelSelection(opts: {
     model: string | undefined
     mode: SessionModelMode
 } {
-    const resolvedModel = normalizeResolvedModel(opts.model ?? findClaudeModelFromArgs(opts.claudeArgs))
+    const rawModel = normalizeResolvedModel(opts.model ?? findClaudeModelFromArgs(opts.claudeArgs))
+    const resolvedModel = rawModel ? (normalizeClaudeModelValue(rawModel) ?? rawModel) : undefined
     return {
         model: resolvedModel,
         mode: inferClaudeSessionModelMode(resolvedModel)
