@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>General Settings | Cursor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="settings-wrapper">
+
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="settings-sidebar">
+            <div class="settings-sidebar-header">
+                <!-- Cursor Hexagon Logo -->
+                <svg viewBox="0 0 100 100" fill="currentColor">
+                    <path d="M50 0L93.3 25V75L50 100L6.7 75V25L50 0Z" fill="var(--cursor-text-primary)"/>
+                </svg>
+                <a href="index.html">Back to Agents</a>
+            </div>
+
+            <div class="settings-sidebar-profile">
+                <div class="user-profile">
+                    <div class="avatar">a</div>
+                    <div class="user-info">
+                        <div class="user-name">awdajkd awldja</div>
+                        <div class="user-plan">Ultra</div>
+                    </div>
+                    <div class="footer-actions">
+                        <button class="icon-btn" title="More options"><i data-lucide="more-horizontal"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="settings-nav">
+                <a href="#" class="settings-nav-item"><i data-lucide="home"></i> Overview</a>
+                <a href="#" class="settings-nav-item active"><i data-lucide="settings"></i> Settings</a>
+                <a href="settings-cloud-agents.html" class="settings-nav-item"><i data-lucide="cloud"></i> Cloud Agents</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="bug"></i> Bugbot</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+                
+                <a href="#" class="settings-nav-item"><i data-lucide="blocks"></i> Plugins</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="combine"></i> Integrations</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+
+                <a href="#" class="settings-nav-item"><i data-lucide="users"></i> Members</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="bar-chart-2"></i> Usage</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="credit-card"></i> Spending</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="receipt"></i> Billing & Invoices</a>
+            </nav>
+
+            <div class="settings-sidebar-footer">
+                <button class="settings-btn-outline"><i data-lucide="user-plus"></i> Create a Team</button>
+            </div>
+        </aside>
+
+        <!-- ========== MAIN CONTENT ========== -->
+        <main class="settings-content">
+            <div class="settings-container">
+                
+                <div class="settings-header">
+                    <h1>Settings</h1>
+                </div>
+
+                <!-- SECTION: Privacy -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Privacy</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row" style="align-items: flex-start;">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Privacy Mode <span class="settings-badge">Active</span></span>
+                                <span class="settings-row-desc">Your code data will not be trained on or used to improve the product. Code may be stored for Cloud Agent, Team Rules, and other features.</span>
+                                <a href="#" class="settings-link">Learn More</a>
+                            </div>
+                            <div class="settings-row-right" style="align-items: flex-start;">
+                                <button class="settings-btn-outline" style="width: auto;">Edit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Student Verification -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Student Verification</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Student Status</span>
+                                <span class="settings-row-desc">Only .edu emails and specific educational domains are eligible for student verification.</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn-outline" style="width: auto; background: var(--cursor-bg-quaternary); border-color: transparent; cursor: not-allowed; color: var(--cursor-text-tertiary);" disabled>
+                                    <i data-lucide="badge-x" style="width:14px; height:14px;"></i> Not eligible
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Profile -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Profile</div>
+                    
+                    <div class="settings-card" style="padding-top: 8px;">
+                        <div class="settings-row settings-row-nobottom settings-row-compact">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">First Name</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <input type="text" class="settings-input" style="background: white;" value="awdajkd">
+                            </div>
+                        </div>
+                        <div class="settings-row settings-row-nobottom settings-row-compact">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Last Name</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <input type="text" class="settings-input" style="background: white;" value="awldja">
+                            </div>
+                        </div>
+                        <div class="settings-row settings-row-nobottom settings-row-compact" style="justify-content: flex-end; padding-bottom: 24px;">
+                            <button class="settings-btn" style="background: var(--cursor-stroke-tertiary); color: var(--cursor-text-tertiary); cursor: not-allowed; border-color: transparent;" disabled>Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Appearance -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Appearance</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Theme</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 140px;">
+                                    <button class="custom-select-btn" style="background: #fafafa;">
+                                        <span class="select-value">System</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">System</div>
+                                        <div class="custom-select-option">Light</div>
+                                        <div class="custom-select-option">Dark</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Active Sessions -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Active Sessions</div>
+                    <div class="settings-section-subtitle">Manage your active, logged in sessions.</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row" style="padding-top: 12px; padding-bottom: 12px; background: #fafafa;">
+                            <div style="flex:1;"><span class="settings-row-title" style="color:var(--cursor-text-secondary); font-size:12px;">DEVICE</span></div>
+                            <div style="flex:1;"><span class="settings-row-title" style="color:var(--cursor-text-secondary); font-size:12px;">LAST SEEN</span></div>
+                            <div style="width:100px;"></div>
+                        </div>
+                        <div class="settings-row">
+                            <div style="flex:1; display:flex; align-items:center; gap:12px;">
+                                <i data-lucide="monitor" style="color:var(--cursor-text-tertiary); width:20px; height:20px;"></i>
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title">Web <span class="settings-badge" style="background:#e0e7ff; color:#4f46e5;">Current</span></span>
+                                    <span class="settings-row-desc" style="font-size:12px;">macOS • Chrome</span>
+                                </div>
+                            </div>
+                            <div style="flex:1;">
+                                <span class="settings-row-title" style="font-weight:normal;">Just now</span>
+                            </div>
+                            <div style="width:100px; text-align:right;">
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div style="flex:1; display:flex; align-items:center; gap:12px;">
+                                <i data-lucide="laptop" style="color:var(--cursor-text-tertiary); width:20px; height:20px;"></i>
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title">Desktop App</span>
+                                    <span class="settings-row-desc" style="font-size:12px;">macOS • Cursor App</span>
+                                </div>
+                            </div>
+                            <div style="flex:1;">
+                                <span class="settings-row-title" style="font-weight:normal;">2 hours ago</span>
+                            </div>
+                            <div style="width:100px; text-align:right;">
+                                <button class="settings-btn-outline" style="width:auto; padding:4px 12px; color:#ef4444; border-color:rgba(239,68,68,0.2);">Revoke</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Account Management -->
+                <div class="settings-section" style="margin-top: 48px;">
+                    <div class="settings-section-title">Account Management</div>
+                    <div class="settings-card" style="border-color: rgba(239, 68, 68, 0.2);">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Log Out</span>
+                                <span class="settings-row-desc">Log out of your account on this device.</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn-outline" style="width:auto;">Log Out</button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title" style="color: #ef4444;">Delete Account</span>
+                                <span class="settings-row-desc">Permanently delete your account and all associated data.</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn" style="background: #ef4444; border-color: #ef4444; color: white;">Delete Account</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom padding for scrolling comfort -->
+                <div style="height: 100px;"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Initialize Lucide Icons & JS logic -->
+    <script>
+        lucide.createIcons();
+
+        // Custom Dropdown Logic
+        document.querySelectorAll('.custom-select-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-select-menu').forEach(menu => {
+                    if (menu !== this.nextElementSibling) {
+                        menu.classList.remove('show');
+                        menu.previousElementSibling.classList.remove('active');
+                    }
+                });
+                
+                const menu = this.nextElementSibling;
+                menu.classList.toggle('show');
+                this.classList.toggle('active');
+            });
+        });
+
+        document.querySelectorAll('.custom-select-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const menu = this.parentElement;
+                const btn = menu.previousElementSibling;
+                const valueSpan = btn.querySelector('.select-value');
+                
+                valueSpan.textContent = this.textContent;
+                menu.classList.remove('show');
+                btn.classList.remove('active');
+            });
+        });
+
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.custom-select-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            document.querySelectorAll('.custom-select-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>

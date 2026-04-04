@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bugbot | Cursor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="settings-wrapper">
+
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="settings-sidebar">
+            <div class="settings-sidebar-header">
+                <!-- Cursor Hexagon Logo -->
+                <svg viewBox="0 0 100 100" fill="currentColor">
+                    <path d="M50 0L93.3 25V75L50 100L6.7 75V25L50 0Z" fill="var(--cursor-text-primary)"/>
+                </svg>
+                <a href="index.html">Back to Agents</a>
+            </div>
+
+            <div class="settings-sidebar-profile">
+                <div class="user-profile">
+                    <div class="avatar">a</div>
+                    <div class="user-info">
+                        <div class="user-name">awdajkd awldja</div>
+                        <div class="user-plan">Ultra</div>
+                    </div>
+                    <div class="footer-actions">
+                        <button class="icon-btn" title="More options"><i data-lucide="more-horizontal"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="settings-nav">
+                <a href="settings-overview.html" class="settings-nav-item"><i data-lucide="home"></i> Overview</a>
+                <a href="settings-general.html" class="settings-nav-item"><i data-lucide="settings"></i> Settings</a>
+                <a href="settings-cloud-agents.html" class="settings-nav-item"><i data-lucide="cloud"></i> Cloud Agents</a>
+                <a href="settings-bugbot.html" class="settings-nav-item active"><i data-lucide="bug"></i> Bugbot</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+                
+                <a href="#" class="settings-nav-item"><i data-lucide="blocks"></i> Plugins</a>
+                <a href="settings-integrations.html" class="settings-nav-item"><i data-lucide="combine"></i> Integrations</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+
+                <a href="#" class="settings-nav-item"><i data-lucide="users"></i> Members</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="bar-chart-2"></i> Usage</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="credit-card"></i> Spending</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="receipt"></i> Billing & Invoices</a>
+            </nav>
+
+            <div class="settings-sidebar-footer">
+                <button class="settings-btn-outline"><i data-lucide="user-plus"></i> Create a Team</button>
+            </div>
+        </aside>
+
+        <!-- ========== MAIN CONTENT ========== -->
+        <main class="settings-content">
+            <div class="settings-container" style="max-width: 900px;">
+                
+                <div class="banner-upgrade">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <i data-lucide="gift" style="width:16px; height:16px; color:#065f46;"></i>
+                        <span class="banner-text">You have limited free Bugbot reviews. Upgrade to Bugbot Pro for unlimited reviews.</span>
+                    </div>
+                    <button class="banner-btn">Upgrade</button>
+                </div>
+
+                <div class="settings-header">
+                    <h1 style="display:flex; align-items:center; gap:12px;">Bugbot <span class="settings-badge">Free</span></h1>
+                    <p style="color: var(--cursor-text-secondary); font-size: 13px; margin-top: 8px;">Automatically review pull requests (PRs) for bugs and issues</p>
+                </div>
+
+                <!-- SECTION: Integrations -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Integrations</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">GitHub Connections</span>
+                                <span class="settings-row-desc">Manage connected accounts and repositories</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn-outline" style="width: auto; gap: 6px;">Manage <i data-lucide="arrow-up-right" style="width:14px; height:14px;"></i></button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">GitLab Connections</span>
+                                <span class="settings-row-desc">Manage connected accounts and repositories</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn-outline" style="width: auto;">Manage</button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Bugbot Pro License</span>
+                                <span class="settings-row-desc">Get unlimited Bugbot reviews with Bugbot Pro. Start your 14-day free trial.</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="banner-btn">Upgrade</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Preferences -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Preferences</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Repository Rules</span>
+                                <span class="settings-row-desc">Project rules and automatic learned rules for your repositories</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <i data-lucide="chevron-right" class="small-icon" style="color: var(--cursor-text-tertiary);"></i>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Only Run When Mentioned</span>
+                                <span class="settings-row-desc">Only run when "bugbot run" or "@cursor review" is commented on a PR</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <label class="settings-toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="settings-toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Only Run Once Automatically</span>
+                                <span class="settings-row-desc">Automatically review when a PR is published, ignoring new pushes</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <label class="settings-toggle">
+                                    <input type="checkbox">
+                                    <span class="settings-toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Review Draft PRs</span>
+                                <span class="settings-row-desc">Allow Bugbot to automatically review draft pull requests</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 180px;">
+                                    <button class="custom-select-btn" style="background:#fafafa;">
+                                        <span class="select-value">Use Installation Default</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">Use Installation Default</div>
+                                        <div class="custom-select-option">Yes</div>
+                                        <div class="custom-select-option">No</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">PR Summaries</span>
+                                <span class="settings-row-desc">Generate descriptions on pull requests</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 180px;">
+                                    <button class="custom-select-btn" style="background:#fafafa;">
+                                        <span class="select-value">Use Installation Defaults</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">Use Installation Defaults</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Bugbot Autofix</span>
+                                <span class="settings-row-desc">Using your organization's default autofix settings. Billed at plan rates.</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 180px;">
+                                    <button class="custom-select-btn" style="background:#fafafa;">
+                                        <span class="select-value">Use Installation Default</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">Use Installation Default</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Bugbot Autofix Severity Threshold</span>
+                                <span class="settings-row-desc">Using your organization's default severity settings</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 180px;">
+                                    <button class="custom-select-btn" style="background:#fafafa;">
+                                        <span class="select-value">Use Installation Default</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">Use Installation Default</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Repositories -->
+                <div class="settings-section">
+                    <div class="settings-section-title" style="margin-top:24px;">Repositories</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Source Control Providers</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn-outline" style="width: auto;">Manage</button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">39-ai</span>
+                                <span class="settings-row-desc">GitHub</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <span style="font-size:12px; color:var(--cursor-text-tertiary); margin-right:8px;">0/14 Repositories Enabled</span>
+                                <button class="settings-btn-outline" style="width: auto;">Enable</button>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">img-lab</span>
+                                <span class="settings-row-desc">GitHub</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <span style="font-size:12px; color:var(--cursor-text-tertiary); margin-right:8px;">2/2 Repositories Enabled</span>
+                                <i data-lucide="chevron-right" class="small-icon" style="color: var(--cursor-text-tertiary);"></i>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">jasonczc <span class="settings-badge">Team Managed</span></span>
+                                <span class="settings-row-desc">GitHub</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <span style="font-size:12px; color:var(--cursor-text-tertiary); margin-right:8px;">55/55 Repositories Enabled</span>
+                                <i data-lucide="chevron-right" class="small-icon" style="color: var(--cursor-text-tertiary);"></i>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">gitlab.com</span>
+                                <span class="settings-row-desc">GitLab</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <span style="font-size:12px; color:var(--cursor-text-tertiary); margin-right:8px;">0 Repositories Available</span>
+                                <button class="settings-btn-outline" style="width: auto; gap: 6px;">Manage <i data-lucide="arrow-up-right" style="width:14px; height:14px;"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom padding for scrolling comfort -->
+                <div style="height: 100px;"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Custom Dropdown Logic
+        document.querySelectorAll('.custom-select-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-select-menu').forEach(menu => {
+                    if (menu !== this.nextElementSibling) {
+                        menu.classList.remove('show');
+                        menu.previousElementSibling.classList.remove('active');
+                    }
+                });
+                
+                const menu = this.nextElementSibling;
+                menu.classList.toggle('show');
+                this.classList.toggle('active');
+            });
+        });
+
+        document.querySelectorAll('.custom-select-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const menu = this.parentElement;
+                const btn = menu.previousElementSibling;
+                const valueSpan = btn.querySelector('.select-value');
+                
+                valueSpan.textContent = this.textContent;
+                menu.classList.remove('show');
+                btn.classList.remove('active');
+            });
+        });
+
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.custom-select-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            document.querySelectorAll('.custom-select-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>

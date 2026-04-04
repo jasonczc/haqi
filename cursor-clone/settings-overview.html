@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Overview | Cursor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="settings-wrapper">
+
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="settings-sidebar">
+            <div class="settings-sidebar-header">
+                <svg viewBox="0 0 100 100" fill="currentColor">
+                    <path d="M50 0L93.3 25V75L50 100L6.7 75V25L50 0Z" fill="var(--cursor-text-primary)"/>
+                </svg>
+                <a href="index.html">Back to Agents</a>
+            </div>
+
+            <div class="settings-sidebar-profile">
+                <div class="user-profile">
+                    <div class="avatar">a</div>
+                    <div class="user-info">
+                        <div class="user-name">awdajkd awldja</div>
+                        <div class="user-plan">Ultra</div>
+                    </div>
+                    <div class="footer-actions">
+                        <button class="icon-btn" title="More options"><i data-lucide="more-horizontal"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="settings-nav">
+                <a href="settings-overview.html" class="settings-nav-item active"><i data-lucide="home"></i> Overview</a>
+                <a href="settings-general.html" class="settings-nav-item"><i data-lucide="settings"></i> Settings</a>
+                <a href="settings-cloud-agents.html" class="settings-nav-item"><i data-lucide="cloud"></i> Cloud Agents</a>
+                <a href="settings-bugbot.html" class="settings-nav-item"><i data-lucide="bug"></i> Bugbot</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+                
+                <a href="#" class="settings-nav-item"><i data-lucide="blocks"></i> Plugins</a>
+                <a href="settings-integrations.html" class="settings-nav-item"><i data-lucide="combine"></i> Integrations</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+
+                <a href="#" class="settings-nav-item"><i data-lucide="users"></i> Members</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="bar-chart-2"></i> Usage</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="credit-card"></i> Spending</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="receipt"></i> Billing & Invoices</a>
+            </nav>
+
+            <div class="settings-sidebar-footer">
+                <button class="settings-btn-outline"><i data-lucide="user-plus"></i> Create a Team</button>
+            </div>
+        </aside>
+
+        <!-- ========== MAIN CONTENT ========== -->
+        <main class="settings-content">
+            <div class="settings-container">
+                
+                <div class="settings-header">
+                    <h1>Overview</h1>
+                    
+                    <div class="stat-segments">
+                        <div class="stat-box">
+                            <span class="stat-label">Most Active Month</span>
+                            <span class="stat-value">December</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Most Active Day</span>
+                            <span class="stat-value">Wednesday</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-label">Longest Streak</span>
+                            <span class="stat-value">6 days</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Heatmap -->
+                <div class="settings-section">
+                    <div class="settings-section-title" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; flex-direction:column; gap:4px;">
+                            <span style="font-size:24px; font-weight:600; color:var(--cursor-text-primary);">729,266</span>
+                            <span style="font-size:13px; color:var(--cursor-text-secondary);">AI Line Edits in the last year</span>
+                        </div>
+                        
+                        <div class="overview-tabs">
+                            <button class="overview-tab-btn active">All</button>
+                            <button class="overview-tab-btn">Tab</button>
+                            <button class="overview-tab-btn">Agent</button>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-card" style="padding: 24px; overflow: hidden; border-color: rgba(200, 200, 200, 0.2);">
+                        
+                        <div class="heatmap-wrapper">
+                            <div class="heatmap-container">
+                                <div class="heatmap-y-axis">
+                                    <span>Mon</span>
+                                    <span>Wed</span>
+                                    <span>Fri</span>
+                                </div>
+                                <div class="heatmap-grid-area">
+                                    <div class="heatmap-x-axis">
+                                        <span>Apr</span>
+                                        <span>May</span>
+                                        <span>Jun</span>
+                                        <span>Jul</span>
+                                        <span>Aug</span>
+                                        <span>Sep</span>
+                                        <span>Oct</span>
+                                        <span>Nov</span>
+                                        <span>Dec</span>
+                                        <span>Jan</span>
+                                        <span>Feb</span>
+                                        <span>Mar</span>
+                                        <span>Apr</span>
+                                    </div>
+                                    <!-- Dynamic Grid Injection -->
+                                    <div class="heatmap-grid heatmap-grid-7" id="heatmap-grid">
+                                        <!-- JS will populate 364 tiles here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                            <span style="font-size:12px; color:var(--cursor-text-secondary);"><a href="#" style="color:#0ea5e9; text-decoration:none;">Learn what edits we count</a></span>
+                            <div class="heatmap-legend">
+                                Less
+                                <div class="heatmap-cell" data-level="0"></div>
+                                <div class="heatmap-cell" data-level="1"></div>
+                                <div class="heatmap-cell" data-level="2"></div>
+                                <div class="heatmap-cell" data-level="3"></div>
+                                <div class="heatmap-cell" data-level="4"></div>
+                                More
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Quick Links -->
+                <div class="settings-section" style="margin-top: 48px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                        <!-- Source Control Quick Link -->
+                        <div class="settings-card" style="cursor:pointer;" onclick="window.location.href='settings-integrations.html'">
+                            <div class="settings-row settings-row-nobottom" style="align-items:flex-start;">
+                                <div style="display:flex; flex-direction:column; gap:12px; width:100%;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <i data-lucide="github" style="width:18px; height:18px; color:var(--cursor-text-secondary);"></i>
+                                            <span style="font-size:14px; font-weight:500;">Source Control</span>
+                                        </div>
+                                        <i data-lucide="chevron-right" class="small-icon" style="color:var(--cursor-text-tertiary);"></i>
+                                    </div>
+                                    <span style="font-size:13px; color:var(--cursor-text-secondary); line-height:1.5;">Connect GitHub or GitLab to enable codebase indexing and pull request features.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Integrations Quick Link -->
+                        <div class="settings-card" style="cursor:pointer;" onclick="window.location.href='settings-integrations.html'">
+                            <div class="settings-row settings-row-nobottom" style="align-items:flex-start;">
+                                <div style="display:flex; flex-direction:column; gap:12px; width:100%;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            <i data-lucide="combine" style="width:18px; height:18px; color:var(--cursor-text-secondary);"></i>
+                                            <span style="font-size:14px; font-weight:500;">Integrations</span>
+                                        </div>
+                                        <i data-lucide="chevron-right" class="small-icon" style="color:var(--cursor-text-tertiary);"></i>
+                                    </div>
+                                    <span style="font-size:13px; color:var(--cursor-text-secondary); line-height:1.5;">Connect external tools like Linear and Slack to extend your team's workflow.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom padding -->
+                <div style="height: 100px;"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Initialize Logic -->
+    <script>
+        lucide.createIcons();
+
+        // Generate Grid
+        const grid = document.getElementById('heatmap-grid');
+        // Because of CSS Grid autoflow (row vs col), 
+        // A generic 52x7 grid with default grid-auto-flow: row generates horizontally.
+        // GitHub style heatmaps actually flow vertically (column by column).
+        // Let's set auto-flow to column in CSS:
+        grid.style.gridAutoFlow = 'column';
+
+        // 52 weeks * 7 days
+        for(let i=0; i<(52*7); i++) {
+            const cell = document.createElement('div');
+            cell.className = 'heatmap-cell';
+            
+            // Randomly assign a level for visual mockup to look roughly like the screenshot
+            // Weight it so most are 0 (empty), then few level 1..4
+            const r = Math.random();
+            let level = 0;
+            if (r > 0.6) {
+                // Determine color intensity
+                if (r > 0.95) level = 4;
+                else if (r > 0.85) level = 3;
+                else if (r > 0.75) level = 2;
+                else level = 1;
+            }
+            // Force a few clusters of "Most active" blocks around the 35th column
+            if (i > 240 && i < 280 && Math.random() > 0.3) {
+                level = Math.floor(Math.random() * 3) + 2;
+            }
+
+            cell.setAttribute('data-level', level);
+            grid.appendChild(cell);
+        }
+
+        // Tab Switching Logic
+        document.querySelectorAll('.overview-tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.overview-tab-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Agents Settings | Cursor</title>
+    <!-- CSS Variables and Layout Styles -->
+    <link rel="stylesheet" href="styles.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="settings-wrapper">
+
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="settings-sidebar">
+            <div class="settings-sidebar-header">
+                <!-- Cursor Hexagon Logo -->
+                <svg viewBox="0 0 100 100" fill="currentColor">
+                    <path d="M50 0L93.3 25V75L50 100L6.7 75V25L50 0Z" fill="var(--cursor-text-primary)"/>
+                </svg>
+                <a href="index.html">Back to Agents</a>
+            </div>
+
+            <div class="settings-sidebar-profile">
+                <div class="user-profile">
+                    <div class="avatar">a</div>
+                    <div class="user-info">
+                        <div class="user-name">awdajkd awldja</div>
+                        <div class="user-plan">Ultra</div>
+                    </div>
+                    <div class="footer-actions">
+                        <button class="icon-btn" title="More options"><i data-lucide="more-horizontal"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="settings-nav">
+                <a href="#" class="settings-nav-item"><i data-lucide="home"></i> Overview</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="settings"></i> Settings</a>
+                <a href="#" class="settings-nav-item active"><i data-lucide="cloud"></i> Cloud Agents</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="bug"></i> Bugbot</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+                
+                <a href="#" class="settings-nav-item"><i data-lucide="blocks"></i> Plugins</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="combine"></i> Integrations</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+
+                <a href="#" class="settings-nav-item"><i data-lucide="users"></i> Members</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="bar-chart-2"></i> Usage</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="credit-card"></i> Spending</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="receipt"></i> Billing & Invoices</a>
+            </nav>
+
+            <div class="settings-sidebar-footer">
+                <button class="settings-btn-outline"><i data-lucide="user-plus"></i> Create a Team</button>
+            </div>
+        </aside>
+
+        <!-- ========== MAIN CONTENT ========== -->
+        <main class="settings-content">
+            <div class="settings-container">
+                
+                <div class="settings-header">
+                    <h1>Cloud Agents</h1>
+                    <p>Create Agents to edit and run code, asynchronously</p>
+                </div>
+
+                <!-- SECTION: Environments -->
+                <div class="settings-section">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+                        <div>
+                            <div class="settings-section-title">Environments</div>
+                            <div class="settings-section-subtitle" style="margin-bottom: 0;">Cloud agents write better code if their development environment is configured.</div>
+                        </div>
+                        <button class="settings-btn" onclick="openModal('add-env-modal')">Add Environment</button>
+                    </div>
+                    
+                    <div class="settings-card">
+                        <!-- Expandable Environment: jasonczc/haqi -->
+                        <div class="settings-expandable">
+                            <div class="settings-row settings-expandable-header">
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title" style="font-family: monospace;">jasonczc/haqi</span>
+                                </div>
+                                <div class="settings-row-right">
+                                    <span class="settings-row-desc">Personal environment active</span>
+                                    <i data-lucide="chevron-right" class="small-icon" style="color: var(--cursor-text-tertiary);"></i>
+                                </div>
+                            </div>
+                            <div class="settings-expandable-content-wrapper">
+                                <div class="settings-expandable-content">
+                                    <div class="settings-section-subtitle" style="margin-bottom: 12px; color: var(--cursor-text-primary);">Configured Base Image</div>
+                                    <input type="text" class="settings-input" style="width: 100%; border-color: transparent; font-family: monospace;" readonly value="ubuntu:22.04">
+                                    <div style="margin-top: 16px; display: flex; gap: 8px;">
+                                        <button class="settings-btn-outline" style="width: auto; padding: 4px 12px;">Edit</button>
+                                        <button class="settings-btn-outline" style="width: auto; padding: 4px 12px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Expandable Environment: 39-ai/thankyou-pay -->
+                        <div class="settings-expandable">
+                            <div class="settings-row settings-expandable-header">
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title" style="font-family: monospace;">39-ai/thankyou-pay</span>
+                                </div>
+                                <div class="settings-row-right">
+                                    <span class="settings-row-desc">Personal environment active</span>
+                                    <i data-lucide="chevron-right" class="small-icon" style="color: var(--cursor-text-tertiary);"></i>
+                                </div>
+                            </div>
+                            <div class="settings-expandable-content-wrapper">
+                                <div class="settings-expandable-content">
+                                    <div class="settings-section-subtitle" style="margin-bottom: 12px; color: var(--cursor-text-primary);">Configured Base Image</div>
+                                    <input type="text" class="settings-input" style="width: 100%; border-color: transparent; font-family: monospace;" readonly value="ubuntu:22.04">
+                                    <div style="margin-top: 16px; display: flex; gap: 8px;">
+                                        <button class="settings-btn-outline" style="width: auto; padding: 4px 12px;">Edit</button>
+                                        <button class="settings-btn-outline" style="width: auto; padding: 4px 12px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Expandable Environment: 39-ai/thankyou-queue -->
+                        <div class="settings-expandable">
+                            <div class="settings-row settings-expandable-header">
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title" style="font-family: monospace;">39-ai/thankyou-queue</span>
+                                </div>
+                                <div class="settings-row-right">
+                                    <span class="settings-row-desc">Personal environment active</span>
+                                    <i data-lucide="chevron-right" class="small-icon" style="color: var(--cursor-text-tertiary);"></i>
+                                </div>
+                            </div>
+                            <div class="settings-expandable-content-wrapper">
+                                <div class="settings-expandable-content">
+                                    <div class="settings-section-subtitle" style="margin-bottom: 12px; color: var(--cursor-text-primary);">Configured Base Image</div>
+                                    <input type="text" class="settings-input" style="width: 100%; border-color: transparent; font-family: monospace;" readonly value="ubuntu:22.04">
+                                    <div style="margin-top: 16px; display: flex; gap: 8px;">
+                                        <button class="settings-btn-outline" style="width: auto; padding: 4px 12px;">Edit</button>
+                                        <button class="settings-btn-outline" style="width: auto; padding: 4px 12px; color: #ef4444; border-color: rgba(239, 68, 68, 0.2);">Remove</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Self-Hosted Agents -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Self-Hosted Agents</div>
+                    <div class="settings-section-subtitle">Monitor and manage your self-hosted cloud agent workers</div>
+                    
+                    <div class="settings-card" style="margin-bottom: 16px;">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Allow self-hosted agents</span>
+                                <span class="settings-row-desc">Enable self-hosted agents for your account. You can route cloud agents through workers you connect from your own machines.</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <label class="settings-toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="settings-toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+                        <div class="settings-section-title" style="margin-bottom: 0;">My Workers</div>
+                        <button class="settings-btn" style="background: transparent;"><i data-lucide="refresh-cw" style="width:12px; height:12px; margin-right:4px;"></i> Refresh</button>
+                    </div>
+
+                    <div class="settings-empty-state">
+                        <div class="settings-empty-title">No Workers</div>
+                        <div class="settings-empty-desc">Connect a self-hosted worker from your machine<br>to run cloud agents on your own hardware.</div>
+                    </div>
+                </div>
+
+                <div class="dropdown-divider" style="margin: 32px 0;"></div>
+
+                <!-- SECTION: Defaults -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Defaults</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Default Model</span>
+                                <span class="settings-row-desc">Used when no model is specified</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper">
+                                    <button class="custom-select-btn">
+                                        <span class="select-value">Select model</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">Claude 3.5 Sonnet</div>
+                                        <div class="custom-select-option">GPT-4o</div>
+                                        <div class="custom-select-option">Cursor-small</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Default Repository</span>
+                                <span class="settings-row-desc">Used when no repository is specified</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper">
+                                    <button class="custom-select-btn">
+                                        <span class="select-value">Select repository</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">jasonczc/haqi</div>
+                                        <div class="custom-select-option">39-ai/thankyou-pay</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Base Branch</span>
+                                <span class="settings-row-desc">When empty, Cloud Agent will use a repository's default branch (recommended)</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <input type="text" class="settings-input" placeholder="Branch name...">
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Branch Prefix</span>
+                                <span class="settings-row-desc">Prefix for branch names created by Cloud Agent</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <input type="text" class="settings-input" placeholder="cursor/">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="settings-section-title">Pull Requests</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Create PRs</span>
+                                <span class="settings-row-desc">Automatically create a pull request when Cloud Agent completes.</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 160px;">
+                                    <button class="custom-select-btn">
+                                        <span class="select-value">For Single Model Runs</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">For Single Model Runs</div>
+                                        <div class="custom-select-option">Never</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">PR Review Destination</span>
+                                <span class="settings-row-desc">Choose where to open PR links for GitHub-connected agents.</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 140px;">
+                                    <button class="custom-select-btn">
+                                        <span class="select-value">GitHub</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">GitHub</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Allow posting artifacts to GitHub</span>
+                                <span class="settings-row-desc">Allow cloud agents to embed images directly in PR descriptions using hard-to-guess public URLs. <a href="#" style="color:var(--cursor-text-secondary); text-decoration:underline;">Learn more</a></span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 140px;">
+                                    <button class="custom-select-btn">
+                                        <span class="select-value">Link Only</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">Link Only</div>
+                                        <div class="custom-select-option">Embed Images</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Notifications -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Notifications</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Slack Notifications</span>
+                                <span class="settings-row-desc">Get notified in Slack when a Cloud Agent completes a task</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <label class="settings-toggle">
+                                    <input type="checkbox" checked>
+                                    <span class="settings-toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Repository routing -->
+                <div class="settings-section">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+                        <div>
+                            <div class="settings-section-title">Repository routing</div>
+                            <div class="settings-section-subtitle" style="margin-bottom: 0;">Routing rules to help the Slack bot pick the right repository.</div>
+                        </div>
+                        <button class="settings-btn">Add Rule</button>
+                    </div>
+
+                    <div class="settings-empty-state">
+                        <div class="settings-empty-title">No routing rules yet</div>
+                        <button class="settings-btn-outline" style="width: auto;">Add Rule</button>
+                    </div>
+                </div>
+
+                <!-- SECTION: Security -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Security</div>
+                    
+                    <div class="settings-card">
+                        <div class="settings-row">
+                            <div class="settings-row-left">
+                                <span class="settings-row-title">Network Access Settings</span>
+                                <span class="settings-row-desc">Control which network destinations your cloud agents can access</span>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper">
+                                    <button class="custom-select-btn">
+                                        <span class="select-value">Allow all network access</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">Allow all network access</div>
+                                        <div class="custom-select-option">Restricted IP Range</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: User API Keys -->
+                <div class="settings-section">
+                    <div class="settings-section-title">User API Keys</div>
+                    
+                    <div class="settings-empty-state">
+                        <div class="settings-empty-title">No API Keys Yet</div>
+                        <div class="settings-empty-desc">No API Keys have been created yet</div>
+                        <button class="settings-btn" style="background:#000; color:#fff;">New API Key</button>
+                    </div>
+                    <div class="settings-section-subtitle" style="margin-top: 12px;">
+                        User API Keys provide secure, programmatic access to your Cursor account, including the headless version of the Cursor Agent CLI and <a href="#" style="color:inherit; text-decoration:underline;">Cloud Agent API</a>. Treat them like passwords: keep them secure and never share them publicly. Note: The <a href="#" style="color:inherit; text-decoration:underline;">Cloud Agent API</a> is in beta.
+                    </div>
+                </div>
+
+                <!-- SECTION: My Secrets -->
+                <div class="settings-section">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+                        <div>
+                            <div class="settings-section-title">My Secrets</div>
+                            <div class="settings-section-subtitle" style="margin-bottom: 0;">Securely set environment variables for your Cloud Agents.</div>
+                        </div>
+                        <button class="settings-btn"><i data-lucide="search" style="width:12px; height:12px; margin-right:4px;"></i> Add Secrets</button>
+                    </div>
+
+                    <div class="settings-empty-state">
+                        <div class="settings-empty-title">No secrets yet</div>
+                        <button class="settings-btn-outline" style="width: auto;">Add Secrets</button>
+                    </div>
+                </div>
+
+                <!-- Bottom padding for scrolling comfort -->
+                <div style="height: 100px;"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Generic Modal Template (Add Environment) -->
+    <div class="modal-overlay" id="add-env-modal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <div class="modal-title">Add Environment</div>
+                <button class="modal-close" onclick="closeModal('add-env-modal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <label>
+                    Repository
+                    <input type="text" class="settings-input" placeholder="e.g. org/repo-name">
+                </label>
+                <label>
+                    Environment Base Image
+                    <input type="text" class="settings-input" placeholder="ubuntu:22.04" value="ubuntu:22.04">
+                </label>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal('add-env-modal')">Cancel</button>
+                <button class="modal-btn modal-btn-primary" onclick="closeModal('add-env-modal')">Add Environment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Initialize Lucide Icons -->
+    <script>
+        lucide.createIcons();
+
+        // Modal Logic
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) {
+                modal.classList.add('show');
+            }
+        }
+        
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) {
+                modal.classList.remove('show');
+            }
+        }
+
+        // Close modal on outside click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('show');
+                }
+            });
+        });
+
+        // Custom Dropdown Logic
+        document.querySelectorAll('.custom-select-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Close all others
+                document.querySelectorAll('.custom-select-menu').forEach(menu => {
+                    if (menu !== this.nextElementSibling) {
+                        menu.classList.remove('show');
+                        menu.previousElementSibling.classList.remove('active');
+                    }
+                });
+                
+                const menu = this.nextElementSibling;
+                menu.classList.toggle('show');
+                this.classList.toggle('active');
+            });
+        });
+
+        // Option selection
+        document.querySelectorAll('.custom-select-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const menu = this.parentElement;
+                const btn = menu.previousElementSibling;
+                const valueSpan = btn.querySelector('.select-value');
+                
+                valueSpan.textContent = this.textContent;
+                menu.classList.remove('show');
+                btn.classList.remove('active');
+            });
+        });
+
+        // Close dropdowns on outside click
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.custom-select-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            document.querySelectorAll('.custom-select-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        });
+
+        // Expandable Row Logic
+        document.querySelectorAll('.settings-expandable-header').forEach(header => {
+            header.addEventListener('click', function(e) {
+                // Prevent toggle if clicking inside an interactive element within the header (though not applicable here)
+                const expandable = this.parentElement;
+                expandable.classList.toggle('open');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cursor Agent - Turn your ideas into code</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="app-container">
+
+        <!-- ========== SIDEBAR (Dark) ========== -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button class="icon-btn" title="Toggle Sidebar"><i data-lucide="panel-left"></i></button>
+                <button class="icon-btn" title="Search (⌘K)"><i data-lucide="search"></i></button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item"><i data-lucide="square-pen"></i><span>New Agent</span></a>
+                <a href="#" class="nav-item"><i data-lucide="bot"></i><span>Automations</span></a>
+                <a href="#" class="nav-item"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="#" class="nav-item"><i data-lucide="bug"></i><span>Bugbot</span></a>
+            </nav>
+
+            <div class="sidebar-section">
+                <div class="section-title">This Week</div>
+
+                <!-- History items with archive-on-hover -->
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-branch" class="history-icon gray"></i>
+                        <span class="history-title">Ctf 相关内容</span>
+                    </div>
+                    <span class="history-stats">+342 <span style="color:#ef4444">-4</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-branch" class="history-icon gray"></i>
+                        <span class="history-title">代理总结需求</span>
+                    </div>
+                    <span class="history-stats">+612982 <span style="color:#ef4444">-98</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-merge" class="history-icon purple"></i>
+                        <span class="history-title">Cloud agent features</span>
+                    </div>
+                    <span class="history-stats">+204</span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-pull-request" class="history-icon green"></i>
+                        <span class="history-title">Haqi 云 agent 功能</span>
+                    </div>
+                    <span class="history-stats">+13560 <span style="color:#ef4444">-594</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+                <a href="#" class="history-sub-item">Haqi 云代理功能</a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-merge" class="history-icon purple"></i>
+                        <span class="history-title">Thankyou-pay 测试体系</span>
+                    </div>
+                    <span class="history-stats">+120 <span style="color:#ef4444">-19</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-branch" class="history-icon gray"></i>
+                        <span class="history-title">当前测试失败</span>
+                    </div>
+                    <span class="history-stats">+8 <span style="color:#ef4444">-9</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-branch" class="history-icon gray"></i>
+                        <span class="history-title">Development environment set...</span>
+                    </div>
+                    <span class="history-stats">+45</span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-merge" class="history-icon purple"></i>
+                        <span class="history-title">当前一致性核对</span>
+                    </div>
+                    <span class="history-stats">+213 <span style="color:#ef4444">-21</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-branch" class="history-icon gray"></i>
+                        <span class="history-title">Development environment set...</span>
+                    </div>
+                    <span class="history-stats">+54</span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+                <a href="#" class="history-sub-item">User concurrency impact</a>
+            </div>
+
+            <!-- Footer Profile -->
+            <div class="sidebar-footer">
+                <!-- User Setting Dropdown -->
+                <div class="user-dropdown-menu hidden" id="user-settings-menu">
+                    <div class="dropdown-item flex-between">
+                        <span>Appearance</span>
+                        <div class="color-preview"><span>System</span> <i data-lucide="chevron-right" class="small-icon"></i></div>
+                    </div>
+                    <div class="dropdown-item">Cloud Agent Settings</div>
+                    <div class="dropdown-item">Download Cursor macOS</div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item">Cursor Docs</div>
+                    <div class="dropdown-item">Contact Us</div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item">Log Out</div>
+                </div>
+
+                <div class="user-profile" id="user-profile-btn" style="cursor: pointer;">
+                    <div class="avatar">a</div>
+                    <div class="user-info">
+                        <div class="user-name">awdajkd awldja</div>
+                        <div class="user-plan">Ultra</div>
+                    </div>
+                    <div class="footer-actions">
+                        <button class="icon-btn" title="More options"><i data-lucide="more-horizontal"></i></button>
+                        <button class="icon-btn" title="Filter"><i data-lucide="list-filter"></i></button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ========== MAIN CONTENT (Light) ========== -->
+        <main class="main-content">
+            <div class="content-wrapper">
+
+                <!-- Repo Selector -->
+                <div class="repo-selector">
+                    <button class="repo-btn">
+                        Select repository <i data-lucide="chevron-down"></i>
+                    </button>
+                </div>
+
+                <!-- Prompt Card -->
+                <div class="prompt-container">
+                    <div class="prompt-card">
+                        <div class="prompt-input" contenteditable="true" role="textbox" aria-multiline="true"
+                             data-placeholder="Ask Cursor to build, fix bugs, explore"></div>
+                        <div class="prompt-footer">
+                            <div class="prompt-tools">
+                                <button class="tool-chip">Codex 5.3 High <i data-lucide="chevron-down"></i></button>
+                                <button class="tool-chip">MCPs <i data-lucide="chevron-down"></i></button>
+                            </div>
+                            <div class="prompt-actions">
+                                <button class="action-btn" title="Add image"><i data-lucide="image"></i></button>
+                                <button class="action-btn active" title="Voice input"><i data-lucide="mic"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Suggestion Pills -->
+                <div class="action-pills">
+                    <button class="pill-btn">Run security audit</button>
+                    <button class="pill-btn">Improve AGENTS.md</button>
+                    <button class="pill-btn">Solve a TODO</button>
+                </div>
+
+                <!-- Agent List -->
+                <div class="agent-list">
+
+                    <!-- Row 1: Draft -->
+                    <a href="#" class="agent-row">
+                        <div class="metadata-card">
+                            <div class="meta-row">
+                                <span class="meta-file-count">16 files</span>
+                                <div class="meta-diff">
+                                    <span class="diff-add">+342</span>
+                                    <span class="diff-sub">-4</span>
+                                </div>
+                            </div>
+                            <div class="badge badge-draft">
+                                <i data-lucide="git-branch"></i> Draft
+                            </div>
+                        </div>
+                        <div class="agent-info">
+                            <div class="agent-title">Ctf 相关内容</div>
+                            <div class="agent-subtitle">
+                                <i data-lucide="git-branch" class="icon-gray"></i>
+                                <span>Composer 2</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>haqi</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>3d</span>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 2: Draft -->
+                    <a href="#" class="agent-row">
+                        <div class="metadata-card">
+                            <div class="meta-row">
+                                <span class="meta-file-count">340 ...</span>
+                                <div class="meta-diff">
+                                    <span class="diff-add">+612982</span>
+                                    <span class="diff-sub">-98</span>
+                                </div>
+                            </div>
+                            <div class="badge badge-draft">
+                                <i data-lucide="git-branch"></i> Draft
+                            </div>
+                        </div>
+                        <div class="agent-info">
+                            <div class="agent-title">代理总结需求</div>
+                            <div class="agent-subtitle">
+                                <i data-lucide="git-branch" class="icon-gray"></i>
+                                <span>Opus 4.6 High</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>haqi</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>4d</span>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 3: Merged -->
+                    <a href="#" class="agent-row">
+                        <div class="metadata-card">
+                            <div class="meta-row">
+                                <span class="meta-file-count">1 file</span>
+                                <div class="meta-diff">
+                                    <span class="diff-add">+204</span>
+                                    <span class="diff-sub">-0</span>
+                                </div>
+                            </div>
+                            <div class="badge badge-merged">
+                                <i data-lucide="git-merge"></i> Merged
+                            </div>
+                        </div>
+                        <div class="agent-info">
+                            <div class="agent-title">Cloud agent features</div>
+                            <div class="agent-subtitle">
+                                <i data-lucide="git-merge" class="icon-purple"></i>
+                                <span>Composer 2</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>haqi</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>4d</span>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 4: Open -->
+                    <a href="#" class="agent-row">
+                        <div class="metadata-card">
+                            <div class="meta-row">
+                                <span class="meta-file-count">105 ...</span>
+                                <div class="meta-diff">
+                                    <span class="diff-add">+13560</span>
+                                    <span class="diff-sub">-594</span>
+                                </div>
+                            </div>
+                            <div class="badge badge-open">
+                                <i data-lucide="git-pull-request"></i> Open
+                            </div>
+                        </div>
+                        <div class="agent-info">
+                            <div class="agent-title">Haqi 云 agent 功能</div>
+                            <div class="agent-subtitle">
+                                <i data-lucide="git-pull-request" class="icon-green"></i>
+                                <i data-lucide="zap" class="icon-gray"></i>
+                                <span>GPT-5.4 High</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>haqi</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>4d</span>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 5: Child / Sub-agent (Branch) -->
+                    <a href="#" class="agent-row child-row">
+                        <div class="metadata-card">
+                            <i data-lucide="git-branch"></i>
+                            <span>Branch</span>
+                            <i data-lucide="chevron-down" class="chevron-sm"></i>
+                        </div>
+                        <div class="agent-info">
+                            <div class="agent-title">Haqi 云代理功能</div>
+                            <div class="agent-subtitle">
+                                <i data-lucide="check-circle-2" class="icon-gray"></i>
+                                <span>Composer 2</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>haqi</span>
+                                <span style="opacity:0.4">·</span>
+                                <span>4d</span>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 6: Merged -->
+                    <a href="#" class="agent-row">
+                        <div class="metadata-card">
+                            <div class="meta-row">
+                                <span class="meta-file-count">1 file</span>
+                                <div class="meta-diff">
+                                    <span class="diff-add">+120</span>
+                                    <span class="diff-sub">-19</span>
+                                </div>
+                            </div>
+                            <div class="badge badge-merged">
+                                <i data-lucide="git-merge"></i> Merged
+                            </div>
+                        </div>
+                        <div class="agent-info">
+                            <div class="agent-title">Thankyou-pay 测试体系</div>
+                            <div class="agent-subtitle">
+                                <i data-lucide="git-merge" class="icon-purple"></i>
+                                <span>GPT-5.4 High Fast</span>
+                                <span class="sep"></span>
+                                <span>thankyou-pay</span>
+                                <span class="sep"></span>
+                                <span>4d</span>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 7: Draft -->
+                    <a href="#" class="agent-row">
+                        <div class="metadata-card">
+                            <div class="meta-row">
+                                <span class="meta-file-count">12 files</span>
+                                <div class="meta-diff">
+                                    <span class="diff-add">+8</span>
+                                    <span class="diff-sub">-9</span>
+                                </div>
+                            </div>
+                            <div class="badge badge-draft">
+                                <i data-lucide="git-branch"></i> Draft
+                            </div>
+                        </div>
+                        <div class="agent-info">
+                            <div class="agent-title">当前测试失败</div>
+                            <div class="agent-subtitle">
+                                <i data-lucide="git-branch" class="icon-gray"></i>
+                                <span>Codex 5.3 High</span>
+                                <span class="sep"></span>
+                                <span>haqi</span>
+                                <span class="sep"></span>
+                                <span>4d</span>
+                            </div>
+                        </div>
+                    </a>
+
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

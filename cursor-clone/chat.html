@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ctf 相关内容 | Cursor</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="script.js" defer></script>
+</head>
+<body>
+    <div class="app-container chat-layout">
+
+        <!-- ========== SIDEBAR (Left Pane) ========== -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button class="icon-btn" title="Toggle Sidebar"><i data-lucide="panel-left"></i></button>
+                <button class="icon-btn" title="Search (⌘K)"><i data-lucide="search"></i></button>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="index.html" class="nav-item"><i data-lucide="square-pen"></i><span>New Agent</span></a>
+                <a href="#" class="nav-item"><i data-lucide="bot"></i><span>Automations</span></a>
+                <a href="index.html" class="nav-item"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+                <a href="#" class="nav-item"><i data-lucide="bug"></i><span>Bugbot</span></a>
+            </nav>
+
+            <div class="sidebar-section">
+                <div class="section-title">This Week</div>
+
+                <!-- History items with archive-on-hover -->
+                <a href="#" class="history-item active">
+                    <div class="history-item-left">
+                        <i data-lucide="git-branch" class="history-icon gray"></i>
+                        <span class="history-title">Ctf 相关内容</span>
+                    </div>
+                    <span class="history-stats">+342 <span style="color:#ef4444">-4</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-branch" class="history-icon gray"></i>
+                        <span class="history-title">代理总结需求</span>
+                    </div>
+                    <span class="history-stats">+612982 <span style="color:#ef4444">-98</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-merge" class="history-icon purple"></i>
+                        <span class="history-title">Cloud agent features</span>
+                    </div>
+                    <span class="history-stats">+204</span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+
+                <a href="#" class="history-item">
+                    <div class="history-item-left">
+                        <i data-lucide="git-pull-request" class="history-icon green"></i>
+                        <span class="history-title">Haqi 云 agent 功能</span>
+                    </div>
+                    <span class="history-stats">+13560 <span style="color:#ef4444">-594</span></span>
+                    <button class="history-archive" title="Archive"><i data-lucide="archive"></i></button>
+                </a>
+                <a href="#" class="history-sub-item">Haqi 云代理功能</a>
+            </div>
+
+            <!-- Footer Profile -->
+            <div class="sidebar-footer">
+                <!-- User Setting Dropdown -->
+                <div class="user-dropdown-menu hidden" id="user-settings-menu">
+                    <div class="dropdown-item flex-between">
+                        <span>Appearance</span>
+                        <div class="color-preview"><span>System</span> <i data-lucide="chevron-right" class="small-icon"></i></div>
+                    </div>
+                    <div class="dropdown-item">Cloud Agent Settings</div>
+                    <div class="dropdown-item">Download Cursor macOS</div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item">Cursor Docs</div>
+                    <div class="dropdown-item">Contact Us</div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item">Log Out</div>
+                </div>
+
+                <div class="user-profile" id="user-profile-btn" style="cursor: pointer;">
+                    <div class="avatar">a</div>
+                    <div class="user-info">
+                        <div class="user-name">awdajkd awldja</div>
+                        <div class="user-plan">Ultra</div>
+                    </div>
+                    <div class="footer-actions">
+                        <button class="icon-btn" title="More options"><i data-lucide="more-horizontal"></i></button>
+                        <button class="icon-btn" title="Filter"><i data-lucide="list-filter"></i></button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ========== CENTER PANE (Chat Area) ========== -->
+        <main class="chat-main">
+            <!-- Header -->
+            <header class="chat-header">
+                <div class="chat-title">
+                    <h2>Ctf 相关内容</h2>
+                    <span class="chat-repo">jasonczc/haqi</span>
+                </div>
+                <!-- Controls that appear when right panel is closed -->
+                <div class="chat-header-controls">
+                    <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+                    <button class="icon-btn" id="restore-context-btn" title="Open app panel"><i data-lucide="panel-right"></i></button>
+                </div>
+            </header>
+
+            <!-- Scrollable Message List -->
+            <div class="chat-timeline">
+                
+                <!-- ====== ROUND 1 ====== -->
+                <div class="chat-round">
+                    <!-- User Prompt Box -->
+                    <div class="chat-message-user">
+                        <div class="user-prompt">
+                            搜索调研下有没有现有类似产品
+                        </div>
+                        <div class="agent-status">
+                            Worked for 1m 14s
+                        </div>
+                    </div>
+
+                    <!-- Agent Response Box -->
+                    <div class="chat-message-agent markdown-content">
+                        <p>下面是<strong>按类别整理</strong>的「和 Cursor Cloud Agents / 本地 Agent + 网页遥控」相近的产品与项目（含开源与商业）。Cursor 本身是闭源托管，没有完全同款的开源替代品，但有多条部分重叠的路线。</p>
+                        
+                        <h3>1. 托管云环境 + 浏览器里写代码（偏 IDE / Codespace）</h3>
+                        <p>和「云端一台开发机、浏览器打开」最接近，但不一定有「AI Agent 编排」:</p>
+                        
+                        <table class="agent-table">
+                            <thead>
+                                <tr>
+                                    <th>产品</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>GitHub Codespaces</td>
+                                    <td>云开发容器 + VS Code Web可配终端与扩展...</td>
+                                </tr>
+                                <tr>
+                                    <td>Gitpod</td>
+                                    <td>云开发环境即服务，API/自托管可选。</td>
+                                </tr>
+                                <tr>
+                                    <td>Google Project IDX</td>
+                                    <td>浏览器 IDE + 云工作室（Google 生态）。</td>
+                                </tr>
+                                <tr>
+                                    <td>Replit</td>
+                                    <td>在线 IDE + Agent/「Ghost」等能力，偏一体化 SaaS。</td>
+                                </tr>
+                                <tr>
+                                    <td>StackBlitz WebContainers</td>
+                                    <td>浏览器里跑 Node 等，模型和「完整 Linux VM」不同。</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <p><strong>和 Cursor Cloud 的差异：</strong>多数偏「人在浏览器里写代码」，而不是完全脱手的沙箱体系。</p>
+                    </div>
+                </div>
+
+                <!-- ====== ROUND 2 ====== -->
+                <div class="chat-round">
+                    <!-- User Prompt Box -->
+                    <div class="chat-message-user">
+                        <div class="user-prompt">
+                            这几个竞品里有哪些是可以本地离线部署沙箱的？我想参考一下它们的架构，比如是否有 pod-daemon 和 exec-daemon 这种设计。
+                        </div>
+                        <div class="agent-status">
+                            Worked for 45s
+                        </div>
+                    </div>
+
+                    <!-- Agent Response Box -->
+                    <div class="chat-message-agent markdown-content">
+                        <p>目前在离线/自托管沙箱这块，最值得参考开源实现的是 <strong>Gitpod</strong> 和 <strong>Daytona</strong>。</p>
+                        <p>它们都涉及到以下架构特点：</p>
+                        <ul>
+                            <li><strong>Workspace Manager</strong>：类似于你的 <code>sessionFactory</code>，负责分配和初始化沙箱（Pod/容器）。</li>
+                            <li><strong>Daemon/Agent 注入</strong>：在容器启动时，会注入一个后台常驻进程（类似于你提到的 exec-daemon），用于提供终端访问、文件同步、甚至是一定程度的无头浏览器代理。</li>
+                        </ul>
+                        <p>我已经阅读了现有的 <code>cli/src/agent/sessionFactory.ts</code> 文件，现在的代码似乎主要是通过 <code>@hapi/protocol/remoteDesktop</code> 协议和 <code>runner</code> 通信。如果你想加入离线 Daemon 模式，我们需要先在 <code>SessionStartedBy</code> 类型里加上类似 <code>'daemon'</code> 的标示。</p>
+                    </div>
+                </div>
+
+                <!-- Spacer for floating input -->
+                <div class="chat-timeline-spacer"></div>
+            </div>
+
+            <!-- Bottom Floating Input -->
+            <div class="chat-input-wrapper">
+                <div class="chat-input-box">
+                    <textarea placeholder="Add a follow up"></textarea>
+                    <div class="chat-input-footer">
+                        <div class="footer-left">
+                            <span class="model-badge">Composer 2</span>
+                        </div>
+                        <div class="footer-right">
+                            <button class="icon-btn"><i data-lucide="image"></i></button>
+                            <button class="icon-btn"><i class="mic-icon" data-lucide="mic"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ========== RIGHT PANE (Context Panel) ========== -->
+        <aside class="context-panel">
+            <!-- Top Controls & Tabs -->
+            <div class="context-header">
+                <div class="context-tabs">
+                    <button class="context-tab active">Git</button>
+                    <button class="context-tab">Desktop</button>
+                    <button class="context-tab">Terminal</button>
+                </div>
+                <div class="context-controls relative-wrapper">
+                    <button class="icon-btn" id="btn-more" title="More Actions"><i data-lucide="more-horizontal"></i></button>
+                    <!-- Floating Dropdown Menu -->
+                    <div class="dropdown-menu hidden" id="more-dropdown">
+                        <button class="dropdown-item">Open in Desktop</button>
+                        <button class="dropdown-item">Configure Environment</button>
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item text-red">Archive</button>
+                    </div>
+
+                    <button class="icon-btn" id="btn-maximize" title="Expand panel"><i data-lucide="maximize-2"></i></button>
+                    <button class="icon-btn" id="toggle-context-btn" title="Toggle app panel"><i data-lucide="sidebar"></i></button>
+                </div>
+            </div>
+
+            <!-- PR/Branch Meta Info -->
+            <div class="context-sub-header">
+                <div class="pr-title-row">
+                    <span class="pr-title">feat: Web remote desktop (...</span>
+                    <span class="pr-number">#10 ↗</span>
+                    <button class="btn-primary">Mark as ready</button>
+                </div>
+                <div class="branch-flow-row">
+                    <span class="badge draft">Draft</span>
+                    <span class="branch-name">cursor/ctf-fa7f</span>
+                    <i data-lucide="arrow-right" class="arrow-icon"></i>
+                    <span class="branch-name">cursor/haqi-agent-64bd</span>
+                </div>
+                <div class="code-flow-tabs">
+                    <button class="flow-tab active" data-target="tab-diff">Diff</button>
+                    <button class="flow-tab review" data-target="tab-review">Review <span class="red-dot"></span></button>
+                    <button class="flow-tab" data-target="tab-commits">Commits <span class="count">2</span></button>
+                </div>
+            </div>
+
+            <!-- FLOW CONTENT VIEWS -->
+            <div class="flow-views-container">
+                <!-- Code Diff View (Active by Default) -->
+                <div id="tab-diff" class="flow-content active">
+                    <div class="code-diff-container">
+                        <div class="file-header">
+                            <i data-lucide="chevron-down" class="chevron"></i>
+                            <span class="filename">cli/src/agent/sessionFactory.ts</span>
+                            <div class="diff-stats">
+                                <span class="add">+4</span>
+                                <span class="sub">-1</span>
+                                <div class="file-icon-box"></div>
+                            </div>
+                        </div>
+                
+                <div class="diff-block">
+                    <div class="unmodified-banner">
+                        <i data-lucide="chevron-up" class="chevron"></i>
+                        <span>10 unmodified lines</span>
+                    </div>
+                    
+                    <div class="code-lines">
+                        <div class="code-line">
+                            <span class="line-num">11</span>
+                            <span class="code-text"><span class="keyword">import</span> { logger } <span class="keyword">from</span> <span class="string">'@/ui/logger'</span></span>
+                        </div>
+                        <div class="code-line">
+                            <span class="line-num">12</span>
+                            <span class="code-text"><span class="keyword">import</span> { runtimePath } <span class="keyword">from</span> <span class="string">'@/projectPath'</span></span>
+                        </div>
+                        <div class="code-line">
+                            <span class="line-num">13</span>
+                            <span class="code-text"><span class="keyword">import</span> { readWorktreeEnv } <span class="keyword">from</span> <span class="string">'@/utils/worktreeEnv'</span></span>
+                        </div>
+                        <div class="code-line">
+                            <span class="line-num">14</span>
+                            <span class="code-text"><span class="keyword">import</span> packageJson <span class="keyword">from</span> <span class="string">'../../package.json'</span></span>
+                        </div>
+                        <div class="code-line diff-add">
+                            <span class="line-num">15</span>
+                            <span class="code-text"><span class="keyword">import</span> { inferRemoteDesktopMetadata } <span class="keyword">from</span> <span class="string">'@hapi/protocol/remoteDesktop'</span></span>
+                        </div>
+                        <div class="code-line">
+                            <span class="line-num">16</span>
+                            <span class="code-text"></span>
+                        </div>
+                        <div class="code-line">
+                            <span class="line-num">17</span>
+                            <span class="code-text"><span class="keyword">export type</span> SessionStartedBy = <span class="string">'runner'</span> | <span class="string">'terminal'</span></span>
+                        </div>
+                    </div>
+
+                        <div class="unmodified-banner">
+                            <i data-lucide="chevron-down" class="chevron"></i>
+                            <span>82 unmodified lines</span>
+                        </div>
+                    </div>
+                </div> <!-- End tab-diff -->
+
+                <!-- Review View -->
+                <div id="tab-review" class="flow-content">
+                    <div class="review-panel">
+                        <div class="review-checks-box">
+                            <div class="checks-header">
+                                <div class="checks-title">
+                                    <i data-lucide="loader" class="red-icon"></i>
+                                    <span>2 checks failing</span>
+                                </div>
+                                <i data-lucide="chevron-down" class="chevron"></i>
+                            </div>
+                            <div class="checks-body">
+                                <div class="checks-subheader">2 failed</div>
+                                <div class="check-item"><i data-lucide="x" class="red-icon small"></i> Test / test</div>
+                                <div class="check-item"><i data-lucide="x" class="red-icon small"></i> Test / test</div>
+                            </div>
+                        </div>
+                        
+                        <div class="review-draft-box">
+                            <div class="draft-info">
+                                <h4>Draft pull request</h4>
+                                <p>This pull request is still a work in progress.</p>
+                            </div>
+                            <button class="btn-secondary">Mark as ready</button>
+                        </div>
+                    </div>
+                </div> <!-- End tab-review -->
+
+                <!-- Commits View -->
+                <div id="tab-commits" class="flow-content">
+                    <div class="commits-panel">
+                        <div class="commit-item">
+                            <div class="commit-message">chore: update dependencies</div>
+                            <div class="commit-meta">10a3f91 • 2 hours ago</div>
+                        </div>
+                        <div class="commit-item">
+                            <div class="commit-message">feat: Web remote desktop support</div>
+                            <div class="commit-meta">64bd2c3 • 3 hours ago</div>
+                        </div>
+                    </div>
+                </div> <!-- End tab-commits -->
+
+            </div> <!-- End flow-views-container -->
+        </aside>
+
+    </div>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>

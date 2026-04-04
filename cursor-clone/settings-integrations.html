@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrations | Cursor</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="settings-wrapper">
+
+        <!-- ========== SIDEBAR ========== -->
+        <aside class="settings-sidebar">
+            <div class="settings-sidebar-header">
+                <!-- Cursor Hexagon Logo -->
+                <svg viewBox="0 0 100 100" fill="currentColor">
+                    <path d="M50 0L93.3 25V75L50 100L6.7 75V25L50 0Z" fill="var(--cursor-text-primary)"/>
+                </svg>
+                <a href="index.html">Back to Agents</a>
+            </div>
+
+            <div class="settings-sidebar-profile">
+                <div class="user-profile">
+                    <div class="avatar">a</div>
+                    <div class="user-info">
+                        <div class="user-name">awdajkd awldja</div>
+                        <div class="user-plan">Ultra</div>
+                    </div>
+                    <div class="footer-actions">
+                        <button class="icon-btn" title="More options"><i data-lucide="more-horizontal"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="settings-nav">
+                <a href="settings-overview.html" class="settings-nav-item"><i data-lucide="home"></i> Overview</a>
+                <a href="settings-general.html" class="settings-nav-item"><i data-lucide="settings"></i> Settings</a>
+                <a href="settings-cloud-agents.html" class="settings-nav-item"><i data-lucide="cloud"></i> Cloud Agents</a>
+                <a href="settings-bugbot.html" class="settings-nav-item"><i data-lucide="bug"></i> Bugbot</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+                
+                <a href="#" class="settings-nav-item"><i data-lucide="blocks"></i> Plugins</a>
+                <a href="settings-integrations.html" class="settings-nav-item active"><i data-lucide="combine"></i> Integrations</a>
+                
+                <div class="dropdown-divider" style="margin: 8px 16px;"></div>
+
+                <a href="#" class="settings-nav-item"><i data-lucide="users"></i> Members</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="bar-chart-2"></i> Usage</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="credit-card"></i> Spending</a>
+                <a href="#" class="settings-nav-item"><i data-lucide="receipt"></i> Billing & Invoices</a>
+            </nav>
+
+            <div class="settings-sidebar-footer">
+                <button class="settings-btn-outline"><i data-lucide="user-plus"></i> Create a Team</button>
+            </div>
+        </aside>
+
+        <!-- ========== MAIN CONTENT ========== -->
+        <main class="settings-content">
+            <div class="settings-container">
+                
+                <div class="settings-header">
+                    <h1>Integrations</h1>
+                    <p style="color: var(--cursor-text-secondary); font-size: 13px; margin-top: 8px;">Connect external tools to extend your team's workflow.</p>
+                </div>
+
+                <!-- SECTION: Source Control -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Source Control</div>
+                    
+                    <div class="settings-card">
+                        <!-- GitHub row -->
+                        <div class="settings-row">
+                            <div style="display:flex; align-items:flex-start; gap:16px;">
+                                <div style="display:flex; align-items:center; justify-content:center; width:36px; height:36px; background:#f3f4f6; border-radius:50%;">
+                                    <i data-lucide="github" style="width:20px; height:20px; color:#1f2328;"></i>
+                                </div>
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title">GitHub</span>
+                                    <span class="settings-row-desc">Connected as jasonczc to repositories in organizations: 39-ai, img-lab, jasonczc</span>
+                                </div>
+                            </div>
+                            <div class="settings-row-right">
+                                <div class="custom-select-wrapper" style="min-width: 100px;">
+                                    <button class="custom-select-btn">
+                                        <span class="select-value">Manage</span>
+                                        <i data-lucide="chevron-down"></i>
+                                    </button>
+                                    <div class="custom-select-menu">
+                                        <div class="custom-select-option">Change Repositories</div>
+                                        <div class="custom-select-option" style="color:#ef4444;">Disconnect</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- GitLab row -->
+                        <div class="settings-row">
+                            <div style="display:flex; align-items:flex-start; gap:16px;">
+                                <div style="display:flex; align-items:center; justify-content:center; width:36px; height:36px; background:#f3f4f6; border-radius:50%;">
+                                    <i data-lucide="gitlab" style="width:20px; height:20px; color:#fc6d26;"></i>
+                                </div>
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title">GitLab</span>
+                                    <span class="settings-row-desc">Connect GitLab for Cloud Agents, Bugbot and enhanced codebase context</span>
+                                </div>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn-outline" style="width: auto; gap: 6px;">Connect <i data-lucide="arrow-up-right" style="width:14px; height:14px;"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: Integrations -->
+                <div class="settings-section">
+                    <div class="settings-section-title">Integrations</div>
+                    
+                    <div class="settings-card">
+                        <!-- Slack row -->
+                        <div class="settings-row">
+                            <div style="display:flex; align-items:flex-start; gap:16px;">
+                                <div style="display:flex; align-items:center; justify-content:center; width:36px; height:36px; background:#f3f4f6; border-radius:50%;">
+                                    <i data-lucide="slack" style="width:20px; height:20px; color:#e01e5a;"></i>
+                                </div>
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title">Slack</span>
+                                    <span class="settings-row-desc">Work with Cloud Agents from Slack</span>
+                                </div>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn-outline" style="width: auto; gap: 6px;">Connect <i data-lucide="arrow-up-right" style="width:14px; height:14px;"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- Linear row -->
+                        <div class="settings-row">
+                            <div style="display:flex; align-items:flex-start; gap:16px;">
+                                <div style="display:flex; align-items:center; justify-content:center; width:36px; height:36px; background:#f3f4f6; border-radius:50%;">
+                                    <i data-lucide="trello" style="width:20px; height:20px; color:#5e6ad2;"></i> <!-- Using trello as fallback for linear icon -->
+                                </div>
+                                <div class="settings-row-left">
+                                    <span class="settings-row-title">Linear</span>
+                                    <span class="settings-row-desc">Connected: 39 AI</span>
+                                </div>
+                            </div>
+                            <div class="settings-row-right">
+                                <button class="settings-btn-outline" style="width: auto;">Manage</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION: User API Keys -->
+                <div class="settings-section" style="margin-top: 48px;">
+                    <div class="settings-section-title">User API Keys</div>
+                    
+                    <div class="settings-empty-state settings-empty-state-large">
+                        <span class="settings-empty-title">No API Keys Yet</span>
+                        <span class="settings-empty-desc">No API Keys have been created yet</span>
+                        <button class="settings-btn" style="width: auto; background: #000; color: #fff; margin-top: 8px;">New API Key</button>
+                    </div>
+
+                    <p style="font-size: 11px; color: var(--cursor-text-tertiary); margin-top: 16px; line-height: 1.5; padding: 0 4px;">
+                        User API Keys provide secure, programmatic access to your Cursor account, including the headless version of the Cursor Agent CLI and <span style="text-decoration: underline;">Cloud Agent API</span>. Treat them like passwords: keep them secure and never share them publicly. Note: The <span style="text-decoration: underline;">Cloud Agent API</span> is in beta.
+                    </p>
+                </div>
+
+                <!-- Bottom padding for scrolling comfort -->
+                <div style="height: 100px;"></div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Custom Dropdown Logic
+        document.querySelectorAll('.custom-select-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.querySelectorAll('.custom-select-menu').forEach(menu => {
+                    if (menu !== this.nextElementSibling) {
+                        menu.classList.remove('show');
+                        menu.previousElementSibling.classList.remove('active');
+                    }
+                });
+                
+                const menu = this.nextElementSibling;
+                menu.classList.toggle('show');
+                this.classList.toggle('active');
+            });
+        });
+
+        document.querySelectorAll('.custom-select-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const menu = this.parentElement;
+                const btn = menu.previousElementSibling;
+                const valueSpan = btn.querySelector('.select-value');
+                
+                valueSpan.textContent = this.textContent;
+                menu.classList.remove('show');
+                btn.classList.remove('active');
+            });
+        });
+
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.custom-select-menu').forEach(menu => {
+                menu.classList.remove('show');
+            });
+            document.querySelectorAll('.custom-select-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        });
+    </script>
+</body>
+</html>
