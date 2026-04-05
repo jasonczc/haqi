@@ -691,7 +691,9 @@ function SessionsPage() {
 
     return (
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
-            <div className={`flex h-full min-h-0 ${isSessionsIndex ? '' : 'cursor-theme'}`}>
+            <div
+                className={`flex h-full min-h-0 ${isSessionsIndex ? 'min-h-0 flex-1' : 'cursor-theme'}`}
+            >
                 <div
                     className={`${isSessionsIndex ? 'hidden' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--bg-chrome)]`}
                     style={sidebarStyle}
@@ -740,9 +742,7 @@ function SessionsPage() {
                 <div className={`flex min-w-0 flex-1 flex-col ${isSessionsIndex ? '' : 'bg-[var(--bg-editor)]'}`}>
                     {isSessionsIndex ? (
                         <CursorAgentsHome
-                            sessions={visibleSessions}
                             onNewSession={() => openNewSession()}
-                            onSelectSession={selectSession}
                             onToggleSidebar={() => {
                                 if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
                                     toggleDesktopSidebar()
