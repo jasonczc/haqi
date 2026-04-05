@@ -53,7 +53,7 @@ import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Button } from '@/components/ui/button'
-import type { GroupDetail, SessionSummary } from '@/types/api'
+import type { GroupDetail } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
@@ -76,6 +76,8 @@ import CloudWorkspacesPage from '@/routes/cloud/workspaces'
 import CloudOnboardPage from '@/routes/cloud/onboard'
 import CloudAutomationsPage from '@/routes/cloud/automations'
 import CloudDashboardPage from '@/routes/cloud/dashboard'
+import CloudBugbotPage from '@/routes/cloud/bugbot'
+import { CursorAgentsHome } from '@/components/CursorAgentsHome'
 // CloudSidebar removed — sidebar is now built into CloudLayout
 import { RunWorkbench } from '@/components/RunWorkbench'
 import { useGitHubPr } from '@/hooks/useGitHubPr'
@@ -243,11 +245,15 @@ function NavIcon(props: { name: string }) {
     return icons[props.name] || null
 }
 
+type CloudNavEntry =
+    | { separator: true }
+    | { label: string; path: string; icon: string }
+
 function CloudLayout() {
     const navigate = useNavigate()
     const pathname = useLocation({ select: l => l.pathname })
 
-    const navItems = [
+    const navItems: CloudNavEntry[] = [
         { label: 'Overview', path: '/cloud/dashboard', icon: 'home' },
         { label: 'Settings', path: '/settings', icon: 'settings' },
         { label: 'Cloud Agents', path: '/cloud/workers', icon: 'cloud' },
@@ -296,20 +302,24 @@ function CloudLayout() {
                         if ('separator' in item && item.separator) {
                             return <div key={i} className="my-2 h-px bg-[var(--border-quaternary)]" />
                         }
-                        const isActive = pathname === item.path || pathname.startsWith(item.path + '/')
+                        if (!('path' in item)) {
+                            return null
+                        }
+                        const { path, label, icon } = item
+                        const isActive = pathname === path || pathname.startsWith(`${path}/`)
                         return (
                             <button
-                                key={item.path}
+                                key={path}
                                 type="button"
-                                onClick={() => navigate({ to: item.path })}
+                                onClick={() => navigate({ to: path })}
                                 className={`flex items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-[var(--font-size-base)] transition-colors ${
                                     isActive
                                         ? 'bg-[var(--bg-tertiary)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]'
                                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)]'
                                 }`}
                             >
-                                <NavIcon name={item.icon} />
-                                {item.label}
+                                <NavIcon name={icon} />
+                                {label}
                             </button>
                         )
                     })}
@@ -360,133 +370,6 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
         next.machineId = machineId
     }
     return next
-}
-
-function formatHomeTime(updatedAt: number): string {
-    const ms = updatedAt < 1e12 ? updatedAt * 1000 : updatedAt
-    const delta = Date.now() - ms
-    const mins = Math.floor(delta / 60000)
-    if (mins < 60) return `${mins}m`
-    const hours = Math.floor(mins / 60)
-    if (hours < 24) return `${hours}h`
-    const days = Math.floor(hours / 24)
-    return `${days}d`
-}
-
-function HomeComposer(props: { onNewSession: () => void; sessions: SessionSummary[] }) {
-    return (
-        <div className="flex flex-1 flex-col items-center justify-start pt-[15vh] px-8">
-            <div className="w-full max-w-2xl">
-                {/* Select repository button */}
-                <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-3"
-                >
-                    Select repository
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-
-                {/* Prompt input area */}
-                <div className="rounded-lg border border-[var(--border-quaternary)] bg-[var(--bg-editor)] overflow-hidden">
-                    <textarea
-                        placeholder="Ask Cursor to build, fix bugs, explore"
-                        rows={4}
-                        className="w-full resize-none bg-transparent px-4 py-3 text-[var(--font-size-base)] text-[var(--text-primary)] placeholder:text-[var(--text-quaternary)] focus:outline-none"
-                    />
-                    <div className="flex items-center justify-between px-3 pb-2">
-                        <div className="flex items-center gap-2">
-                            <button className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                                Codex 5.3 High
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-                            </button>
-                            <button className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                                MCPs
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-                            </button>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <button className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
-                            </button>
-                            <button className="rounded-full p-2 bg-[var(--bg-neutral)] text-[var(--bg-editor)]">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Suggested prompts */}
-                <div className="flex items-center gap-2 mt-3">
-                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
-                        Run security audit
-                    </button>
-                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
-                        Improve AGENTS.md
-                    </button>
-                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
-                        Solve a TODO
-                    </button>
-                </div>
-
-                {/* Recent runs cards */}
-                <div className="mt-8 w-full space-y-3">
-                    {props.sessions.slice(0, 8).map(s => {
-                        const title = s.metadata?.name || s.metadata?.summary?.text || s.metadata?.path?.split('/').pop() || s.id.slice(0, 8)
-                        const model = s.metadata?.model || s.modelMode || 'default'
-                        const time = formatHomeTime(s.updatedAt)
-                        const meta = s.metadata as any
-                        const additions = meta?.prAdditions as number | undefined
-                        const deletions = meta?.prDeletions as number | undefined
-                        return (
-                            <div key={s.id} className="flex rounded-lg border border-[var(--border-quaternary)] bg-[var(--bg-editor)] overflow-hidden hover:border-[var(--border-tertiary)] transition-colors cursor-pointer">
-                                {/* Left: stats */}
-                                <div className="flex flex-col items-center justify-center gap-1.5 px-5 py-3 min-w-[120px] border-r border-[var(--border-quaternary)]">
-                                    {(additions || deletions) ? (
-                                        <div className="flex items-center gap-1 text-[var(--font-size-sm)]">
-                                            {additions ? <span className="text-[var(--added)]">+{additions}</span> : null}
-                                            {deletions ? <span className="text-[var(--removed)]">-{deletions}</span> : null}
-                                        </div>
-                                    ) : null}
-                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                        s.active
-                                            ? 'bg-[var(--bg-success-secondary)] text-[var(--success)]'
-                                            : s.thinking
-                                                ? 'bg-[var(--bg-accent-secondary)] text-[var(--accent)]'
-                                                : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
-                                    }`}>
-                                        <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-                                            <circle cx="5" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                            <circle cx="5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                            <path d="M5 5.5v5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                        </svg>
-                                        {s.active ? 'Active' : 'Branch'}
-                                    </span>
-                                </div>
-                                {/* Right: info */}
-                                <div className="flex-1 px-4 py-3">
-                                    <div className="truncate text-[var(--font-size-base)] text-[var(--text-primary)]">
-                                        {title}
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-2 text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
-                                        <span className="flex items-center gap-1">
-                                            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[var(--text-quaternary)]">
-                                                <circle cx="5" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                                <circle cx="5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                                <path d="M5 5.5v5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                            </svg>
-                                            {model}
-                                        </span>
-                                        {s.metadata?.path && <span>{s.metadata.path.split('/').pop()}</span>}
-                                        {time && <span>{time}</span>}
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            </div>
-        </div>
-    )
 }
 
 function SessionsPage() {
@@ -622,7 +505,7 @@ function SessionsPage() {
 
     const isSessionChatRoute = Boolean(chatRouteMatch && chatRouteMatch.sessionId !== 'new')
     const isSessionsIndex = pathname === '/sessions' || pathname === '/sessions/'
-    const showDesktopSidebar = isSessionsIndex || !desktopSidebarHidden
+    const showDesktopSidebar = !isSessionsIndex && !desktopSidebarHidden
     const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
 
     useEffect(() => {
@@ -732,6 +615,7 @@ function SessionsPage() {
                         </button>
                         <button
                             type="button"
+                            onClick={() => navigate({ to: '/cloud/bugbot' })}
                             className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
@@ -807,9 +691,9 @@ function SessionsPage() {
 
     return (
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
-            <div className="cursor-theme flex h-full min-h-0">
+            <div className={`flex h-full min-h-0 ${isSessionsIndex ? '' : 'cursor-theme'}`}>
                 <div
-                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--bg-chrome)]`}
+                    className={`${isSessionsIndex ? 'hidden' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--bg-chrome)]`}
                     style={sidebarStyle}
                 >
                     {renderSidebarContent()}
@@ -827,7 +711,7 @@ function SessionsPage() {
                     </button>
                 ) : null}
 
-                {!isSessionsIndex && !isSessionChatRoute ? (
+                {(isSessionsIndex || (!isSessionsIndex && !isSessionChatRoute)) ? (
                     <button
                         type="button"
                         onClick={openSidebarOnMobile}
@@ -853,9 +737,24 @@ function SessionsPage() {
                     </div>
                 ) : null}
 
-                <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--bg-editor)]`}>
+                <div className={`flex min-w-0 flex-1 flex-col ${isSessionsIndex ? '' : 'bg-[var(--bg-editor)]'}`}>
                     {isSessionsIndex ? (
-                        <HomeComposer onNewSession={openNewSession} sessions={visibleSessions} />
+                        <CursorAgentsHome
+                            sessions={visibleSessions}
+                            onNewSession={() => openNewSession()}
+                            onSelectSession={selectSession}
+                            onToggleSidebar={() => {
+                                if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+                                    toggleDesktopSidebar()
+                                } else {
+                                    setMobileSidebarOpen(true)
+                                }
+                            }}
+                            onAutomations={() => navigate({ to: '/cloud/automations' })}
+                            onDashboard={() => navigate({ to: '/cloud/dashboard' })}
+                            onBugbot={() => navigate({ to: '/cloud/bugbot' })}
+                            onSettings={() => navigate({ to: '/settings' })}
+                        />
                     ) : (
                         <div className="flex-1 min-h-0">
                             <Outlet />
@@ -2404,6 +2303,12 @@ const cloudDashboardRoute = createRoute({
     component: CloudDashboardPage,
 })
 
+const cloudBugbotRoute = createRoute({
+    getParentRoute: () => cloudRoute,
+    path: 'bugbot',
+    component: CloudBugbotPage,
+})
+
 const groupsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/groups',
@@ -2456,6 +2361,7 @@ export const routeTree = rootRoute.addChildren([
         cloudOnboardRoute,
         cloudAutomationsRoute,
         cloudDashboardRoute,
+        cloudBugbotRoute,
     ]),
     sessionsRoute.addChildren([
         sessionsIndexRoute,

@@ -25,13 +25,16 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 function createSession(overrides: Partial<SessionSummary> = {}): SessionSummary {
+    const ts = Date.now()
     return {
         id: 'session-1',
         active: false,
         thinking: false,
-        updatedAt: Date.now(),
+        activeAt: ts,
+        updatedAt: ts,
         modelMode: 'default',
         pendingRequestsCount: 0,
+        todoProgress: null,
         metadata: {
             path: '/workspace/project-a',
             name: 'Test Session',
@@ -69,8 +72,8 @@ describe('SessionList date-based grouping', () => {
         renderWithProviders(
             <SessionList
                 sessions={[
-                    createSession({ id: 's1', updatedAt: now, metadata: { path: '/a', host: 'local', name: 'Recent Session' } }),
-                    createSession({ id: 's2', updatedAt: now - 86400000 * 2, metadata: { path: '/b', host: 'local', name: 'Older Session' } }),
+                    createSession({ id: 's1', updatedAt: now, activeAt: now, metadata: { path: '/a', name: 'Recent Session' } }),
+                    createSession({ id: 's2', updatedAt: now - 86400000 * 2, activeAt: now - 86400000 * 2, metadata: { path: '/b', name: 'Older Session' } }),
                 ]}
                 onSelect={vi.fn()}
                 onNewSession={vi.fn()}
