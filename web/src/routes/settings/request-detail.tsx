@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
@@ -30,11 +30,11 @@ function formatRef(request: {
     return 'default'
 }
 
-export default function CloudRequestDetailPage() {
+export function CloudRequestDetailContent(props: { requestId: string }) {
     const { api } = useAppContext()
-    const { requestId } = useParams({ from: '/cloud/requests/$requestId' })
     const navigate = useNavigate()
     const queryClient = useQueryClient()
+    const requestId = props.requestId
 
     const requestQuery = useQuery({
         queryKey: queryKeys.cloudRequest(requestId),
@@ -75,7 +75,7 @@ export default function CloudRequestDetailPage() {
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequests })
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequest(result.request.id) })
             navigate({
-                to: '/cloud/requests/$requestId',
+                to: '/settings/requests/$requestId',
                 params: { requestId: result.request.id }
             })
         }
@@ -167,7 +167,7 @@ export default function CloudRequestDetailPage() {
                                 type="button"
                                 className="text-[var(--app-link)] hover:underline"
                                 onClick={() => navigate({
-                                    to: '/cloud/workspaces/$workspaceId',
+                                    to: '/settings/workspaces/$workspaceId',
                                     params: { workspaceId: request.workspaceId! }
                                 })}
                             >

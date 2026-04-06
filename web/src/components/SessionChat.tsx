@@ -1351,7 +1351,7 @@ export function SessionChat(props: {
             ) : null}
 
             <AssistantRuntimeProvider runtime={runtime}>
-                <div className={`relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
+                <div className={`chat-center relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
                     {showCodexPlanNotebook && latestCodexPlan ? (
                         <div className="px-3 pt-2">
                             <div className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-quaternary)]/50 p-2.5">
@@ -1416,7 +1416,7 @@ export function SessionChat(props: {
                         </div>
                     ) : null}
 
-                    <div className="px-3 pt-2">
+                    <div className="chat-mode-switch px-3 pt-2">
                         <div className="flex w-full items-center justify-end gap-1 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-quaternary)]/40 p-1">
                             <button
                                 type="button"

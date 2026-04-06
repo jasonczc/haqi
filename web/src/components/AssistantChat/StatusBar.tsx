@@ -160,29 +160,29 @@ export function StatusBar(props: {
         : null
 
     return (
-        <div className="flex items-start justify-between gap-3 px-2 pb-1">
-            <div className="flex min-w-0 flex-col gap-1">
-                <div className="flex items-center gap-1.5">
+        <div className="composer-status-bar flex items-start justify-between gap-3 px-2 pb-1">
+            <div className="composer-status-main flex min-w-0 flex-col gap-1">
+                <div className="composer-status-row flex items-center gap-1.5">
                     <span
-                        className={`h-2 w-2 rounded-full ${connectionStatus.dotColor} ${connectionStatus.isPulsing ? 'animate-pulse' : ''}`}
+                        className={`composer-status-dot h-2 w-2 rounded-full ${connectionStatus.dotColor} ${connectionStatus.isPulsing ? 'animate-pulse' : ''}`}
                     />
-                    <span className={`text-xs ${connectionStatus.color}`}>
+                    <span className={`composer-status-text text-xs ${connectionStatus.color}`}>
                         {connectionStatus.text}
                     </span>
                     {codexModeLabel ? (
-                        <span className={`text-[10px] ${isCodexPlanMode ? 'text-blue-500' : 'text-[var(--app-hint)]'}`}>
+                        <span className={`composer-status-mode text-[10px] ${isCodexPlanMode ? 'text-blue-500' : 'text-[var(--app-hint)]'}`}>
                             {codexModeLabel}
                         </span>
                     ) : null}
                 </div>
                 {runningAgents.length > 1 ? (
-                    <div className="flex flex-wrap gap-1 pl-3.5">
+                    <div className="composer-status-chips flex flex-wrap gap-1 pl-3.5">
                         {runningAgents.map((agent, index) => {
                             const label = agent.task ? `${agent.name}: ${agent.task}` : agent.name
                             return (
                                 <span
                                     key={`${agent.name}:${agent.startedAt ?? index}`}
-                                    className="max-w-[220px] truncate rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                    className="composer-status-chip max-w-[220px] truncate rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
                                     title={label}
                                 >
                                     {label}
@@ -193,14 +193,14 @@ export function StatusBar(props: {
                 ) : null}
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="composer-status-meta flex shrink-0 items-center gap-2">
                 {contextWarning ? (
-                    <span className={`text-[10px] ${contextWarning.color}`}>
+                    <span className={`composer-status-context text-[10px] ${contextWarning.color}`}>
                         {contextWarning.text}
                     </span>
                 ) : null}
                 {displayPermissionMode ? (
-                    <span className={`text-xs ${permissionModeColor}`}>
+                    <span className={`composer-status-permission text-xs ${permissionModeColor}`}>
                         {permissionModeLabel}
                     </span>
                 ) : null}

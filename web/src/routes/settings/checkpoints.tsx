@@ -162,7 +162,7 @@ export default function CloudCheckpointsPage() {
                                 <Button size="sm" onClick={() => setSpawnOpen(true)}>
                                     Start Setup Session
                                 </Button>
-                                <Link to="/cloud/onboard">
+                                <Link to="/settings/onboard">
                                     <Button variant="outline" size="sm">
                                         Onboarding Guide
                                     </Button>

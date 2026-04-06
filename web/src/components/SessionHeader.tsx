@@ -162,13 +162,13 @@ export function SessionHeader(props: {
 
     return (
         <>
-            <div className="bg-[var(--bg-editor)] pt-[env(safe-area-inset-top)]">
-                <div className="flex items-center h-11 gap-2 px-4 border-b border-[var(--border-quaternary)]">
+            <div className="chat-header bg-[var(--bg-editor)] pt-[env(safe-area-inset-top)]">
+                <div className="flex min-h-[60px] items-center gap-2 px-4 border-b border-[var(--border-quaternary)]">
                     {/* Back button */}
                     <button
                         type="button"
                         onClick={props.onBack}
-                        className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
                     >
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -186,22 +186,22 @@ export function SessionHeader(props: {
                     </button>
 
                     {/* Single-line title area */}
-                    <div className="min-w-0 flex-1 flex items-center gap-2">
-                        <span className="truncate text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
+                    <div className="min-w-0 flex-1">
+                        <div className="truncate text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
                             {title}
-                        </span>
-                        {session.metadata?.repositoryUrl && (
-                            <span className="truncate text-[var(--font-size-base)] text-[var(--text-tertiary)]">
+                        </div>
+                        {session.metadata?.repositoryUrl ? (
+                            <div className="truncate text-[12px] text-[var(--text-tertiary)]">
                                 {extractRepoShortName(session.metadata.repositoryUrl)}
-                            </span>
-                        )}
+                            </div>
+                        ) : null}
                     </div>
 
                     {props.onToggleWorkbench ? (
                         <button
                             type="button"
                             onClick={props.onToggleWorkbench}
-                            className={`flex h-7 items-center gap-1.5 rounded-[6px] px-2 text-[var(--font-size-base)] transition-colors ${
+                            className={`flex h-8 items-center gap-1.5 rounded-[6px] px-2 text-[var(--font-size-base)] transition-colors ${
                                 props.workbenchOpen
                                     ? 'bg-[var(--bg-neutral)] text-[var(--bg-editor)]'
                                     : 'text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
@@ -220,7 +220,7 @@ export function SessionHeader(props: {
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
                         aria-controls={menuOpen ? menuId : undefined}
-                        className="flex h-7 w-7 items-center justify-center rounded-[6px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
                         title={t('session.more')}
                     >
                         <MoreVerticalIcon />

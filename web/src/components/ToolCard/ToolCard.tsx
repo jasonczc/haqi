@@ -155,7 +155,7 @@ function renderTaskSummary(block: ToolCallBlock, metadata: SessionMetadataSummar
     const remaining = summary.remaining
 
     return (
-        <div className="flex flex-col gap-1 px-1">
+        <div className="tool-card-task-summary flex flex-col gap-1 px-1">
             <div className="flex flex-col gap-1">
                 {visible.map((child) => (
                     <div key={child.id} className="flex items-center gap-2">
@@ -187,7 +187,7 @@ function renderTaskStateBadge(taskStateSummaryText: string | null, runningAgentN
     return (
         <div className="flex flex-wrap gap-1">
             {taskStateSummaryText ? (
-                <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                <span className="tool-card-badge tool-card-badge-neutral rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
                     {taskStateSummaryText}
                 </span>
             ) : null}
@@ -776,8 +776,8 @@ function ToolCardInner(props: ToolCardProps) {
     })()
 
     return (
-        <Card className="overflow-hidden shadow-sm">
-            <CardHeader className={cn('space-y-0', isCompact ? 'p-2.5' : 'p-3')}>
+        <Card className="tool-card overflow-hidden shadow-sm">
+            <CardHeader className={cn('tool-card-header space-y-0', isCompact ? 'p-2.5' : 'p-3')}>
                 {isCompact ? (
                     isTurnChangesTool ? (
                         <>
@@ -807,7 +807,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         </div>
                                     </div>
                                     <span className={cn(
-                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                        'tool-card-status-badge inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
                                         statusBadgeToneClass
                                     )}>
                                         <StatusIcon state={props.block.tool.state} />
@@ -849,7 +849,7 @@ function ToolCardInner(props: ToolCardProps) {
                                                 </div>
                                             </div>
                                             <span className={cn(
-                                                'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                                'tool-card-status-badge inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
                                                 statusBadgeToneClass
                                             )}>
                                                 <StatusIcon state={props.block.tool.state} />
@@ -895,7 +895,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             </div>
                                         </div>
                                         <span className={cn(
-                                            'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                            'tool-card-status-badge inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
                                             statusBadgeToneClass
                                         )}>
                                             <StatusIcon state={props.block.tool.state} />
@@ -961,7 +961,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                             {presentation.icon}
                                         </div>
-                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                        <CardTitle className="tool-card-title min-w-0 text-sm font-medium leading-tight break-words">
                                             {toolTitle}
                                         </CardTitle>
                                     </div>
@@ -978,7 +978,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 </div>
 
                                 {subtitle ? (
-                                    <CardDescription className="font-mono text-xs break-all opacity-80">
+                                    <CardDescription className="tool-card-subtitle font-mono text-xs break-all opacity-80">
                                         {truncate(subtitle, 160)}
                                     </CardDescription>
                                 ) : null}
@@ -1006,7 +1006,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                             {presentation.icon}
                                         </div>
-                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                        <CardTitle className="tool-card-title min-w-0 text-sm font-medium leading-tight break-words">
                                             {toolTitle}
                                         </CardTitle>
                                     </div>
@@ -1023,7 +1023,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 </div>
 
                                 {subtitle ? (
-                                    <CardDescription className="font-mono text-xs break-all opacity-80">
+                                    <CardDescription className="tool-card-subtitle font-mono text-xs break-all opacity-80">
                                         {truncate(subtitle, 160)}
                                     </CardDescription>
                                 ) : null}
@@ -1051,7 +1051,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                                 {presentation.icon}
                                             </div>
-                                            <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                            <CardTitle className="tool-card-title min-w-0 text-sm font-medium leading-tight break-words">
                                                 {toolTitle}
                                             </CardTitle>
                                         </div>
@@ -1068,13 +1068,13 @@ function ToolCardInner(props: ToolCardProps) {
                                     </div>
 
                                     {subtitle ? (
-                                        <CardDescription className="font-mono text-xs break-all opacity-80">
+                                        <CardDescription className="tool-card-subtitle font-mono text-xs break-all opacity-80">
                                             {truncate(subtitle, 160)}
                                         </CardDescription>
                                     ) : null}
                                     {toolName === 'Task' && taskStateSummaryText ? (
                                         <div className="flex flex-wrap gap-1">
-                                            <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                                            <span className="tool-card-badge tool-card-badge-neutral rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
                                                 {taskStateSummaryText}
                                             </span>
                                         </div>
@@ -1088,7 +1088,7 @@ function ToolCardInner(props: ToolCardProps) {
             </CardHeader>
 
             {showCardBody ? (
-                <CardContent className={cn(isCompact ? 'px-2.5 pb-2.5 pt-0' : 'px-3 pb-3 pt-0')}>
+                <CardContent className={cn('tool-card-content', isCompact ? 'px-2.5 pb-2.5 pt-0' : 'px-3 pb-3 pt-0')}>
                     {taskSummary ? (
                         <div className={isCompact ? 'mt-1.5' : 'mt-2'}>
                             {taskSummary}
@@ -1115,11 +1115,11 @@ function ToolCardInner(props: ToolCardProps) {
                     ) : null}
 
                     {isQuestionTool && permission?.status === 'pending' ? (
-                        <div className="mt-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
-                            <div className="text-xs font-medium text-[var(--app-hint)]">
+                        <div className="tool-card-question-callout mt-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
+                            <div className="tool-card-question-title text-xs font-medium text-[var(--app-hint)]">
                                 {t('tool.questionOverlay.inlineTitle')}
                             </div>
-                            <div className="mt-1 text-sm text-[var(--app-fg)]">
+                            <div className="tool-card-question-description mt-1 text-sm text-[var(--app-fg)]">
                                 {t('tool.questionOverlay.inlineDescription')}
                             </div>
                         </div>

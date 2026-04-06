@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 @import "./styles/cursor-theme.css";
+@import "./styles/cursor-theme-v2.css";
 
 :root {
     --app-bg: var(--tg-theme-bg-color, #ffffff);

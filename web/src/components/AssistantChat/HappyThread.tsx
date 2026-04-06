@@ -158,12 +158,12 @@ export function HappyThread(props: {
             onRefresh: props.onRefresh,
             onRetryMessage: props.onRetryMessage
         }}>
-            <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
+            <ThreadPrimitive.Root className="chat-timeline relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
                 <ThreadPrimitive.Viewport
                     ref={viewportRef}
-                    className="app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
+                    className="chat-timeline-viewport app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
                 >
-                    <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
+                    <div className={`chat-timeline-inner mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
                         {showSkeleton ? (
                             <MessageSkeleton />
                         ) : (
@@ -181,9 +181,10 @@ export function HappyThread(props: {
                                 ) : null}
                             </>
                         )}
-                        <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
+                        <div className={`chat-rounds flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
                             <ThreadMessagesList />
                         </div>
+                        <div className="chat-timeline-spacer" />
                     </div>
                 </ThreadPrimitive.Viewport>
                 <NewMessagesIndicator

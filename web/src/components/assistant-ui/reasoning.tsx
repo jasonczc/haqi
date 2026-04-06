@@ -41,7 +41,7 @@ export const Reasoning: FC = () => {
         <MarkdownTextPrimitive
             remarkPlugins={MARKDOWN_PLUGINS}
             components={defaultComponents}
-            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-sm text-[var(--app-hint)]')}
+            className={cn('aui-reasoning-content chat-reasoning-content min-w-0 max-w-full break-words text-sm text-[var(--app-hint)]')}
         />
     )
 }
@@ -67,11 +67,12 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
     }, [isStreaming])
 
     return (
-        <div className="aui-reasoning-group my-2">
+        <div className="aui-reasoning-group chat-reasoning-group my-2">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
+                    'chat-reasoning-toggle',
                     'flex items-center gap-1.5 text-xs font-medium',
                     'text-[var(--app-hint)] hover:text-[var(--app-fg)]',
                     'transition-colors cursor-pointer select-none'
@@ -88,11 +89,12 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
 
             <div
                 className={cn(
+                    'chat-reasoning-panel',
                     'overflow-hidden transition-all duration-200 ease-in-out',
                     isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
                 )}
             >
-                <div className="pl-4 pt-2 border-l-2 border-[var(--app-border)] ml-0.5">
+                <div className="chat-reasoning-body pl-4 pt-2 border-l-2 border-[var(--app-border)] ml-0.5">
                     {children}
                 </div>
             </div>

@@ -256,7 +256,7 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
                 void navigate({ to: '/sessions/$sessionId', params: { sessionId: result.sessionId } })
             } else if (result.type === 'accepted') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequests })
-                void navigate({ to: '/cloud/requests/$requestId', params: { requestId: result.requestId } })
+                void navigate({ to: '/settings/requests/$requestId', params: { requestId: result.requestId } })
             } else {
                 setError('Failed to start session')
             }
@@ -420,7 +420,7 @@ function StepSecrets() {
             }
 
             localStorage.setItem('haqi-onboard-complete', 'true')
-            void navigate({ to: '/cloud/workers' })
+            void navigate({ to: '/settings/cloud-agents' })
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to save secrets')
         } finally {

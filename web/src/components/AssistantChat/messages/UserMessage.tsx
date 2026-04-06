@@ -43,11 +43,11 @@ export function HappyUserMessage() {
     const canRetry = status === 'failed' && typeof localId === 'string' && Boolean(ctx.onRetryMessage)
     const onRetry = canRetry ? () => ctx.onRetryMessage!(localId) : undefined
 
-    const userBubbleClass = 'ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
+    const userBubbleClass = 'chat-message-user chat-user-bubble ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
 
     if (isCliOutput) {
         return (
-            <MessagePrimitive.Root className="px-1 min-w-0 max-w-full overflow-x-hidden" data-happy-message-id={messageId}>
+            <MessagePrimitive.Root className="chat-message-user px-1 min-w-0 max-w-full overflow-x-hidden" data-happy-message-id={messageId}>
                 <div className="ml-auto w-full max-w-[88%] sm:max-w-[84%] lg:max-w-[76%]">
                     <CliOutputBlock text={cliText} />
                 </div>
@@ -60,16 +60,16 @@ export function HappyUserMessage() {
 
     return (
         <MessagePrimitive.Root className={userBubbleClass} data-happy-message-id={messageId}>
-            <div className="flex items-end gap-2">
-                <div className="flex-1 min-w-0">
-                    {hasText && <LazyRainbowText text={text} />}
-                    {hasAttachments && <MessageAttachments attachments={attachments} />}
-                </div>
-                {status ? (
-                    <div className="shrink-0 self-end pb-0.5">
-                        <MessageStatusIndicator status={status} onRetry={onRetry} />
+                <div className="chat-user-content flex items-end gap-2">
+                    <div className="chat-user-text flex-1 min-w-0">
+                        {hasText && <LazyRainbowText text={text} />}
+                        {hasAttachments && <MessageAttachments attachments={attachments} />}
                     </div>
-                ) : null}
+                    {status ? (
+                        <div className="chat-user-status shrink-0 self-end pb-0.5">
+                            <MessageStatusIndicator status={status} onRetry={onRetry} />
+                        </div>
+                    ) : null}
             </div>
         </MessagePrimitive.Root>
     )

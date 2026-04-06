@@ -330,7 +330,7 @@ function UnifiedButton(props: {
             disabled={isDisabled}
             aria-label={ariaLabel}
             title={ariaLabel}
-            className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+            className={`composer-send-btn flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         >
             {icon}
         </button>
@@ -380,13 +380,13 @@ export function ComposerButtons(props: {
     const isVoiceConnected = props.voiceStatus === 'connected'
 
     return (
-        <div className="flex items-center justify-between px-2 pb-2">
-            <div className="flex items-center gap-1">
+        <div className="chat-input-footer flex items-center justify-between px-2 pb-2">
+            <div className="chat-input-tools flex items-center gap-1">
                 <ComposerPrimitive.AddAttachment
                     aria-label={t('composer.attach')}
                     title={t('composer.attach')}
                     disabled={props.controlsDisabled}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="composer-icon-btn composer-attachment-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <AttachmentIcon />
                 </ComposerPrimitive.AddAttachment>
@@ -396,7 +396,7 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={t('composer.settings')}
                         title={t('composer.settings')}
-                        className="settings-button flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]"
+                        className="settings-button composer-icon-btn composer-settings-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]"
                         onClick={props.onSettingsToggle}
                         disabled={props.controlsDisabled}
                     >
@@ -409,7 +409,7 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={t('composer.terminal')}
                         title={t('composer.terminal')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="composer-icon-btn composer-terminal-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onTerminal}
                         disabled={props.terminalDisabled}
                     >
@@ -422,7 +422,7 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={t('composer.status')}
                         title={t('composer.status')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="composer-icon-btn composer-status-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onStatus}
                         disabled={props.statusDisabled}
                     >
@@ -435,7 +435,7 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={t('composer.queue')}
                         title={t('composer.queue')}
-                        className={`relative flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        className={`composer-icon-btn composer-queue-btn relative flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                             props.queueActive
                                 ? 'bg-violet-500/10 text-violet-600'
                                 : 'text-[var(--app-fg)]/60 hover:bg-[var(--app-bg)] hover:text-violet-600'
@@ -458,7 +458,7 @@ export function ComposerButtons(props: {
                         aria-label={t('composer.abort')}
                         title={t('composer.abort')}
                         disabled={props.abortDisabled}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="composer-icon-btn composer-abort-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onAbort}
                     >
                         <AbortIcon spinning={props.isAborting} />
@@ -471,7 +471,7 @@ export function ComposerButtons(props: {
                         aria-label={t('composer.switchRemote')}
                         title={t('composer.switchRemote')}
                         disabled={props.switchDisabled}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="composer-icon-btn composer-switch-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onSwitch}
                     >
                         <SwitchToRemoteIcon />
@@ -483,7 +483,7 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
                         title={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
-                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                        className={`composer-icon-btn composer-voice-btn flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
                             props.voiceMicMuted
                                 ? 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                                 : 'text-[var(--app-fg)]/60 hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]'
@@ -496,7 +496,7 @@ export function ComposerButtons(props: {
             </div>
 
             <div
-                className="flex items-center gap-2"
+                className="chat-input-actions flex items-center gap-2"
                 title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
             >
                 {props.showPlanModeToggle ? (
@@ -504,7 +504,7 @@ export function ComposerButtons(props: {
                         type="button"
                         onClick={props.onPlanModeToggle}
                         disabled={props.planModeDisabled}
-                        className={`rounded-full border px-2 py-1 text-[10px] font-medium transition-colors ${
+                        className={`composer-pill-btn composer-plan-btn rounded-full border px-2 py-1 text-[10px] font-medium transition-colors ${
                             props.planModeEnabled
                                 ? 'border-blue-500/50 bg-blue-500/10 text-blue-600'
                                 : 'border-[var(--app-border)] bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
@@ -521,7 +521,7 @@ export function ComposerButtons(props: {
                         type="button"
                         onClick={() => props.onSendModeChange(props.sendMode === 'queue' ? 'direct' : 'queue')}
                         disabled={props.sendModeDisabled}
-                        className={`rounded-full border px-2 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        className={`composer-pill-btn composer-send-mode-btn rounded-full border px-2 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                             props.sendMode === 'queue'
                                 ? 'border-violet-500/50 bg-violet-500/10 text-violet-600'
                                 : 'border-[var(--app-border)] bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'

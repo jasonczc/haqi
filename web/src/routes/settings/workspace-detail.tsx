@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { useParams } from '@tanstack/react-router'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 
-export default function CloudWorkspaceDetailPage() {
+export function CloudWorkspaceDetailContent(props: { workspaceId: string }) {
     const { api } = useAppContext()
-    const { workspaceId } = useParams({ from: '/cloud/workspaces/$workspaceId' })
+    const workspaceId = props.workspaceId
 
     const workspaceQuery = useQuery({
         queryKey: queryKeys.cloudWorkspace(workspaceId),

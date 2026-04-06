@@ -20,6 +20,7 @@ function WorkbenchTabBar(props: {
     onClose: () => void
     onFullscreen: () => void
 }) {
+    const [menuOpen, setMenuOpen] = useState(false)
     const tabs: { key: WorkbenchTab; label: string; available: boolean }[] = props.isSetupMode
         ? [
             { key: 'setup', label: 'Setup', available: true },
@@ -36,30 +37,28 @@ function WorkbenchTabBar(props: {
         ]
 
     return (
-        <div className="flex items-center justify-between border-b border-[var(--border-tertiary)] bg-[var(--bg-editor)]">
-            <div className="flex">
+        <div className="context-header flex items-center justify-between border-b border-[var(--border-tertiary)] bg-[var(--bg-editor)]">
+            <div className="context-tabs flex">
                 {tabs.filter(t => t.available).map(tab => (
                     <button
                         key={tab.key}
                         type="button"
                         onClick={() => props.onTabChange(tab.key)}
-                        className={`relative px-4 py-2.5 text-[var(--font-size-base)] font-medium transition-colors ${
+                        className={`context-tab relative px-0 py-1 text-[var(--font-size-base)] font-medium transition-colors ${
                             props.activeTab === tab.key
-                                ? 'text-[var(--text-primary)]'
+                                ? 'active text-[var(--text-primary)]'
                                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
                         }`}
                     >
                         {tab.label}
-                        {props.activeTab === tab.key && (
-                            <div className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-[var(--base)]" />
-                        )}
                     </button>
                 ))}
             </div>
-            <div className="flex items-center gap-0.5 pr-2">
+            <div className="context-controls relative-wrapper flex items-center gap-0.5 pr-2">
                 {/* More menu */}
                 <button
                     type="button"
+                    onClick={() => setMenuOpen((open) => !open)}
                     className="rounded p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)] transition-colors"
                     title="More options"
                 >
@@ -69,6 +68,12 @@ function WorkbenchTabBar(props: {
                         <circle cx="12" cy="19" r="1.5" />
                     </svg>
                 </button>
+                <div className={`dropdown-menu${menuOpen ? '' : ' hidden'}`}>
+                    <button type="button" className="dropdown-item">Open in Desktop</button>
+                    <button type="button" className="dropdown-item">Configure Environment</button>
+                    <div className="dropdown-divider" />
+                    <button type="button" className="dropdown-item text-red">Archive</button>
+                </div>
                 {/* Fullscreen */}
                 <button
                     type="button"
@@ -88,11 +93,11 @@ function WorkbenchTabBar(props: {
                     type="button"
                     onClick={props.onClose}
                     className="rounded p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)] transition-colors"
-                    title="Close panel"
+                    title="Toggle app panel"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
+                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                        <path d="M9 3v18" />
                     </svg>
                 </button>
             </div>
@@ -137,8 +142,8 @@ export function RunWorkbench(props: {
     }
 
     const containerClass = isFullscreen
-        ? 'fixed inset-0 z-50 flex flex-col bg-[var(--bg-editor)]'
-        : 'flex h-full flex-col border-l border-[var(--border-tertiary)] bg-[var(--bg-editor)]'
+        ? 'context-panel fixed inset-0 z-50 flex flex-col bg-[var(--bg-editor)]'
+        : 'context-panel flex h-full w-full flex-col border-l border-[var(--border-tertiary)] bg-[var(--bg-editor)]'
 
     return (
         <div className={containerClass}>

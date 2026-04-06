@@ -29,9 +29,11 @@ function createSession(overrides: Partial<SessionSummary> = {}): SessionSummary 
         id: 'session-1',
         active: false,
         thinking: false,
+        activeAt: Date.now(),
         updatedAt: Date.now(),
         modelMode: 'default',
         pendingRequestsCount: 0,
+        todoProgress: null,
         metadata: {
             path: '/workspace/project-a',
             name: 'Test Session',
@@ -69,8 +71,8 @@ describe('SessionList date-based grouping', () => {
         renderWithProviders(
             <SessionList
                 sessions={[
-                    createSession({ id: 's1', updatedAt: now, metadata: { path: '/a', host: 'local', name: 'Recent Session' } }),
-                    createSession({ id: 's2', updatedAt: now - 86400000 * 2, metadata: { path: '/b', host: 'local', name: 'Older Session' } }),
+                    createSession({ id: 's1', updatedAt: now, metadata: { path: '/a', name: 'Recent Session' } }),
+                    createSession({ id: 's2', updatedAt: now - 86400000 * 2, metadata: { path: '/b', name: 'Older Session' } }),
                 ]}
                 onSelect={vi.fn()}
                 onNewSession={vi.fn()}

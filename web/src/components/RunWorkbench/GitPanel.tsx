@@ -345,11 +345,10 @@ export function GitPanel(props: {
 
     return (
         <div className="flex flex-1 flex-col overflow-hidden">
-            {/* PR Header */}
-            <div className="border-b border-[var(--border-tertiary)] px-4 py-3">
-                <div className="flex items-center gap-2 mb-1">
+            <div className="context-sub-header border-b border-[var(--border-tertiary)] px-4 py-3">
+                <div className="pr-title-row flex items-center gap-2 mb-1">
                     {prTitle && (
-                        <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate">
+                        <span className="pr-title truncate text-[13px] font-semibold text-[var(--text-primary)]">
                             {prTitle}
                         </span>
                     )}
@@ -358,60 +357,59 @@ export function GitPanel(props: {
                             href={prUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[12px] text-[var(--accent)] hover:underline flex-shrink-0"
+                            className="pr-number text-[12px] text-[var(--accent)] hover:underline flex-shrink-0"
                         >
                             #{prNumber} ↗
                         </a>
                     )}
+                    {props.prInfo && props.prInfo.state === 'draft' ? (
+                        <button
+                            type="button"
+                            className="btn-primary ml-auto"
+                        >
+                            Mark as ready
+                        </button>
+                    ) : null}
                 </div>
-                <div className="flex items-center gap-2">
-                    {props.prInfo && <PrStateBadge state={props.prInfo.state} />}
+                <div className="branch-flow-row flex items-center gap-2">
+                    {props.prInfo && (
+                        props.prInfo.state === 'draft'
+                            ? <span className="badge draft">Draft</span>
+                            : <PrStateBadge state={props.prInfo.state} />
+                    )}
                     {branch && (
-                        <span className="text-[11px] text-[var(--text-tertiary)] font-mono truncate">
+                        <span className="branch-name text-[11px] text-[var(--text-tertiary)] font-mono truncate">
                             {branch}
                         </span>
                     )}
                     {branch && baseBranch && (
-                        <span className="text-[11px] text-[var(--text-tertiary)]">→</span>
+                        <span className="arrow-icon text-[11px] text-[var(--text-tertiary)]">→</span>
                     )}
                     {baseBranch && (
-                        <span className="text-[11px] text-[var(--text-tertiary)] font-mono">
+                        <span className="branch-name text-[11px] text-[var(--text-tertiary)] font-mono">
                             {baseBranch}
                         </span>
                     )}
                 </div>
-            </div>
 
-            {/* Sub-tabs */}
-            <div className="flex border-b border-[var(--border-tertiary)]">
-                {subTabs.map(tab => (
-                    <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => setSubTab(tab.key)}
-                        className={`relative px-4 py-2 text-[var(--font-size-sm)] font-medium transition-colors ${
-                            subTab === tab.key
-                                ? 'text-[var(--text-primary)]'
-                                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
-                        }`}
-                    >
-                        <span className="flex items-center gap-1.5">
-                            {tab.label}
-                            {tab.count != null && (
-                                <span className={`inline-flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-semibold ${
-                                    tab.key === 'review' && tab.count > 0
-                                        ? 'bg-[var(--bg-danger-secondary)] text-[var(--danger)]'
-                                        : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
-                                }`}>
-                                    {tab.count}
-                                </span>
-                            )}
-                        </span>
-                        {subTab === tab.key && (
-                            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--base)]" />
-                        )}
-                    </button>
-                ))}
+                <div className="code-flow-tabs flex">
+                    {subTabs.map(tab => (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            onClick={() => setSubTab(tab.key)}
+                            className={`flow-tab ${subTab === tab.key ? 'active' : ''}`}
+                        >
+                            <span>{tab.label}</span>
+                            {tab.key === 'review' && (tab.count ?? 0) > 0 ? (
+                                <span className="red-dot" />
+                            ) : null}
+                            {tab.count != null ? (
+                                <span className="count">{tab.count}</span>
+                            ) : null}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Sub-tab content */}

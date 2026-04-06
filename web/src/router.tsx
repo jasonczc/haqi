@@ -14,7 +14,7 @@ import {
 } from '@tanstack/react-router'
 import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
-import { SessionList, type NewSessionPreset } from '@/components/SessionList'
+import type { NewSessionPreset } from '@/components/SessionList'
 import { NewSession } from '@/components/NewSession'
 import {
     loadLastSessionConfig,
@@ -60,23 +60,30 @@ import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
 import DesktopPage from '@/routes/sessions/desktop'
 import TerminalPage from '@/routes/sessions/terminal'
-import SettingsPage from '@/routes/settings'
+import SettingsLayout from '@/routes/settings/layout'
+import SettingsOverviewPage from '@/routes/settings/overview'
+import SettingsCloudAgentsPage from '@/routes/settings/cloud-agents'
+import SettingsGeneralPage from '@/routes/settings/general'
+import SettingsIntegrationsPage from '@/routes/settings/integrations'
+import SettingsBugbotPage from '@/routes/settings/bugbot'
+import SettingsPluginsPage from '@/routes/settings/plugins'
+import SettingsMembersPage from '@/routes/settings/members'
+import SettingsUsagePage from '@/routes/settings/usage'
+import SettingsSpendingPage from '@/routes/settings/spending'
+import SettingsBillingPage from '@/routes/settings/billing'
+import SettingsAdvancedPage from '@/routes/settings/advanced'
+import { CloudRequestDetailContent } from '@/routes/settings/request-detail'
+import { CloudWorkspaceDetailContent } from '@/routes/settings/workspace-detail'
+import CloudContainersPage from '@/routes/settings/containers'
+import CloudCheckpointsPage from '@/routes/settings/checkpoints'
+import CloudRequestsPage from '@/routes/settings/requests'
+import CloudWorkspacesPage from '@/routes/settings/workspaces'
+import CloudOnboardPage from '@/routes/settings/onboard'
+import CloudAutomationsPage from '@/routes/settings/automations'
 import DebugDiffPage from '@/routes/debug/diff'
 import GroupDetailPage from '@/routes/groups/detail'
 import ReviewLoopsIndexPage from '@/routes/review-loops/index'
 import ReviewLoopDetailPage from '@/routes/review-loops/detail'
-import CloudRequestDetailPage from '@/routes/cloud/request'
-import CloudWorkspaceDetailPage from '@/routes/cloud/workspace'
-import CloudSecretsPage from '@/routes/cloud/secrets'
-import CloudWorkersPage from '@/routes/cloud/workers'
-import CloudContainersPage from '@/routes/cloud/containers'
-import CloudCheckpointsPage from '@/routes/cloud/checkpoints'
-import CloudRequestsPage from '@/routes/cloud/requests'
-import CloudWorkspacesPage from '@/routes/cloud/workspaces'
-import CloudOnboardPage from '@/routes/cloud/onboard'
-import CloudAutomationsPage from '@/routes/cloud/automations'
-import CloudDashboardPage from '@/routes/cloud/dashboard'
-// CloudSidebar removed — sidebar is now built into CloudLayout
 import { RunWorkbench } from '@/components/RunWorkbench'
 import { useGitHubPr } from '@/hooks/useGitHubPr'
 import { useGroups } from '@/hooks/queries/useGroups'
@@ -227,107 +234,80 @@ function CloseIcon(props: { className?: string }) {
     )
 }
 
-function NavIcon(props: { name: string }) {
-    const icons: Record<string, React.ReactNode> = {
-        home: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-        settings: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
-        cloud: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>,
-        bug: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3 3 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/></svg>,
-        key: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>,
-        calendar: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-        folder: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>,
-        box: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>,
-        list: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>,
-        camera: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>,
-    }
-    return icons[props.name] || null
-}
-
-function CloudLayout() {
-    const navigate = useNavigate()
-    const pathname = useLocation({ select: l => l.pathname })
-
-    const navItems = [
-        { label: 'Overview', path: '/cloud/dashboard', icon: 'home' },
-        { label: 'Settings', path: '/settings', icon: 'settings' },
-        { label: 'Cloud Agents', path: '/cloud/workers', icon: 'cloud' },
-        { label: 'Bugbot', path: '/cloud/bugbot', icon: 'bug' },
-        { separator: true },
-        { label: 'Secrets', path: '/cloud/secrets', icon: 'key' },
-        { label: 'Automations', path: '/cloud/automations', icon: 'calendar' },
-        { separator: true },
-        { label: 'Workspaces', path: '/cloud/workspaces', icon: 'folder' },
-        { label: 'Containers', path: '/cloud/containers', icon: 'box' },
-        { label: 'Requests', path: '/cloud/requests', icon: 'list' },
-        { label: 'Checkpoints', path: '/cloud/checkpoints', icon: 'camera' },
-    ]
-
-    return (
-        <div className="cursor-theme flex h-full bg-[var(--bg-chrome)]">
-            {/* Left sidebar */}
-            <div className="flex w-[300px] shrink-0 flex-col py-6 px-4">
-                {/* Back to Agents */}
-                <button
-                    type="button"
-                    onClick={() => navigate({ to: '/sessions' })}
-                    className="flex items-center gap-2 mb-6 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
-                    Back to Agents
-                </button>
-
-                {/* User card */}
-                <div className="flex items-center gap-3 mb-6 px-2">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--bg-tertiary)] text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-secondary)]">
-                        H
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]">haqi</div>
-                        <div className="text-[var(--font-size-sm)] text-[var(--text-tertiary)]">Self-hosted</div>
-                    </div>
-                    <button className="rounded-[6px] p-1 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
-                    </button>
-                </div>
-
-                {/* Nav items */}
-                <nav className="flex flex-col gap-0.5">
-                    {navItems.map((item, i) => {
-                        if ('separator' in item && item.separator) {
-                            return <div key={i} className="my-2 h-px bg-[var(--border-quaternary)]" />
-                        }
-                        const isActive = pathname === item.path || pathname.startsWith(item.path + '/')
-                        return (
-                            <button
-                                key={item.path}
-                                type="button"
-                                onClick={() => navigate({ to: item.path })}
-                                className={`flex items-center gap-2.5 rounded-[6px] px-2.5 py-2 text-[var(--font-size-base)] transition-colors ${
-                                    isActive
-                                        ? 'bg-[var(--bg-tertiary)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]'
-                                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)]'
-                                }`}
-                            >
-                                <NavIcon name={item.icon} />
-                                {item.label}
-                            </button>
-                        )
-                    })}
-                </nav>
-            </div>
-
-            {/* Right content */}
-            <div className="flex-1 overflow-y-auto bg-[var(--bg-chrome)]">
-                <div className="mx-auto max-w-4xl px-6 py-8">
-                    <Outlet />
-                </div>
-            </div>
-        </div>
-    )
-}
-
 function CloudIndexPage() {
-    return <Navigate to="/cloud/workers" replace />
+    return <Navigate to="/settings/cloud-agents" replace />
+}
+
+function CloudDashboardRedirectPage() {
+    return <Navigate to="/settings/overview" replace />
+}
+
+function CloudWorkersRedirectPage() {
+    return <Navigate to="/settings/cloud-agents" replace />
+}
+
+function CloudSecretsRedirectPage() {
+    return <Navigate to="/settings/cloud-agents" replace />
+}
+
+function CloudContainersRedirectPage() {
+    return <Navigate to="/settings/containers" replace />
+}
+
+function CloudCheckpointsRedirectPage() {
+    return <Navigate to="/settings/checkpoints" replace />
+}
+
+function CloudRequestsRedirectPage() {
+    return <Navigate to="/settings/requests" replace />
+}
+
+function CloudWorkspacesRedirectPage() {
+    return <Navigate to="/settings/workspaces" replace />
+}
+
+function CloudAutomationsRedirectPage() {
+    return <Navigate to="/settings/automations" replace />
+}
+
+function CloudAdvancedRedirectPage() {
+    return <Navigate to="/settings/advanced" replace />
+}
+
+function CloudOnboardRedirectPage() {
+    return <Navigate to="/settings/onboard" replace />
+}
+
+function SettingsIndexPage() {
+    return <Navigate to="/settings/overview" replace />
+}
+
+function BugbotPlaceholderPage() {
+    return <SettingsBugbotPage />
+}
+
+function IntegrationsPlaceholderPage() {
+    return <SettingsIntegrationsPage />
+}
+
+function PluginsPlaceholderPage() {
+    return <SettingsPluginsPage />
+}
+
+function MembersPlaceholderPage() {
+    return <SettingsMembersPage />
+}
+
+function UsagePlaceholderPage() {
+    return <SettingsUsagePage />
+}
+
+function SpendingPlaceholderPage() {
+    return <SettingsSpendingPage />
+}
+
+function BillingPlaceholderPage() {
+    return <SettingsBillingPage />
 }
 
 type NewSessionSearch = {
@@ -373,114 +353,145 @@ function formatHomeTime(updatedAt: number): string {
     return `${days}d`
 }
 
-function HomeComposer(props: { onNewSession: () => void; sessions: SessionSummary[] }) {
-    return (
-        <div className="flex flex-1 flex-col items-center justify-start pt-[15vh] px-8">
-            <div className="w-full max-w-2xl">
-                {/* Select repository button */}
-                <button
-                    type="button"
-                    className="flex items-center gap-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-3"
-                >
-                    Select repository
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
+function getSessionDisplayTitle(session: SessionSummary): string {
+    return session.metadata?.name
+        || session.metadata?.summary?.text
+        || session.metadata?.path?.split('/').filter(Boolean).pop()
+        || session.id.slice(0, 8)
+}
 
-                {/* Prompt input area */}
-                <div className="rounded-lg border border-[var(--border-quaternary)] bg-[var(--bg-editor)] overflow-hidden">
-                    <textarea
-                        placeholder="Ask Cursor to build, fix bugs, explore"
-                        rows={4}
-                        className="w-full resize-none bg-transparent px-4 py-3 text-[var(--font-size-base)] text-[var(--text-primary)] placeholder:text-[var(--text-quaternary)] focus:outline-none"
-                    />
-                    <div className="flex items-center justify-between px-3 pb-2">
-                        <div className="flex items-center gap-2">
-                            <button className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                                Codex 5.3 High
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-                            </button>
-                            <button className="flex items-center gap-1 rounded-[6px] px-2 py-1 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                                MCPs
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-                            </button>
+function getSessionHistoryState(session: SessionSummary): 'draft' | 'merged' | 'open' {
+    const metadata = session.metadata as Record<string, unknown> | null | undefined
+    if (metadata?.pullRequestUrl || metadata?.prUrl) {
+        return 'open'
+    }
+    if (session.active || session.thinking) {
+        return 'draft'
+    }
+    return 'merged'
+}
+
+function SessionStatusIcon(props: { state: 'draft' | 'merged' | 'open'; className?: string }) {
+    if (props.state === 'open') {
+        return (
+            <svg className={props.className} width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1.5 3.25a2.75 2.75 0 115.5 0 2.75 2.75 0 01-1.75 2.56v4.19a2.251 2.251 0 11-1.5 0V5.81A2.75 2.75 0 011.5 3.25zm2.75-1.25a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5zm0 9.5a.75.75 0 100 1.5.75.75 0 000-1.5zm7.5-8.25a2.75 2.75 0 10-1.5 2.44v3.06h-1a2.75 2.75 0 100 1.5h1a1.5 1.5 0 001.5-1.5V5.69a2.75 2.75 0 001-2.19zm-2.75-1.25a1.25 1.25 0 110 2.5 1.25 1.25 0 010-2.5zm-1.25 8.25a1.25 1.25 0 102.5 0 1.25 1.25 0 00-2.5 0z" />
+            </svg>
+        )
+    }
+    return (
+        <svg className={props.className} width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path fillRule="evenodd" d="M5 3.25a2.75 2.75 0 11-1.5 2.44v4.06a2.251 2.251 0 11-1.5 0V5.69A2.75 2.75 0 015 3.25zm-2.75 1.25a1.25 1.25 0 100-2.5 1.25 1.25 0 000 2.5zm0 8.5a.75.75 0 100-1.5.75.75 0 000 1.5zm9.5-3.25a2.75 2.75 0 10-1.5 0v.5a2.25 2.25 0 11-1.5 0V5.81A4.251 4.251 0 015.75 1.8V.75a.75.75 0 011.5 0V1.8a2.75 2.75 0 002.75 2.75h.25a2.75 2.75 0 011.5 5.19zM11 6.5a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5zm-1.25 6.25a.75.75 0 101.5 0 .75.75 0 00-1.5 0z" />
+        </svg>
+    )
+}
+
+function HomeComposer(props: { onNewSession: () => void; onOpenSession: (sessionId: string) => void; sessions: SessionSummary[] }) {
+    return (
+        <div className="flex flex-1 flex-col items-center justify-start px-8">
+            <div className="content-wrapper w-full max-w-[800px] pt-[15vh]">
+                <div className="home-hero">
+                    <div className="home-eyebrow">New agent</div>
+
+                    {/* Select repository button */}
+                    <div className="repo-selector">
+                        <button type="button" className="repo-btn">
+                            Select repository
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                    </div>
+
+                    {/* Prompt input area */}
+                    <div className="prompt-container">
+                        <div className="prompt-card">
+                            <textarea
+                                placeholder="Ask Cursor to build, fix bugs, explore"
+                                rows={4}
+                                className="prompt-input w-full resize-none bg-transparent focus:outline-none"
+                            />
+                            <div className="prompt-footer">
+                                <div className="prompt-tools">
+                                    <button className="tool-chip" type="button">
+                                        Codex 5.3 High
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <button className="tool-chip" type="button">
+                                        MCPs
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                </div>
+                                <div className="prompt-actions">
+                                    <button className="action-btn" type="button" aria-label="Add context">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                                    </button>
+                                    <button className="action-btn active" type="button" aria-label="Start agent" onClick={props.onNewSession}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                            <button className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
-                            </button>
-                            <button className="rounded-full p-2 bg-[var(--bg-neutral)] text-[var(--bg-editor)]">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-                            </button>
-                        </div>
+                    </div>
+
+                    {/* Suggested prompts */}
+                    <div className="action-pills">
+                        <button className="pill-btn" type="button" onClick={props.onNewSession}>
+                            Run security audit
+                        </button>
+                        <button className="pill-btn" type="button" onClick={props.onNewSession}>
+                            Improve AGENTS.md
+                        </button>
+                        <button className="pill-btn" type="button" onClick={props.onNewSession}>
+                            Solve a TODO
+                        </button>
                     </div>
                 </div>
 
-                {/* Suggested prompts */}
-                <div className="flex items-center gap-2 mt-3">
-                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
-                        Run security audit
-                    </button>
-                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
-                        Improve AGENTS.md
-                    </button>
-                    <button className="rounded-full bg-[var(--bg-quaternary)] px-3 py-1.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors">
-                        Solve a TODO
-                    </button>
+                <div className="home-section-header">
+                    <div className="home-section-title">Recent runs</div>
+                    <div className="home-section-meta">{Math.min(props.sessions.length, 8)} visible</div>
                 </div>
 
                 {/* Recent runs cards */}
-                <div className="mt-8 w-full space-y-3">
+                <div className="agent-list mt-2 w-full">
                     {props.sessions.slice(0, 8).map(s => {
-                        const title = s.metadata?.name || s.metadata?.summary?.text || s.metadata?.path?.split('/').pop() || s.id.slice(0, 8)
+                        const title = getSessionDisplayTitle(s)
                         const model = s.metadata?.model || s.modelMode || 'default'
                         const time = formatHomeTime(s.updatedAt)
                         const meta = s.metadata as any
                         const additions = meta?.prAdditions as number | undefined
                         const deletions = meta?.prDeletions as number | undefined
+                        const state = getSessionHistoryState(s)
                         return (
-                            <div key={s.id} className="flex rounded-lg border border-[var(--border-quaternary)] bg-[var(--bg-editor)] overflow-hidden hover:border-[var(--border-tertiary)] transition-colors cursor-pointer">
-                                {/* Left: stats */}
-                                <div className="flex flex-col items-center justify-center gap-1.5 px-5 py-3 min-w-[120px] border-r border-[var(--border-quaternary)]">
-                                    {(additions || deletions) ? (
-                                        <div className="flex items-center gap-1 text-[var(--font-size-sm)]">
-                                            {additions ? <span className="text-[var(--added)]">+{additions}</span> : null}
-                                            {deletions ? <span className="text-[var(--removed)]">-{deletions}</span> : null}
-                                        </div>
-                                    ) : null}
-                                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                                        s.active
-                                            ? 'bg-[var(--bg-success-secondary)] text-[var(--success)]'
-                                            : s.thinking
-                                                ? 'bg-[var(--bg-accent-secondary)] text-[var(--accent)]'
-                                                : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
-                                    }`}>
-                                        <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-                                            <circle cx="5" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                            <circle cx="5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                            <path d="M5 5.5v5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                        </svg>
-                                        {s.active ? 'Active' : 'Branch'}
-                                    </span>
-                                </div>
-                                {/* Right: info */}
-                                <div className="flex-1 px-4 py-3">
-                                    <div className="truncate text-[var(--font-size-base)] text-[var(--text-primary)]">
-                                        {title}
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-2 text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
-                                        <span className="flex items-center gap-1">
-                                            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" className="text-[var(--text-quaternary)]">
-                                                <circle cx="5" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                                <circle cx="5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                                <path d="M5 5.5v5" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                                            </svg>
-                                            {model}
+                            <button key={s.id} type="button" className="agent-row w-full text-left" onClick={() => props.onOpenSession(s.id)}>
+                                <div className="metadata-card">
+                                    <div className="meta-row">
+                                        <span className="meta-file-count">
+                                            {meta?.changedFilesCount ? `${meta.changedFilesCount} files` : 'Session'}
                                         </span>
-                                        {s.metadata?.path && <span>{s.metadata.path.split('/').pop()}</span>}
-                                        {time && <span>{time}</span>}
+                                        {(additions || deletions) ? (
+                                            <div className="meta-diff">
+                                                {additions ? <span className="diff-add">+{additions}</span> : null}
+                                                {deletions ? <span className="diff-sub">-{deletions}</span> : null}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                    <div className={`badge ${state === 'open' ? 'badge-open' : state === 'merged' ? 'badge-merged' : 'badge-draft'}`}>
+                                        <SessionStatusIcon state={state} />
+                                        {state === 'open' ? 'Open' : state === 'merged' ? 'Merged' : 'Draft'}
                                     </div>
                                 </div>
-                            </div>
+                                <div className="agent-info">
+                                    <div className="agent-title">{title}</div>
+                                    <div className="agent-subtitle">
+                                        <SessionStatusIcon state={state} className={state === 'open' ? 'icon-green' : state === 'merged' ? 'icon-purple' : 'icon-gray'} />
+                                        <span>{model}</span>
+                                        <span style={{ opacity: 0.4 }}>·</span>
+                                        <span>{s.metadata?.path?.split('/').filter(Boolean).pop() ?? 'haqi'}</span>
+                                        <span style={{ opacity: 0.4 }}>·</span>
+                                        <span>{time}</span>
+                                    </div>
+                                </div>
+                            </button>
                         )
                     })}
                 </div>
@@ -533,10 +544,6 @@ function SessionsPage() {
         [sessions, sessionSearchQuery]
     )
 
-    const handleRefresh = useCallback(() => {
-        void refetch()
-    }, [refetch])
-
     const openNewSession = useCallback((preset?: NewSessionPreset) => {
         const resolvedPreset = preset ?? selectedSessionPreset
         setMobileSidebarOpen(false)
@@ -545,80 +552,6 @@ function SessionsPage() {
             search: toNewSessionSearch(resolvedPreset)
         })
     }, [navigate, selectedSessionPreset])
-
-    const quickCreateInProject = useCallback(async (preset?: NewSessionPreset) => {
-        if (isQuickCreatingSession) {
-            return
-        }
-        if (!preset?.directory || !preset.machineId) {
-            openNewSession(preset)
-            return
-        }
-
-        setMobileSidebarOpen(false)
-        try {
-            const lastConfig = loadLastSessionConfig()
-            const quickCreateAgent = lastConfig?.agent ?? loadPreferredAgent()
-            const quickModel = lastConfig?.model ?? loadPreferredModel(quickCreateAgent) ?? undefined
-            const quickCustomModel = (lastConfig?.customModel ?? loadPreferredCustomModel(quickCreateAgent)).trim()
-            const quickThinkEffort = lastConfig?.thinkEffort ?? loadPreferredThinkEffort(quickCreateAgent) ?? 'auto'
-            const quickServiceTier = lastConfig?.serviceTier ?? loadPreferredServiceTier(quickCreateAgent) ?? 'auto'
-            const quickYolo = lastConfig?.yoloMode ?? loadPreferredYoloMode()
-            const quickPreviewUrl = lastConfig?.previewUrl ?? ''
-
-            const resolvedModel = resolveSpawnModel(quickCreateAgent, quickModel, quickCustomModel)
-            const resolvedThinkEffort = resolveSpawnThinkEffort(quickCreateAgent, quickThinkEffort)
-            const resolvedServiceTier = resolveSpawnServiceTier(quickCreateAgent, quickServiceTier)
-            // Project-level quick create should stay in the clicked project directory.
-            // Force simple mode so worktree preferences don't move cwd unexpectedly.
-            const sessionSettings = resolveSpawnSessionSettings('simple', '', quickPreviewUrl)
-            const result = await spawnSession({
-                machineId: preset.machineId,
-                directory: preset.directory,
-                agent: quickCreateAgent,
-                model: resolvedModel,
-                thinkEffort: resolvedThinkEffort,
-                serviceTier: resolvedServiceTier,
-                yolo: quickYolo,
-                sessionType: sessionSettings.sessionType,
-                worktreeName: sessionSettings.worktreeName,
-                previewUrl: sessionSettings.previewUrl
-            })
-
-            if (result.type !== 'success') {
-                addToast({
-                    title: t('sessions.quickCreate.failed'),
-                    body: result.type === 'error'
-                        ? result.message
-                        : t('newSession.directory.createApprovalRequired'),
-                    sessionId: '',
-                    url: ''
-                })
-                return
-            }
-
-            void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
-            navigate({
-                to: '/sessions/$sessionId',
-                params: { sessionId: result.sessionId }
-            })
-        } catch (error) {
-            addToast({
-                title: t('sessions.quickCreate.failed'),
-                body: error instanceof Error ? error.message : t('send.blocked.noConnection'),
-                sessionId: '',
-                url: ''
-            })
-        }
-    }, [
-        addToast,
-        isQuickCreatingSession,
-        navigate,
-        openNewSession,
-        queryClient,
-        spawnSession,
-        t
-    ])
 
     const isSessionChatRoute = Boolean(chatRouteMatch && chatRouteMatch.sessionId !== 'new')
     const isSessionsIndex = pathname === '/sessions' || pathname === '/sessions/'
@@ -685,9 +618,9 @@ function SessionsPage() {
 
         return (
             <>
-                <div className="bg-[var(--bg-chrome)] pt-[env(safe-area-inset-top)]">
+                <div className="sidebar bg-[var(--bg-chrome)] pt-[env(safe-area-inset-top)]">
                     {/* Top bar */}
-                    <div className="flex items-center gap-1 px-2 pt-2 pb-0.5">
+                    <div className="sidebar-header flex items-center gap-1 px-2 pt-2 pb-0.5">
                         <button
                             type="button"
                             onClick={() => toggleDesktopSidebar?.()}
@@ -705,34 +638,34 @@ function SessionsPage() {
                         </button>
                     </div>
                     {/* Cursor-style nav */}
-                    <nav className="flex flex-col gap-0.5 px-2 pt-2 pb-1">
+                    <nav className="sidebar-nav flex flex-col gap-0.5 px-2 pt-2 pb-1">
                         <button
                             type="button"
                             onClick={() => openNewSession()}
-                            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            className="nav-item flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                             New Agent
                         </button>
                         <button
                             type="button"
-                            onClick={() => navigate({ to: '/cloud/automations' })}
-                            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            onClick={() => navigate({ to: '/settings/automations' })}
+                            className="nav-item flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                             Automations
                         </button>
                         <button
                             type="button"
-                            onClick={() => navigate({ to: '/cloud/dashboard' })}
-                            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            onClick={() => navigate({ to: '/settings/overview' })}
+                            className="nav-item flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                             Dashboard
                         </button>
                         <button
                             type="button"
-                            className="flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            className="nav-item flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                         >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
                             Bugbot
@@ -759,24 +692,60 @@ function SessionsPage() {
                             <div className="text-sm text-red-600">{error}</div>
                         </div>
                     ) : null}
-                    <div className="min-h-0 flex-1">
-                        <SessionList
-                            sessions={visibleSessions}
-                            selectedSessionId={selectedSessionId}
-                            onSelect={selectSession}
-                            onNewSession={openNewSession}
-                            onQuickCreateInProject={quickCreateInProject}
-                            onRefresh={handleRefresh}
-                            isLoading={isLoading}
-                            renderHeader={false}
-                            api={api}
-                            density={density}
-                        />
+                    <div className="sidebar-section min-h-0 flex-1 overflow-y-auto">
+                        <div className="section-title">This Week</div>
+                        {visibleSessions.slice(0, 20).map((session) => {
+                            const state = getSessionHistoryState(session)
+                            const title = getSessionDisplayTitle(session)
+                            const selected = selectedSessionId === session.id
+                            const meta = session.metadata as any
+                            const additions = meta?.prAdditions as number | undefined
+                            const deletions = meta?.prDeletions as number | undefined
+                            const childTitle = typeof meta?.summary?.text === 'string' && meta.summary.text !== title
+                                ? meta.summary.text
+                                : undefined
+                            return (
+                                <div key={session.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => selectSession(session.id)}
+                                        className={`history-item w-[calc(100%-20px)] text-left ${selected ? 'active' : ''}`}
+                                    >
+                                        <div className="history-item-left">
+                                            <SessionStatusIcon
+                                                state={state}
+                                                className={`history-icon ${state === 'open' ? 'green' : state === 'merged' ? 'purple' : 'gray'}`}
+                                            />
+                                            <span className="history-title">{title}</span>
+                                        </div>
+                                        <span className="history-stats">
+                                            {additions ? `+${additions}` : formatHomeTime(session.updatedAt)}
+                                            {deletions ? <span style={{ color: '#ef4444' }}> -{deletions}</span> : null}
+                                        </span>
+                                        <button type="button" className="history-archive" title="Archive" onClick={(event) => event.stopPropagation()}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8Z"/><path d="M10 12h4"/></svg>
+                                        </button>
+                                    </button>
+                                    {childTitle ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => selectSession(session.id)}
+                                            className="history-sub-item w-[calc(100%-20px)] text-left"
+                                        >
+                                            {childTitle}
+                                        </button>
+                                    ) : null}
+                                </div>
+                            )
+                        })}
+                        {visibleSessions.length === 0 && !isLoading ? (
+                            <div className="px-4 py-3 text-[12px] text-[var(--text-tertiary)]">No sessions yet.</div>
+                        ) : null}
                     </div>
                 </div>
                 {/* User card — bottom of sidebar */}
-                <div className="border-t border-[var(--border-quaternary)] px-2 py-2">
-                    <div className="flex items-center gap-2 rounded-[6px] px-2 py-1.5">
+                <div className="sidebar-footer">
+                    <div className="user-profile cursor-sidebar-user-profile">
                         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg-tertiary)] text-[var(--font-size-sm)] font-[var(--font-weight-semibold)] text-[var(--text-secondary)]">
                             H
                         </div>
@@ -855,7 +824,7 @@ function SessionsPage() {
 
                 <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--bg-editor)]`}>
                     {isSessionsIndex ? (
-                        <HomeComposer onNewSession={openNewSession} sessions={visibleSessions} />
+                        <HomeComposer onNewSession={openNewSession} onOpenSession={selectSession} sessions={visibleSessions} />
                     ) : (
                         <div className="flex-1 min-h-0">
                             <Outlet />
@@ -1012,9 +981,9 @@ function SessionPage() {
     }
 
     return (
-        <div className="flex h-full min-h-0">
+        <div className="chat-layout flex h-full min-h-0 bg-[var(--bg-editor)]">
             {/* Left: Chat */}
-            <div className={`flex min-w-0 flex-col ${workbenchOpen ? 'flex-1' : 'w-full'}`}>
+            <div className={`chat-main flex min-w-0 flex-col ${workbenchOpen ? 'flex-1' : 'w-full'}`}>
                 <SessionChat
                     api={api}
                     session={session}
@@ -1053,7 +1022,7 @@ function SessionPage() {
 
             {/* Right: RunWorkbench (Cursor-style panel) */}
             {workbenchOpen && (
-                <div className="hidden w-[420px] min-w-[360px] max-w-[50vw] lg:flex">
+                <div className="context-panel hidden w-[440px] min-w-[440px] max-w-[440px] shrink-0 lg:flex">
                     <RunWorkbench
                         session={session}
                         api={api}
@@ -1119,7 +1088,7 @@ function NewSessionPage() {
         if (result.type === 'accepted') {
             void queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequests })
             navigate({
-                to: '/cloud/requests/$requestId',
+                to: '/settings/requests/$requestId',
                 params: { requestId: result.requestId }
             })
             return
@@ -1492,7 +1461,7 @@ function GroupsLayout() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { onClose?.(); navigate({ to: '/cloud/workers' }) }}
+                                onClick={() => { onClose?.(); navigate({ to: '/settings/cloud-agents' }) }}
                                 className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                             >
                                 Cloud
@@ -2005,7 +1974,7 @@ function ReviewLoopsLayout() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { onClose?.(); navigate({ to: '/cloud/workers' }) }}
+                                onClick={() => { onClose?.(); navigate({ to: '/settings/cloud-agents' }) }}
                                 className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
                             >
                                 Cloud
@@ -2317,7 +2286,133 @@ const newSessionRoute = createRoute({
 const settingsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/settings',
-    component: SettingsPage,
+    component: SettingsLayout,
+})
+
+const settingsIndexRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: '/',
+    component: SettingsIndexPage,
+})
+
+const settingsOverviewRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'overview',
+    component: SettingsOverviewPage,
+})
+
+const settingsGeneralRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'general',
+    component: SettingsGeneralPage,
+})
+
+const settingsCloudAgentsRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'cloud-agents',
+    component: SettingsCloudAgentsPage,
+})
+
+const settingsBugbotRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'bugbot',
+    component: BugbotPlaceholderPage,
+})
+
+const settingsPluginsRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'plugins',
+    component: PluginsPlaceholderPage,
+})
+
+const settingsIntegrationsRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'integrations',
+    component: IntegrationsPlaceholderPage,
+})
+
+const settingsMembersRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'members',
+    component: MembersPlaceholderPage,
+})
+
+const settingsUsageRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'usage',
+    component: UsagePlaceholderPage,
+})
+
+const settingsSpendingRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'spending',
+    component: SpendingPlaceholderPage,
+})
+
+const settingsBillingRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'billing',
+    component: BillingPlaceholderPage,
+})
+
+const settingsAdvancedRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'advanced',
+    component: SettingsAdvancedPage,
+})
+
+const settingsContainersRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'containers',
+    component: CloudContainersPage,
+})
+
+const settingsCheckpointsRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'checkpoints',
+    component: CloudCheckpointsPage,
+})
+
+const settingsRequestsRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'requests',
+    component: CloudRequestsPage,
+})
+
+const settingsRequestDetailRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'requests/$requestId',
+    component: () => {
+        const { requestId } = useParams({ from: '/settings/requests/$requestId' })
+        return <CloudRequestDetailContent requestId={requestId} />
+    },
+})
+
+const settingsWorkspacesRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'workspaces',
+    component: CloudWorkspacesPage,
+})
+
+const settingsWorkspaceDetailRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'workspaces/$workspaceId',
+    component: () => {
+        const { workspaceId } = useParams({ from: '/settings/workspaces/$workspaceId' })
+        return <CloudWorkspaceDetailContent workspaceId={workspaceId} />
+    },
+})
+
+const settingsOnboardRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'onboard',
+    component: CloudOnboardPage,
+})
+
+const settingsAutomationsRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'automations',
+    component: CloudAutomationsPage,
 })
 
 const debugDiffRoute = createRoute({
@@ -2329,7 +2424,7 @@ const debugDiffRoute = createRoute({
 const cloudRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/cloud',
-    component: CloudLayout,
+    component: Outlet,
 })
 
 const cloudIndexRoute = createRoute({
@@ -2341,67 +2436,79 @@ const cloudIndexRoute = createRoute({
 const cloudRequestDetailRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'requests/$requestId',
-    component: CloudRequestDetailPage,
+    component: () => {
+        const { requestId } = useParams({ from: '/cloud/requests/$requestId' })
+        return <Navigate to="/settings/requests/$requestId" params={{ requestId }} replace />
+    },
 })
 
 const cloudWorkspaceDetailRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'workspaces/$workspaceId',
-    component: CloudWorkspaceDetailPage,
+    component: () => {
+        const { workspaceId } = useParams({ from: '/cloud/workspaces/$workspaceId' })
+        return <Navigate to="/settings/workspaces/$workspaceId" params={{ workspaceId }} replace />
+    },
 })
 
 const cloudSecretsRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'secrets',
-    component: CloudSecretsPage,
+    component: CloudSecretsRedirectPage,
 })
 
 const cloudWorkersRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'workers',
-    component: CloudWorkersPage,
+    component: CloudWorkersRedirectPage,
 })
 
 const cloudContainersRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'containers',
-    component: CloudContainersPage,
+    component: CloudContainersRedirectPage,
 })
 
 const cloudCheckpointsRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'checkpoints',
-    component: CloudCheckpointsPage,
+    component: CloudCheckpointsRedirectPage,
 })
 
 const cloudRequestsRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'requests',
-    component: CloudRequestsPage,
+    component: CloudRequestsRedirectPage,
 })
 
 const cloudWorkspacesRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'workspaces',
-    component: CloudWorkspacesPage,
+    component: CloudWorkspacesRedirectPage,
 })
 
 const cloudOnboardRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'onboard',
-    component: CloudOnboardPage,
+    component: CloudOnboardRedirectPage,
 })
 
 const cloudAutomationsRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'automations',
-    component: CloudAutomationsPage,
+    component: CloudAutomationsRedirectPage,
+})
+
+const cloudAdvancedRoute = createRoute({
+    getParentRoute: () => cloudRoute,
+    path: 'advanced',
+    component: CloudAdvancedRedirectPage,
 })
 
 const cloudDashboardRoute = createRoute({
     getParentRoute: () => cloudRoute,
     path: 'dashboard',
-    component: CloudDashboardPage,
+    component: CloudDashboardRedirectPage,
 })
 
 const groupsRoute = createRoute({
@@ -2455,6 +2562,7 @@ export const routeTree = rootRoute.addChildren([
         cloudWorkspaceDetailRoute,
         cloudOnboardRoute,
         cloudAutomationsRoute,
+        cloudAdvancedRoute,
         cloudDashboardRoute,
     ]),
     sessionsRoute.addChildren([
@@ -2476,7 +2584,28 @@ export const routeTree = rootRoute.addChildren([
         reviewLoopsIndexRoute,
         reviewLoopDetailRoute,
     ]),
-    settingsRoute,
+    settingsRoute.addChildren([
+        settingsIndexRoute,
+        settingsOverviewRoute,
+        settingsGeneralRoute,
+        settingsCloudAgentsRoute,
+        settingsBugbotRoute,
+        settingsPluginsRoute,
+        settingsIntegrationsRoute,
+        settingsMembersRoute,
+        settingsUsageRoute,
+        settingsSpendingRoute,
+        settingsBillingRoute,
+        settingsAdvancedRoute,
+        settingsContainersRoute,
+        settingsCheckpointsRoute,
+        settingsOnboardRoute,
+        settingsRequestsRoute,
+        settingsRequestDetailRoute,
+        settingsWorkspacesRoute,
+        settingsWorkspaceDetailRoute,
+        settingsAutomationsRoute,
+    ]),
 ])
 
 type RouterHistory = Parameters<typeof createRouter>[0]['history']

@@ -130,7 +130,7 @@ export function QuickSpawnDialog(props: {
                 }
             } else if (result.type === 'accepted') {
                 handleClose()
-                void navigate({ to: '/cloud/requests' })
+                void navigate({ to: '/settings/requests' })
             } else if (result.type === 'error') {
                 setSpawnError(result.message)
             }

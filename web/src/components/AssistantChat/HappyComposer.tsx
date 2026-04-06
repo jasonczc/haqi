@@ -1262,8 +1262,8 @@ export function HappyComposer(props: {
     ])
 
     return (
-        <div className={`px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)] ${cliMode ? 'cli-composer' : ''}`}>
-            <div className="mx-auto w-full max-w-content">
+        <div className={`chat-input-wrapper px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)] ${cliMode ? 'cli-composer' : ''}`}>
+            <div className="chat-input-shell mx-auto w-full max-w-content">
                 <ComposerPrimitive.Root className="relative" onSubmit={handleSubmit}>
                     {overlays}
 
@@ -1284,34 +1284,34 @@ export function HappyComposer(props: {
                         asChild
                         disabled={controlsDisabled}
                     >
-                        <div className={`overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
+                        <div className={`chat-input-box overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
                             {showInlineQueuePanel ? (
-                                <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                                <div className="chat-inline-queue border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
+                                    <div className="chat-inline-queue-row flex flex-wrap items-center gap-2">
+                                        <span className="chat-inline-queue-label text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
                                             {t('queue.dialog.title')}
                                         </span>
-                                        <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
+                                        <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
                                             {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                         </span>
                                         {inlineQueueTaskRunning ? (
-                                            <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
+                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
                                                 {t('queue.inline.running')}
                                             </span>
                                         ) : null}
                                         {inlineQueueInQueue ? (
-                                            <span className="inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
+                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
                                                 {t('queue.summary.inQueue')}
                                             </span>
                                         ) : null}
                                         <span
-                                            className="min-w-0 flex-1 break-all text-xs text-[var(--app-hint)]"
+                                            className="chat-inline-queue-headline min-w-0 flex-1 break-all text-xs text-[var(--app-hint)]"
                                         >
                                             {inlineQueueHeadline}
                                         </span>
                                         <button
                                             type="button"
-                                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="chat-inline-queue-open rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
                                             onClick={handleCodexQueueOpen}
                                             disabled={controlsDisabled || !onCodexQueueOpen}
                                         >
@@ -1320,7 +1320,7 @@ export function HappyComposer(props: {
                                     </div>
 
                                     {codexQueueInlinePanelMode === 'full' ? (
-                                        <div className="mt-2 space-y-1">
+                                        <div className="chat-inline-queue-list mt-2 space-y-1">
                                             {codexQueueEntries.length > 0 ? (
                                                 <>
                                                     {codexQueueEntries.slice(0, 5).map((entry, index) => {
@@ -1329,17 +1329,17 @@ export function HappyComposer(props: {
                                                         return (
                                                             <div
                                                                 key={entry.id}
-                                                                className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
+                                                                className="chat-inline-queue-entry flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
                                                             >
-                                                                <span className="text-[10px] text-[var(--app-hint)]">
+                                                                <span className="chat-inline-queue-index text-[10px] text-[var(--app-hint)]">
                                                                     #{index + 1}
                                                                 </span>
                                                                 <span
-                                                                    className="block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
+                                                                    className="chat-inline-queue-preview block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
                                                                 >
                                                                     {previewText}
                                                                 </span>
-                                                                <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
+                                                                <span className="chat-inline-queue-time shrink-0 text-[10px] text-[var(--app-hint)]">
                                                                     {new Date(entry.enqueuedAt).toLocaleTimeString([], {
                                                                         hour: '2-digit',
                                                                         minute: '2-digit'
@@ -1369,19 +1369,19 @@ export function HappyComposer(props: {
                             ) : null}
 
                             {attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
-                                <div className="flex flex-wrap gap-2 px-4 pt-3">
+                                <div className="chat-input-attachments flex flex-wrap gap-2 px-4 pt-3">
                                     {restoredDraftAttachments.map((attachment) => (
                                         <div
                                             key={`draft:${attachment.path}`}
-                                            className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
+                                            className="chat-input-attachment flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
                                             title={attachment.path}
                                         >
-                                            <span className="max-w-[180px] truncate">
+                                            <span className="chat-input-attachment-name max-w-[180px] truncate">
                                                 {attachment.filename}
                                             </span>
                                             <button
                                                 type="button"
-                                                className="rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                                className="chat-input-attachment-remove rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                                                 onClick={() => {
                                                     handleRemoveDraftAttachment(attachment)
                                                 }}
@@ -1395,9 +1395,9 @@ export function HappyComposer(props: {
                                 </div>
                             ) : null}
 
-                            <div className={`flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
+                            <div className={`chat-input-row flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
                                 {cliMode && (
-                                    <span className="mr-1.5 shrink-0 select-none text-[var(--cli-prompt-color,#3b82f6)] font-semibold text-sm">{'❯'}</span>
+                                    <span className="chat-cli-prompt mr-1.5 shrink-0 select-none text-[var(--cli-prompt-color,#3b82f6)] font-semibold text-sm">{'❯'}</span>
                                 )}
                                 <ComposerPrimitive.Input
                                     ref={textareaRef}
@@ -1411,7 +1411,7 @@ export function HappyComposer(props: {
                                     onSelect={handleSelect}
                                     onKeyDown={handleKeyDown}
                                     onPaste={handlePaste}
-                                    className={`flex-1 resize-none bg-transparent leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[0.8125rem]' : 'text-base'}`}
+                                    className={`chat-input-field flex-1 resize-none bg-transparent leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[0.8125rem]' : 'text-base'}`}
                                 />
                             </div>
 
