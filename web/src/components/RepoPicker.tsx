@@ -116,7 +116,7 @@ export function RepoPicker(props: {
         return (
             <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-[var(--app-hint)]">
+                    <label className="text-xs font-medium text-[var(--text-tertiary)]">
                         Repository URL
                     </label>
                     {props.sessionId && (
@@ -126,7 +126,7 @@ export function RepoPicker(props: {
                                 setManualMode(false)
                                 setIsOpen(true)
                             }}
-                            className="text-[10px] text-[var(--app-badge-info-text)] hover:underline"
+                            className="text-[10px] text-[var(--accent)] hover:underline"
                         >
                             Browse repos
                         </button>
@@ -138,7 +138,7 @@ export function RepoPicker(props: {
                     onChange={(e) => props.onChange(e.target.value)}
                     placeholder="https://github.com/owner/repo"
                     disabled={props.disabled}
-                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                    className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                 />
             </div>
         )
@@ -147,7 +147,7 @@ export function RepoPicker(props: {
     return (
         <div className="relative" ref={dropdownRef}>
             <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-[var(--app-hint)]">
+                <label className="text-xs font-medium text-[var(--text-tertiary)]">
                     Repository
                 </label>
                 {/* Trigger button — Cursor style */}
@@ -155,9 +155,9 @@ export function RepoPicker(props: {
                     type="button"
                     onClick={() => setIsOpen(!isOpen)}
                     disabled={props.disabled}
-                    className="flex w-full items-center justify-between rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--app-subtle-bg)] disabled:opacity-60"
+                    className="flex w-full items-center justify-between rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-quaternary)] disabled:opacity-60"
                 >
-                    <span className={selectedName ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}>
+                    <span className={selectedName ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}>
                         {selectedName ?? 'Select repository'}
                     </span>
                     <svg
@@ -169,7 +169,7 @@ export function RepoPicker(props: {
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className={`text-[var(--app-hint)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                        className={`text-[var(--text-tertiary)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     >
                         <polyline points="6 9 12 15 18 9" />
                     </svg>
@@ -178,11 +178,11 @@ export function RepoPicker(props: {
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[320px] overflow-hidden rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg">
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[320px] overflow-hidden rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] shadow-lg">
                     {/* Search */}
-                    <div className="border-b border-[var(--app-divider)] px-3 py-2">
+                    <div className="border-b border-[var(--border-tertiary)] px-3 py-2">
                         <div className="flex items-center gap-2">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--app-hint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="11" cy="11" r="8" />
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                             </svg>
@@ -192,7 +192,7 @@ export function RepoPicker(props: {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Search repositories..."
-                                className="w-full bg-transparent text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none"
+                                className="w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                             />
                         </div>
                     </div>
@@ -200,18 +200,18 @@ export function RepoPicker(props: {
                     {/* Repo list */}
                     <div className="max-h-[240px] overflow-y-auto">
                         {reposQuery.isLoading ? (
-                            <div className="flex items-center justify-center py-6 text-sm text-[var(--app-hint)]">
+                            <div className="flex items-center justify-center py-6 text-sm text-[var(--text-tertiary)]">
                                 Loading repositories...
                             </div>
                         ) : !hasRepos ? (
-                            <div className="flex items-center justify-center py-6 text-sm text-[var(--app-hint)]">
+                            <div className="flex items-center justify-center py-6 text-sm text-[var(--text-tertiary)]">
                                 No repositories found.
                             </div>
                         ) : (
                             groups.map(group => (
                                 <div key={group.owner}>
                                     {groups.length > 1 && (
-                                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--app-hint)]">
+                                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
                                             {group.owner}
                                         </div>
                                     )}
@@ -220,15 +220,15 @@ export function RepoPicker(props: {
                                             key={repo.fullName}
                                             type="button"
                                             onClick={() => handleSelect(repo)}
-                                            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--app-subtle-bg)] ${
-                                                props.value === repo.cloneUrl ? 'bg-[var(--app-subtle-bg)]' : ''
+                                            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-quaternary)] ${
+                                                props.value === repo.cloneUrl ? 'bg-[var(--bg-quaternary)]' : ''
                                             }`}
                                         >
-                                            <span className="flex-1 truncate font-medium text-[var(--app-fg)]">
+                                            <span className="flex-1 truncate font-medium text-[var(--text-primary)]">
                                                 {repo.name}
                                             </span>
                                             {repo.private && (
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--app-hint)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                                                     <path d="M7 11V7a5 5 0 0110 0v4" />
                                                 </svg>
@@ -241,12 +241,12 @@ export function RepoPicker(props: {
                     </div>
 
                     {/* Footer actions */}
-                    <div className="border-t border-[var(--app-divider)] px-3 py-2">
+                    <div className="border-t border-[var(--border-tertiary)] px-3 py-2">
                         <div className="flex items-center justify-between">
                             <button
                                 type="button"
                                 onClick={() => setManualMode(true)}
-                                className="text-[11px] text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
+                                className="text-[11px] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
                             >
                                 Enter URL manually
                             </button>
@@ -254,7 +254,7 @@ export function RepoPicker(props: {
                                 href="https://github.com/settings/installations"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-[11px] text-[var(--app-badge-info-text)] hover:underline"
+                                className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
                             >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <circle cx="12" cy="12" r="3" />

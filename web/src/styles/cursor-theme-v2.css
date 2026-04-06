@@ -1,3 +1,54 @@
+
+:root {
+    --cursor-font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --cursor-font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --cursor-bg-app: #f4f4f5;
+    --cursor-bg-sidebar: #f4f4f5;
+    --cursor-bg-card: #ffffff;
+    --cursor-bg-hover: rgba(0, 0, 0, 0.04);
+    --cursor-bg-quaternary: rgba(0, 0, 0, 0.04);
+    --cursor-stroke-primary: #d4d4d8;
+    --cursor-stroke-secondary: #e4e4e7;
+    --cursor-stroke-tertiary: rgba(0, 0, 0, 0.06);
+    --cursor-text-primary: #09090b;
+    --cursor-text-secondary: #71717a;
+    --cursor-text-tertiary: #a1a1aa;
+    --cursor-text-quaternary: #d4d4d8;
+    --cursor-link: #0ea5e9;
+    --cursor-danger: #dc2626;
+    --cursor-danger-bg: rgba(220, 38, 38, 0.1);
+    --cursor-danger-border: rgba(220, 38, 38, 0.24);
+    --cursor-danger-bg-quiet: rgba(220, 38, 38, 0.06);
+    --cursor-warning: #b45309;
+    --cursor-warning-bg: rgba(251, 191, 36, 0.12);
+    --cursor-warning-border: rgba(251, 191, 36, 0.26);
+    --cursor-warning-bg-quiet: rgba(251, 191, 36, 0.06);
+    --cursor-success: #16a34a;
+    --cursor-success-bg: rgba(34, 197, 94, 0.1);
+    --cursor-success-border: rgba(34, 197, 94, 0.24);
+    --cursor-success-bg-quiet: rgba(34, 197, 94, 0.06);
+    --cursor-info: #2563eb;
+    --cursor-info-bg: rgba(37, 99, 235, 0.1);
+    --cursor-info-border: rgba(37, 99, 235, 0.22);
+    --cursor-info-bg-quiet: rgba(37, 99, 235, 0.06);
+    --cursor-button: #18181b;
+    --cursor-button-text: #ffffff;
+    --cursor-code-bg: #f6f7f9;
+    --cursor-inline-code-bg: rgba(0, 0, 0, 0.05);
+    --cursor-bg-danger-secondary: rgba(220, 38, 38, 0.08);
+    --cursor-bg-danger-tertiary: rgba(220, 38, 38, 0.12);
+    --cursor-bg-info-secondary: rgba(37, 99, 235, 0.08);
+    --cursor-bg-info-tertiary: rgba(37, 99, 235, 0.12);
+    --cursor-bg-soft: rgba(0, 0, 0, 0.03);
+    --cursor-git-staged: #16a34a;
+    --cursor-git-unstaged: #ea580c;
+    --cursor-git-renamed: #7c3aed;
+    --cursor-git-untracked: #2563eb;
+    --cursor-git-deleted: #dc2626;
+    --cursor-diff-added: #16a34a;
+    --cursor-diff-removed: #dc2626;
+}
+
 .settings-wrapper {
     --cursor-font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --cursor-font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -18,6 +69,495 @@
     background-color: #f1f2f5;
 }
 
+body {
+    --cursor-bg-app: #f4f4f5;
+    --cursor-text-primary: #09090b;
+    --cursor-text-secondary: #71717a;
+    --cursor-link: #09090b;
+    --cursor-button: #09090b;
+    --cursor-button-text: #ffffff;
+    --cursor-banner-bg: #09090b;
+    --cursor-banner-text: #ffffff;
+    --cursor-bg-secondary: #ffffff;
+    --cursor-stroke-primary: rgba(0, 0, 0, 0.1);
+    --cursor-stroke-secondary: rgba(0, 0, 0, 0.08);
+    --cursor-bg-soft: rgba(0, 0, 0, 0.05);
+    --cursor-code-bg: #ffffff;
+    --cursor-inline-code-bg: rgba(0, 0, 0, 0.08);
+    --bg-success-secondary: #e6ffed;
+    --added: #24292e;
+    --bg-danger-secondary: #ffeef0;
+    --removed: #24292e;
+    --cursor-git-staged: #16a34a;
+    --cursor-git-unstaged: #f59e0b;
+    --cursor-git-deleted: #dc2626;
+    --cursor-git-renamed: #2563eb;
+    --cursor-git-untracked: #6b7280;
+    --cursor-badge-info-bg: rgba(37, 99, 235, 0.12);
+    --cursor-badge-info-text: #2563eb;
+    --cursor-badge-info-border: rgba(37, 99, 235, 0.25);
+    --cursor-badge-warning-bg: rgba(245, 158, 11, 0.18);
+    --cursor-badge-warning-text: #b45309;
+    --cursor-badge-warning-border: rgba(245, 158, 11, 0.3);
+    --cursor-badge-success-bg: rgba(34, 197, 94, 0.16);
+    --cursor-badge-success-text: #15803d;
+    --cursor-badge-success-border: rgba(34, 197, 94, 0.28);
+    --cursor-badge-error-bg: rgba(239, 68, 68, 0.16);
+    --cursor-badge-error-text: #b91c1c;
+    --cursor-badge-error-border: rgba(239, 68, 68, 0.28);
+    --scrollbar-thumb: rgba(17, 24, 39, 0.22);
+    --scrollbar-thumb-hover: rgba(17, 24, 39, 0.34);
+    --bg-overlay: rgba(0, 0, 0, 0.5);
+    --bg-editor: var(--cursor-bg-secondary);
+    --bg-chrome: #f4f4f5;
+    --bg-tertiary: rgba(0, 0, 0, 0.04);
+    --bg-quaternary: rgba(0, 0, 0, 0.03);
+    --bg-success-secondary: rgba(34, 197, 94, 0.12);
+    --bg-success-quaternary: rgba(34, 197, 94, 0.08);
+    --bg-warning-secondary: rgba(245, 158, 11, 0.12);
+    --bg-warning-quaternary: rgba(245, 158, 11, 0.08);
+    --bg-danger-secondary: rgba(239, 68, 68, 0.12);
+    --bg-danger-quaternary: rgba(239, 68, 68, 0.08);
+    --bg-accent-secondary: rgba(37, 99, 235, 0.1);
+    --bg-neutral: #111827;
+    --text-primary: var(--cursor-text-primary);
+    --text-secondary: #52525b;
+    --text-tertiary: var(--cursor-text-secondary);
+    --text-quaternary: var(--cursor-text-tertiary);
+    --border-secondary: var(--cursor-stroke-primary);
+    --border-tertiary: var(--cursor-stroke-secondary);
+    --accent: var(--cursor-link);
+    --success: var(--cursor-success);
+    --danger: var(--cursor-danger);
+    --warn: var(--cursor-warning);
+    --added: var(--cursor-success);
+    --removed: var(--cursor-danger);
+    --scrollbar-thumb: rgba(17, 24, 39, 0.22);
+    --scrollbar-thumb-hover: rgba(17, 24, 39, 0.34);
+    --cursor-bg-secondary: #ffffff;
+    --cursor-bg-quiet: rgba(0, 0, 0, 0.05);
+    --cursor-stroke-primary: rgba(0, 0, 0, 0.1);
+    --cursor-stroke-secondary: rgba(0, 0, 0, 0.08);
+    --cursor-text-primary: #09090b;
+    --cursor-text-secondary: #71717a;
+    --cursor-text-tertiary: #a1a1aa;
+    --cursor-link: #09090b;
+    --cursor-banner-bg: #09090b;
+    --cursor-banner-text: #ffffff;
+    --cursor-badge-info-bg: rgba(37, 99, 235, 0.12);
+    --cursor-badge-info-text: #2563eb;
+    --cursor-badge-info-border: rgba(37, 99, 235, 0.25);
+    --cursor-badge-warning-bg: rgba(245, 158, 11, 0.18);
+    --cursor-badge-warning-text: #b45309;
+    --cursor-badge-warning-border: rgba(245, 158, 11, 0.3);
+    --cursor-badge-success-bg: rgba(34, 197, 94, 0.16);
+    --cursor-badge-success-text: #15803d;
+    --cursor-badge-success-border: rgba(34, 197, 94, 0.28);
+    --cursor-badge-error-bg: rgba(239, 68, 68, 0.16);
+    --cursor-badge-error-text: #b91c1c;
+    --cursor-badge-error-border: rgba(239, 68, 68, 0.28);
+}
+
+html[data-theme="dark"] body,
+body[data-theme="dark"] {
+    --cursor-bg-app: #1c1c1e;
+    --cursor-text-primary: #ffffff;
+    --cursor-text-secondary: #8e8e93;
+    --cursor-link: #ffffff;
+    --cursor-button: #ffffff;
+    --cursor-button-text: #111827;
+    --cursor-banner-bg: #2c2c2e;
+    --cursor-banner-text: #ffffff;
+    --cursor-bg-secondary: #2c2c2e;
+    --cursor-stroke-primary: rgba(255, 255, 255, 0.1);
+    --cursor-stroke-secondary: rgba(255, 255, 255, 0.08);
+    --cursor-bg-soft: rgba(255, 255, 255, 0.05);
+    --cursor-code-bg: #282c34;
+    --cursor-inline-code-bg: rgba(255, 255, 255, 0.1);
+    --bg-success-secondary: #0d2e1f;
+    --added: #c9d1d9;
+    --bg-danger-secondary: #3f1b23;
+    --removed: #c9d1d9;
+    --cursor-git-staged: #4ade80;
+    --cursor-git-unstaged: #f59e0b;
+    --cursor-git-deleted: #f87171;
+    --cursor-git-renamed: #60a5fa;
+    --cursor-git-untracked: #9ca3af;
+    --cursor-badge-info-bg: rgba(96, 165, 250, 0.18);
+    --cursor-badge-info-text: #60a5fa;
+    --cursor-badge-info-border: rgba(96, 165, 250, 0.28);
+    --cursor-badge-warning-bg: rgba(251, 191, 36, 0.18);
+    --cursor-badge-warning-text: #fbbf24;
+    --cursor-badge-warning-border: rgba(251, 191, 36, 0.28);
+    --cursor-badge-success-bg: rgba(74, 222, 128, 0.18);
+    --cursor-badge-success-text: #4ade80;
+    --cursor-badge-success-border: rgba(74, 222, 128, 0.28);
+    --cursor-badge-error-bg: rgba(248, 113, 113, 0.18);
+    --cursor-badge-error-text: #fca5a5;
+    --cursor-badge-error-border: rgba(248, 113, 113, 0.3);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.24);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+    --bg-overlay: rgba(0, 0, 0, 0.5);
+    --bg-editor: var(--cursor-bg-secondary);
+    --bg-chrome: #14161a;
+    --bg-tertiary: rgba(255, 255, 255, 0.04);
+    --bg-quaternary: rgba(255, 255, 255, 0.03);
+    --bg-success-secondary: rgba(34, 197, 94, 0.12);
+    --bg-success-quaternary: rgba(34, 197, 94, 0.08);
+    --bg-warning-secondary: rgba(245, 158, 11, 0.12);
+    --bg-warning-quaternary: rgba(245, 158, 11, 0.08);
+    --bg-danger-secondary: rgba(239, 68, 68, 0.12);
+    --bg-danger-quaternary: rgba(239, 68, 68, 0.08);
+    --bg-accent-secondary: rgba(96, 165, 250, 0.1);
+    --bg-neutral: #f4f4f5;
+    --text-primary: var(--cursor-text-primary);
+    --text-secondary: #d4d4d8;
+    --text-tertiary: var(--cursor-text-secondary);
+    --text-quaternary: var(--cursor-text-tertiary);
+    --border-secondary: var(--cursor-stroke-primary);
+    --border-tertiary: var(--cursor-stroke-secondary);
+    --accent: var(--cursor-link);
+    --success: var(--cursor-success);
+    --danger: var(--cursor-danger);
+    --warn: var(--cursor-warning);
+    --added: var(--cursor-success);
+    --removed: var(--cursor-danger);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.24);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+    --cursor-bg-secondary: #2c2c2e;
+    --cursor-bg-card: #2c2c2e;
+    --cursor-bg-sidebar: #1c1c1e;
+    --cursor-bg-app: #1c1c1e;
+    --cursor-bg-soft: rgba(255, 255, 255, 0.05);
+    --cursor-bg-hover: rgba(255, 255, 255, 0.06);
+    --cursor-bg-quiet: rgba(255, 255, 255, 0.05);
+    --cursor-stroke-primary: rgba(255, 255, 255, 0.1);
+    --cursor-stroke-secondary: rgba(255, 255, 255, 0.08);
+    --cursor-text-primary: #ffffff;
+    --cursor-text-secondary: #8e8e93;
+    --cursor-text-tertiary: #a1a1aa;
+    --cursor-text-quaternary: #71717a;
+    --cursor-link: #ffffff;
+    --cursor-button: #f4f4f5;
+    --cursor-button-text: #09090b;
+    --cursor-banner-bg: #2c2c2e;
+    --cursor-banner-text: #ffffff;
+    --cursor-code-bg: #17181b;
+    --cursor-inline-code-bg: rgba(255, 255, 255, 0.08);
+    --cursor-success-bg: rgba(34, 197, 94, 0.14);
+    --cursor-success-border: rgba(34, 197, 94, 0.28);
+    --cursor-success: #4ade80;
+    --cursor-danger-bg: rgba(239, 68, 68, 0.14);
+    --cursor-danger-border: rgba(239, 68, 68, 0.3);
+    --cursor-danger-bg-quiet: rgba(239, 68, 68, 0.08);
+    --cursor-danger: #f87171;
+    --cursor-warning-bg: rgba(251, 191, 36, 0.18);
+    --cursor-warning-border: rgba(251, 191, 36, 0.28);
+    --cursor-warning-bg-quiet: rgba(251, 191, 36, 0.08);
+    --cursor-warning: #fbbf24;
+    --cursor-info-bg: rgba(96, 165, 250, 0.18);
+    --cursor-info-border: rgba(96, 165, 250, 0.28);
+    --cursor-info-bg-quiet: rgba(96, 165, 250, 0.08);
+    --cursor-info: #60a5fa;
+    --cursor-badge-info-bg: rgba(96, 165, 250, 0.18);
+    --cursor-badge-info-text: #60a5fa;
+    --cursor-badge-info-border: rgba(96, 165, 250, 0.28);
+    --cursor-badge-warning-bg: rgba(251, 191, 36, 0.18);
+    --cursor-badge-warning-text: #fbbf24;
+    --cursor-badge-warning-border: rgba(251, 191, 36, 0.28);
+    --cursor-badge-success-bg: rgba(74, 222, 128, 0.18);
+    --cursor-badge-success-text: #4ade80;
+    --cursor-badge-success-border: rgba(74, 222, 128, 0.28);
+    --cursor-badge-error-bg: rgba(248, 113, 113, 0.18);
+    --cursor-badge-error-text: #fca5a5;
+    --cursor-badge-error-border: rgba(248, 113, 113, 0.3);
+}
+
+.groups-ui,
+.review-loops-ui,
+.team-panel-ui {
+    font-family: var(--cursor-font-family-sans);
+    color: var(--cursor-text-primary);
+}
+
+.groups-ui,
+.review-loops-ui {
+    background: var(--cursor-bg-app);
+}
+
+.team-panel-ui {
+    color: var(--cursor-text-primary);
+}
+
+.settings-wrapper,
+.chat-layout {
+    --cursor-bg-app: var(--cursor-bg-card);
+    --cursor-bg-app-secondary: #fafafa;
+    --cursor-bg-secondary: #fafafa;
+    --cursor-bg-soft: rgba(0, 0, 0, 0.03);
+    --cursor-bg-soft-hover: rgba(0, 0, 0, 0.05);
+    --cursor-code-bg: #f8f8f8;
+    --cursor-inline-code-bg: #f3f4f6;
+    --cursor-stroke-primary: var(--cursor-stroke-primary);
+    --cursor-stroke-secondary: var(--cursor-stroke-secondary);
+    --cursor-text-primary: var(--cursor-text-primary);
+    --cursor-text-secondary: var(--cursor-text-secondary);
+    --cursor-link: #2563eb;
+    --cursor-button: #111827;
+    --cursor-button-text: #ffffff;
+    --cursor-badge-success-bg: rgba(34, 197, 94, 0.12);
+    --cursor-badge-success-border: rgba(34, 197, 94, 0.2);
+    --cursor-badge-success-text: #15803d;
+    --cursor-badge-warning-bg: rgba(245, 158, 11, 0.12);
+    --cursor-badge-warning-border: rgba(245, 158, 11, 0.22);
+    --cursor-badge-warning-text: #b45309;
+    --cursor-badge-error-bg: rgba(239, 68, 68, 0.1);
+    --cursor-badge-error-border: rgba(239, 68, 68, 0.2);
+    --cursor-badge-error-text: #b91c1c;
+    --cursor-badge-info-bg: rgba(59, 130, 246, 0.1);
+    --cursor-badge-info-border: rgba(59, 130, 246, 0.2);
+    --cursor-badge-info-text: #1d4ed8;
+    --cursor-git-staged: #16a34a;
+    --cursor-git-unstaged: #2563eb;
+    --cursor-git-renamed: #a855f7;
+    --cursor-git-untracked: #6b7280;
+    --cursor-git-deleted: #dc2626;
+    --added: #15803d;
+    --removed: #b91c1c;
+    --bg-editor: var(--cursor-bg-card);
+    --bg-chrome: #f4f4f5;
+    --bg-tertiary: rgba(0, 0, 0, 0.04);
+    --bg-quaternary: rgba(0, 0, 0, 0.03);
+    --bg-success-secondary: rgba(34, 197, 94, 0.12);
+    --bg-success-quaternary: rgba(34, 197, 94, 0.08);
+    --bg-danger-secondary: rgba(239, 68, 68, 0.12);
+    --bg-danger-quaternary: rgba(239, 68, 68, 0.08);
+    --bg-accent-secondary: rgba(37, 99, 235, 0.1);
+    --bg-neutral: #111827;
+    --text-primary: var(--cursor-text-primary);
+    --text-secondary: #52525b;
+    --text-tertiary: var(--cursor-text-secondary);
+    --text-quaternary: var(--cursor-text-tertiary);
+    --border-secondary: var(--cursor-stroke-primary);
+    --border-tertiary: var(--cursor-stroke-secondary);
+    --accent: #2563eb;
+    --success: #15803d;
+    --danger: #b91c1c;
+    --warn: #b45309;
+    --added: #15803d;
+    --removed: #b91c1c;
+    --modified: #2563eb;
+}
+
+body {
+    --cursor-bg-app: #ffffff;
+    --cursor-bg-card: #ffffff;
+    --cursor-bg-sidebar: #f4f4f5;
+    --cursor-bg-hover: rgba(0, 0, 0, 0.04);
+    --cursor-bg-quiet: rgba(0, 0, 0, 0.03);
+    --cursor-inline-code-bg: #f3f4f6;
+    --cursor-button: #111827;
+    --cursor-button-text: #ffffff;
+    --cursor-link: #2563eb;
+    --cursor-danger: #b91c1c;
+    --cursor-warning: #b45309;
+    --cursor-success: #15803d;
+    --cursor-info: #1d4ed8;
+    --cursor-danger-bg: rgba(239, 68, 68, 0.1);
+    --cursor-warning-bg: rgba(245, 158, 11, 0.12);
+    --cursor-success-bg: rgba(34, 197, 94, 0.12);
+    --cursor-info-bg: rgba(59, 130, 246, 0.1);
+    --cursor-danger-border: rgba(239, 68, 68, 0.2);
+    --cursor-warning-border: rgba(245, 158, 11, 0.22);
+    --cursor-success-border: rgba(34, 197, 94, 0.2);
+    --cursor-info-border: rgba(59, 130, 246, 0.2);
+    --cursor-git-staged: #16a34a;
+    --cursor-git-unstaged: #2563eb;
+    --cursor-git-renamed: #a855f7;
+    --cursor-git-untracked: #6b7280;
+    --cursor-git-deleted: #dc2626;
+    --cursor-diff-added: #15803d;
+    --cursor-diff-removed: #b91c1c;
+    --cursor-badge-success-bg: rgba(34, 197, 94, 0.12);
+    --cursor-badge-success-text: #15803d;
+    --cursor-badge-warning-bg: rgba(245, 158, 11, 0.12);
+    --cursor-badge-warning-text: #b45309;
+    --cursor-badge-error-bg: rgba(239, 68, 68, 0.1);
+    --cursor-badge-error-text: #b91c1c;
+    --cursor-badge-info-bg: rgba(59, 130, 246, 0.1);
+    --cursor-badge-info-text: #1d4ed8;
+    --cursor-success-secondary: rgba(34, 197, 94, 0.12);
+    --cursor-warning-secondary: rgba(245, 158, 11, 0.12);
+    --cursor-danger-secondary: rgba(239, 68, 68, 0.1);
+    --cursor-info-secondary: rgba(59, 130, 246, 0.1);
+    --cursor-added: #15803d;
+    --cursor-removed: #b91c1c;
+    --cursor-modified: #2563eb;
+    --cursor-untracked: #6b7280;
+    --cursor-renamed: #a855f7;
+    --cursor-deleted: #dc2626;
+    --cursor-bg-app: #ffffff;
+    --cursor-bg-app-secondary: #fafafa;
+    --cursor-bg-secondary: #fafafa;
+    --cursor-bg-soft: rgba(0, 0, 0, 0.03);
+    --cursor-bg-soft-hover: rgba(0, 0, 0, 0.05);
+    --cursor-code-bg: #f8f8f8;
+    --cursor-inline-code-bg: #f3f4f6;
+    --cursor-stroke-primary: #d4d4d8;
+    --cursor-stroke-secondary: #e4e4e7;
+    --cursor-text-primary: #09090b;
+    --cursor-text-secondary: #71717a;
+    --cursor-link: #2563eb;
+    --cursor-button: #111827;
+    --cursor-button-text: #ffffff;
+    --cursor-badge-success-bg: rgba(34, 197, 94, 0.12);
+    --cursor-badge-success-border: rgba(34, 197, 94, 0.2);
+    --cursor-badge-success-text: #15803d;
+    --cursor-badge-warning-bg: rgba(245, 158, 11, 0.12);
+    --cursor-badge-warning-border: rgba(245, 158, 11, 0.22);
+    --cursor-badge-warning-text: #b45309;
+    --cursor-badge-error-bg: rgba(239, 68, 68, 0.1);
+    --cursor-badge-error-border: rgba(239, 68, 68, 0.2);
+    --cursor-badge-error-text: #b91c1c;
+    --cursor-badge-info-bg: rgba(59, 130, 246, 0.1);
+    --cursor-badge-info-border: rgba(59, 130, 246, 0.2);
+    --cursor-badge-info-text: #1d4ed8;
+    --cursor-git-staged: #16a34a;
+    --cursor-git-unstaged: #2563eb;
+    --cursor-git-renamed: #a855f7;
+    --cursor-git-untracked: #6b7280;
+    --cursor-git-deleted: #dc2626;
+    --added: #15803d;
+    --removed: #b91c1c;
+    --bg-editor: #ffffff;
+    --bg-chrome: #f4f4f5;
+    --bg-tertiary: rgba(0, 0, 0, 0.04);
+    --bg-quaternary: rgba(0, 0, 0, 0.03);
+    --bg-success-secondary: rgba(34, 197, 94, 0.12);
+    --bg-success-quaternary: rgba(34, 197, 94, 0.08);
+    --bg-danger-secondary: rgba(239, 68, 68, 0.12);
+    --bg-danger-quaternary: rgba(239, 68, 68, 0.08);
+    --bg-accent-secondary: rgba(37, 99, 235, 0.1);
+    --bg-neutral: #111827;
+    --text-primary: #09090b;
+    --text-secondary: #52525b;
+    --text-tertiary: #71717a;
+    --text-quaternary: #a1a1aa;
+    --border-secondary: #d4d4d8;
+    --border-tertiary: #e4e4e7;
+    --accent: #2563eb;
+    --success: #15803d;
+    --danger: #b91c1c;
+    --warn: #b45309;
+    --added: #15803d;
+    --removed: #b91c1c;
+    --modified: #2563eb;
+}
+
+html.dark body,
+.dark body {
+    --cursor-bg-app: #111214;
+    --cursor-bg-card: #17181b;
+    --cursor-bg-sidebar: #111214;
+    --cursor-bg-hover: rgba(255, 255, 255, 0.04);
+    --cursor-bg-quiet: rgba(255, 255, 255, 0.04);
+    --cursor-inline-code-bg: #1f2125;
+    --cursor-button: #f4f4f5;
+    --cursor-button-text: #09090b;
+    --cursor-link: #60a5fa;
+    --cursor-danger: #f87171;
+    --cursor-warning: #fbbf24;
+    --cursor-success: #4ade80;
+    --cursor-info: #60a5fa;
+    --cursor-danger-bg: rgba(239, 68, 68, 0.12);
+    --cursor-warning-bg: rgba(245, 158, 11, 0.14);
+    --cursor-success-bg: rgba(34, 197, 94, 0.12);
+    --cursor-info-bg: rgba(59, 130, 246, 0.12);
+    --cursor-danger-bg-quiet: rgba(239, 68, 68, 0.06);
+    --cursor-warning-bg-quiet: rgba(245, 158, 11, 0.08);
+    --cursor-success-bg-quiet: rgba(34, 197, 94, 0.08);
+    --cursor-info-bg-quiet: rgba(59, 130, 246, 0.08);
+    --cursor-danger-border: rgba(239, 68, 68, 0.18);
+    --cursor-warning-border: rgba(245, 158, 11, 0.22);
+    --cursor-success-border: rgba(34, 197, 94, 0.2);
+    --cursor-info-border: rgba(59, 130, 246, 0.2);
+    --cursor-git-staged: #4ade80;
+    --cursor-git-unstaged: #60a5fa;
+    --cursor-git-renamed: #c084fc;
+    --cursor-git-untracked: #a1a1aa;
+    --cursor-git-deleted: #f87171;
+    --cursor-diff-added: #4ade80;
+    --cursor-diff-removed: #f87171;
+    --cursor-badge-success-bg: rgba(74, 222, 128, 0.18);
+    --cursor-badge-success-text: #4ade80;
+    --cursor-badge-warning-bg: rgba(251, 191, 36, 0.18);
+    --cursor-badge-warning-text: #fbbf24;
+    --cursor-badge-error-bg: rgba(248, 113, 113, 0.18);
+    --cursor-badge-error-text: #fca5a5;
+    --cursor-badge-info-bg: rgba(96, 165, 250, 0.18);
+    --cursor-badge-info-text: #60a5fa;
+    --cursor-success-secondary: rgba(74, 222, 128, 0.18);
+    --cursor-warning-secondary: rgba(251, 191, 36, 0.18);
+    --cursor-danger-secondary: rgba(248, 113, 113, 0.18);
+    --cursor-info-secondary: rgba(96, 165, 250, 0.18);
+    --cursor-added: #4ade80;
+    --cursor-removed: #f87171;
+    --cursor-modified: #60a5fa;
+    --cursor-untracked: #a1a1aa;
+    --cursor-renamed: #c084fc;
+    --cursor-deleted: #f87171;
+    --cursor-bg-app: #111214;
+    --cursor-bg-app-secondary: #17181b;
+    --cursor-bg-secondary: #17181b;
+    --cursor-bg-soft: rgba(255, 255, 255, 0.04);
+    --cursor-bg-soft-hover: rgba(255, 255, 255, 0.06);
+    --cursor-code-bg: #17181b;
+    --cursor-inline-code-bg: #1f2125;
+    --cursor-stroke-primary: rgba(255, 255, 255, 0.12);
+    --cursor-stroke-secondary: rgba(255, 255, 255, 0.08);
+    --cursor-text-primary: #f4f4f5;
+    --cursor-text-secondary: #a1a1aa;
+    --cursor-link: #60a5fa;
+    --cursor-button: #f4f4f5;
+    --cursor-button-text: #09090b;
+    --cursor-badge-success-text: #4ade80;
+    --cursor-badge-warning-text: #fbbf24;
+    --cursor-badge-error-text: #f87171;
+    --cursor-badge-info-text: #60a5fa;
+    --cursor-git-staged: #4ade80;
+    --cursor-git-unstaged: #60a5fa;
+    --cursor-git-renamed: #c084fc;
+    --cursor-git-untracked: #a1a1aa;
+    --cursor-git-deleted: #f87171;
+    --added: #4ade80;
+    --removed: #f87171;
+    --bg-editor: #111214;
+    --bg-chrome: #0d0f12;
+    --bg-tertiary: rgba(255, 255, 255, 0.06);
+    --bg-quaternary: rgba(255, 255, 255, 0.04);
+    --bg-success-secondary: rgba(34, 197, 94, 0.14);
+    --bg-success-quaternary: rgba(34, 197, 94, 0.08);
+    --bg-warning-secondary: rgba(245, 158, 11, 0.14);
+    --bg-warning-quaternary: rgba(245, 158, 11, 0.08);
+    --bg-danger-secondary: rgba(239, 68, 68, 0.14);
+    --bg-danger-quaternary: rgba(239, 68, 68, 0.08);
+    --bg-accent-secondary: rgba(96, 165, 250, 0.16);
+    --bg-neutral: #f4f4f5;
+    --text-primary: #f4f4f5;
+    --text-secondary: #d4d4d8;
+    --text-tertiary: #a1a1aa;
+    --text-quaternary: #71717a;
+    --border-secondary: rgba(255, 255, 255, 0.12);
+    --border-tertiary: rgba(255, 255, 255, 0.08);
+    --accent: #60a5fa;
+    --success: #4ade80;
+    --danger: #f87171;
+    --warn: #fbbf24;
+    --added: #4ade80;
+    --removed: #f87171;
+    --modified: #60a5fa;
+}
+
 .settings-wrapper {
     display: flex;
     height: 100%;
@@ -29,6 +569,25 @@
     display: flex;
     height: 100%;
     width: 100%;
+}
+
+.groups-ui,
+.review-loops-ui,
+.team-panel-ui {
+    color: var(--cursor-text-primary);
+    font-family: var(--cursor-font-family-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+}
+
+.groups-ui {
+    background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
+}
+
+.review-loops-ui {
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.team-panel-ui {
+    border-radius: 12px;
 }
 
 .content-wrapper {
@@ -968,8 +1527,13 @@
     color: var(--cursor-text-primary);
 }
 
-.dropdown-item.text-red {
-    color: #ef4444;
+.dropdown-item-danger {
+    color: var(--cursor-danger);
+}
+
+.dropdown-item-danger:hover {
+    background-color: var(--cursor-danger-bg);
+    color: var(--cursor-danger);
 }
 
 .context-sub-header {

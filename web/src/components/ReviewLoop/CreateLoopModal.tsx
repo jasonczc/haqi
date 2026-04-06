@@ -34,9 +34,9 @@ const PREFERENCE_OPTIONS: Array<{ value: ReviewLoopUserPreference; label: string
 ]
 
 const inputClass =
-    'w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] px-2 py-1.5 font-mono text-xs text-[var(--app-fg)] focus:outline-none focus:border-[var(--app-link)]'
+    'w-full rounded-sm border border-[var(--border-secondary)] bg-[var(--cursor-code-bg)] px-2 py-1.5 font-mono text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]'
 
-const labelClass = 'font-mono text-xs text-[var(--app-hint)]'
+const labelClass = 'font-mono text-xs text-[var(--text-tertiary)]'
 
 /* ── CLI-style session picker with search ── */
 function SessionPicker(props: {
@@ -87,16 +87,16 @@ function SessionPicker(props: {
                 className={cn(
                     'flex w-full items-center gap-2 px-2 py-1 text-left transition-colors rounded-sm',
                     isSelected
-                        ? 'bg-[var(--app-link)]/10 text-[var(--app-link)]'
-                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                        ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                        : 'text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)]'
                 )}
             >
                 <span className={cn(
                     'h-1.5 w-1.5 shrink-0 rounded-full',
-                    s.active ? 'bg-emerald-400' : 'bg-[var(--app-hint)]/40'
+                    s.active ? 'bg-[var(--success)]' : 'bg-[var(--text-tertiary)]/40'
                 )} />
                 <span className="min-w-0 flex-1 truncate font-mono text-xs">{title}</span>
-                {path && <span className="shrink-0 truncate max-w-[120px] text-[10px] text-[var(--app-hint)]">{path.split('/').pop()}</span>}
+                {path && <span className="shrink-0 truncate max-w-[120px] text-[10px] text-[var(--text-tertiary)]">{path.split('/').pop()}</span>}
             </button>
         )
     }
@@ -105,14 +105,14 @@ function SessionPicker(props: {
         <div className="flex flex-col gap-1">
             <label className={labelClass}>{props.label}:</label>
             <div className="flex items-center gap-1.5">
-                <span className="text-[var(--app-hint)]">{'>'}</span>
+                <span className="text-[var(--text-tertiary)]">{'>'}</span>
                 <button
                     type="button"
                     onClick={() => setOpen(!open)}
                     className={cn(
                         inputClass,
                         'text-left truncate',
-                        !selectedTitle && 'text-[var(--app-hint)]'
+                        !selectedTitle && 'text-[var(--text-tertiary)]'
                     )}
                 >
                     {selectedTitle ?? 'Select a session...'}
@@ -120,29 +120,29 @@ function SessionPicker(props: {
             </div>
 
             {open && (
-                <div className="ml-4 mt-0.5 rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] overflow-hidden">
+                <div className="ml-4 mt-0.5 rounded-sm border border-[var(--border-secondary)] bg-[var(--cursor-code-bg)] overflow-hidden">
                     {/* Search */}
-                    <div className="border-b border-[var(--app-border)] px-2 py-1">
+                    <div className="border-b border-[var(--border-secondary)] px-2 py-1">
                         <input
                             ref={inputRef}
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                             placeholder="search..."
-                            className="w-full bg-transparent font-mono text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none"
+                            className="w-full bg-transparent font-mono text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
                         />
                     </div>
 
                     {/* Results */}
                     <div className="max-h-[160px] overflow-y-auto py-0.5">
                         {online.length === 0 && offline.length === 0 ? (
-                            <div className="px-2 py-1.5 font-mono text-xs text-[var(--app-hint)]">
+                            <div className="px-2 py-1.5 font-mono text-xs text-[var(--text-tertiary)]">
                                 {search ? 'no match' : 'no sessions'}
                             </div>
                         ) : (
                             <>
                                 {online.length > 0 && (
                                     <>
-                                        <div className="px-2 py-0.5 font-mono text-[10px] text-[var(--app-hint)] uppercase tracking-wide">
+                                        <div className="px-2 py-0.5 font-mono text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
                                             online ({online.length})
                                         </div>
                                         {online.map(renderRow)}
@@ -150,7 +150,7 @@ function SessionPicker(props: {
                                 )}
                                 {offline.length > 0 && (
                                     <>
-                                        <div className="px-2 py-0.5 font-mono text-[10px] text-[var(--app-hint)] uppercase tracking-wide">
+                                        <div className="px-2 py-0.5 font-mono text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
                                             offline ({offline.length})
                                         </div>
                                         {offline.map(renderRow)}
@@ -218,11 +218,11 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
         <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-w-md font-mono !rounded-sm overflow-hidden">
                 <DialogHeader>
-                    <DialogTitle className="font-mono text-xs font-normal text-[var(--app-hint)]">
+                    <DialogTitle className="font-mono text-xs font-normal text-[var(--text-tertiary)]">
                         <div className="flex items-center gap-2">
-                            <div className="border-t border-[var(--app-border)] w-4" />
+                            <div className="border-t border-[var(--border-secondary)] w-4" />
                             <span>New Review Loop</span>
-                            <div className="flex-1 border-t border-[var(--app-border)]" />
+                            <div className="flex-1 border-t border-[var(--border-secondary)]" />
                         </div>
                     </DialogTitle>
                     <DialogDescription className="sr-only">
@@ -250,7 +250,7 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
                     />
 
                     {workerSessionId && workerSessionId === reviewerSessionId && (
-                        <p className="font-mono text-xs text-[var(--app-badge-warning-text)] ml-4">
+                        <p className="font-mono text-xs text-[var(--warn)] ml-4">
                             ! Worker and reviewer must be different sessions.
                         </p>
                     )}
@@ -259,12 +259,12 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
                     <div className="flex flex-col gap-1">
                         <label className={labelClass}>Requirement:</label>
                         <div className="flex items-start gap-1.5">
-                            <span className="text-[var(--app-hint)] mt-1.5">{'>'}</span>
+                            <span className="text-[var(--text-tertiary)] mt-1.5">{'>'}</span>
                             <textarea
                                 value={requirement}
                                 onChange={(e) => setRequirement(e.target.value)}
                                 placeholder="Describe the task for the worker..."
-                                className={cn(inputClass, 'resize-none placeholder:text-[var(--app-hint)]')}
+                                className={cn(inputClass, 'resize-none placeholder:text-[var(--text-tertiary)]')}
                                 rows={3}
                             />
                         </div>
@@ -274,12 +274,12 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
                     <div className="flex flex-col gap-1">
                         <label className={labelClass}>Acceptance Criteria:</label>
                         <div className="flex items-start gap-1.5">
-                            <span className="text-[var(--app-hint)] mt-1.5">{'>'}</span>
+                            <span className="text-[var(--text-tertiary)] mt-1.5">{'>'}</span>
                             <textarea
                                 value={acceptanceCriteria}
                                 onChange={(e) => setAcceptanceCriteria(e.target.value)}
                                 placeholder="Define what the reviewer should check..."
-                                className={cn(inputClass, 'resize-none placeholder:text-[var(--app-hint)]')}
+                                className={cn(inputClass, 'resize-none placeholder:text-[var(--text-tertiary)]')}
                                 rows={3}
                             />
                         </div>
@@ -288,18 +288,18 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
                     {/* Max Rounds & Notify inline */}
                     <div className="flex items-center gap-4 ml-2 mt-1 flex-wrap">
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[var(--app-hint)]">max-rounds:</span>
+                            <span className="text-[var(--text-tertiary)]">max-rounds:</span>
                             <input
                                 type="number"
                                 min={1}
                                 max={100}
                                 value={maxRounds}
                                 onChange={(e) => setMaxRounds(Math.max(1, parseInt(e.target.value) || 1))}
-                                className="w-14 rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] px-2 py-0.5 font-mono text-xs text-[var(--app-fg)] text-center focus:outline-none focus:border-[var(--app-link)]"
+                                className="w-14 rounded-sm border border-[var(--border-secondary)] bg-[var(--cursor-code-bg)] px-2 py-0.5 font-mono text-xs text-[var(--text-primary)] text-center focus:outline-none focus:border-[var(--accent)]"
                             />
                         </div>
                         <div className="flex items-center gap-1.5">
-                            <span className="text-[var(--app-hint)]">notify:</span>
+                            <span className="text-[var(--text-tertiary)]">notify:</span>
                             <div className="flex items-center gap-0.5">
                                 {PREFERENCE_OPTIONS.map((opt) => (
                                     <button
@@ -309,8 +309,8 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
                                         className={cn(
                                             'rounded-sm px-2 py-0.5 font-mono text-xs transition-colors',
                                             userPreference === opt.value
-                                                ? 'border border-[var(--app-link)] text-[var(--app-fg)]'
-                                                : 'border border-transparent text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                                                ? 'border border-[var(--accent)] text-[var(--text-primary)]'
+                                                : 'border border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'
                                         )}
                                     >
                                         {opt.label}
@@ -327,14 +327,14 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
                         type="button"
                         onClick={handleSubmit}
                         disabled={!isValid}
-                        className="rounded-sm border border-[var(--app-link)] bg-[var(--app-subtle-bg)] px-3 py-1 font-mono text-xs text-[var(--app-fg)] hover:bg-[var(--app-link)] hover:text-[var(--app-button-text)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="rounded-sm border border-[var(--accent)] bg-[var(--bg-quaternary)] px-3 py-1 font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-[var(--cursor-button-text)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         Create &#x25B8;
                     </button>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-sm border border-[var(--app-border)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors"
+                        className="rounded-sm border border-[var(--border-secondary)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-colors"
                     >
                         Cancel
                     </button>

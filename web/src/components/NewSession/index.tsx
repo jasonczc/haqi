@@ -644,7 +644,7 @@ export function NewSession(props: {
     return (
         <form
             id={props.formId}
-            className="flex flex-col divide-y divide-[var(--app-divider)]"
+            className="flex flex-col divide-y divide-[var(--cursor-stroke-tertiary)]"
             onKeyDown={handleFormKeyDown}
             onSubmit={handleSubmit}
         >
@@ -657,7 +657,7 @@ export function NewSession(props: {
                 onChange={handleMachineChange}
             />
             {runnerSpawnError ? (
-                <div className="px-3 py-2 text-xs text-red-600">
+                <div className="px-3 py-2 text-xs text-[var(--cursor-danger)]">
                     Runner last spawn error: {runnerSpawnError}
                 </div>
             ) : null}
@@ -724,7 +724,7 @@ export function NewSession(props: {
                 onTtlMinutesChange={setTtlMinutes}
             />
             <div className="flex flex-col gap-1.5 px-3 py-3">
-                <label className="text-xs font-medium text-[var(--app-hint)]">
+                <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
                     Preview URL (optional)
                 </label>
                 <input
@@ -733,7 +733,7 @@ export function NewSession(props: {
                     value={previewUrlInput}
                     onChange={(event) => setPreviewUrlInput(event.target.value)}
                     disabled={isFormDisabled}
-                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                    className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                 />
                 {previewUrlHistory.length > 0 ? (
                     <div className="flex flex-wrap gap-1 pt-1">
@@ -743,7 +743,7 @@ export function NewSession(props: {
                                 type="button"
                                 onClick={() => setPreviewUrlInput(url)}
                                 disabled={isFormDisabled}
-                                className="max-w-[240px] truncate rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:opacity-50"
+                                className="max-w-[240px] truncate rounded bg-[var(--cursor-bg-quaternary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)] disabled:opacity-50"
                                 title={url}
                             >
                                 {url}
@@ -792,7 +792,7 @@ export function NewSession(props: {
             />
 
             {(error ?? spawnError) ? (
-                <div className="px-3 py-2 text-sm text-red-600">
+                <div className="px-3 py-2 text-sm text-[var(--cursor-danger)]">
                     {error ?? spawnError}
                 </div>
             ) : null}

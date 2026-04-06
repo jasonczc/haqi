@@ -171,17 +171,17 @@ export function ProjectActionMenu(props: ProjectActionMenuProps) {
         : undefined
 
     const baseItemClassName =
-        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]'
+        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]'
 
     return (
         <div
             ref={menuRef}
-            className="fixed z-50 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
+            className="fixed z-50 min-w-[220px] animate-menu-pop rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-1 shadow-lg"
             style={menuStyle}
         >
             <div
                 id={headingId}
-                className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)]"
+                className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"
             >
                 {t('session.more')}
             </div>
@@ -195,13 +195,13 @@ export function ProjectActionMenu(props: ProjectActionMenuProps) {
                     <button
                         type="button"
                         role="menuitem"
-                        className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                        className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
                         onClick={() => {
                             onClose()
                             onCreateInProject()
                         }}
                     >
-                        <PlusIcon className="text-[var(--app-hint)]" />
+                        <PlusIcon className="text-[var(--text-tertiary)]" />
                         {t('sessions.newInProject')}
                     </button>
                 ) : null}
@@ -209,13 +209,13 @@ export function ProjectActionMenu(props: ProjectActionMenuProps) {
                 <button
                     type="button"
                     role="menuitem"
-                    className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                    className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
                     onClick={() => {
                         onClose()
                         onToggleProjectOffline()
                     }}
                 >
-                    <BulbIcon className="text-[var(--app-hint)]" />
+                    <BulbIcon className="text-[var(--text-tertiary)]" />
                     {isProjectOffline ? t('sessions.projectOffline.disable') : t('sessions.projectOffline.enable')}
                 </button>
             </div>

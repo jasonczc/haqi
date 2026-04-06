@@ -21,7 +21,7 @@ export function DirectorySection(props: {
 
     return (
         <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
+            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
                 {t('newSession.directory')}
             </label>
             <div className="relative">
@@ -34,7 +34,7 @@ export function DirectorySection(props: {
                     onFocus={props.onDirectoryFocus}
                     onBlur={props.onDirectoryBlur}
                     disabled={props.isDisabled}
-                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                    className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                 />
                 {props.suggestions.length > 0 && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1">
@@ -51,7 +51,7 @@ export function DirectorySection(props: {
 
             {props.recentPaths.length > 0 && (
                 <div className="flex flex-col gap-1 mt-1">
-                    <span className="text-xs text-[var(--app-hint)]">{t('newSession.recent')}:</span>
+                    <span className="text-xs text-[var(--cursor-text-secondary)]">{t('newSession.recent')}:</span>
                     <div className="flex flex-wrap gap-1">
                         {props.recentPaths.map((path) => (
                             <button
@@ -59,7 +59,7 @@ export function DirectorySection(props: {
                                 type="button"
                                 onClick={() => props.onPathClick(path)}
                                 disabled={props.isDisabled}
-                                className="rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] transition-colors truncate max-w-[200px] disabled:opacity-50"
+                                className="rounded bg-[var(--cursor-bg-quaternary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-quaternary)] transition-colors truncate max-w-[200px] disabled:opacity-50"
                                 title={path}
                             >
                                 {path}

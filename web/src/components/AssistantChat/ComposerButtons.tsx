@@ -317,7 +317,7 @@ function UnifiedButton(props: {
         ariaLabel = t('composer.voice')
     } else {
         icon = <SendIcon />
-        className = 'bg-[#C0C0C0] text-white'
+        className = 'bg-[var(--cursor-bg-quaternary)] text-[var(--cursor-text-secondary)]'
         ariaLabel = t('composer.send')
     }
 
@@ -386,7 +386,7 @@ export function ComposerButtons(props: {
                     aria-label={t('composer.attach')}
                     title={t('composer.attach')}
                     disabled={props.controlsDisabled}
-                    className="composer-icon-btn composer-attachment-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="composer-icon-btn composer-attachment-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--cursor-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <AttachmentIcon />
                 </ComposerPrimitive.AddAttachment>
@@ -396,7 +396,7 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={t('composer.settings')}
                         title={t('composer.settings')}
-                        className="settings-button composer-icon-btn composer-settings-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]"
+                        className="settings-button composer-icon-btn composer-settings-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--cursor-text-primary)]"
                         onClick={props.onSettingsToggle}
                         disabled={props.controlsDisabled}
                     >
@@ -409,7 +409,7 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={t('composer.terminal')}
                         title={t('composer.terminal')}
-                        className="composer-icon-btn composer-terminal-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="composer-icon-btn composer-terminal-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--success)] disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onTerminal}
                         disabled={props.terminalDisabled}
                     >
@@ -422,7 +422,7 @@ export function ComposerButtons(props: {
                         type="button"
                         aria-label={t('composer.status')}
                         title={t('composer.status')}
-                        className="composer-icon-btn composer-status-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="composer-icon-btn composer-status-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onStatus}
                         disabled={props.statusDisabled}
                     >
@@ -437,15 +437,15 @@ export function ComposerButtons(props: {
                         title={t('composer.queue')}
                         className={`composer-icon-btn composer-queue-btn relative flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                             props.queueActive
-                                ? 'bg-violet-500/10 text-violet-600'
-                                : 'text-[var(--app-fg)]/60 hover:bg-[var(--app-bg)] hover:text-violet-600'
+                                ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                                : 'text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-card)] hover:text-[var(--accent)]'
                         }`}
                         onClick={props.onQueue}
                         disabled={props.queueDisabled}
                     >
                         <QueueIcon />
                         {props.queuePendingCount > 0 ? (
-                            <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-semibold leading-4 text-white">
+                            <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold leading-4 text-white">
                                 {props.queuePendingCount > 99 ? '99+' : props.queuePendingCount}
                             </span>
                         ) : null}
@@ -458,7 +458,7 @@ export function ComposerButtons(props: {
                         aria-label={t('composer.abort')}
                         title={t('composer.abort')}
                         disabled={props.abortDisabled}
-                        className="composer-icon-btn composer-abort-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="composer-icon-btn composer-abort-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--danger)] disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onAbort}
                     >
                         <AbortIcon spinning={props.isAborting} />
@@ -471,7 +471,7 @@ export function ComposerButtons(props: {
                         aria-label={t('composer.switchRemote')}
                         title={t('composer.switchRemote')}
                         disabled={props.switchDisabled}
-                        className="composer-icon-btn composer-switch-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="composer-icon-btn composer-switch-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
                         onClick={props.onSwitch}
                     >
                         <SwitchToRemoteIcon />
@@ -485,8 +485,8 @@ export function ComposerButtons(props: {
                         title={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
                         className={`composer-icon-btn composer-voice-btn flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
                             props.voiceMicMuted
-                                ? 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                                : 'text-[var(--app-fg)]/60 hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]'
+                                ? 'bg-[var(--cursor-bg-quaternary)] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-elevated)]'
+                                : 'text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-card)] hover:text-[var(--cursor-text-primary)]'
                         }`}
                         onClick={props.onVoiceMicToggle}
                     >
@@ -506,8 +506,8 @@ export function ComposerButtons(props: {
                         disabled={props.planModeDisabled}
                         className={`composer-pill-btn composer-plan-btn rounded-full border px-2 py-1 text-[10px] font-medium transition-colors ${
                             props.planModeEnabled
-                                ? 'border-blue-500/50 bg-blue-500/10 text-blue-600'
-                                : 'border-[var(--app-border)] bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                                ? 'border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]'
+                                : 'border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]'
                         } disabled:cursor-not-allowed disabled:opacity-50`}
                         title={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
                         aria-label={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
@@ -523,8 +523,8 @@ export function ComposerButtons(props: {
                         disabled={props.sendModeDisabled}
                         className={`composer-pill-btn composer-send-mode-btn rounded-full border px-2 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                             props.sendMode === 'queue'
-                                ? 'border-violet-500/50 bg-violet-500/10 text-violet-600'
-                                : 'border-[var(--app-border)] bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                                ? 'border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]'
+                                : 'border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]'
                         }`}
                         title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
                         aria-label={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}

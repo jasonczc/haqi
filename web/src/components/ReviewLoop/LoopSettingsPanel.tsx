@@ -29,7 +29,7 @@ export function LoopSettingsPanel({
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                 {/* Notification mode */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[var(--app-hint)]">notify</span>
+                    <span className="text-[var(--text-tertiary)]">notify</span>
                     <div className="flex items-center gap-0.5 flex-wrap">
                         {PREFERENCE_OPTIONS.map((opt) => (
                             <button
@@ -41,8 +41,8 @@ export function LoopSettingsPanel({
                                 className={cn(
                                     'rounded-sm px-2 py-0.5 font-mono text-xs transition-colors',
                                     userPreference === opt.value
-                                        ? 'border border-[var(--app-link)] text-[var(--app-fg)]'
-                                        : 'border border-transparent text-[var(--app-hint)] hover:text-[var(--app-fg)]',
+                                        ? 'border border-[var(--accent)] text-[var(--text-primary)]'
+                                        : 'border border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-primary)]',
                                     disabled && 'cursor-not-allowed opacity-50'
                                 )}
                             >
@@ -54,24 +54,24 @@ export function LoopSettingsPanel({
 
                 {/* Rounds control */}
                 <div className="flex items-center gap-2">
-                    <span className="text-[var(--app-hint)]">rounds</span>
+                    <span className="text-[var(--text-tertiary)]">rounds</span>
                     <div className="flex items-center gap-0">
                         <button
                             type="button"
                             disabled={disabled || maxRounds <= 1}
                             onClick={() => onUpdateMaxRounds(maxRounds - 1)}
-                            className="text-[var(--app-hint)] hover:text-[var(--app-fg)] disabled:opacity-30 disabled:cursor-not-allowed px-1 font-mono text-xs"
+                            className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed px-1 font-mono text-xs"
                         >
                             &#x25C0;
                         </button>
-                        <span className="text-[var(--app-fg)] tabular-nums min-w-[3ch] text-center">
+                        <span className="text-[var(--text-primary)] tabular-nums min-w-[3ch] text-center">
                             {currentRound}/{maxRounds}
                         </span>
                         <button
                             type="button"
                             disabled={disabled}
                             onClick={() => onUpdateMaxRounds(maxRounds + 1)}
-                            className="text-[var(--app-hint)] hover:text-[var(--app-fg)] disabled:opacity-30 disabled:cursor-not-allowed px-1 font-mono text-xs"
+                            className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed px-1 font-mono text-xs"
                         >
                             &#x25B6;
                         </button>

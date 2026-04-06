@@ -21,14 +21,14 @@ function CodeHeader(props: CodeHeaderProps) {
     const language = props.language && props.language !== 'unknown' ? props.language : ''
 
     return (
-        <div className="aui-md-codeheader flex items-center justify-between rounded-t-md bg-[var(--app-code-bg)] px-2 py-1">
-            <div className="min-w-0 flex-1 pr-2 text-xs font-mono text-[var(--app-hint)]">
+        <div className="aui-md-codeheader flex items-center justify-between rounded-t-md bg-[var(--cursor-code-bg)] px-2 py-1">
+            <div className="min-w-0 flex-1 pr-2 text-xs font-mono text-[var(--cursor-text-secondary)]">
                 {language}
             </div>
             <button
                 type="button"
                 onClick={() => copy(props.code)}
-                className="shrink-0 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
+                className="shrink-0 rounded p-1 text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)] transition-colors"
                 title="Copy"
             >
                 {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
@@ -45,7 +45,7 @@ function Pre(props: ComponentPropsWithoutRef<'pre'>) {
             <pre
                 {...rest}
                 className={cn(
-                    'aui-md-pre m-0 w-max min-w-full rounded-b-md rounded-t-none bg-[var(--app-code-bg)] p-2 text-sm',
+                    'aui-md-pre m-0 w-max min-w-full rounded-b-md rounded-t-none bg-[var(--cursor-code-bg)] p-2 text-sm',
                     className
                 )}
             />
@@ -69,7 +69,7 @@ function Code(props: ComponentPropsWithoutRef<'code'>) {
         <code
             {...props}
             className={cn(
-                'aui-md-code break-words rounded bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] font-mono text-[0.9em]',
+                'aui-md-code break-words rounded bg-[var(--cursor-inline-code-bg)] px-[0.3em] py-[0.1em] font-mono text-[0.9em]',
                 props.className
             )}
         />
@@ -88,7 +88,7 @@ function A(props: ComponentPropsWithoutRef<'a'>) {
         <a
             {...props}
             rel={rel}
-            className={cn('aui-md-a text-[var(--app-link)] underline', props.className)}
+            className={cn('aui-md-a text-[var(--cursor-link)] underline', props.className)}
         />
     )
 }
@@ -102,7 +102,7 @@ function Blockquote(props: ComponentPropsWithoutRef<'blockquote'>) {
         <blockquote
             {...props}
             className={cn(
-                'aui-md-blockquote border-l-4 border-[var(--app-hint)] pl-3 opacity-85',
+                'aui-md-blockquote border-l-4 border-[var(--cursor-text-secondary)] pl-3 opacity-85',
                 'break-words [overflow-wrap:anywhere]',
                 props.className
             )}
@@ -123,7 +123,7 @@ function ListItem(props: ComponentPropsWithoutRef<'li'>) {
 }
 
 function Hr(props: ComponentPropsWithoutRef<'hr'>) {
-    return <hr {...props} className={cn('aui-md-hr border-[var(--app-divider)]', props.className)} />
+    return <hr {...props} className={cn('aui-md-hr border-[var(--cursor-stroke-secondary)]', props.className)} />
 }
 
 function Table(props: ComponentPropsWithoutRef<'table'>) {
@@ -153,7 +153,7 @@ function Th(props: ComponentPropsWithoutRef<'th'>) {
         <th
             {...props}
             className={cn(
-                'aui-md-th border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1 text-left font-semibold',
+                'aui-md-th border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] px-2 py-1 text-left font-semibold',
                 props.className
             )}
         />
@@ -161,7 +161,7 @@ function Th(props: ComponentPropsWithoutRef<'th'>) {
 }
 
 function Td(props: ComponentPropsWithoutRef<'td'>) {
-    return <td {...props} className={cn('aui-md-td border border-[var(--app-border)] px-2 py-1', props.className)} />
+    return <td {...props} className={cn('aui-md-td border border-[var(--cursor-stroke-primary)] px-2 py-1', props.className)} />
 }
 
 function H1(props: ComponentPropsWithoutRef<'h1'>) {

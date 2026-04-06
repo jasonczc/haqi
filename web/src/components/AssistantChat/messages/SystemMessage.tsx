@@ -12,11 +12,11 @@ function isProminentEvent(event: AgentEvent | undefined): event is AgentEvent {
 function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }) {
     const isError = event.type === 'api-error'
     const borderClass = isError
-        ? 'border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)]'
-        : 'border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)]'
+        ? 'border-[var(--cursor-badge-error-border)] bg-[var(--cursor-badge-error-bg)]'
+        : 'border-[var(--cursor-badge-warning-border)] bg-[var(--cursor-badge-warning-bg)]'
     const textClass = isError
-        ? 'text-[var(--app-badge-error-text)]'
-        : 'text-[var(--app-badge-warning-text)]'
+        ? 'text-[var(--cursor-badge-error-text)]'
+        : 'text-[var(--cursor-badge-warning-text)]'
 
     const resetsAt = 'resetsAt' in event && typeof event.resetsAt === 'number' && event.resetsAt > 0
         ? event.resetsAt
@@ -68,7 +68,7 @@ export function HappySystemMessage() {
 
     return (
         <div className="py-1" data-happy-message-id={messageId}>
-            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
+            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--cursor-text-secondary)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
                 <span className="inline-flex items-center gap-1">
                     {icon ? <span aria-hidden="true">{icon}</span> : null}
                     <span>{text}</span>

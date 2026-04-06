@@ -60,14 +60,14 @@ export default function DebugDiffPage() {
     }, [])
 
     return (
-        <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-fg)]">
+        <div className="min-h-screen bg-[var(--bg-editor)] text-[var(--text-primary)]">
             <div className="mx-auto w-full max-w-6xl p-6">
                 <div className="mb-4">
                     <h1 className="text-xl font-semibold">Debug Diff Viewer</h1>
-                    <p className="mt-1 text-sm text-[var(--app-hint)]">{subtitle}</p>
+                    <p className="mt-1 text-sm text-[var(--text-tertiary)]">{subtitle}</p>
                 </div>
 
-                <Suspense fallback={<div className="rounded-md border border-[var(--app-border)] p-4 text-sm text-[var(--app-hint)]">Loading diff viewer…</div>}>
+                <Suspense fallback={<div className="rounded-md border border-[var(--border-secondary)] p-4 text-sm text-[var(--text-tertiary)]">Loading diff viewer…</div>}>
                     <GitDiffViewer
                         filePath="src/debug-demo.ts"
                         language="typescript"

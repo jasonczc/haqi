@@ -10,7 +10,7 @@ export function AgentSelector(props: {
 
     return (
         <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
+            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
                 {t('newSession.agent')}
             </label>
             <div className="flex gap-3">
@@ -26,7 +26,7 @@ export function AgentSelector(props: {
                             checked={props.agent === agentType}
                             onChange={() => props.onAgentChange(agentType)}
                             disabled={props.isDisabled}
-                            className="accent-[var(--app-link)]"
+                            className="accent-[var(--cursor-link)]"
                         />
                         <span className="text-sm capitalize">{agentType}</span>
                     </label>

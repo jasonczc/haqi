@@ -13,15 +13,15 @@ function formatDate(ts: number): string {
 
 function PhaseBadge({ phase }: { phase: string }) {
     const colorMap: Record<string, string> = {
-        succeeded: 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]',
-        failed: 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)] border border-[var(--app-badge-error-border)]',
-        canceled: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
-        pending: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)] border border-[var(--app-badge-warning-border)]',
-        scheduling: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)] border border-[var(--app-badge-warning-border)]',
-        provisioning: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
-        starting: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
+        succeeded: 'bg-[var(--cursor-badge-success-bg)] text-[var(--cursor-badge-success-text)] border border-[var(--cursor-badge-success-border)]',
+        failed: 'bg-[var(--cursor-badge-error-bg)] text-[var(--cursor-badge-error-text)] border border-[var(--cursor-badge-error-border)]',
+        canceled: 'bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]',
+        pending: 'bg-[var(--cursor-badge-warning-bg)] text-[var(--cursor-badge-warning-text)] border border-[var(--cursor-badge-warning-border)]',
+        scheduling: 'bg-[var(--cursor-badge-warning-bg)] text-[var(--cursor-badge-warning-text)] border border-[var(--cursor-badge-warning-border)]',
+        provisioning: 'bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]',
+        starting: 'bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]',
     }
-    const classes = colorMap[phase] ?? 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
+    const classes = colorMap[phase] ?? 'bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]'
     return (
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${classes}`}>
             {phase}
@@ -57,20 +57,20 @@ function CollapsibleSection(props: {
 }) {
     const sectionContentId = useId()
     return (
-        <section className="border-b border-[var(--app-divider)]">
+        <section className="border-b border-[var(--cursor-stroke-secondary)]">
             <button
                 type="button"
                 onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
                 aria-expanded={props.isExpanded}
                 aria-controls={sectionContentId}
             >
                 <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
-                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
+                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
                 </div>
                 <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
                         props.isExpanded ? 'rotate-180' : ''
                     }`}
                 />
@@ -108,7 +108,7 @@ export default function CloudRequestsPage() {
     }
 
     if (requestsQuery.isError) {
-        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load requests</div>
+        return <div className="p-4 text-sm text-[var(--cursor-badge-error-text)]">Failed to load requests</div>
     }
 
     const requests = (requestsQuery.data?.requests ?? []) as CloudSpawnRequest[]
@@ -122,7 +122,7 @@ export default function CloudRequestsPage() {
                 onToggle={() => setIsExpanded(!isExpanded)}
             >
                 {requests.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-sm text-[var(--app-hint)]">
+                    <div className="px-3 py-6 text-center text-sm text-[var(--cursor-text-secondary)]">
                         <p>{t('cloud.requests.empty')}</p>
                     </div>
                 ) : (
@@ -132,23 +132,23 @@ export default function CloudRequestsPage() {
                                 key={request.id}
                                 to="/settings/requests/$requestId"
                                 params={{ requestId: request.id }}
-                                className="flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3 transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-secondary)] px-3 py-3 transition-colors hover:bg-[var(--cursor-bg-quiet)]"
                             >
                                 <div className="flex min-w-0 flex-col">
                                     <div className="flex items-center gap-2">
                                         <PhaseBadge phase={request.phase} />
-                                        <span className="font-mono text-sm font-medium text-[var(--app-fg)]">{request.id}</span>
+                                        <span className="font-mono text-sm font-medium text-[var(--cursor-text-primary)]">{request.id}</span>
                                     </div>
-                                    <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--app-hint)]">
+                                    <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--cursor-text-secondary)]">
                                         {request.selectedMachineId ? (
                                             <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Worker</span>{' '}
+                                                <span className="font-medium text-[var(--cursor-text-primary)]">Worker</span>{' '}
                                                 {request.selectedMachineId}
                                             </span>
                                         ) : null}
                                         {request.request.agent ? (
                                             <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Agent</span>{' '}
+                                                <span className="font-medium text-[var(--cursor-text-primary)]">Agent</span>{' '}
                                                 {request.request.agent}
                                             </span>
                                         ) : null}
@@ -156,7 +156,7 @@ export default function CloudRequestsPage() {
                                     </div>
                                 </div>
                                 {request.error ? (
-                                    <div className="max-w-xs shrink-0 truncate text-xs px-1.5 py-0.5 rounded bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)]">
+                                    <div className="max-w-xs shrink-0 truncate text-xs px-1.5 py-0.5 rounded bg-[var(--cursor-badge-error-bg)] text-[var(--cursor-badge-error-text)]">
                                         {request.error.message ?? request.error.code}
                                     </div>
                                 ) : null}

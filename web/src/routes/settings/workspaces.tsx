@@ -13,14 +13,14 @@ function formatDate(ts: number): string {
 
 function StatusBadge({ status }: { status: string }) {
     const colorMap: Record<string, string> = {
-        ready: 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]',
-        provisioning: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)] border border-[var(--app-badge-warning-border)]',
-        starting: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
-        active: 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]',
-        stopped: 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]',
-        failed: 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)] border border-[var(--app-badge-error-border)]',
+        ready: 'bg-[var(--cursor-badge-success-bg)] text-[var(--cursor-badge-success-text)] border border-[var(--cursor-badge-success-border)]',
+        provisioning: 'bg-[var(--cursor-badge-warning-bg)] text-[var(--cursor-badge-warning-text)] border border-[var(--cursor-badge-warning-border)]',
+        starting: 'bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]',
+        active: 'bg-[var(--cursor-badge-success-bg)] text-[var(--cursor-badge-success-text)] border border-[var(--cursor-badge-success-border)]',
+        stopped: 'bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]',
+        failed: 'bg-[var(--cursor-badge-error-bg)] text-[var(--cursor-badge-error-text)] border border-[var(--cursor-badge-error-border)]',
     }
-    const classes = colorMap[status] ?? 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
+    const classes = colorMap[status] ?? 'bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]'
     return (
         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${classes}`}>
             {status}
@@ -56,20 +56,20 @@ function CollapsibleSection(props: {
 }) {
     const sectionContentId = useId()
     return (
-        <section className="border-b border-[var(--app-divider)]">
+        <section className="border-b border-[var(--cursor-stroke-secondary)]">
             <button
                 type="button"
                 onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
                 aria-expanded={props.isExpanded}
                 aria-controls={sectionContentId}
             >
                 <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
-                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
+                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
                 </div>
                 <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
                         props.isExpanded ? 'rotate-180' : ''
                     }`}
                 />
@@ -107,7 +107,7 @@ export default function CloudWorkspacesPage() {
     }
 
     if (workspacesQuery.isError) {
-        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load workspaces</div>
+        return <div className="p-4 text-sm text-[var(--cursor-badge-error-text)]">Failed to load workspaces</div>
     }
 
     const workspaces = (workspacesQuery.data?.workspaces ?? []) as CloudWorkspace[]
@@ -121,7 +121,7 @@ export default function CloudWorkspacesPage() {
                 onToggle={() => setIsExpanded(!isExpanded)}
             >
                 {workspaces.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-sm text-[var(--app-hint)]">
+                    <div className="px-3 py-6 text-center text-sm text-[var(--cursor-text-secondary)]">
                         <p>{t('cloud.workspaces.empty')}</p>
                     </div>
                 ) : (
@@ -131,29 +131,29 @@ export default function CloudWorkspacesPage() {
                                 key={workspace.id}
                                 to="/settings/workspaces/$workspaceId"
                                 params={{ workspaceId: workspace.id }}
-                                className="flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3 transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-secondary)] px-3 py-3 transition-colors hover:bg-[var(--cursor-bg-quiet)]"
                             >
                                 <div className="flex min-w-0 flex-col">
                                     <div className="flex items-center gap-2">
                                         <StatusBadge status={workspace.status} />
-                                        <span className="font-mono text-sm font-medium text-[var(--app-fg)]">{workspace.id}</span>
+                                        <span className="font-mono text-sm font-medium text-[var(--cursor-text-primary)]">{workspace.id}</span>
                                     </div>
-                                    <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--app-hint)]">
+                                    <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--cursor-text-secondary)]">
                                         {workspace.mode ? (
                                             <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Mode</span>{' '}
+                                                <span className="font-medium text-[var(--cursor-text-primary)]">Mode</span>{' '}
                                                 {workspace.mode}
                                             </span>
                                         ) : null}
                                         {workspace.machineId ? (
                                             <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Worker</span>{' '}
+                                                <span className="font-medium text-[var(--cursor-text-primary)]">Worker</span>{' '}
                                                 {workspace.machineId}
                                             </span>
                                         ) : null}
                                         {workspace.path ? (
                                             <span>
-                                                <span className="font-medium text-[var(--app-fg)]">Path</span>{' '}
+                                                <span className="font-medium text-[var(--cursor-text-primary)]">Path</span>{' '}
                                                 <span className="font-mono">{workspace.path}</span>
                                             </span>
                                         ) : null}

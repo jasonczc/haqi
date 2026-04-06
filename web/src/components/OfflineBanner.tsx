@@ -10,7 +10,7 @@ export function OfflineBanner() {
     }
 
     return (
-        <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 text-sm font-medium z-50">
+        <div className="fixed left-0 right-0 top-0 z-50 border-b border-[var(--warn)]/20 bg-[var(--warn)]/12 py-2 text-center text-sm font-medium text-[var(--warn)]">
             {t('offline.message')}
         </div>
     )

@@ -116,17 +116,17 @@ function StatusBadge(props: { status: GitFileStatus['status'] }) {
     const { label, color } = useMemo(() => {
         switch (props.status) {
             case 'added':
-                return { label: 'A', color: 'var(--app-git-staged-color)' }
+                return { label: 'A', color: 'var(--cursor-git-staged)' }
             case 'deleted':
-                return { label: 'D', color: 'var(--app-git-deleted-color)' }
+                return { label: 'D', color: 'var(--cursor-git-deleted)' }
             case 'renamed':
-                return { label: 'R', color: 'var(--app-git-renamed-color)' }
+                return { label: 'R', color: 'var(--cursor-git-renamed)' }
             case 'untracked':
-                return { label: '?', color: 'var(--app-git-untracked-color)' }
+                return { label: '?', color: 'var(--cursor-git-untracked)' }
             case 'conflicted':
-                return { label: 'U', color: 'var(--app-git-deleted-color)' }
+                return { label: 'U', color: 'var(--cursor-git-deleted)' }
             default:
-                return { label: 'M', color: 'var(--app-git-unstaged-color)' }
+                return { label: 'M', color: 'var(--cursor-git-unstaged)' }
         }
     }, [props.status])
 
@@ -146,10 +146,10 @@ function LineChanges(props: { added: number; removed: number }) {
     return (
         <span className="flex items-center gap-1 text-[11px] font-mono">
             {props.added ? (
-                <span className="text-[var(--app-diff-added-text)]">+{props.added}</span>
+                <span className="text-[var(--cursor-diff-added)]">+{props.added}</span>
             ) : null}
             {props.removed ? (
-                <span className="text-[var(--app-diff-removed-text)]">-{props.removed}</span>
+                <span className="text-[var(--cursor-diff-removed)]">-{props.removed}</span>
             ) : null}
         </span>
     )
@@ -166,14 +166,14 @@ function GitFileRow(props: {
         <button
             type="button"
             onClick={props.onOpen}
-            className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--app-subtle-bg)] transition-colors ${props.showDivider ? 'border-b border-[var(--app-divider)]' : ''}`}
+            className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--cursor-bg-quaternary)] transition-colors ${props.showDivider ? 'border-b border-[var(--cursor-stroke-tertiary)]' : ''}`}
         >
             <FileIcon fileName={props.file.fileName} size={22} />
             <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{props.file.fileName}</div>
-                <div className="min-w-0 flex items-center gap-1 text-xs text-[var(--app-hint)]">
+                <div className="min-w-0 flex items-center gap-1 text-xs text-[var(--cursor-text-secondary)]">
                     {props.file.repo ? (
-                        <span className="shrink-0 rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--app-fg)]">
+                        <span className="shrink-0 rounded border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-quaternary)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--cursor-text-primary)]">
                             {props.file.repo}
                         </span>
                     ) : null}
@@ -196,18 +196,18 @@ function SearchResultRow(props: {
     const subtitle = props.file.filePath || 'project root'
     const icon = props.file.fileType === 'file'
         ? <FileIcon fileName={props.file.fileName} size={22} />
-        : <FolderIcon className="text-[var(--app-link)]" />
+        : <FolderIcon className="text-[var(--cursor-link)]" />
 
     return (
         <button
             type="button"
             onClick={props.onOpen}
-            className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--app-subtle-bg)] transition-colors ${props.showDivider ? 'border-b border-[var(--app-divider)]' : ''}`}
+            className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--cursor-bg-quaternary)] transition-colors ${props.showDivider ? 'border-b border-[var(--cursor-stroke-tertiary)]' : ''}`}
         >
             {icon}
             <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{props.file.fileName}</div>
-                <div className="truncate text-xs text-[var(--app-hint)]">{subtitle}</div>
+                <div className="truncate text-xs text-[var(--cursor-text-secondary)]">{subtitle}</div>
             </div>
         </button>
     )
@@ -223,10 +223,10 @@ function FileListSkeleton(props: { label: string; rows?: number }) {
             <span className="sr-only">{props.label}</span>
             {Array.from({ length: rows }).map((_, index) => (
                 <div key={`skeleton-row-${index}`} className="flex items-center gap-3">
-                    <div className="h-6 w-6 rounded bg-[var(--app-subtle-bg)]" />
+                    <div className="h-6 w-6 rounded bg-[var(--cursor-bg-quaternary)]" />
                     <div className="flex-1 space-y-2">
-                        <div className={`h-3 ${titleWidths[index % titleWidths.length]} rounded bg-[var(--app-subtle-bg)]`} />
-                        <div className={`h-2 ${subtitleWidths[index % subtitleWidths.length]} rounded bg-[var(--app-subtle-bg)]`} />
+                        <div className={`h-3 ${titleWidths[index % titleWidths.length]} rounded bg-[var(--cursor-bg-quaternary)]`} />
+                        <div className={`h-2 ${subtitleWidths[index % subtitleWidths.length]} rounded bg-[var(--cursor-bg-quaternary)]`} />
                     </div>
                 </div>
             ))}
@@ -370,23 +370,23 @@ export default function FilesPage() {
 
     return (
         <div className="flex h-full flex-col">
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
+            <div className="bg-[var(--cursor-bg-card)] pt-[env(safe-area-inset-top)]">
+                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--cursor-stroke-secondary)]">
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)] hover:text-[var(--cursor-text-primary)]"
                     >
                         <BackIcon />
                     </button>
                     <div className="min-w-0 flex-1">
                         <div className="truncate font-semibold">Files</div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">{subtitle}</div>
+                        <div className="truncate text-xs text-[var(--cursor-text-secondary)]">{subtitle}</div>
                     </div>
                     <button
                         type="button"
                         onClick={handleRefresh}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)] hover:text-[var(--cursor-text-primary)]"
                         title="Refresh"
                     >
                         <RefreshIcon />
@@ -394,15 +394,15 @@ export default function FilesPage() {
                 </div>
             </div>
 
-            <div className="bg-[var(--app-bg)]">
-                <div className="mx-auto w-full max-w-content p-3 border-b border-[var(--app-border)]">
-                    <div className="flex items-center gap-2 rounded-md bg-[var(--app-subtle-bg)] px-3 py-2">
-                        <SearchIcon className="text-[var(--app-hint)]" />
+            <div className="bg-[var(--cursor-bg-card)]">
+                <div className="mx-auto w-full max-w-content p-3 border-b border-[var(--cursor-stroke-secondary)]">
+                    <div className="flex items-center gap-2 rounded-md bg-[var(--cursor-bg-quaternary)] px-3 py-2">
+                        <SearchIcon className="text-[var(--cursor-text-secondary)]" />
                         <input
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
                             placeholder="Search files"
-                            className="w-full bg-transparent text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none"
+                            className="w-full bg-transparent text-sm text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-secondary)] focus:outline-none"
                             autoCapitalize="none"
                             autoCorrect="off"
                         />
@@ -410,18 +410,18 @@ export default function FilesPage() {
                 </div>
             </div>
 
-            <div className="bg-[var(--app-bg)] border-b border-[var(--app-divider)]" role="tablist">
+            <div className="bg-[var(--cursor-bg-card)] border-b border-[var(--cursor-stroke-tertiary)]" role="tablist">
                 <div className="mx-auto w-full max-w-content grid grid-cols-2">
                     <button
                         type="button"
                         role="tab"
                         aria-selected={activeTab === 'changes'}
                         onClick={() => handleTabChange('changes')}
-                        className={`relative py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--app-subtle-bg)] ${activeTab === 'changes' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}
+                        className={`relative py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--cursor-bg-quaternary)] ${activeTab === 'changes' ? 'text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)]'}`}
                     >
                         Changes
                         <span
-                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'changes' ? 'bg-[var(--app-link)]' : 'bg-transparent'}`}
+                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'changes' ? 'bg-[var(--cursor-link)]' : 'bg-transparent'}`}
                         />
                     </button>
                     <button
@@ -429,24 +429,24 @@ export default function FilesPage() {
                         role="tab"
                         aria-selected={activeTab === 'directories'}
                         onClick={() => handleTabChange('directories')}
-                        className={`relative py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--app-subtle-bg)] ${activeTab === 'directories' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}
+                        className={`relative py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--cursor-bg-quaternary)] ${activeTab === 'directories' ? 'text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)]'}`}
                     >
                         Directories
                         <span
-                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'directories' ? 'bg-[var(--app-link)]' : 'bg-transparent'}`}
+                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'directories' ? 'bg-[var(--cursor-link)]' : 'bg-transparent'}`}
                         />
                     </button>
                 </div>
             </div>
 
             {!gitLoading && gitStatus && !searchQuery && activeTab === 'changes' ? (
-                <div className="bg-[var(--app-bg)]">
-                    <div className="mx-auto w-full max-w-content px-3 py-2 border-b border-[var(--app-divider)]">
+                <div className="bg-[var(--cursor-bg-card)]">
+                    <div className="mx-auto w-full max-w-content px-3 py-2 border-b border-[var(--cursor-stroke-tertiary)]">
                         <div className="flex items-center gap-2 text-sm">
-                            <GitBranchIcon className="text-[var(--app-hint)]" />
+                            <GitBranchIcon className="text-[var(--cursor-text-secondary)]" />
                             <span className="font-semibold">{branchLabel}</span>
                         </div>
-                        <div className="text-xs text-[var(--app-hint)]">
+                        <div className="text-xs text-[var(--cursor-text-secondary)]">
                             {gitStatus.totalStaged} staged, {gitStatus.totalUnstaged} unstaged
                         </div>
                         {isAggregatedRepoView ? (
@@ -454,7 +454,7 @@ export default function FilesPage() {
                                 {repoSummaries.map((repo) => (
                                     <span
                                         key={`${repo.name}-${repo.branch ?? 'detached'}`}
-                                        className="rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                        className="rounded border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-quaternary)] px-2 py-0.5 text-[10px] text-[var(--cursor-text-secondary)]"
                                     >
                                         {repo.branch ? `${repo.name} · ${repo.branch}` : repo.name}
                                     </span>
@@ -468,7 +468,7 @@ export default function FilesPage() {
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
                     {showGitErrorBanner && activeTab === 'changes' ? (
-                        <div className="border-b border-[var(--app-divider)] bg-amber-500/10 px-3 py-2 text-xs text-[var(--app-hint)]">
+                        <div className="border-b border-[var(--cursor-warning-border)] bg-[var(--cursor-warning-bg)] px-3 py-2 text-xs text-[var(--cursor-warning)]">
                             {gitError}
                         </div>
                     ) : null}
@@ -476,13 +476,13 @@ export default function FilesPage() {
                         searchResults.isLoading ? (
                             <FileListSkeleton label="Loading files…" />
                         ) : searchResults.error ? (
-                            <div className="p-6 text-sm text-[var(--app-hint)]">{searchResults.error}</div>
+                            <div className="p-6 text-sm text-[var(--cursor-text-secondary)]">{searchResults.error}</div>
                         ) : searchResults.files.length === 0 ? (
-                            <div className="p-6 text-sm text-[var(--app-hint)]">
+                            <div className="p-6 text-sm text-[var(--cursor-text-secondary)]">
                                 {searchQuery ? 'No files match your search.' : 'No files found in this project.'}
                             </div>
                         ) : (
-                            <div className="border-t border-[var(--app-divider)]">
+                            <div className="border-t border-[var(--cursor-stroke-tertiary)]">
                                 {searchResults.files.map((file, index) => (
                                     <SearchResultRow
                                         key={`${file.fullPath}-${index}`}
@@ -506,13 +506,13 @@ export default function FilesPage() {
                         <div>
                             {gitStatus?.stagedFiles.length ? (
                                 <div>
-                                    <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-staged-color)]">
+                                    <div className="border-b border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-xs font-semibold text-[var(--cursor-git-staged)]">
                                         Staged Changes ({gitStatus.stagedFiles.length})
                                     </div>
                                     {stagedGroups.map((group, groupIndex) => (
                                         <div key={`staged-group-${group.repo ?? 'root'}-${groupIndex}`}>
                                             {showRepoGroupHeaders ? (
-                                                <div className="border-b border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--app-hint)]">
+                                                <div className="border-b border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-quaternary)] px-3 py-1.5 text-[11px] font-medium text-[var(--cursor-text-secondary)]">
                                                     {formatRepoGroupLabel(group.repo)} ({group.files.length})
                                                 </div>
                                             ) : null}
@@ -535,13 +535,13 @@ export default function FilesPage() {
 
                             {gitStatus?.unstagedFiles.length ? (
                                 <div>
-                                    <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-unstaged-color)]">
+                                    <div className="border-b border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-xs font-semibold text-[var(--cursor-git-unstaged)]">
                                         Unstaged Changes ({gitStatus.unstagedFiles.length})
                                     </div>
                                     {unstagedGroups.map((group, groupIndex) => (
                                         <div key={`unstaged-group-${group.repo ?? 'root'}-${groupIndex}`}>
                                             {showRepoGroupHeaders ? (
-                                                <div className="border-b border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--app-hint)]">
+                                                <div className="border-b border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-quaternary)] px-3 py-1.5 text-[11px] font-medium text-[var(--cursor-text-secondary)]">
                                                     {formatRepoGroupLabel(group.repo)} ({group.files.length})
                                                 </div>
                                             ) : null}
@@ -563,13 +563,13 @@ export default function FilesPage() {
                             ) : null}
 
                             {!gitStatus ? (
-                                <div className="p-6 text-sm text-[var(--app-hint)]">
+                                <div className="p-6 text-sm text-[var(--cursor-text-secondary)]">
                                     Git status unavailable. Use Directories to browse all files, or search.
                                 </div>
                             ) : null}
 
                             {gitStatus && gitStatus.stagedFiles.length === 0 && gitStatus.unstagedFiles.length === 0 ? (
-                                <div className="p-6 text-sm text-[var(--app-hint)]">
+                                <div className="p-6 text-sm text-[var(--cursor-text-secondary)]">
                                     No changes detected. Use Directories to browse all files, or search.
                                 </div>
                             ) : null}

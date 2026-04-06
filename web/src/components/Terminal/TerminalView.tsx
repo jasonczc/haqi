@@ -8,9 +8,9 @@ import { ensureBuiltinFontLoaded, getFontProvider } from '@/lib/terminalFont'
 
 function resolveThemeColors(): { background: string; foreground: string; selectionBackground: string } {
     const styles = getComputedStyle(document.documentElement)
-    const background = styles.getPropertyValue('--app-bg').trim() || '#000000'
-    const foreground = styles.getPropertyValue('--app-fg').trim() || '#ffffff'
-    const selectionBackground = styles.getPropertyValue('--app-subtle-bg').trim() || 'rgba(255, 255, 255, 0.2)'
+    const background = styles.getPropertyValue('--cursor-bg-app').trim() || 'black'
+    const foreground = styles.getPropertyValue('--cursor-text-primary').trim() || 'white'
+    const selectionBackground = styles.getPropertyValue('--cursor-bg-soft').trim() || 'rgba(255, 255, 255, 0.2)'
     return { background, foreground, selectionBackground }
 }
 

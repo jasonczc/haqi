@@ -10,15 +10,15 @@ export function YoloToggle(props: {
 
     return (
         <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
+            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
                 {t('newSession.yolo')}
             </label>
             <div className="flex items-center justify-between gap-3">
                 <div className="flex flex-col">
-                    <span className="text-sm text-[var(--app-fg)]">
+                    <span className="text-sm text-[var(--cursor-text-primary)]">
                         {t('newSession.yolo.title')}
                     </span>
-                    <span className="text-xs text-[var(--app-hint)]">
+                    <span className="text-xs text-[var(--cursor-text-secondary)]">
                         {t('newSession.yolo.desc')}
                     </span>
                 </div>

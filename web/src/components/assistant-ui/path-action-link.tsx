@@ -105,7 +105,7 @@ function classifyProbeFailure(error: string | undefined): PathProbeResult {
 
 function renderPlainPath(path: string, className?: string, title?: string) {
     return (
-        <span className={cn('font-mono text-[0.9em] text-[var(--app-link)]', className)} title={title ?? path}>
+        <span className={cn('font-mono text-[0.9em] text-[var(--cursor-link)]', className)} title={title ?? path}>
             {path}
         </span>
     )
@@ -280,7 +280,7 @@ export function PathActionLink(props: {
         return (
             <span className={cn('inline-flex max-w-full items-center gap-1', props.className)}>
                 {renderPlainPath(path)}
-                <span className="text-[10px] text-[var(--app-hint)]">...</span>
+                <span className="text-[10px] text-[var(--cursor-text-secondary)]">...</span>
             </span>
         )
     }
@@ -297,7 +297,7 @@ export function PathActionLink(props: {
         return (
             <span className={cn('inline-flex max-w-full items-center gap-1', props.className)}>
                 {renderPlainPath(path)}
-                <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-600" title={probeErrorMessage ?? 'Outside-workspace paths require YOLO mode'}>
+                <span className="rounded bg-[var(--warn)]/12 px-1 text-[10px] text-[var(--warn)]" title={probeErrorMessage ?? 'Outside-workspace paths require YOLO mode'}>
                     YOLO
                 </span>
             </span>
@@ -307,13 +307,13 @@ export function PathActionLink(props: {
     return (
         <>
             <span className={cn(
-                'inline-flex max-w-full items-center gap-1 rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 align-middle',
+                'inline-flex max-w-full items-center gap-1 rounded border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quiet)] px-1.5 py-0.5 align-middle',
                 props.className
             )}>
                 <button
                     type="button"
                     onClick={openFilePage}
-                    className="max-w-[16rem] truncate font-mono text-[0.8em] text-[var(--app-link)] underline decoration-dotted hover:opacity-90"
+                    className="max-w-[16rem] truncate font-mono text-[0.8em] text-[var(--cursor-link)] underline decoration-dotted hover:opacity-90"
                     title={path}
                 >
                     {path}
@@ -322,7 +322,7 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handlePreview}
                     disabled={busyAction !== null}
-                    className="shrink-0 rounded px-1 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                    className="shrink-0 rounded px-1 text-[10px] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)] disabled:opacity-50"
                     title={canPreviewImage ? 'Preview image' : 'Open file preview'}
                 >
                     {busyAction === 'preview' ? '...' : '预览'}
@@ -331,18 +331,18 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handleDownload}
                     disabled={busyAction !== null}
-                    className="shrink-0 rounded px-1 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                    className="shrink-0 rounded px-1 text-[10px] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)] disabled:opacity-50"
                     title="Download file"
                 >
                     {busyAction === 'download' ? '...' : '下载'}
                 </button>
                 {blockedOutsidePath ? (
-                    <span className="rounded bg-amber-500/15 px-1 text-[10px] text-amber-600" title="Outside-workspace paths require YOLO mode">
+                    <span className="rounded bg-[var(--warn)]/12 px-1 text-[10px] text-[var(--warn)]" title="Outside-workspace paths require YOLO mode">
                         YOLO
                     </span>
                 ) : null}
                 {errorMessage ? (
-                    <span className="max-w-[8rem] truncate text-[10px] text-red-500" title={errorMessage}>
+                    <span className="max-w-[8rem] truncate text-[10px] text-[var(--danger)]" title={errorMessage}>
                         !
                     </span>
                 ) : null}
@@ -358,7 +358,7 @@ export function PathActionLink(props: {
                             <img src={previewImageUrl} alt={path} className="mx-auto max-h-[70vh] max-w-full object-contain" />
                         </div>
                     ) : (
-                        <div className="text-sm text-[var(--app-hint)]">Preview unavailable.</div>
+                        <div className="text-sm text-[var(--cursor-text-secondary)]">Preview unavailable.</div>
                     )}
                 </DialogContent>
             </Dialog>

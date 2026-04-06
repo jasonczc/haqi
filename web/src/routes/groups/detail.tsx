@@ -159,10 +159,10 @@ function SendIcon(props: { className?: string }) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function taskStatusClass(status: GroupTaskStatus): string {
-    if (status === 'completed' || status === 'manual_done') return 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]'
-    if (status === 'failed' || status === 'canceled' || status === 'expired') return 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)]'
-    if (status === 'running' || status === 'enqueued') return 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
-    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+    if (status === 'completed' || status === 'manual_done') return 'bg-[var(--cursor-success-bg)] text-[var(--cursor-success)]'
+    if (status === 'failed' || status === 'canceled' || status === 'expired') return 'bg-[var(--cursor-danger-bg)] text-[var(--cursor-danger)]'
+    if (status === 'running' || status === 'enqueued') return 'bg-[var(--cursor-warning-bg)] text-[var(--cursor-warning)]'
+    return 'bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-secondary)]'
 }
 
 function isTerminalStatus(status: GroupTaskStatus): boolean {
@@ -266,11 +266,11 @@ function getAvatarInitial(label: string): string {
 
 function getSessionAvatarTone(session: SessionSummary | undefined): string {
     const flavor = session?.metadata?.flavor ?? ''
-    if (flavor === 'claude') return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30'
-    if (flavor === 'codex') return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
-    if (flavor === 'gemini') return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30'
-    if (flavor === 'opencode') return 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/20 dark:text-fuchsia-300 dark:border-fuchsia-500/30'
-    return 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-divider)]'
+    if (flavor === 'claude') return 'border-[var(--warn)]/20 bg-[var(--warn)]/10 text-[var(--warn)]'
+    if (flavor === 'codex') return 'border-[var(--success)]/20 bg-[var(--success)]/10 text-[var(--success)]'
+    if (flavor === 'gemini') return 'border-[var(--accent)]/20 bg-[var(--accent)]/10 text-[var(--accent)]'
+    if (flavor === 'opencode') return 'border-[var(--cursor-text-primary)]/20 bg-[var(--cursor-bg-quaternary)] text-[var(--cursor-text-primary)]'
+    return 'bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] border-[var(--cursor-stroke-secondary)]'
 }
 
 type MemberWorkStatus = 'offline' | 'pending' | 'working' | 'completed'
@@ -289,17 +289,17 @@ function getMemberWorkStatus(session: SessionSummary | undefined): MemberWorkSta
 }
 
 function getMemberStatusDotClass(status: MemberWorkStatus): string {
-    if (status === 'working') return 'bg-[var(--app-badge-info-text)] animate-pulse'
-    if (status === 'pending') return 'bg-[var(--app-badge-warning-text)]'
-    if (status === 'completed') return 'bg-[var(--app-badge-success-text)]'
-    return 'bg-[var(--app-hint)]'
+    if (status === 'working') return 'bg-[var(--cursor-info)] animate-pulse'
+    if (status === 'pending') return 'bg-[var(--cursor-warning)]'
+    if (status === 'completed') return 'bg-[var(--cursor-success)]'
+    return 'bg-[var(--cursor-text-secondary)]'
 }
 
 function getMemberStatusBadgeClass(status: MemberWorkStatus): string {
-    if (status === 'working') return 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
-    if (status === 'pending') return 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
-    if (status === 'completed') return 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]'
-    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+    if (status === 'working') return 'bg-[var(--cursor-info-bg)] text-[var(--cursor-info)]'
+    if (status === 'pending') return 'bg-[var(--cursor-warning-bg)] text-[var(--cursor-warning)]'
+    if (status === 'completed') return 'bg-[var(--cursor-success-bg)] text-[var(--cursor-success)]'
+    return 'bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-secondary)]'
 }
 
 function getMemberStatusLabel(
@@ -558,7 +558,7 @@ function CommandText(props: {
                             key={key}
                             className={cn(
                                 'font-semibold',
-                                props.isUser ? 'text-[var(--app-button-text)] opacity-90' : 'text-[var(--app-link)]'
+                                props.isUser ? 'text-[var(--cursor-button-text)] opacity-90' : 'text-[var(--cursor-link)]'
                             )}
                         >
                             {part.raw}
@@ -586,15 +586,15 @@ function CommandText(props: {
                             className={cn(
                                 'rounded px-0.5 align-baseline underline decoration-dotted underline-offset-2 transition-colors',
                                 props.isUser
-                                    ? 'text-[var(--app-button-text)] hover:bg-[var(--app-subtle-bg)]'
-                                    : 'text-[var(--app-link)] hover:bg-[var(--app-subtle-bg)]'
+                                    ? 'text-[var(--cursor-button-text)] hover:bg-[var(--cursor-bg-quiet)]'
+                                    : 'text-[var(--cursor-link)] hover:bg-[var(--cursor-bg-quiet)]'
                             )}
                             title={`Open session ${sessionTitle} (${part.sessionId})`}
                         >
                             {mentionLabel}
                         </button>
                         {showSessionId ? (
-                            <span className={cn(props.isUser ? 'text-[var(--app-button-text)] opacity-70' : 'text-[var(--app-hint)]')}>
+                            <span className={cn(props.isUser ? 'text-[var(--cursor-button-text)] opacity-70' : 'text-[var(--cursor-text-secondary)]')}>
                                 ({part.sessionId})
                             </span>
                         ) : null}
@@ -614,7 +614,7 @@ function BubbleMarkdown(props: {
             className={cn(
                 'aui-md min-w-0 max-w-full break-words text-sm',
                 props.isUser
-                    ? '[&_.aui-md-a]:text-[var(--app-button-text)] [&_.aui-md-a]:decoration-[var(--app-button-text)] [&_.aui-md-a]:opacity-90 [&_.aui-md-code]:bg-[var(--app-subtle-bg)] [&_.aui-md-blockquote]:border-[var(--app-divider)]'
+                    ? '[&_.aui-md-a]:text-[var(--cursor-button-text)] [&_.aui-md-a]:decoration-[var(--cursor-button-text)] [&_.aui-md-a]:opacity-90 [&_.aui-md-code]:bg-[var(--cursor-bg-quiet)] [&_.aui-md-blockquote]:border-[var(--cursor-stroke-secondary)]'
                     : ''
             )}
         >
@@ -729,14 +729,14 @@ function AddMemberModal(props: {
                 type="button"
                 disabled={addingId === s.id || props.isPending}
                 onClick={() => { void handleAdd(s.id) }}
-                className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-[var(--app-subtle-bg)] disabled:opacity-60"
+                className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)] disabled:opacity-60"
             >
                 <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
                 <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-[var(--app-fg)]">{title}</div>
+                    <div className="truncate text-sm font-medium text-[var(--cursor-text-primary)]">{title}</div>
                     {path
-                        ? <div className="truncate text-xs text-[var(--app-hint)]">{path}</div>
-                        : <div className="truncate text-xs text-[var(--app-hint)]">{s.id.slice(0, 20)}…</div>
+                        ? <div className="truncate text-xs text-[var(--cursor-text-secondary)]">{path}</div>
+                        : <div className="truncate text-xs text-[var(--cursor-text-secondary)]">{s.id.slice(0, 20)}…</div>
                     }
                 </div>
             </button>
@@ -745,21 +745,21 @@ function AddMemberModal(props: {
 
     if (mode === 'create') {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div className="flex w-full max-w-lg flex-col rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl" style={{ maxHeight: '90vh' }}>
-                    <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--cursor-bg-app)]/80 p-4">
+                <div className="flex w-full max-w-lg flex-col rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl" style={{ maxHeight: '90vh' }}>
+                    <div className="flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] px-4 py-3">
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
                                 onClick={() => setMode('select')}
-                                className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                                className="rounded-full p-1 text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]"
                                 title="Back to selection"
                             >
                                 <ChevronLeftIcon />
                             </button>
-                            <div className="font-semibold text-sm text-[var(--app-fg)]">Create New Session</div>
+                            <div className="font-semibold text-sm text-[var(--cursor-text-primary)]">Create New Session</div>
                         </div>
-                        <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
+                        <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]">
                             <CloseIcon />
                         </button>
                     </div>
@@ -773,55 +773,55 @@ function AddMemberModal(props: {
                         />
                     </div>
 
-                    {error ? <div className="border-t border-[var(--app-divider)] px-4 py-2 text-xs text-red-600">{error}</div> : null}
+                    {error ? <div className="border-t border-[var(--cursor-stroke-secondary)] px-4 py-2 text-xs text-[var(--danger)]">{error}</div> : null}
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="flex w-full max-w-sm flex-col rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl" style={{ maxHeight: '80vh' }}>
-                <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
-                    <div className="font-semibold text-sm text-[var(--app-fg)]">Add Member</div>
-                    <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--cursor-bg-app)]/80 p-4">
+            <div className="flex w-full max-w-sm flex-col rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl" style={{ maxHeight: '80vh' }}>
+                <div className="flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] px-4 py-3">
+                    <div className="font-semibold text-sm text-[var(--cursor-text-primary)]">Add Member</div>
+                    <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]">
                         <CloseIcon />
                     </button>
                 </div>
 
                 {/* Mode toggle */}
-                <div className="border-b border-[var(--app-divider)]">
+                <div className="border-b border-[var(--cursor-stroke-secondary)]">
                     <button
                         type="button"
                         onClick={() => setMode('create')}
-                        className="flex w-full items-center gap-1.5 px-4 py-2.5 text-left text-sm text-[var(--app-link)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+                        className="flex w-full items-center gap-1.5 px-4 py-2.5 text-left text-sm text-[var(--cursor-link)] hover:bg-[var(--cursor-bg-quiet)] transition-colors"
                     >
                         <PlusIcon className="h-3.5 w-3.5 shrink-0" />
                         Create new session
-                        <ChevronRightIcon className="ml-auto h-3.5 w-3.5 text-[var(--app-hint)]" />
+                        <ChevronRightIcon className="ml-auto h-3.5 w-3.5 text-[var(--cursor-text-secondary)]" />
                     </button>
                 </div>
 
-                <div className="border-b border-[var(--app-divider)] px-3 py-2">
-                    <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]" />
+                <div className="border-b border-[var(--cursor-stroke-secondary)] px-3 py-2">
+                    <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-3 py-1.5 text-sm outline-none focus:border-[var(--cursor-link)]" />
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto">
                     {sessionsLoading ? (
-                        <div className="px-4 py-3 text-sm text-[var(--app-hint)]">Loading sessions…</div>
+                        <div className="px-4 py-3 text-sm text-[var(--cursor-text-secondary)]">Loading sessions…</div>
                     ) : online.length === 0 && offline.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-[var(--app-hint)]">{search ? 'No sessions match.' : 'No sessions available.'}</div>
+                        <div className="px-4 py-3 text-sm text-[var(--cursor-text-secondary)]">{search ? 'No sessions match.' : 'No sessions available.'}</div>
                     ) : (
                         <>
                             {online.length > 0 ? (
                                 <>
-                                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">Online ({online.length})</div>
+                                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)]">Online ({online.length})</div>
                                     {online.map(renderSessionRow)}
                                 </>
                             ) : null}
                             {offline.length > 0 ? (
                                 <>
-                                    <button type="button" onClick={() => setOfflineExpanded((v) => !v)} className="flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] transition-colors">
+                                    <button type="button" onClick={() => setOfflineExpanded((v) => !v)} className="flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] transition-colors">
                                         <ChevronRightIcon className={`h-3 w-3 transition-transform ${offlineExpanded ? 'rotate-90' : ''}`} />
                                         Offline ({offline.length})
                                     </button>
@@ -832,7 +832,7 @@ function AddMemberModal(props: {
                     )}
                 </div>
 
-                {error ? <div className="border-t border-[var(--app-divider)] px-4 py-2 text-xs text-red-600">{error}</div> : null}
+                {error ? <div className="border-t border-[var(--cursor-stroke-secondary)] px-4 py-2 text-xs text-[var(--danger)]">{error}</div> : null}
             </div>
         </div>
     )
@@ -879,15 +879,15 @@ function MemberPill(props: {
             type="button"
             {...longPressHandlers}
             disabled={!clickable}
-            className={`group relative flex items-center gap-1.5 rounded-lg border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-left transition-colors ${clickable ? 'hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-link)]' : 'cursor-default'}`}
+            className={`group relative flex items-center gap-1.5 rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2 py-1 text-left transition-colors ${clickable ? 'hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-link)]' : 'cursor-default'}`}
             style={{ WebkitTouchCallout: 'none' }}
             aria-label={tooltipText}
         >
-            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] shadow-lg group-hover:block group-focus-visible:block">
+            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] px-2.5 py-2 text-xs text-[var(--cursor-text-primary)] shadow-lg group-hover:block group-focus-visible:block">
                 <div className="space-y-0.5">
                     <div className="font-medium">{title}</div>
                     {tooltipLines.map((line) => (
-                        <div key={line} className="text-[var(--app-hint)] break-all">{line}</div>
+                        <div key={line} className="text-[var(--cursor-text-secondary)] break-all">{line}</div>
                     ))}
                 </div>
             </div>
@@ -897,7 +897,7 @@ function MemberPill(props: {
                 </span>
                 <span className={`absolute -bottom-px -right-px h-1.5 w-1.5 rounded-full ${dotClass}`} />
             </span>
-            <span className="max-w-[120px] truncate text-[11px] font-medium text-[var(--app-fg)]">{title}</span>
+            <span className="max-w-[120px] truncate text-[11px] font-medium text-[var(--cursor-text-primary)]">{title}</span>
             <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] ${statusClass}`}>
                 {statusLabel}
             </span>
@@ -1012,7 +1012,7 @@ function MemberActionMenu(props: MemberActionMenuProps) {
         <div
             ref={menuRef}
             role="menu"
-            className="fixed z-50 min-w-[180px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
+            className="fixed z-50 min-w-[180px] rounded-lg border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-1 shadow-lg animate-menu-pop"
             style={menuStyle}
         >
             <button
@@ -1022,7 +1022,7 @@ function MemberActionMenu(props: MemberActionMenuProps) {
                     onClose()
                     onRemove()
                 }}
-                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
+                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-[var(--danger)] transition-colors hover:bg-[var(--cursor-bg-quiet)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cursor-link)]"
             >
                 Remove member
             </button>
@@ -1046,7 +1046,7 @@ function PendingRequestsQuickModal(props: {
 }) {
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--cursor-bg-app)]/80 p-4"
             onClick={(event) => {
                 if (event.target === event.currentTarget) {
                     props.onClose()
@@ -1054,41 +1054,41 @@ function PendingRequestsQuickModal(props: {
             }}
         >
             <div
-                className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl"
+                className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl"
                 style={{ maxHeight: '85vh' }}
                 onClick={(event) => event.stopPropagation()}
             >
-                <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
+                <div className="flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] px-4 py-3">
                     <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[var(--app-fg)]">
+                        <div className="truncate text-sm font-semibold text-[var(--cursor-text-primary)]">
                             Pending Requests
                         </div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">
+                        <div className="truncate text-xs text-[var(--cursor-text-secondary)]">
                             {props.sessionTitle} · {props.sessionId}
                         </div>
                     </div>
                     <button
                         type="button"
                         onClick={props.onClose}
-                        className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                        className="rounded-full p-1 text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]"
                         title="Close"
                     >
                         <CloseIcon />
                     </button>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 border-b border-[var(--app-divider)] px-4 py-2">
+                <div className="flex flex-wrap items-center gap-2 border-b border-[var(--cursor-stroke-secondary)] px-4 py-2">
                     <button
                         type="button"
                         onClick={props.onRefresh}
-                        className="rounded border border-[var(--app-divider)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                        className="rounded border border-[var(--cursor-stroke-secondary)] px-2 py-1 text-xs text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]"
                     >
                         Refresh
                     </button>
                     <button
                         type="button"
                         onClick={props.onOpenSession}
-                        className="rounded border border-[var(--app-divider)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                        className="rounded border border-[var(--cursor-stroke-secondary)] px-2 py-1 text-xs text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]"
                     >
                         Open Session
                     </button>
@@ -1096,12 +1096,12 @@ function PendingRequestsQuickModal(props: {
 
                 <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
                     {props.loadError ? (
-                        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        <div className="rounded border border-[var(--danger)]/20 bg-[var(--danger)]/10 px-3 py-2 text-xs text-[var(--danger)]">
                             {props.loadError}
                         </div>
                     ) : null}
                     {props.actionError ? (
-                        <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        <div className="mb-2 rounded border border-[var(--danger)]/20 bg-[var(--danger)]/10 px-3 py-2 text-xs text-[var(--danger)]">
                             {props.actionError}
                         </div>
                     ) : null}
@@ -1109,7 +1109,7 @@ function PendingRequestsQuickModal(props: {
                     {props.isLoading ? (
                         <LoadingState label="Loading pending requests..." className="py-4 text-sm" />
                     ) : props.requests.length === 0 ? (
-                        <div className="rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm text-[var(--app-hint)]">
+                        <div className="rounded border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-sm text-[var(--cursor-text-secondary)]">
                             No pending requests.
                         </div>
                     ) : (
@@ -1117,36 +1117,36 @@ function PendingRequestsQuickModal(props: {
                             {props.requests.map((request) => {
                                 const isActing = props.activeRequestId === request.id
                                 return (
-                                    <div key={request.id} className="rounded-lg border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]">
-                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--app-divider)] px-3 py-2 text-xs">
-                                            <span className="rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 font-semibold text-[var(--app-fg)]">
+                                    <div key={request.id} className="rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)]">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--cursor-stroke-secondary)] px-3 py-2 text-xs">
+                                            <span className="rounded bg-[var(--cursor-bg-quiet)] px-1.5 py-0.5 font-semibold text-[var(--cursor-text-primary)]">
                                                 {request.tool}
                                             </span>
-                                            <span className="text-[var(--app-hint)]">
+                                            <span className="text-[var(--cursor-text-secondary)]">
                                                 #{request.id}
                                             </span>
                                             {request.createdAt ? (
-                                                <span className="text-[var(--app-hint)]">
+                                                <span className="text-[var(--cursor-text-secondary)]">
                                                     {new Date(request.createdAt).toLocaleString()}
                                                 </span>
                                             ) : null}
                                         </div>
 
                                         <div className="px-3 py-2">
-                                            <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                                            <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--cursor-text-secondary)]">
                                                 Arguments
                                             </div>
-                                            <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--app-divider)] bg-[var(--app-bg)] p-2 text-[11px] text-[var(--app-fg)]">
+                                            <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-2 text-[11px] text-[var(--cursor-text-primary)]">
                                                 {formatPermissionArguments(request.arguments)}
                                             </pre>
                                         </div>
 
-                                        <div className="flex items-center justify-end gap-2 border-t border-[var(--app-divider)] px-3 py-2">
+                                        <div className="flex items-center justify-end gap-2 border-t border-[var(--cursor-stroke-secondary)] px-3 py-2">
                                             <button
                                                 type="button"
                                                 onClick={() => { void props.onDeny(request.id) }}
                                                 disabled={props.activeRequestId !== null}
-                                                className="rounded border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="rounded border border-[var(--danger)]/40 px-2 py-1 text-xs text-[var(--danger)] transition-colors hover:bg-[var(--danger)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 Deny
                                             </button>
@@ -1154,7 +1154,7 @@ function PendingRequestsQuickModal(props: {
                                                 type="button"
                                                 onClick={() => { void props.onApprove(request.id) }}
                                                 disabled={props.activeRequestId !== null}
-                                                className="rounded border border-green-500 px-2 py-1 text-xs text-green-700 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="rounded border border-[var(--success)]/40 px-2 py-1 text-xs text-[var(--success)] transition-colors hover:bg-[var(--success)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 {isActing ? 'Processing...' : 'Approve'}
                                             </button>
@@ -1191,7 +1191,7 @@ function TaskStateList(props: { taskStates: LatestTaskStates }) {
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="flex items-center gap-1 text-[10px] text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
+                className="flex items-center gap-1 text-[10px] text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)] transition-colors"
             >
                 <ChevronRightIcon className={`h-2.5 w-2.5 transition-transform ${open ? 'rotate-90' : ''}`} />
                 {summary}
@@ -1204,10 +1204,10 @@ function TaskStateList(props: { taskStates: LatestTaskStates }) {
                         const target = typeof p?.targetSessionId === 'string' ? p.targetSessionId.slice(0, 14) : ''
                         const error = typeof p?.error === 'string' ? p.error : null
                         return (
-                            <div key={t.taskId ?? t.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1">
+                            <div key={t.taskId ?? t.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2 py-1">
                                 <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${taskStatusClass(status)}`}>{status}</span>
-                                {target ? <span className="text-[10px] text-[var(--app-hint)]">{target}</span> : null}
-                                {error ? <span className="text-[10px] text-red-500">{error}</span> : null}
+                                {target ? <span className="text-[10px] text-[var(--cursor-text-secondary)]">{target}</span> : null}
+                                {error ? <span className="text-[10px] text-[var(--danger)]">{error}</span> : null}
                             </div>
                         )
                     })}
@@ -1242,7 +1242,7 @@ function TimelineBubble(props: {
     if (isSystem) {
         return (
             <div className="flex justify-center py-1">
-                <span className="rounded-full bg-[var(--app-secondary-bg)] px-3 py-1 text-[11px] italic text-[var(--app-hint)]">{text}</span>
+                <span className="rounded-full bg-[var(--cursor-bg-card)] px-3 py-1 text-[11px] italic text-[var(--cursor-text-secondary)]">{text}</span>
             </div>
         )
     }
@@ -1271,7 +1271,7 @@ function TimelineBubble(props: {
         <button
             type="button"
             onClick={() => props.onQuote?.(message)}
-            className="mb-1 shrink-0 self-end rounded-full p-1 text-[var(--app-hint)] opacity-100 transition-opacity hover:bg-[var(--app-subtle-bg)] md:opacity-0 md:group-hover/message:opacity-100"
+            className="mb-1 shrink-0 self-end rounded-full p-1 text-[var(--cursor-text-secondary)] opacity-100 transition-opacity hover:bg-[var(--cursor-bg-quiet)] md:opacity-0 md:group-hover/message:opacity-100"
             title="Reply"
         >
             <QuoteIcon className="h-3.5 w-3.5" />
@@ -1295,20 +1295,20 @@ function TimelineBubble(props: {
                                     {actorInitial}
                                 </span>
                             </button>
-                            <div className={`pointer-events-none absolute top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] shadow-lg group-hover:block group-focus-within:block ${isUser ? 'right-0' : 'left-0'}`}>
+                            <div className={`pointer-events-none absolute top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] px-2.5 py-2 text-xs text-[var(--cursor-text-primary)] shadow-lg group-hover:block group-focus-within:block ${isUser ? 'right-0' : 'left-0'}`}>
                                 <div className="space-y-0.5">
                                     <div className="font-medium">{actorTitle}</div>
                                     {actorTooltipLines.map((line) => (
-                                        <div key={line} className="text-[var(--app-hint)] break-all">{line}</div>
+                                        <div key={line} className="text-[var(--cursor-text-secondary)] break-all">{line}</div>
                                     ))}
                                 </div>
                             </div>
                         </div>
                     ) : null}
                     <div className={`min-w-0 ${isUser ? 'text-right' : 'text-left'}`}>
-                        <div className="truncate text-[11px] font-medium text-[var(--app-fg)]">{actorTitle}</div>
+                        <div className="truncate text-[11px] font-medium text-[var(--cursor-text-primary)]">{actorTitle}</div>
                         {actorId ? (
-                            <div className="truncate text-[10px] text-[var(--app-hint)]">
+                            <div className="truncate text-[10px] text-[var(--cursor-text-secondary)]">
                                 {actorId}
                             </div>
                         ) : null}
@@ -1317,28 +1317,28 @@ function TimelineBubble(props: {
                 <div
                     className={`rounded-2xl px-3 py-2 text-sm ${
                         isUser
-                            ? 'bg-[var(--app-button)] text-[var(--app-button-text)] rounded-br-sm'
-                            : 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] rounded-bl-sm'
+                            ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)] rounded-br-sm'
+                            : 'bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] rounded-bl-sm'
                     } ${isCommand
                         ? 'font-mono text-xs whitespace-pre-wrap break-words'
                         : isUser
-                            ? '[&_.aui-md]:text-sm [&_.aui-md-a]:text-[var(--app-button-text)] [&_.aui-md-a]:decoration-[var(--app-button-text)] [&_.aui-md-a]:opacity-90 [&_.aui-md-code]:bg-[var(--app-subtle-bg)] [&_.aui-md-blockquote]:border-[var(--app-divider)]'
+                            ? '[&_.aui-md]:text-sm [&_.aui-md-a]:text-[var(--cursor-button-text)] [&_.aui-md-a]:decoration-[var(--cursor-button-text)] [&_.aui-md-a]:opacity-90 [&_.aui-md-code]:bg-[var(--cursor-bg-quiet)] [&_.aui-md-blockquote]:border-[var(--cursor-stroke-secondary)]'
                             : '[&_.aui-md]:text-sm'
                     }`}
                 >
                     {quoteInfo && (
                         <div className={`mb-1.5 flex items-start gap-1.5 rounded px-2 py-1.5 ${
-                            isUser ? 'bg-[var(--app-subtle-bg)]' : 'bg-[var(--app-bg)]/60'
+                            isUser ? 'bg-[var(--cursor-bg-quiet)]' : 'bg-[var(--cursor-bg-app)]/60'
                         }`}>
                             <QuoteIcon className="mt-0.5 h-2.5 w-2.5 shrink-0 opacity-60" />
                             <div className="min-w-0 flex-1">
                                 <span className={`text-[10px] font-medium ${
-                                    isUser ? 'text-[var(--app-button-text)] opacity-90' : 'text-[var(--app-link)]'
+                                    isUser ? 'text-[var(--cursor-button-text)] opacity-90' : 'text-[var(--cursor-link)]'
                                 }`}>
                                     {quoteInfo.actorName}:
                                 </span>
                                 <span className={`ml-1 break-all text-[10px] leading-4 ${
-                                    isUser ? 'text-[var(--app-button-text)] opacity-70' : 'text-[var(--app-hint)]'
+                                    isUser ? 'text-[var(--cursor-button-text)] opacity-70' : 'text-[var(--cursor-text-secondary)]'
                                 }`}>
                                     {truncateText(quoteInfo.quotedText, 64)}
                                 </span>
@@ -1364,7 +1364,7 @@ function TimelineBubble(props: {
                 {isCommand && props.taskStates && props.taskStates.size > 0 ? (
                     <TaskStateList taskStates={props.taskStates} />
                 ) : null}
-                <div className="mt-0.5 text-[10px] text-[var(--app-hint)]">
+                <div className="mt-0.5 text-[10px] text-[var(--cursor-text-secondary)]">
                     {formatTime(message.createdAt)}
                 </div>
             </div>
@@ -1430,7 +1430,7 @@ function ComposerAttachmentList(props: {
     }
 
     return (
-        <div className="flex flex-wrap gap-2 border-b border-[var(--app-border)] px-4 pb-2 pt-3">
+        <div className="flex flex-wrap gap-2 border-b border-[var(--cursor-stroke-primary)] px-4 pb-2 pt-3">
             {props.attachments.map((attachment) => {
                 const isImage = isImageMimeType(attachment.mimeType) && Boolean(attachment.previewUrl)
                 const statusText = attachment.status === 'uploading'
@@ -1440,12 +1440,12 @@ function ComposerAttachmentList(props: {
                         : formatFileSize(attachment.size)
 
                 return (
-                    <div key={attachment.id} className="flex min-w-[180px] max-w-full items-center gap-2 rounded-lg bg-[var(--app-subtle-bg)] px-3 py-2 text-base text-[var(--app-fg)]">
+                    <div key={attachment.id} className="flex min-w-[180px] max-w-full items-center gap-2 rounded-lg bg-[var(--cursor-bg-quiet)] px-3 py-2 text-base text-[var(--cursor-text-primary)]">
                         {attachment.status === 'uploading' ? (
-                            <Spinner size="sm" label={null} className="text-[var(--app-hint)]" />
+                            <Spinner size="sm" label={null} className="text-[var(--cursor-text-secondary)]" />
                         ) : null}
                         {attachment.status === 'error' ? (
-                            <span className="text-red-500">
+                            <span className="text-[var(--danger)]">
                                 <AttachmentErrorIcon className="h-4 w-4" />
                             </span>
                         ) : null}
@@ -1461,10 +1461,10 @@ function ComposerAttachmentList(props: {
                             </span>
                         )}
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] text-[var(--app-fg)]">
+                            <div className="truncate text-[13px] text-[var(--cursor-text-primary)]">
                                 {attachment.filename}
                             </div>
-                            <div className={`truncate text-[10px] ${attachment.status === 'error' ? 'text-red-600' : 'text-[var(--app-hint)]'}`}>
+                            <div className={`truncate text-[10px] ${attachment.status === 'error' ? 'text-[var(--danger)]' : 'text-[var(--cursor-text-secondary)]'}`}>
                                 {statusText}
                             </div>
                         </div>
@@ -1472,7 +1472,7 @@ function ComposerAttachmentList(props: {
                             type="button"
                             onClick={() => { void props.onRemove(attachment.id) }}
                             disabled={props.disabled}
-                            className="shrink-0 rounded p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                            className="shrink-0 rounded p-0.5 text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-app)] hover:text-[var(--cursor-text-primary)] disabled:opacity-50"
                             title="Remove attachment"
                         >
                             <CloseIcon className="h-3 w-3" />
@@ -1510,7 +1510,7 @@ function TimelineHistoryControl(props: {
     if (props.isLoading) {
         return (
             <div className="py-1.5 text-center">
-                <span className="inline-flex rounded-full bg-[var(--app-button)] px-2.5 py-1 text-xs text-[var(--app-button-text)]">
+                <span className="inline-flex rounded-full bg-[var(--cursor-button)] px-2.5 py-1 text-xs text-[var(--cursor-button-text)]">
                     Loading history...
                 </span>
             </div>
@@ -1522,7 +1522,7 @@ function TimelineHistoryControl(props: {
             <button
                 type="button"
                 onClick={props.onLoadMore}
-                className="inline-flex rounded-full border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2.5 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                className="inline-flex rounded-full border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2.5 py-1 text-xs text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-quiet)]"
             >
                 Load older
             </button>
@@ -1904,17 +1904,17 @@ function GroupBriefTurnList(props: {
         <>
             <div className="relative min-h-0 flex-1">
                 {props.warning ? (
-                    <div className="mx-3 mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                    <div className="mx-3 mb-2 rounded-md border border-[var(--warn)]/30 bg-[var(--warn)]/10 px-3 py-2 text-xs text-[var(--warn)]">
                         {props.warning}
                     </div>
                 ) : null}
 
                 {props.isLoading && props.turns.length === 0 ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
+                    <div className="flex items-center justify-center py-8 text-sm text-[var(--cursor-text-secondary)]">
                         Loading turns...
                     </div>
                 ) : props.turns.length === 0 ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
+                    <div className="flex items-center justify-center py-8 text-sm text-[var(--cursor-text-secondary)]">
                         No turns yet.
                     </div>
                 ) : (
@@ -1963,8 +1963,8 @@ function GroupBriefTurnList(props: {
                                         <div className={`flex ${initiatorIsUser ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`max-w-[92%] rounded-2xl border px-3 py-2 text-sm ${
                                                 initiatorIsUser
-                                                    ? 'rounded-br-sm bg-[var(--app-button)] text-[var(--app-button-text)]'
-                                                    : 'rounded-bl-sm bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-border)]'
+                                                    ? 'rounded-br-sm bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
+                                                    : 'rounded-bl-sm bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] border-[var(--cursor-stroke-primary)]'
                                             }`}>
                                                 <BriefCardMarkdownPreview content={initiatorPreview} />
                                             </div>
@@ -1972,10 +1972,10 @@ function GroupBriefTurnList(props: {
 
                                         <div className="flex justify-start">
                                             {turn.status === 'open' ? (
-                                                <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
+                                                <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--cursor-bg-app)] px-3 py-2 ${
                                                     turn.status === 'open'
-                                                        ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
-                                                        : 'border-[var(--app-border)]'
+                                                        ? 'border-[var(--accent)]/40 shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_20%,transparent)]'
+                                                        : 'border-[var(--cursor-stroke-primary)]'
                                                 }`}>
                                                     <button
                                                         type="button"
@@ -1985,15 +1985,15 @@ function GroupBriefTurnList(props: {
                                                     >
                                                         <BriefCardMarkdownPreview
                                                             content={responderPreview}
-                                                            className="text-[var(--app-fg)]"
+                                                            className="text-[var(--cursor-text-primary)]"
                                                         />
-                                                        <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                                                        <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--cursor-text-secondary)]">
                                                             <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
                                                             <span>·</span>
                                                             <span className="underline decoration-dotted">Click to open details</span>
                                                             {turn.status === 'open' ? (
-                                                                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
-                                                                    <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+                                                                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--accent)]">
+                                                                    <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent)]" />
                                                                     Generating
                                                                 </span>
                                                             ) : null}
@@ -2003,12 +2003,12 @@ function GroupBriefTurnList(props: {
                                             ) : (
                                                 <div className="w-full max-w-[92%] px-1 py-1">
                                                     <BriefFullMarkdownContent content={responderPreview} />
-                                                    <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                                                    <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--cursor-text-secondary)]">
                                                         <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
                                                         <span>·</span>
                                                         <button
                                                             type="button"
-                                                            className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                                            className="underline decoration-dotted hover:text-[var(--cursor-text-primary)]"
                                                             onClick={() => openTurnDetails(turn.id)}
                                                         >
                                                             Open details
@@ -2027,23 +2027,23 @@ function GroupBriefTurnList(props: {
 
             {isMobileViewport ? (
                 activeTurnId ? (
-                    <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
-                        <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
+                    <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--cursor-bg-app)]">
+                        <div className="border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
                             <div className="flex items-center gap-2">
                                 <button
                                     type="button"
                                     onClick={closeTurnDetails}
-                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--cursor-text-primary)]"
                                     aria-label="Back"
                                 >
                                     <ChevronLeftIcon />
                                 </button>
                                 <div className="min-w-0">
-                                    <div className="truncate text-sm font-semibold text-[var(--app-fg)]">
+                                    <div className="truncate text-sm font-semibold text-[var(--cursor-text-primary)]">
                                         {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
                                     </div>
                                     {activeTurn ? (
-                                        <div className="text-xs text-[var(--app-hint)]">
+                                        <div className="text-xs text-[var(--cursor-text-secondary)]">
                                             {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
                                         </div>
                                     ) : null}
@@ -2058,7 +2058,7 @@ function GroupBriefTurnList(props: {
                                     <div className="mt-2">
                                         <button
                                             type="button"
-                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                            className="rounded border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-quiet)]"
                                             onClick={() => {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
@@ -2082,7 +2082,7 @@ function GroupBriefTurnList(props: {
                                     />
                                 </div>
                             ) : activeTurn && activeDetail?.error ? null : (
-                                <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+                                <div className="flex h-full items-center justify-center text-sm text-[var(--cursor-text-secondary)]">
                                     {activeTurn && activeDetail?.isLoading ? 'Loading turn details…' : 'No detail messages'}
                                 </div>
                             )}
@@ -2096,14 +2096,14 @@ function GroupBriefTurnList(props: {
                     }
                 }}>
                     <DialogContent className="flex h-[90vh] max-h-[90vh] max-w-4xl flex-col overflow-hidden p-0">
-                        <div className="border-b border-[var(--app-border)] px-4 py-3">
+                        <div className="border-b border-[var(--cursor-stroke-primary)] px-4 py-3">
                             <DialogHeader>
                                 <DialogTitle>
                                     {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
                                 </DialogTitle>
                             </DialogHeader>
                             {activeTurn ? (
-                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                <div className="mt-1 text-xs text-[var(--cursor-text-secondary)]">
                                     {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
                                 </div>
                             ) : null}
@@ -2116,7 +2116,7 @@ function GroupBriefTurnList(props: {
                                     <div className="mt-2">
                                         <button
                                             type="button"
-                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                            className="rounded border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-quiet)]"
                                             onClick={() => {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
@@ -2140,7 +2140,7 @@ function GroupBriefTurnList(props: {
                                     />
                                 </div>
                             ) : activeTurn && activeDetail?.error ? null : (
-                                <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+                                <div className="flex h-full items-center justify-center text-sm text-[var(--cursor-text-secondary)]">
                                     {activeTurn && activeDetail?.isLoading ? 'Loading turn details…' : 'No detail messages'}
                                 </div>
                             )}
@@ -2947,20 +2947,20 @@ export default function GroupDetailPage() {
     if (!group || groupError) {
         return (
             <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
-                <div className="text-sm text-red-600">{groupError ?? 'Group not found'}</div>
+                <div className="text-sm text-[var(--danger)]">{groupError ?? 'Group not found'}</div>
             </div>
         )
     }
 
     return (
-        <div className="flex h-full flex-col bg-[var(--app-bg)]">
+        <div className="groups-ui flex h-full flex-col bg-[var(--cursor-bg-app)]">
             {/* B. Members (collapsible) */}
-            <div className="border-b border-[var(--app-divider)]">
-                <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--app-hint)]">
+            <div className="border-b border-[var(--cursor-stroke-secondary)]">
+                <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--cursor-text-secondary)]">
                     <button
                         type="button"
                         onClick={() => setMembersExpanded(!membersExpanded)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--app-fg)] transition-colors"
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--cursor-text-primary)] transition-colors"
                     >
                         {membersExpanded ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
                         <span className="font-medium uppercase tracking-wide">Members</span>
@@ -3006,7 +3006,7 @@ export default function GroupDetailPage() {
                                     const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
                                     return getMemberWorkStatus(s) !== 'offline'
                                 }).length > 4 && (
-                                    <span className="text-[9px] text-[var(--app-hint)]">
+                                    <span className="text-[9px] text-[var(--cursor-text-secondary)]">
                                         +{members.filter(m => {
                                             const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
                                             return getMemberWorkStatus(s) !== 'offline'
@@ -3021,7 +3021,7 @@ export default function GroupDetailPage() {
                             type="button"
                             onClick={() => setShowAddMember(true)}
                             disabled={isPending}
-                            className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                            className="rounded border border-[var(--cursor-stroke-secondary)] px-2 py-0.5 text-[10px] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)] disabled:opacity-50"
                             title="Add member"
                         >
                             Add
@@ -3054,7 +3054,7 @@ export default function GroupDetailPage() {
                                         <button
                                             type="button"
                                             onClick={() => handleOpenPendingQuickModal(sessionId)}
-                                            className="rounded-md border border-[var(--app-badge-warning-text)] bg-[var(--app-badge-warning-bg)] px-2 py-1 text-[10px] font-medium text-[var(--app-badge-warning-text)] hover:opacity-80"
+                                            className="rounded-md border border-[var(--cursor-warning)] bg-[var(--cursor-warning-bg)] px-2 py-1 text-[10px] font-medium text-[var(--cursor-warning)] hover:opacity-80"
                                             title="Handle pending permission requests"
                                         >
                                             Pending {pendingCount}
@@ -3068,12 +3068,12 @@ export default function GroupDetailPage() {
             </div>
 
             {/* C. Group Note (collapsible) */}
-            <div className="border-b border-[var(--app-divider)]">
-                <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--app-hint)]">
+            <div className="border-b border-[var(--cursor-stroke-secondary)]">
+                <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--cursor-text-secondary)]">
                     <button
                         type="button"
                         onClick={() => setNoteOpen((o) => !o)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--app-fg)] transition-colors"
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--cursor-text-primary)] transition-colors"
                     >
                         {noteOpen ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
                         <span className="font-medium uppercase tracking-wide">Note</span>
@@ -3084,7 +3084,7 @@ export default function GroupDetailPage() {
                             type="button"
                             onClick={() => { void handleSaveNote() }}
                             disabled={isPending}
-                            className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                            className="rounded border border-[var(--cursor-stroke-secondary)] px-2 py-0.5 text-[10px] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)] disabled:opacity-50"
                             title="保存Note内容和Prompt"
                         >
                             Save
@@ -3093,7 +3093,7 @@ export default function GroupDetailPage() {
                             type="button"
                             onClick={() => { void handleRefreshNote() }}
                             disabled={isPending}
-                            className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                            className="rounded border border-[var(--cursor-stroke-secondary)] px-2 py-0.5 text-[10px] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)] disabled:opacity-50"
                         >
                             Generate
                         </button>
@@ -3101,7 +3101,7 @@ export default function GroupDetailPage() {
                             type="button"
                             onClick={() => { void handleBroadcastNote() }}
                             disabled={isPending || !note?.content}
-                            className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
+                            className="rounded border border-[var(--cursor-stroke-secondary)] px-2 py-0.5 text-[10px] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)] disabled:opacity-50"
                             title="广播当前Note内容到所有群组成员"
                         >
                             📢 Broadcast
@@ -3119,10 +3119,10 @@ export default function GroupDetailPage() {
                                     onChange={(e) => setNoteDraft(e.target.value)}
                                     placeholder="Note content..."
                                     rows={5}
-                                    className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)] resize-y"
+                                    className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-sm outline-none focus:border-[var(--cursor-link)] resize-y"
                                 />
                                 <div className="mt-2 grid grid-cols-[auto_1fr] items-start gap-x-2 gap-y-1.5">
-                                    <span className="self-center text-[11px] text-[var(--app-hint)]">Executor</span>
+                                    <span className="self-center text-[11px] text-[var(--cursor-text-secondary)]">Executor</span>
                                     <select
                                         value={group.group.noteSessionId ?? ''}
                                         onChange={(e) => {
@@ -3130,7 +3130,7 @@ export default function GroupDetailPage() {
                                             void handleUpdateNoteExecutor(next.length > 0 ? next : null)
                                         }}
                                         disabled={isPending}
-                                        className="w-full rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
+                                        className="w-full rounded border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2 py-1 text-[11px] text-[var(--cursor-text-primary)] outline-none focus:border-[var(--cursor-link)] disabled:opacity-60"
                                     >
                                         <option value="">Not configured</option>
                                         {members
@@ -3146,13 +3146,13 @@ export default function GroupDetailPage() {
                                                 )
                                             })}
                                     </select>
-                                    <span className="pt-1 text-[11px] text-[var(--app-hint)]">Prompt</span>
+                                    <span className="pt-1 text-[11px] text-[var(--cursor-text-secondary)]">Prompt</span>
                                     <textarea
                                         value={notePromptDraft}
                                         onChange={(e) => setNotePromptDraft(e.target.value)}
                                         placeholder="Optional prompt for each generation..."
                                         rows={2}
-                                        className="w-full resize-y rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                        className="w-full resize-y rounded border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2 py-1 text-[11px] text-[var(--cursor-text-primary)] outline-none focus:border-[var(--cursor-link)]"
                                     />
                                 </div>
                             </>
@@ -3164,12 +3164,12 @@ export default function GroupDetailPage() {
             {/* D. Timeline */}
             <div className="flex-1 min-h-0 flex flex-col">
                 <div className="px-3 pb-2 pt-1">
-                    <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-1">
+                    <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)]/40 p-1">
                         <button
                             type="button"
                             className={`rounded px-2.5 py-1 text-xs transition-colors ${viewMode === 'normal'
-                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                ? 'bg-[var(--cursor-bg-app)] text-[var(--cursor-text-primary)]'
+                                : 'text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]'}`}
                             onClick={() => setViewMode('normal')}
                         >
                             Normal
@@ -3177,8 +3177,8 @@ export default function GroupDetailPage() {
                         <button
                             type="button"
                             className={`rounded px-2.5 py-1 text-xs transition-colors ${viewMode === 'brief'
-                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                ? 'bg-[var(--cursor-bg-app)] text-[var(--cursor-text-primary)]'
+                                : 'text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]'}`}
                             onClick={() => setViewMode('brief')}
                         >
                             Brief
@@ -3186,8 +3186,8 @@ export default function GroupDetailPage() {
                         <button
                             type="button"
                             className={`rounded px-2.5 py-1 text-xs font-mono transition-colors ${viewMode === 'cli'
-                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                ? 'bg-[var(--cursor-bg-app)] text-[var(--cursor-text-primary)]'
+                                : 'text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]'}`}
                             onClick={() => setViewMode('cli')}
                         >
                             CLI
@@ -3213,7 +3213,7 @@ export default function GroupDetailPage() {
                                 }}
                             />
                         ) : (
-                            <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
+                            <div className="flex items-center justify-center py-8 text-sm text-[var(--cursor-text-secondary)]">
                                 Group unavailable.
                             </div>
                         )
@@ -3226,7 +3226,7 @@ export default function GroupDetailPage() {
                             <LoadingState label="Loading messages..." className="text-sm" />
                         </div>
                     ) : visibleMessages.length === 0 ? (
-                        <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
+                        <div className="flex items-center justify-center py-8 text-sm text-[var(--cursor-text-secondary)]">
                             No messages yet. Start the conversation below.
                         </div>
                     ) : (
@@ -3272,9 +3272,9 @@ export default function GroupDetailPage() {
             </div>
 
             {/* E. Composer */}
-            <div className="border-t border-[var(--app-divider)] bg-[var(--app-bg)] pb-[env(safe-area-inset-bottom)]">
+            <div className="border-t border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] pb-[env(safe-area-inset-bottom)]">
                 {actionError ? (
-                    <div className="pl-3.5 pr-3 pt-2 text-xs text-red-600">{actionError}</div>
+                    <div className="pl-3.5 pr-3 pt-2 text-xs text-[var(--danger)]">{actionError}</div>
                 ) : null}
                 <form onSubmit={(e) => { void handleSend(e) }} className="relative px-3 pt-2">
                     <input
@@ -3293,18 +3293,18 @@ export default function GroupDetailPage() {
                             position={mentionPosition}
                         />
                     ) : null}
-                    <div className={`overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)] transition-colors ${quotedMessage ? 'ring-1 ring-[var(--app-link)]/40' : ''}`}>
+                    <div className={`overflow-hidden rounded-[20px] bg-[var(--cursor-bg-card)] transition-colors ${quotedMessage ? 'ring-1 ring-[var(--cursor-link)]/40' : ''}`}>
                         <ComposerAttachmentList
                             attachments={composerAttachments}
                             disabled={isPending}
                             onRemove={removeComposerAttachment}
                         />
                         {quotedMessage && (
-                            <div className="flex items-start gap-1.5 border-b border-[var(--app-border)] px-4 py-2">
-                                <div className="h-3 w-0.5 shrink-0 rounded-full bg-[var(--app-link)]" />
-                                <QuoteIcon className="mt-0.5 h-3 w-3 shrink-0 text-[var(--app-link)]" />
-                                <span className="min-w-0 flex-1 text-[11px] leading-4 text-[var(--app-hint)]">
-                                    <span className="font-medium text-[var(--app-link)]">
+                            <div className="flex items-start gap-1.5 border-b border-[var(--cursor-stroke-primary)] px-4 py-2">
+                                <div className="h-3 w-0.5 shrink-0 rounded-full bg-[var(--cursor-link)]" />
+                                <QuoteIcon className="mt-0.5 h-3 w-3 shrink-0 text-[var(--cursor-link)]" />
+                                <span className="min-w-0 flex-1 text-[11px] leading-4 text-[var(--cursor-text-secondary)]">
+                                    <span className="font-medium text-[var(--cursor-link)]">
                                         {quotedMessage.actorName || getActorSessionId(quotedMessage) || 'Unknown'}
                                     </span>
                                     {' · '}
@@ -3315,7 +3315,7 @@ export default function GroupDetailPage() {
                                 <button
                                     type="button"
                                     onClick={() => setQuotedMessage(null)}
-                                    className="mt-0.5 shrink-0 rounded p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
+                                    className="mt-0.5 shrink-0 rounded p-0.5 text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]"
                                     title="Cancel reply"
                                 >
                                     <CloseIcon className="h-3 w-3" />
@@ -3340,7 +3340,7 @@ export default function GroupDetailPage() {
                                 type="button"
                                 onClick={openAttachmentPicker}
                                 disabled={isPending || !uploadSessionId}
-                                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-primary)]/60 transition-colors hover:bg-[var(--cursor-bg-app)] hover:text-[var(--cursor-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                                 title={uploadSessionId ? 'Attach files' : 'No online member available for uploads'}
                             >
                                 <AttachmentIcon className="h-[18px] w-[18px]" />
@@ -3348,7 +3348,7 @@ export default function GroupDetailPage() {
                             <button
                                 type="submit"
                                 disabled={!canSendComposer}
-                                className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${canSendComposer ? 'bg-black' : 'bg-[#C0C0C0]'}`}
+                                className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${canSendComposer ? 'bg-[var(--accent)]' : 'bg-[var(--cursor-bg-quaternary)] text-[var(--cursor-text-secondary)]'}`}
                                 title="Send"
                             >
                                 <SendIcon className="h-4 w-4" />

@@ -7,7 +7,7 @@ export function PlanPanel(props: { session: Session }) {
 
     if (!plan?.steps?.length) {
         return (
-            <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--text-tertiary)]">
+            <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--cursor-text-tertiary)]">
                 No plan available for this run.
             </div>
         )
@@ -24,34 +24,34 @@ export function PlanPanel(props: { session: Session }) {
                             key={i}
                             className={`flex items-start gap-3 rounded-md px-3 py-2.5 transition-colors ${
                                 isActive
-                                    ? 'bg-[var(--bg-accent-secondary)]'
+                                    ? 'bg-[var(--cursor-info-bg)]'
                                     : ''
                             }`}
                         >
                             <div className="mt-0.5 flex-shrink-0">
                                 {isDone ? (
                                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                        <circle cx="8" cy="8" r="7" fill="var(--success)" />
+                                        <circle cx="8" cy="8" r="7" fill="var(--cursor-success)" />
                                         <path d="M5 8l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                     </svg>
                                 ) : isActive ? (
                                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="animate-spin">
-                                        <circle cx="8" cy="8" r="6.5" stroke="var(--accent)" strokeWidth="1.5" strokeDasharray="30 12" />
+                                        <circle cx="8" cy="8" r="6.5" stroke="var(--cursor-link)" strokeWidth="1.5" strokeDasharray="30 12" />
                                     </svg>
                                 ) : (
                                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                        <circle cx="8" cy="8" r="6.5" stroke="var(--border-secondary)" strokeWidth="1.5" />
+                                        <circle cx="8" cy="8" r="6.5" stroke="var(--cursor-stroke-primary)" strokeWidth="1.5" />
                                     </svg>
                                 )}
                             </div>
                             <div className="min-w-0 flex-1">
                                 <div className={`text-[13px] font-medium leading-tight ${
-                                    isDone ? 'text-[var(--text-tertiary)] line-through' : 'text-[var(--text-primary)]'
+                                    isDone ? 'text-[var(--cursor-text-tertiary)] line-through' : 'text-[var(--cursor-text-primary)]'
                                 }`}>
                                     {step.title}
                                 </div>
                                 {step.description && (
-                                    <div className="mt-0.5 text-xs text-[var(--text-tertiary)] leading-relaxed">
+                                    <div className="mt-0.5 text-xs text-[var(--cursor-text-tertiary)] leading-relaxed">
                                         {step.description}
                                     </div>
                                 )}

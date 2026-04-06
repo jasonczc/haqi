@@ -62,7 +62,7 @@ export function MachineList(props: {
 
     return (
         <div className="flex flex-col gap-3 p-3">
-            <div className="text-xs text-[var(--app-hint)]">
+            <div className="text-xs text-[var(--text-tertiary)]">
                 {props.machines.length} {t('machine.list.online')}
             </div>
 
@@ -80,40 +80,40 @@ export function MachineList(props: {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-2 pt-0">
-                            <div className="flex flex-wrap gap-1 text-[11px] text-[var(--app-hint)]">
+                            <div className="flex flex-wrap gap-1 text-[11px] text-[var(--text-tertiary)]">
                                 {getMachineDetailChips(m).map((chip) => (
                                     <span
                                         key={chip}
-                                        className="rounded-full bg-[var(--app-bg)] px-2 py-1"
+                                        className="rounded-full bg-[var(--bg-quaternary)] px-2 py-1"
                                     >
                                         {chip}
                                     </span>
                                 ))}
                                 {!m.active ? (
-                                    <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-700">
+                                    <span className="rounded-full bg-[var(--bg-warning-secondary)] px-2 py-1 text-[var(--warn)]">
                                         inactive
                                     </span>
                                 ) : null}
                             </div>
                             {m.runnerState?.workspacePreparation ? (
-                                <div className="text-xs text-[var(--app-hint)]">
+                                <div className="text-xs text-[var(--text-tertiary)]">
                                     workspace: {m.runnerState.workspacePreparation.phase}
                                     {typeof m.runnerState.workspacePreparation.progress === 'number' ? ` · ${m.runnerState.workspacePreparation.progress}%` : ''}
                                     {m.runnerState.workspacePreparation.repo ? ` · ${m.runnerState.workspacePreparation.repo}` : ''}
                                 </div>
                             ) : null}
                             {m.runnerState?.lastProvisionError ? (
-                                <div className="text-xs text-red-600">
+                                <div className="text-xs text-[var(--danger)]">
                                     provision: {m.runnerState.lastProvisionError.message}
                                 </div>
                             ) : null}
                             {m.runnerState?.lastWorkspaceError ? (
-                                <div className="text-xs text-red-600">
+                                <div className="text-xs text-[var(--danger)]">
                                     workspace: {m.runnerState.lastWorkspaceError.message}
                                 </div>
                             ) : null}
                             {m.runnerState?.lastSpawnError ? (
-                                <div className="text-xs text-red-600">
+                                <div className="text-xs text-[var(--danger)]">
                                     spawn: {m.runnerState.lastSpawnError.message}
                                 </div>
                             ) : null}

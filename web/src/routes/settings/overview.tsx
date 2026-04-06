@@ -30,12 +30,12 @@ function ActivityHeatmap(props: { data: Map<string, number> }) {
 
     const maxCount = useMemo(() => Math.max(...props.data.values(), 1), [props.data])
     const colorFor = (count: number) => {
-        if (count <= 0) return '#f3f4f6'
+        if (count <= 0) return 'var(--cursor-bg-quaternary)'
         const ratio = count / maxCount
-        if (ratio < 0.25) return '#a7f3d0'
-        if (ratio < 0.5) return '#34d399'
-        if (ratio < 0.75) return '#10b981'
-        return '#059669'
+        if (ratio < 0.25) return 'var(--cursor-success-bg-quiet)'
+        if (ratio < 0.5) return 'var(--cursor-success-bg)'
+        if (ratio < 0.75) return 'var(--cursor-success-secondary)'
+        return 'var(--cursor-success)'
     }
 
     return (

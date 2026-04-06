@@ -41,17 +41,17 @@ function renderOtherAnswers(
             {customAnswers.map((answer, i) => (
                 <div
                     key={`other-${i}`}
-                    className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2"
+                    className="rounded-md border border-[var(--success)]/25 bg-[var(--success)]/10 px-2 py-2"
                 >
                     <div className="flex items-start gap-2">
-                        <span className="shrink-0 text-sm text-emerald-600">
+                        <span className="shrink-0 text-sm text-[var(--success)]">
                             {isMulti ? '☑' : '●'}
                         </span>
                         <div className="min-w-0 flex-1">
-                            <div className="text-sm text-emerald-700 dark:text-emerald-300 font-medium break-words">
+                            <div className="text-sm text-[var(--success)] font-medium break-words">
                                 {answer}
                             </div>
-                            <div className="mt-0.5 text-xs text-[var(--app-hint)]">
+                            <div className="mt-0.5 text-xs text-[var(--cursor-text-secondary)]">
                                 {customLabel}
                             </div>
                         </div>
@@ -75,12 +75,12 @@ function renderFreeformAnswers(
             {cleaned.map((answer, i) => (
                 <div
                     key={i}
-                    className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2"
+                    className="rounded-md border border-[var(--success)]/25 bg-[var(--success)]/10 px-2 py-2"
                 >
                     <div className="flex items-start gap-2">
-                        <span className="shrink-0 text-sm text-emerald-600">●</span>
+                        <span className="shrink-0 text-sm text-[var(--success)]">●</span>
                         <div className="min-w-0 flex-1">
-                            <div className="text-sm text-emerald-700 dark:text-emerald-300 font-medium break-words">
+                            <div className="text-sm text-[var(--success)] font-medium break-words">
                                 {answer}
                             </div>
                         </div>
@@ -119,21 +119,21 @@ export function AskUserQuestionView(props: ToolViewProps) {
                 const customAnswers = trimmedAnswers.filter((answer) => answer !== 'skipped' && !optionLabels.has(answer))
 
                 return (
-                    <div key={q.id} className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+                    <div key={q.id} className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] p-3">
                         {q.header ? (
-                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--cursor-text-secondary)]">
                                 {q.header}
                             </div>
                         ) : null}
 
                         {q.question ? (
-                            <div className="text-sm text-[var(--app-fg)] break-words">
+                            <div className="text-sm text-[var(--cursor-text-primary)] break-words">
                                 {q.question}
                             </div>
                         ) : null}
 
                         {isSkipped ? (
-                            <div className="mt-3 rounded-md border border-[var(--app-border)] px-2 py-2 text-sm text-[var(--app-hint)]">
+                            <div className="mt-3 rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-2 text-sm text-[var(--cursor-text-secondary)]">
                                 {t('tool.questionOverlay.skippedValue')}
                             </div>
                         ) : q.options.length > 0 ? (
@@ -146,8 +146,8 @@ export function AskUserQuestionView(props: ToolViewProps) {
                                             className={cn(
                                                 "rounded-md border px-2 py-2",
                                                 isSelected
-                                                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
-                                                    : "border-[var(--app-border)]"
+                                                    ? "border-[var(--success)]/25 bg-[var(--success)]/10"
+                                                    : "border-[var(--cursor-stroke-primary)]"
                                             )}
                                         >
                                             <div className="flex items-start gap-2">
@@ -155,8 +155,8 @@ export function AskUserQuestionView(props: ToolViewProps) {
                                                     <span className={cn(
                                                         "shrink-0 text-sm",
                                                         isSelected
-                                                            ? "text-emerald-600"
-                                                            : "text-[var(--app-hint)]"
+                                                            ? "text-[var(--success)]"
+                                                            : "text-[var(--cursor-text-secondary)]"
                                                     )}>
                                                         {getSelectionMark(isMulti, isSelected)}
                                                     </span>
@@ -165,13 +165,13 @@ export function AskUserQuestionView(props: ToolViewProps) {
                                                     <div className={cn(
                                                         "text-sm break-words",
                                                         isSelected
-                                                            ? "text-emerald-700 dark:text-emerald-300 font-medium"
-                                                            : "text-[var(--app-fg)]"
+                                                            ? "text-[var(--success)] font-medium"
+                                                            : "text-[var(--cursor-text-primary)]"
                                                     )}>
                                                         {opt.label}
                                                     </div>
                                                     {opt.description ? (
-                                                        <div className="mt-0.5 text-xs text-[var(--app-hint)] break-words">
+                                                        <div className="mt-0.5 text-xs text-[var(--cursor-text-secondary)] break-words">
                                                             {opt.description}
                                                         </div>
                                                     ) : null}

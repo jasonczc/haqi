@@ -103,7 +103,7 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
 
     if (!request) {
         return (
-            <div className="p-4 text-sm text-red-600">
+            <div className="p-4 text-sm text-[var(--danger)]">
                 {requestQuery.error instanceof Error ? requestQuery.error.message : 'Cloud request not found'}
             </div>
         )
@@ -117,7 +117,7 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
             <div className="flex items-center justify-between gap-3">
                 <div>
-                    <div className="text-xs uppercase tracking-[0.12em] text-[var(--app-hint)]">Cloud Request</div>
+                    <div className="text-xs uppercase tracking-[0.12em] text-[var(--cursor-text-secondary)]">Cloud Request</div>
                     <h1 className="text-xl font-semibold">{request.id}</h1>
                 </div>
                 <div className="flex gap-2">
@@ -150,22 +150,22 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
                 </div>
             </div>
 
-            <div className="grid gap-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-4 text-sm md:grid-cols-2">
+            <div className="grid gap-3 rounded-lg border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-4 text-sm md:grid-cols-2">
                 <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Phase</div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Phase</div>
                     <div className="mt-1 font-medium">{request.phase}</div>
                 </div>
                 <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Worker</div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Worker</div>
                     <div className="mt-1 font-medium">{request.selectedMachineId ?? 'pending scheduler'}</div>
                 </div>
                 <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Workspace</div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Workspace</div>
                     <div className="mt-1 font-medium">
                         {request.workspaceId ? (
                             <button
                                 type="button"
-                                className="text-[var(--app-link)] hover:underline"
+                                className="text-[var(--cursor-link)] hover:underline"
                                 onClick={() => navigate({
                                     to: '/settings/workspaces/$workspaceId',
                                     params: { workspaceId: request.workspaceId! }
@@ -177,30 +177,30 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
                     </div>
                 </div>
                 <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Environment</div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Environment</div>
                     <div className="mt-1 font-medium">{request.request.environmentId ?? request.request.environment?.id ?? 'default'}</div>
                 </div>
                 <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Checkpoint</div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Checkpoint</div>
                     <div className="mt-1 font-medium">{request.request.checkpointId ?? request.request.environment?.runtime?.checkpointId ?? 'default'}</div>
                 </div>
                 <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Launch</div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Launch</div>
                     <div className="mt-1 font-medium">{request.request.launchMode ?? 'interactive'}</div>
                 </div>
                 <div className="md:col-span-2">
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Repository</div>
+                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Repository</div>
                     <div className="mt-1 font-medium">
                         {repository?.url ?? 'none'}
                     </div>
                     {repository ? (
-                        <div className="mt-1 text-[var(--app-hint)]">{formatRef(repository.ref)}</div>
+                        <div className="mt-1 text-[var(--cursor-text-secondary)]">{formatRef(repository.ref)}</div>
                     ) : null}
                 </div>
                 {request.error ? (
                     <div className="md:col-span-2">
-                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--app-hint)]">Last Error</div>
-                        <div className="mt-1 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-red-700">
+                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Last Error</div>
+                        <div className="mt-1 rounded-md border border-[var(--danger)]/20 bg-[var(--danger)]/10 p-3 text-[var(--danger)]">
                             <div className="font-medium">{request.error.code ?? 'error'}</div>
                             <div className="mt-1">{request.error.message}</div>
                         </div>

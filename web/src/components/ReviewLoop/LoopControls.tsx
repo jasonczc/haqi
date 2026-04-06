@@ -13,8 +13,8 @@ type LoopControlsProps = {
 function StatusIndicator({ status }: { status: ReviewLoopStatus }) {
     if (status === 'executing') {
         return (
-            <div className="font-mono text-xs text-[var(--app-hint)] flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--app-link)] animate-[blink_1s_step-end_infinite]" />
+            <div className="font-mono text-xs text-[var(--text-tertiary)] flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)] animate-[blink_1s_step-end_infinite]" />
                 <span>Executing...</span>
                 <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
             </div>
@@ -23,8 +23,8 @@ function StatusIndicator({ status }: { status: ReviewLoopStatus }) {
 
     if (status === 'reviewing') {
         return (
-            <div className="font-mono text-xs text-[var(--app-hint)] flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--app-link)] animate-[blink_1s_step-end_infinite]" />
+            <div className="font-mono text-xs text-[var(--text-tertiary)] flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)] animate-[blink_1s_step-end_infinite]" />
                 <span>Reviewing...</span>
                 <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
             </div>
@@ -49,7 +49,7 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
                         type="button"
                         onClick={onPause}
                         disabled={isPending}
-                        className="rounded-sm border border-amber-500/50 bg-transparent px-3 py-1 font-mono text-xs text-amber-500 hover:bg-amber-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="rounded-sm border border-[var(--warn)]/40 bg-transparent px-3 py-1 font-mono text-xs text-[var(--warn)] transition-colors hover:bg-[var(--warn)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {isPending ? 'Pausing...' : 'Pause ⏸'}
                     </button>
@@ -57,7 +57,7 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
                         type="button"
                         onClick={() => setShowCancelConfirm(true)}
                         disabled={isPending}
-                        className="rounded-sm border border-[var(--app-border)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="rounded-sm border border-[var(--border-secondary)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Cancel &#x2717;
                     </button>
@@ -96,21 +96,21 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
 
         return (
             <>
-                <div className="font-mono text-xs border border-[var(--app-border)] rounded-sm overflow-hidden min-w-0">
+                <div className="font-mono text-xs border border-[var(--border-secondary)] rounded-sm overflow-hidden min-w-0">
                     {/* Header */}
-                    <div className="px-2 py-1 bg-[var(--app-subtle-bg)] text-[var(--app-fg)] font-medium" style={{ borderBottom: '1px solid var(--app-border)' }}>
+                    <div className="px-2 py-1 bg-[var(--bg-quaternary)] text-[var(--text-primary)] font-medium" style={{ borderBottom: '1px solid var(--border-secondary)' }}>
                         {status === 'paused' ? 'Paused — Add Instructions' : 'Action Required'}
                     </div>
 
                     <div className="p-2 space-y-2 min-w-0">
                         {status === 'paused' && (
-                            <div className="text-amber-500">
+                            <div className="text-[var(--warn)]">
                                 Loop paused. Add your instructions for the reviewer below, then continue.
                             </div>
                         )}
 
                         {/* Instruction label */}
-                        <div className="text-[var(--app-hint)]">
+                        <div className="text-[var(--text-tertiary)]">
                             {'>'} {status === 'paused' ? 'Instructions for reviewer:' : 'Additional instruction (optional):'}
                         </div>
 
@@ -120,7 +120,7 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
                             onChange={(e) => setInstruction(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder="..."
-                            className="w-full min-w-0 resize-none rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] px-2 py-1.5 font-mono text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                            className="w-full min-w-0 resize-none rounded-sm border border-[var(--border-secondary)] bg-[var(--cursor-code-bg)] px-2 py-1.5 font-mono text-xs text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:border-[var(--accent)]"
                             rows={3}
                             disabled={isPending}
                             autoFocus={status === 'paused'}
@@ -132,7 +132,7 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
                                 type="button"
                                 onClick={handleContinue}
                                 disabled={isPending}
-                                className="rounded-sm border border-[var(--app-link)] bg-[var(--app-subtle-bg)] px-3 py-1 font-mono text-xs text-[var(--app-fg)] hover:bg-[var(--app-link)] hover:text-[var(--app-button-text)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="rounded-sm border border-[var(--accent)] bg-[var(--bg-quaternary)] px-3 py-1 font-mono text-xs text-[var(--text-primary)] hover:bg-[var(--accent)] hover:text-[var(--cursor-button-text)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isPending ? 'Sending...' : 'Continue \u25B8'}
                             </button>
@@ -140,7 +140,7 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
                                 type="button"
                                 onClick={() => setShowCancelConfirm(true)}
                                 disabled={isPending}
-                                className="rounded-sm border border-[var(--app-border)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="rounded-sm border border-[var(--border-secondary)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Cancel &#x2717;
                             </button>

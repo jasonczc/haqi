@@ -349,13 +349,13 @@ export function SessionList(props: {
         <div className="mx-auto flex h-full w-full max-w-content min-h-0 flex-col">
             {renderHeader ? (
                 <div className="flex items-center justify-between px-3 py-1">
-                    <div className="text-xs text-[var(--app-hint)]">
+                    <div className="text-xs text-[var(--text-tertiary)]">
                         {t('sessions.count', { n: props.sessions.length, m: 0 })}
                     </div>
                     <button
                         type="button"
                         onClick={() => props.onNewSession()}
-                        className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
+                        className="session-list-new-button rounded-full p-1.5 text-[var(--accent)] transition-colors"
                         title={t('sessions.new')}
                     >
                         <PlusIcon className="h-5 w-5" />

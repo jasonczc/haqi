@@ -8,10 +8,10 @@ const verdictActionConfig: Record<string, {
     label: string
     color: string
 }> = {
-    continue: { label: 'CONTINUE', color: 'var(--app-badge-warning-text)' },
-    pass: { label: 'PASS', color: 'var(--app-badge-success-text)' },
-    abort: { label: 'ABORT', color: 'var(--app-badge-error-text)' },
-    notify_user: { label: 'NOTIFY', color: 'var(--app-badge-info-text)' },
+    continue: { label: 'CONTINUE', color: 'var(--warn)' },
+    pass: { label: 'PASS', color: 'var(--success)' },
+    abort: { label: 'ABORT', color: 'var(--danger)' },
+    notify_user: { label: 'NOTIFY', color: 'var(--cursor-info)' },
 }
 
 function formatTime(ts: number): string {
@@ -24,7 +24,7 @@ function formatTime(ts: number): string {
 
 export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: boolean }) {
     const actionCfg = round.verdict ? verdictActionConfig[round.verdict.action] : null
-    const borderColor = isLatest ? 'var(--app-link)' : 'var(--app-border)'
+    const borderColor = isLatest ? 'var(--accent)' : 'var(--border-secondary)'
 
     return (
         <div
@@ -33,10 +33,10 @@ export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: b
         >
             {/* Header */}
             <div
-                className="flex items-center gap-2 px-2 py-1 bg-[var(--app-subtle-bg)] text-[var(--app-hint)] min-w-0 flex-wrap"
-                style={{ borderBottom: '1px solid var(--app-border)' }}
+                className="flex items-center gap-2 px-2 py-1 bg-[var(--bg-quaternary)] text-[var(--text-tertiary)] min-w-0 flex-wrap"
+                style={{ borderBottom: '1px solid var(--border-secondary)' }}
             >
-                <span className="text-[var(--app-fg)] shrink-0">Round {round.round}</span>
+                <span className="text-[var(--text-primary)] shrink-0">Round {round.round}</span>
                 <span className="shrink-0">[{round.status.replace('_', ' ').toUpperCase()}]</span>
                 <span className="tabular-nums shrink-0">{formatTime(round.startedAt)}</span>
             </div>
@@ -46,10 +46,10 @@ export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: b
                 {/* Instruction */}
                 {round.instruction && (
                     <div className="min-w-0">
-                        <div className="text-[var(--app-hint)]"># instruction</div>
-                        <div className="text-[var(--app-fg)] whitespace-pre-wrap break-words">
+                        <div className="text-[var(--text-tertiary)]"># instruction</div>
+                        <div className="text-[var(--text-primary)] whitespace-pre-wrap break-words">
                             {round.instruction.split('\n').map((line, i) => (
-                                <div key={i}><span className="text-[var(--app-hint)]">&gt;</span> {line}</div>
+                                <div key={i}><span className="text-[var(--text-tertiary)]">&gt;</span> {line}</div>
                             ))}
                         </div>
                     </div>
@@ -62,18 +62,18 @@ export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: b
 
                 {/* Verdict */}
                 {round.verdict && (
-                    <div className="pt-1 min-w-0" style={{ borderTop: '1px solid var(--app-divider)' }}>
-                        <div className="flex items-center gap-2 text-[var(--app-hint)] min-w-0">
-                            <div className="border-t border-[var(--app-border)] w-3 shrink-0" />
-                            <span className="text-[var(--app-fg)] shrink-0">Verdict:</span>
+                    <div className="pt-1 min-w-0" style={{ borderTop: '1px solid var(--border-tertiary)' }}>
+                        <div className="flex items-center gap-2 text-[var(--text-tertiary)] min-w-0">
+                            <div className="border-t border-[var(--border-secondary)] w-3 shrink-0" />
+                            <span className="text-[var(--text-primary)] shrink-0">Verdict:</span>
                             {actionCfg && (
                                 <span className="shrink-0" style={{ color: actionCfg.color }}>{actionCfg.label}</span>
                             )}
-                            <div className="flex-1 border-t border-[var(--app-border)]" />
+                            <div className="flex-1 border-t border-[var(--border-secondary)]" />
                         </div>
 
                         {round.verdict.feedback && (
-                            <p className="text-[var(--app-fg)] whitespace-pre-wrap break-words mt-1">
+                            <p className="text-[var(--text-primary)] whitespace-pre-wrap break-words mt-1">
                                 {round.verdict.feedback}
                             </p>
                         )}

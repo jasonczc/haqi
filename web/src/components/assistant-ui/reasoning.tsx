@@ -41,7 +41,7 @@ export const Reasoning: FC = () => {
         <MarkdownTextPrimitive
             remarkPlugins={MARKDOWN_PLUGINS}
             components={defaultComponents}
-            className={cn('aui-reasoning-content chat-reasoning-content min-w-0 max-w-full break-words text-sm text-[var(--app-hint)]')}
+            className={cn('aui-reasoning-content chat-reasoning-content min-w-0 max-w-full break-words text-sm text-[var(--cursor-text-secondary)]')}
         />
     )
 }
@@ -74,14 +74,14 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                 className={cn(
                     'chat-reasoning-toggle',
                     'flex items-center gap-1.5 text-xs font-medium',
-                    'text-[var(--app-hint)] hover:text-[var(--app-fg)]',
+                    'text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]',
                     'transition-colors cursor-pointer select-none'
                 )}
             >
                 <ChevronIcon open={isOpen} />
                 <span>Reasoning</span>
                 {isStreaming && (
-                    <span className="flex items-center gap-1 ml-1 text-[var(--app-hint)]">
+                    <span className="flex items-center gap-1 ml-1 text-[var(--cursor-text-secondary)]">
                         <ShimmerDot />
                     </span>
                 )}
@@ -94,7 +94,7 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                     isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
                 )}
             >
-                <div className="chat-reasoning-body pl-4 pt-2 border-l-2 border-[var(--app-border)] ml-0.5">
+                <div className="chat-reasoning-body ml-0.5 border-l-2 border-[var(--cursor-stroke-secondary)] pl-4 pt-2">
                     {children}
                 </div>
             </div>

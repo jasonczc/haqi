@@ -31,8 +31,8 @@ export function ReconnectingBanner({
     }
 
     return (
-        <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white text-center py-2 text-sm font-medium z-50 flex items-center justify-center gap-2">
-            <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+        <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-center gap-2 border-b border-[var(--warn)]/20 bg-[var(--warn)]/12 py-2 text-center text-sm font-medium text-[var(--warn)]">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             {t('reconnecting.message')}
             {reasonLabel ? <span className="opacity-90">({reasonLabel})</span> : null}
         </div>

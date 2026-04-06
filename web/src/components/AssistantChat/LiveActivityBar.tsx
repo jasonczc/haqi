@@ -18,7 +18,7 @@ export function LiveActivityBar(props: {
 
     return (
         <div className="animate-bounce-in mx-auto w-full max-w-content px-3 pb-1">
-            <div className="flex items-center gap-2 rounded-lg bg-[var(--app-subtle-bg)] px-3 py-1.5 text-xs text-[var(--app-hint)]">
+            <div className="flex items-center gap-2 rounded-lg bg-[var(--cursor-bg-soft)] px-3 py-1.5 text-xs text-[var(--cursor-text-secondary)]">
                 <Spinner size="sm" label={null} className="text-current" />
                 <span className="truncate">{activity}</span>
             </div>

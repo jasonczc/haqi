@@ -11,11 +11,11 @@ const dotSymbol: Record<ReviewRoundStatus, string> = {
 }
 
 const dotColor: Record<ReviewRoundStatus, string> = {
-    instructed: 'var(--app-hint)',
-    executing: 'var(--app-badge-warning-text)',
-    executed: 'var(--app-badge-info-text)',
-    reviewed: 'var(--app-badge-success-text)',
-    user_pending: 'var(--app-badge-warning-text)',
+    instructed: 'var(--text-tertiary)',
+    executing: 'var(--warn)',
+    executed: 'var(--cursor-info)',
+    reviewed: 'var(--success)',
+    user_pending: 'var(--warn)',
 }
 
 export function RoundTimeline({ rounds }: { rounds: ReviewRound[] }) {
@@ -30,28 +30,28 @@ export function RoundTimeline({ rounds }: { rounds: ReviewRound[] }) {
                 const isLatest = i === sorted.length - 1
                 const isExpanded = expandedId === round.id
                 const symbol = dotSymbol[round.status] ?? '\u25CB'
-                const color = dotColor[round.status] ?? 'var(--app-hint)'
+                const color = dotColor[round.status] ?? 'var(--text-tertiary)'
 
                 return (
                     <div key={round.id} className="min-w-0">
                         {/* Connector line above */}
                         {i > 0 && (
-                            <div className="ml-[5px] h-3 border-l border-[var(--app-border)]" />
+                            <div className="ml-[5px] h-3 border-l border-[var(--border-secondary)]" />
                         )}
 
                         {/* Timeline node */}
                         <button
                             type="button"
-                            className="flex items-center gap-2 w-full text-left hover:bg-[var(--app-subtle-bg)] transition-colors rounded-sm px-0 py-0.5 min-w-0"
+                            className="flex items-center gap-2 w-full text-left hover:bg-[var(--bg-quaternary)] transition-colors rounded-sm px-0 py-0.5 min-w-0"
                             onClick={() => setExpandedId(isExpanded ? null : round.id)}
                         >
                             <span className="shrink-0 w-3 text-center" style={{ color }}>
                                 {symbol}
                             </span>
-                            <span className="text-[var(--app-fg)] shrink-0">Round {round.round}</span>
+                            <span className="text-[var(--text-primary)] shrink-0">Round {round.round}</span>
                             <span className="shrink-0" style={{ color }}>[{round.status.replace('_', ' ').toUpperCase()}]</span>
                             {isLatest && (
-                                <span className="text-[var(--app-hint)] shrink-0">&larr; current</span>
+                                <span className="text-[var(--text-tertiary)] shrink-0">&larr; current</span>
                             )}
                         </button>
 

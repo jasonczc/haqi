@@ -86,11 +86,11 @@ export function SpawnSession(props: {
                             placeholder="/path/to/project"
                             value={directory}
                             onChange={(e) => setDirectory(e.target.value)}
-                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                         />
 
                         <div className="flex flex-col gap-2">
-                            <label className="text-xs font-medium text-[var(--app-hint)]">
+                            <label className="text-xs font-medium text-[var(--text-tertiary)]">
                                 Session type
                             </label>
                             <div className="flex flex-col gap-3 text-sm">
@@ -106,7 +106,7 @@ export function SpawnSession(props: {
                                                     checked={sessionType === 'worktree'}
                                                     onChange={() => setSessionType('worktree')}
                                                     disabled={isPending}
-                                                    className="mt-1 accent-[var(--app-link)]"
+                                                    className="mt-1 accent-[var(--accent)]"
                                                 />
                                                 <div className="flex-1">
                                                     <div className="min-h-[34px] flex items-center">
@@ -117,7 +117,7 @@ export function SpawnSession(props: {
                                                                 value={worktreeName}
                                                                 onChange={(e) => setWorktreeName(e.target.value)}
                                                                 disabled={isPending}
-                                                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                                                                className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-2 py-1 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                                                             />
                                                         ) : (
                                                             <label
@@ -128,7 +128,7 @@ export function SpawnSession(props: {
                                                             </label>
                                                         )}
                                                     </div>
-                                                    <span className={`block text-xs text-[var(--app-hint)] ${sessionType === 'worktree' ? 'invisible' : ''}`}>
+                                                    <span className={`block text-xs text-[var(--text-tertiary)] ${sessionType === 'worktree' ? 'invisible' : ''}`}>
                                                         Create a new worktree next to the repo
                                                     </span>
                                                 </div>
@@ -143,10 +143,10 @@ export function SpawnSession(props: {
                                                     checked={sessionType === 'simple'}
                                                     onChange={() => setSessionType('simple')}
                                                     disabled={isPending}
-                                                    className="accent-[var(--app-link)]"
+                                                    className="accent-[var(--accent)]"
                                                 />
                                                 <span className="capitalize">Simple</span>
-                                                <span className="text-xs text-[var(--app-hint)]">
+                                                <span className="text-xs text-[var(--text-tertiary)]">
                                                     Use the selected directory as-is
                                                 </span>
                                             </label>
@@ -157,13 +157,13 @@ export function SpawnSession(props: {
                         </div>
 
                         {runnerSpawnError ? (
-                            <div className="text-xs text-red-600">
+                            <div className="text-xs text-[var(--danger)]">
                                 Runner last spawn error: {runnerSpawnError}
                             </div>
                         ) : null}
 
                         {(error ?? spawnError) ? (
-                            <div className="text-sm text-red-600">
+                            <div className="text-sm text-[var(--danger)]">
                                 {error ?? spawnError}
                             </div>
                         ) : null}

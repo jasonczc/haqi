@@ -97,29 +97,29 @@ export default function DesktopPage() {
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
-            <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
+        <div className="flex h-full min-h-0 flex-col bg-[var(--bg-editor)]">
+            <div className="border-b border-[var(--border-tertiary)] bg-[var(--bg-editor)] pt-[env(safe-area-inset-top)]">
                 <div className="mx-auto flex w-full max-w-content items-center gap-2 p-3">
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)]"
                         aria-label="Back"
                     >
                         <BackIcon />
                     </button>
                     <div className="min-w-0 flex-1">
                         <div className="truncate font-semibold">Desktop</div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">{sessionId.slice(0, 8)}...</div>
+                        <div className="truncate text-xs text-[var(--text-tertiary)]">{sessionId.slice(0, 8)}...</div>
                     </div>
                     <div className="flex items-center gap-2">
                         {recordingStatus === 'recording' ? (
                             <button
                                 type="button"
                                 onClick={() => void handleStopRecording()}
-                                className="flex items-center gap-1.5 rounded-md bg-red-500/15 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-500/25 transition-colors"
+                                className="flex items-center gap-1.5 rounded-md bg-[var(--bg-danger-secondary)] px-2.5 py-1.5 text-xs font-medium text-[var(--danger)] transition-colors hover:bg-[var(--bg-danger-quaternary)]"
                             >
-                                <span className="inline-block h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+                                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--danger)]" />
                                 {t('recording.stop')}
                             </button>
                         ) : (
@@ -127,9 +127,9 @@ export default function DesktopPage() {
                                 type="button"
                                 onClick={() => void handleStartRecording()}
                                 disabled={recordingStatus === 'loading'}
-                                className="flex items-center gap-1.5 rounded-md bg-[var(--app-subtle-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] transition-colors disabled:opacity-50"
+                                className="flex items-center gap-1.5 rounded-md bg-[var(--bg-quaternary)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-tertiary)] disabled:opacity-50"
                             >
-                                <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+                                <span className="inline-block h-2 w-2 rounded-full bg-[var(--danger)]" />
                                 {t('recording.start')}
                             </button>
                         )}
@@ -137,7 +137,7 @@ export default function DesktopPage() {
                             <a
                                 href={`${daemonBase}/recording/download/${recordings[recordings.length - 1]}`}
                                 download
-                                className="rounded-md bg-[var(--app-subtle-bg)] px-2.5 py-1.5 text-xs font-medium text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] transition-colors"
+                                className="rounded-md bg-[var(--bg-quaternary)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-tertiary)]"
                             >
                                 {t('recording.download')}
                             </a>
@@ -146,7 +146,7 @@ export default function DesktopPage() {
                 </div>
                 {error ? (
                     <div className="mx-auto max-w-content px-3 pb-2">
-                        <div className="rounded-md bg-red-500/10 px-3 py-1.5 text-xs text-red-700">{error}</div>
+                        <div className="rounded-md bg-[var(--bg-danger-secondary)] px-3 py-1.5 text-xs text-[var(--danger)]">{error}</div>
                     </div>
                 ) : null}
             </div>

@@ -49,20 +49,20 @@ function CollapsibleSection(props: {
 }) {
     const sectionContentId = useId()
     return (
-        <section className="border-b border-[var(--app-divider)]">
+        <section className="border-b border-[var(--cursor-stroke-secondary)]">
             <button
                 type="button"
                 onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
                 aria-expanded={props.isExpanded}
                 aria-controls={sectionContentId}
             >
                 <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
-                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
+                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
                 </div>
                 <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
                         props.isExpanded ? 'rotate-180' : ''
                     }`}
                 />
@@ -123,7 +123,7 @@ export default function CloudContainersPage() {
     }
 
     if (query.isError) {
-        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load containers</div>
+        return <div className="p-4 text-sm text-[var(--cursor-badge-error-text)]">Failed to load containers</div>
     }
 
     const machines: MachineContainers[] = (query.data?.machines ?? []) as MachineContainers[]
@@ -139,11 +139,11 @@ export default function CloudContainersPage() {
                     onToggle={() => setIsExpanded(!isExpanded)}
                 >
                     {allContainers.length === 0 ? (
-                        <div className="px-3 py-6 text-center text-sm text-[var(--app-hint)]">
+                        <div className="px-3 py-6 text-center text-sm text-[var(--cursor-text-secondary)]">
                             <p>{t('cloud.containers.empty')}</p>
                             <Link
                                 to="/sessions/new"
-                                className="mt-2 inline-block text-[var(--app-link)] underline hover:no-underline"
+                                className="mt-2 inline-block text-[var(--cursor-link)] underline hover:no-underline"
                             >
                                 Create a new session
                             </Link>
@@ -155,20 +155,20 @@ export default function CloudContainersPage() {
                                 return (
                                     <div
                                         key={c.id}
-                                        className="flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3"
+                                        className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-secondary)] px-3 py-3"
                                     >
                                         <div className="flex min-w-0 flex-col">
                                             <div className="flex items-center gap-2">
                                                 <span
                                                     className={`h-2 w-2 shrink-0 rounded-full ${
-                                                        isRunning ? 'bg-emerald-500' : 'bg-[var(--app-hint)]'
+                                                        isRunning ? 'bg-[var(--success)]' : 'bg-[var(--cursor-text-secondary)]'
                                                     }`}
                                                 />
-                                                <span className="text-sm font-medium text-[var(--app-fg)]">
+                                                <span className="text-sm font-medium text-[var(--cursor-text-primary)]">
                                                     {c.name || c.id?.slice(0, 12)}
                                                 </span>
                                             </div>
-                                            <div className="mt-0.5 flex flex-wrap gap-x-3 pl-4 text-xs text-[var(--app-hint)]">
+                                            <div className="mt-0.5 flex flex-wrap gap-x-3 pl-4 text-xs text-[var(--cursor-text-secondary)]">
                                                 {c.runtime && <span>Runtime: {c.runtime}</span>}
                                                 {c.workspaceId && <span>Workspace: {c.workspaceId}</span>}
                                                 {c.ports && <span>Ports: {c.ports}</span>}

@@ -67,7 +67,7 @@ function applyFontScale(scale: FontScale): void {
     if (!isBrowser()) {
         return
     }
-    document.documentElement.style.setProperty('--app-font-scale', String(scale))
+    document.documentElement.style.setProperty('--cursor-font-scale', String(scale))
 }
 
 function getInitialFontScale(): FontScale {

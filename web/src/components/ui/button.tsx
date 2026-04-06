@@ -4,14 +4,14 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-    'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] disabled:pointer-events-none disabled:opacity-50',
+    'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:pointer-events-none disabled:opacity-50',
     {
         variants: {
             variant: {
-                default: 'bg-[var(--app-button)] text-[var(--app-button-text)] hover:opacity-90',
-                secondary: 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] hover:opacity-90',
-                outline: 'border border-[var(--app-border)] bg-transparent hover:bg-[var(--app-subtle-bg)]',
-                destructive: 'bg-red-600 text-white hover:bg-red-600/90'
+                default: 'bg-[var(--bg-neutral)] text-[var(--bg-editor)] hover:opacity-90',
+                secondary: 'bg-[var(--bg-quaternary)] text-[var(--text-primary)] hover:opacity-90',
+                outline: 'border border-[var(--border-secondary)] bg-transparent hover:bg-[var(--bg-quaternary)]',
+                destructive: 'bg-[var(--danger)] text-[var(--bg-editor)] hover:opacity-90'
             },
             size: {
                 default: 'h-9 px-4 py-2',
@@ -45,4 +45,3 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     }
 )
 Button.displayName = 'Button'
-

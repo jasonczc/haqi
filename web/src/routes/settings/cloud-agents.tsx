@@ -101,7 +101,7 @@ export default function SettingsCloudAgentsPage() {
                                 <input className="settings-input" style={{ width: '100%', minWidth: 0, borderColor: 'transparent', fontFamily: 'var(--cursor-font-family-mono)' }} readOnly value={environment.runtimeKind ?? 'docker-session'} />
                                 <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
                                     <button className="settings-btn-outline" style={{ width: 'auto', padding: '4px 12px' }} type="button">Edit</button>
-                                    <button className="settings-btn-outline" style={{ width: 'auto', padding: '4px 12px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.2)' }} type="button">Remove</button>
+                                    <button className="settings-btn-outline text-[var(--danger)] border-[var(--danger)]/20 hover:bg-[var(--danger)]/10" style={{ width: 'auto', padding: '4px 12px' }} type="button">Remove</button>
                                 </div>
                             </ExpandableRow>
                         ))

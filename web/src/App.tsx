@@ -345,7 +345,7 @@ function AppInner() {
                 <div className="text-sm text-red-600">
                     {authError ?? t('login.error.authFailed')}
                 </div>
-                <div className="text-xs text-[var(--app-hint)]">
+                <div className="text-xs text-[var(--cursor-text-secondary)]">
                     Open this page from Telegram using the bot's "Open App" button (not "Open in browser").
                 </div>
             </div>

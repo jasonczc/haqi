@@ -163,7 +163,7 @@ export function SessionHeader(props: {
     return (
         <>
             <div className="chat-header bg-[var(--bg-editor)] pt-[env(safe-area-inset-top)]">
-                <div className="flex min-h-[60px] items-center gap-2 px-4 border-b border-[var(--border-quaternary)]">
+                <div className="flex min-h-[60px] items-center gap-2 border-b border-[var(--border-tertiary)] px-4">
                     {/* Back button */}
                     <button
                         type="button"
@@ -290,7 +290,7 @@ export function SessionHeader(props: {
                                 }
                             }}
                             disabled={checkpointSaving}
-                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                            className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                             autoFocus
                         />
                         <div className="flex justify-end gap-2">
@@ -301,7 +301,7 @@ export function SessionHeader(props: {
                                     setCheckpointName('')
                                 }}
                                 disabled={checkpointSaving}
-                                className="rounded-md px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)]"
+                                className="rounded-md px-3 py-1.5 text-sm text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)]"
                             >
                                 Cancel
                             </button>
@@ -309,7 +309,7 @@ export function SessionHeader(props: {
                                 type="button"
                                 onClick={() => void handleSaveCheckpoint()}
                                 disabled={checkpointSaving || !checkpointName.trim()}
-                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white hover:opacity-90 disabled:opacity-60"
+                                className="rounded-md bg-[var(--bg-neutral)] px-3 py-1.5 text-sm text-[var(--bg-editor)] hover:opacity-90 disabled:opacity-60"
                             >
                                 {checkpointSaving ? 'Saving...' : 'Save'}
                             </button>

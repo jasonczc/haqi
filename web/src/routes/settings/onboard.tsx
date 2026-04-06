@@ -89,16 +89,16 @@ function StepAddWorker(props: { onNext: () => void }) {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-base font-semibold text-[var(--app-fg)]">Step 1: Add a Worker</h2>
-                <p className="mt-1 text-sm text-[var(--app-hint)]">
+                <h2 className="text-base font-semibold text-[var(--cursor-text-primary)]">Step 1: Add a Worker</h2>
+                <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
                     A worker runs on your machine and executes cloud agent tasks.
                     This page will automatically advance once a worker comes online.
                 </p>
             </div>
 
-            <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-4">
-                <div className="text-sm font-medium text-[var(--app-fg)]">Quick Start</div>
-                <p className="mt-1 text-xs text-[var(--app-hint)]">
+            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-4">
+                <div className="text-sm font-medium text-[var(--cursor-text-primary)]">Quick Start</div>
+                <p className="mt-1 text-xs text-[var(--cursor-text-secondary)]">
                     Start a worker process directly on this machine with one click.
                 </p>
                 <Button
@@ -111,15 +111,15 @@ function StepAddWorker(props: { onNext: () => void }) {
                     {startingLocal ? 'Starting...' : 'Start Worker on This Machine'}
                 </Button>
                 {localStartError ? (
-                    <div className="mt-1 text-xs text-[var(--app-badge-error-text)]">{localStartError}</div>
+                    <div className="mt-1 text-xs text-[var(--cursor-badge-error-text)]">{localStartError}</div>
                 ) : null}
             </div>
 
-            <div className="text-xs text-[var(--app-hint)]">Or generate a token to connect a remote worker:</div>
+            <div className="text-xs text-[var(--cursor-text-secondary)]">Or generate a token to connect a remote worker:</div>
 
             <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-[14rem] flex-1">
-                    <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
                         Label (optional)
                     </label>
                     <input
@@ -127,11 +127,11 @@ function StepAddWorker(props: { onNext: () => void }) {
                         placeholder="e.g. gpu-worker-1"
                         value={tokenLabel}
                         onChange={(e) => setTokenLabel(e.target.value)}
-                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     />
                 </div>
                 <div className="w-28">
-                    <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
                         TTL (min)
                     </label>
                     <input
@@ -139,7 +139,7 @@ function StepAddWorker(props: { onNext: () => void }) {
                         min={1}
                         value={tokenTtl}
                         onChange={(e) => setTokenTtl(e.target.value)}
-                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     />
                 </div>
                 <Button
@@ -153,12 +153,12 @@ function StepAddWorker(props: { onNext: () => void }) {
             </div>
 
             {tokenMutation.error instanceof Error ? (
-                <div className="text-sm text-[var(--app-badge-error-text)]">{tokenMutation.error.message}</div>
+                <div className="text-sm text-[var(--cursor-badge-error-text)]">{tokenMutation.error.message}</div>
             ) : null}
 
             {generatedToken ? (
-                <div className="rounded-md border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] p-3">
-                    <div className="text-sm font-medium text-[var(--app-badge-success-text)]">
+                <div className="rounded-md border border-[var(--cursor-badge-success-border)] bg-[var(--cursor-badge-success-bg)] p-3">
+                    <div className="text-sm font-medium text-[var(--cursor-badge-success-text)]">
                         Token generated — copy it now, it will not be shown again.
                     </div>
                     <div className="mt-2 flex items-start gap-2">
@@ -175,7 +175,7 @@ function StepAddWorker(props: { onNext: () => void }) {
                         </Button>
                     </div>
                     <div className="mt-3">
-                        <div className="text-xs font-medium text-[var(--app-hint)]">Install command:</div>
+                        <div className="text-xs font-medium text-[var(--cursor-text-secondary)]">Install command:</div>
                         <div className="mt-1 flex items-start gap-2">
                             <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
                                 {installCommand}
@@ -194,11 +194,11 @@ function StepAddWorker(props: { onNext: () => void }) {
             ) : null}
 
             {workersQuery.data?.workers?.length ? (
-                <div className="text-sm text-[var(--app-badge-success-text)]">
+                <div className="text-sm text-[var(--cursor-badge-success-text)]">
                     Worker connected — advancing…
                 </div>
             ) : generatedToken ? (
-                <div className="text-xs text-[var(--app-hint)]">
+                <div className="text-xs text-[var(--cursor-text-secondary)]">
                     Waiting for worker to come online…
                 </div>
             ) : null}
@@ -268,8 +268,8 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-base font-semibold text-[var(--app-fg)]">Step 2: Setup Environment</h2>
-                <p className="mt-1 text-sm text-[var(--app-hint)]">
+                <h2 className="text-base font-semibold text-[var(--cursor-text-primary)]">Step 2: Setup Environment</h2>
+                <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
                     Provide a repository URL and choose an agent. The agent will clone the repo and set up your workspace.
                     You'll be taken to the session to watch the agent configure your environment.
                 </p>
@@ -277,7 +277,7 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
 
             <div className="flex flex-col gap-3">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
                         Repository URL (optional)
                     </label>
                     <input
@@ -285,18 +285,18 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
                         placeholder="https://github.com/org/repo"
                         value={repoUrl}
                         onChange={(e) => setRepoUrl(e.target.value)}
-                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     />
                 </div>
 
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
                         Agent
                     </label>
                     <select
                         value={agent}
                         onChange={(e) => setAgent(e.target.value as AgentFlavor)}
-                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     >
                         {AGENT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -308,13 +308,13 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
             </div>
 
             {!firstWorker ? (
-                <div className="text-sm text-[var(--app-hint)]">
+                <div className="text-sm text-[var(--cursor-text-secondary)]">
                     No workers found. You can skip this step and set up your environment manually later.
                 </div>
             ) : null}
 
             {error ? (
-                <div className="text-sm text-[var(--app-badge-error-text)]">{error}</div>
+                <div className="text-sm text-[var(--cursor-badge-error-text)]">{error}</div>
             ) : null}
 
             <div className="flex items-center justify-between">
@@ -340,14 +340,14 @@ function StepSaveCheckpoint(props: { onNext: () => void }) {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-base font-semibold text-[var(--app-fg)]">Step 3: Save a Checkpoint</h2>
-                <p className="mt-1 text-sm text-[var(--app-hint)]">
+                <h2 className="text-base font-semibold text-[var(--cursor-text-primary)]">Step 3: Save a Checkpoint</h2>
+                <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
                     Once the setup session finishes, save a checkpoint of your configured environment.
                     Checkpoints let you spawn new agents from the same starting state instantly.
                 </p>
             </div>
 
-            <div className="rounded-md border border-[var(--app-badge-info-border)] bg-[var(--app-badge-info-bg)] px-4 py-3 text-sm text-[var(--app-badge-info-text)]">
+            <div className="rounded-md border border-[var(--cursor-badge-info-border)] bg-[var(--cursor-badge-info-bg)] px-4 py-3 text-sm text-[var(--cursor-badge-info-text)]">
                 In the session view, click the <strong>Save Checkpoint</strong> button after the agent finishes setting up.
                 Then come back here and click the button below.
             </div>
@@ -431,25 +431,25 @@ function StepSecrets() {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-base font-semibold text-[var(--app-fg)]">Step 4: Add Secrets</h2>
-                <p className="mt-1 text-sm text-[var(--app-hint)]">
+                <h2 className="text-base font-semibold text-[var(--cursor-text-primary)]">Step 4: Add Secrets</h2>
+                <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
                     Add credentials that your cloud agents will use. These are stored securely on the hub.
                 </p>
             </div>
 
             <div className="flex flex-col gap-3">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
-                        GITHUB_TOKEN <span className="text-[var(--app-badge-error-text)]">*</span>
+                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
+                        GITHUB_TOKEN <span className="text-[var(--cursor-badge-error-text)]">*</span>
                     </label>
                     <input
                         type="password"
                         placeholder="ghp_..."
                         value={githubToken}
                         onChange={(e) => setGithubToken(e.target.value)}
-                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     />
-                    <p className="mt-1 text-xs text-[var(--app-hint)]">
+                    <p className="mt-1 text-xs text-[var(--cursor-text-secondary)]">
                         Required. Used by agents to clone repos and create pull requests.
                         Create one at{' '}
                         <a
@@ -465,7 +465,7 @@ function StepSecrets() {
                 </div>
 
                 <div>
-                    <div className="mb-2 text-xs font-medium text-[var(--app-hint)]">
+                    <div className="mb-2 text-xs font-medium text-[var(--cursor-text-secondary)]">
                         Additional secrets (optional)
                     </div>
                     {extras.map((extra, index) => (
@@ -475,14 +475,14 @@ function StepSecrets() {
                                 placeholder="KEY"
                                 value={extra.key}
                                 onChange={(e) => updateExtra(index, 'key', e.target.value)}
-                                className="w-40 rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                                className="w-40 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
                             <input
                                 type="password"
                                 placeholder="value"
                                 value={extra.value}
                                 onChange={(e) => updateExtra(index, 'value', e.target.value)}
-                                className="flex-1 rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                                className="flex-1 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
                             <Button
                                 type="button"
@@ -501,7 +501,7 @@ function StepSecrets() {
             </div>
 
             {error ? (
-                <div className="text-sm text-[var(--app-badge-error-text)]">{error}</div>
+                <div className="text-sm text-[var(--cursor-badge-error-text)]">{error}</div>
             ) : null}
 
             <div className="flex justify-end">
@@ -533,23 +533,23 @@ function StepIndicator(props: { current: number }) {
                         <div
                             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
                                 done
-                                    ? 'bg-[var(--app-link)] text-white'
+                                    ? 'bg-[var(--cursor-link)] text-white'
                                     : active
-                                      ? 'border-2 border-[var(--app-link)] text-[var(--app-link)]'
-                                      : 'border border-[var(--app-border)] text-[var(--app-hint)]'
+                                      ? 'border-2 border-[var(--cursor-link)] text-[var(--cursor-link)]'
+                                      : 'border border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-secondary)]'
                             }`}
                         >
                             {done ? '✓' : index + 1}
                         </div>
                         <span
                             className={`text-xs ${
-                                active ? 'font-medium text-[var(--app-fg)]' : 'text-[var(--app-hint)]'
+                                active ? 'font-medium text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)]'
                             }`}
                         >
                             {label}
                         </span>
                         {index < STEP_LABELS.length - 1 ? (
-                            <div className="h-px w-6 bg-[var(--app-divider)]" />
+                            <div className="h-px w-6 bg-[var(--cursor-stroke-secondary)]" />
                         ) : null}
                     </div>
                 )
@@ -571,8 +571,8 @@ export default function CloudOnboardPage() {
         <div className="mx-auto w-full max-w-content px-4 py-8">
             <div className="mx-auto max-w-2xl">
                 <div className="mb-8">
-                    <h1 className="text-lg font-semibold text-[var(--app-fg)]">Get started with cloud agents</h1>
-                    <p className="mt-1 text-sm text-[var(--app-hint)]">
+                    <h1 className="text-lg font-semibold text-[var(--cursor-text-primary)]">Get started with cloud agents</h1>
+                    <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
                         Follow these steps to set up your first cloud agent workspace.
                     </p>
                 </div>
@@ -581,7 +581,7 @@ export default function CloudOnboardPage() {
                     <StepIndicator current={step} />
                 </div>
 
-                <div className="rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-6">
+                <div className="rounded-lg border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-6">
                     {step === 0 ? <StepAddWorker onNext={next} /> : null}
                     {step === 1 ? <StepSetupEnvironment onNext={next} /> : null}
                     {step === 2 ? <StepSaveCheckpoint onNext={next} /> : null}

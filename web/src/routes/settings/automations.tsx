@@ -41,12 +41,12 @@ const TEMPLATES: AutomationTemplate[] = [
 
 function StatCard(props: { label: string; value: string | number; link?: boolean }) {
     return (
-        <div className="rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] px-4 py-3">
-            <div className="text-[12px] text-[var(--app-hint)]">{props.label}</div>
+        <div className="rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] px-4 py-3">
+            <div className="text-[12px] text-[var(--cursor-text-secondary)]">{props.label}</div>
             <div className="mt-0.5 flex items-center gap-1">
-                <span className="text-xl font-semibold text-[var(--app-fg)]">{props.value}</span>
+                <span className="text-xl font-semibold text-[var(--cursor-text-primary)]">{props.value}</span>
                 {props.link && (
-                    <span className="text-[var(--app-hint)]">→</span>
+                    <span className="text-[var(--cursor-text-secondary)]">→</span>
                 )}
             </div>
         </div>
@@ -58,12 +58,12 @@ function TemplateCard(props: { template: AutomationTemplate; onClick: () => void
         <button
             type="button"
             onClick={props.onClick}
-            className="flex flex-col gap-2 rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 text-left transition-colors hover:bg-[var(--app-subtle-bg)] hover:border-[var(--app-border)]"
+            className="flex flex-col gap-2 rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-4 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)] hover:border-[var(--cursor-stroke-primary)]"
         >
             <span className="text-lg">{props.template.icon}</span>
             <div>
-                <div className="text-[13px] font-semibold text-[var(--app-fg)]">{props.template.title}</div>
-                <div className="mt-0.5 text-[12px] text-[var(--app-hint)] leading-relaxed">
+                <div className="text-[13px] font-semibold text-[var(--cursor-text-primary)]">{props.template.title}</div>
+                <div className="mt-0.5 text-[12px] text-[var(--cursor-text-secondary)] leading-relaxed">
                     {props.template.description}
                 </div>
             </div>
@@ -80,14 +80,14 @@ export default function CloudAutomationsPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-[var(--app-fg)]">Automations</h1>
-                    <p className="mt-1 text-[13px] text-[var(--app-hint)]">
+                    <h1 className="text-2xl font-bold text-[var(--cursor-text-primary)]">Automations</h1>
+                    <p className="mt-1 text-[13px] text-[var(--cursor-text-secondary)]">
                         Automate repetitive tasks with always-on cloud agents that respond to environment triggers.
                     </p>
                 </div>
                 <button
                     type="button"
-                    className="flex items-center gap-2 rounded-lg bg-[var(--app-button)] px-4 py-2 text-[13px] font-medium text-[var(--app-button-text)] transition-colors hover:opacity-90"
+                    className="flex items-center gap-2 rounded-lg bg-[var(--cursor-button)] px-4 py-2 text-[13px] font-medium text-[var(--cursor-button-text)] transition-colors hover:opacity-90"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <line x1="12" y1="5" x2="12" y2="19" />
@@ -107,19 +107,19 @@ export default function CloudAutomationsPage() {
 
             {/* NLP prompt input */}
             <div className="mb-6">
-                <div className="relative rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] overflow-hidden">
+                <div className="relative rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] overflow-hidden">
                     <textarea
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder="Review every new pull request for security issues, then post a concise risk summary as a PR comment"
                         rows={3}
-                        className="w-full resize-none bg-transparent px-4 py-3 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none"
+                        className="w-full resize-none bg-transparent px-4 py-3 text-sm text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-secondary)] focus:outline-none"
                     />
                     <div className="flex justify-end px-3 pb-2">
                         <button
                             type="button"
                             disabled={!prompt.trim()}
-                            className="rounded-full bg-[var(--app-button)] p-2 text-[var(--app-button-text)] transition-colors disabled:opacity-30"
+                            className="rounded-full bg-[var(--cursor-button)] p-2 text-[var(--cursor-button-text)] transition-colors disabled:opacity-30"
                         >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13" />
@@ -131,31 +131,31 @@ export default function CloudAutomationsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-4 border-b border-[var(--app-divider)] mb-4">
+            <div className="flex items-center gap-4 border-b border-[var(--cursor-stroke-secondary)] mb-4">
                 <button
                     type="button"
                     onClick={() => setActiveTab('mine')}
                     className={`relative pb-2 text-[13px] font-medium transition-colors ${
-                        activeTab === 'mine' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                        activeTab === 'mine' ? 'text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]'
                     }`}
                 >
                     Mine
-                    {activeTab === 'mine' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--app-fg)]" />}
+                    {activeTab === 'mine' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--cursor-text-primary)]" />}
                 </button>
                 <button
                     type="button"
                     onClick={() => setActiveTab('all')}
                     className={`relative pb-2 text-[13px] font-medium transition-colors ${
-                        activeTab === 'all' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                        activeTab === 'all' ? 'text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]'
                     }`}
                 >
                     All
-                    {activeTab === 'all' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--app-fg)]" />}
+                    {activeTab === 'all' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--cursor-text-primary)]" />}
                 </button>
                 <div className="flex-1" />
                 <button
                     type="button"
-                    className="pb-2 text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
+                    className="pb-2 text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)] transition-colors"
                 >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="11" cy="11" r="8" />
@@ -165,14 +165,14 @@ export default function CloudAutomationsPage() {
             </div>
 
             {/* Empty state */}
-            <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] py-16 mb-8">
-                <div className="text-[15px] font-semibold text-[var(--app-fg)]">No Automations Yet</div>
-                <div className="mt-1 text-[13px] text-[var(--app-hint)] text-center max-w-xs">
+            <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quiet)] py-16 mb-8">
+                <div className="text-[15px] font-semibold text-[var(--cursor-text-primary)]">No Automations Yet</div>
+                <div className="mt-1 text-[13px] text-[var(--cursor-text-secondary)] text-center max-w-xs">
                     Run agents on a schedule or automatically in response to events. Billed at plan rates.
                 </div>
                 <button
                     type="button"
-                    className="mt-4 rounded-md border border-[var(--app-border)] px-4 py-2 text-[13px] font-medium text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)]"
+                    className="mt-4 rounded-md border border-[var(--cursor-stroke-primary)] px-4 py-2 text-[13px] font-medium text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-secondary)]"
                 >
                     Create Automation
                 </button>
@@ -180,7 +180,7 @@ export default function CloudAutomationsPage() {
 
             {/* Templates */}
             <div>
-                <h2 className="text-[13px] font-semibold text-[var(--app-hint)] mb-3">Most popular automations</h2>
+                <h2 className="text-[13px] font-semibold text-[var(--cursor-text-secondary)] mb-3">Most popular automations</h2>
                 <div className="grid grid-cols-2 gap-3">
                     {TEMPLATES.map(template => (
                         <TemplateCard

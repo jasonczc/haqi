@@ -7,10 +7,10 @@ const badgeVariants = cva(
     {
         variants: {
             variant: {
-                default: 'border-[var(--app-border)] bg-[var(--app-subtle-bg)] text-[var(--app-fg)]',
-                warning: 'border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]',
-                success: 'border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]',
-                destructive: 'border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)]'
+                default: 'border-[var(--border-secondary)] bg-[var(--bg-quaternary)] text-[var(--text-primary)]',
+                warning: 'border-[var(--warn)]/20 bg-[var(--warn)]/10 text-[var(--warn)]',
+                success: 'border-[var(--success)]/20 bg-[var(--success)]/10 text-[var(--success)]',
+                destructive: 'border-[var(--danger)]/20 bg-[var(--danger)]/10 text-[var(--danger)]'
             }
         },
         defaultVariants: {

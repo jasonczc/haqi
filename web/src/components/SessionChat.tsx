@@ -346,9 +346,9 @@ function extractLatestCodexPlan(messages: NormalizedMessage[]): CodexPlanSnapsho
 }
 
 function getCodexPlanStatusBadgeClass(status: CodexPlanStatus): string {
-    if (status === 'completed') return 'bg-emerald-500/10 text-emerald-600'
-    if (status === 'in_progress') return 'bg-blue-500/10 text-blue-600'
-    return 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
+    if (status === 'completed') return 'bg-[var(--success)]/10 text-[var(--success)]'
+    if (status === 'in_progress') return 'bg-[var(--accent)]/10 text-[var(--accent)]'
+    return 'bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-tertiary)]'
 }
 
 const CODEX_SEND_MODE_STORAGE_PREFIX = 'hapi:codexSendMode:'
@@ -1344,7 +1344,7 @@ export function SessionChat(props: {
 
             {sessionInactive ? (
                 <div className="px-3 pt-3">
-                    <div className="w-full rounded-lg bg-[var(--bg-quaternary)] px-4 py-2.5 text-[var(--font-size-base)] text-[var(--text-tertiary)]">
+                    <div className="w-full rounded-lg bg-[var(--cursor-bg-quiet)] px-4 py-2.5 text-[var(--font-size-base)] text-[var(--cursor-text-tertiary)]">
                         Session is inactive. Sending will resume it automatically.
                     </div>
                 </div>
@@ -1354,12 +1354,12 @@ export function SessionChat(props: {
                 <div className={`chat-center relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
                     {showCodexPlanNotebook && latestCodexPlan ? (
                         <div className="px-3 pt-2">
-                            <div className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-quaternary)]/50 p-2.5">
+                            <div className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)]/50 p-2.5">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                         {t('queuePlan.title')}
                                     </span>
-                                    <span className="text-[10px] text-[var(--text-tertiary)]">
+                                    <span className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                         {t('queuePlan.updated', {
                                             time: new Date(latestCodexPlan.updatedAt).toLocaleTimeString([], {
                                                 hour: '2-digit',
@@ -1370,14 +1370,14 @@ export function SessionChat(props: {
                                     <div className="ml-auto flex items-center gap-1">
                                         <button
                                             type="button"
-                                            className="rounded px-1.5 py-1 text-[11px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                                            className="rounded px-1.5 py-1 text-[11px] text-[var(--cursor-text-tertiary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)]"
                                             onClick={() => setIsCodexPlanCollapsed((prev) => !prev)}
                                         >
                                             {isCodexPlanCollapsed ? t('queuePlan.expand') : t('queuePlan.collapse')}
                                         </button>
                                         <button
                                             type="button"
-                                            className="rounded px-1.5 py-1 text-[11px] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                                            className="rounded px-1.5 py-1 text-[11px] text-[var(--cursor-text-tertiary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)]"
                                             onClick={() => setDismissedCodexPlanSignature(latestCodexPlan.signature)}
                                         >
                                             {t('queuePlan.close')}
@@ -1388,7 +1388,7 @@ export function SessionChat(props: {
                                 {!isCodexPlanCollapsed ? (
                                     <div className="mt-2 space-y-1.5">
                                         {latestCodexPlan.explanation ? (
-                                            <div className="text-xs text-[var(--text-tertiary)]">
+                                            <div className="text-xs text-[var(--cursor-text-tertiary)]">
                                                 {latestCodexPlan.explanation}
                                             </div>
                                         ) : null}
@@ -1404,7 +1404,7 @@ export function SessionChat(props: {
                                                                 ? t('queuePlan.status.inProgress')
                                                                 : t('queuePlan.status.pending')}
                                                     </span>
-                                                    <span className="min-w-0 flex-1 break-words text-[var(--text-primary)]">
+                                                    <span className="min-w-0 flex-1 break-words text-[var(--cursor-text-primary)]">
                                                         {entry.step}
                                                     </span>
                                                 </div>
@@ -1417,12 +1417,12 @@ export function SessionChat(props: {
                     ) : null}
 
                     <div className="chat-mode-switch px-3 pt-2">
-                        <div className="flex w-full items-center justify-end gap-1 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-quaternary)]/40 p-1">
+                        <div className="flex w-full items-center justify-end gap-1 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)]/40 p-1">
                             <button
                                 type="button"
                                 className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'normal'
-                                    ? 'bg-[var(--bg-neutral)] text-[var(--bg-editor)]'
-                                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)]'}`}
+                                    ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
+                                    : 'text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'}`}
                                 onClick={() => props.onViewModeChange('normal')}
                             >
                                 Normal
@@ -1430,8 +1430,8 @@ export function SessionChat(props: {
                             <button
                                 type="button"
                                 className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'brief'
-                                    ? 'bg-[var(--bg-neutral)] text-[var(--bg-editor)]'
-                                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)]'}`}
+                                    ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
+                                    : 'text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'}`}
                                 onClick={() => props.onViewModeChange('brief')}
                             >
                                 Brief
@@ -1439,8 +1439,8 @@ export function SessionChat(props: {
                             <button
                                 type="button"
                                 className={`rounded px-2.5 py-1 text-xs font-mono transition-colors ${props.viewMode === 'cli'
-                                    ? 'bg-[var(--bg-neutral)] text-[var(--bg-editor)]'
-                                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)]'}`}
+                                    ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
+                                    : 'text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'}`}
                                 onClick={() => props.onViewModeChange('cli')}
                             >
                                 CLI
@@ -1591,7 +1591,7 @@ export function SessionChat(props: {
                     </DialogHeader>
                     <div className="mt-3 max-h-[calc(85vh-7rem)] space-y-3 overflow-y-auto pr-1">
                         <div
-                            className={`rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 ${!isMcpGuideExpanded ? 'cursor-pointer' : ''}`}
+                            className={`rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 ${!isMcpGuideExpanded ? 'cursor-pointer' : ''}`}
                             onClick={() => {
                                 if (!isMcpGuideExpanded) {
                                     setIsMcpGuideExpanded(true)
@@ -1611,12 +1611,12 @@ export function SessionChat(props: {
                             aria-expanded={isMcpGuideExpanded}
                         >
                             <div className="flex items-center justify-between gap-2">
-                                <div className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                     {t('mcp.guide.title')}
                                 </div>
                                 <button
                                     type="button"
-                                    className="rounded-md border border-[var(--border-secondary)] px-2 py-1 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-quaternary)] disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                                     onClick={() => setIsMcpGuideExpanded((prev) => !prev)}
                                 >
                                     {isMcpGuideExpanded ? t('mcp.guide.collapse') : t('mcp.guide.expand')}
@@ -1627,12 +1627,12 @@ export function SessionChat(props: {
                                     {MCP_GUIDES.map((guide) => (
                                         <div
                                             key={guide.id}
-                                            className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-quaternary)] p-2.5"
+                                            className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-2.5"
                                         >
-                                            <div className="text-sm font-semibold text-[var(--text-primary)]">
+                                            <div className="text-sm font-semibold text-[var(--cursor-text-primary)]">
                                                 {guide.label}
                                             </div>
-                                            <div className="mt-1 text-xs text-[var(--text-tertiary)]">
+                                            <div className="mt-1 text-xs text-[var(--cursor-text-tertiary)]">
                                                 {t(guide.descriptionKey)}
                                             </div>
                                             <div className="mt-2 flex items-center gap-2">
@@ -1640,22 +1640,22 @@ export function SessionChat(props: {
                                                     href={guide.url}
                                                     target="_blank"
                                                     rel="noreferrer"
-                                                    className="rounded-md border border-[var(--border-secondary)] px-2 py-1 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-quaternary)]"
+                                                    className="rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)]"
                                                 >
                                                     {t('mcp.guide.open')}
                                                 </a>
                                                 <button
                                                     type="button"
                                                     onClick={() => handleInsertMcpGuidePrompt(guide)}
-                                                    className="rounded-md border border-[var(--border-secondary)] px-2 py-1 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-quaternary)]"
+                                                    className="rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)]"
                                                 >
                                                     {t('mcp.guide.insertPrompt')}
                                                 </button>
                                             </div>
                                         </div>
                                     ))}
-                                    <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-quaternary)] p-2.5">
-                                        <div className="text-sm font-semibold text-[var(--text-primary)]">
+                                    <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-2.5">
+                                        <div className="text-sm font-semibold text-[var(--cursor-text-primary)]">
                                             {t('mcp.guide.custom.title')}
                                         </div>
                                         <div className="mt-2 space-y-2">
@@ -1663,14 +1663,14 @@ export function SessionChat(props: {
                                                 type="text"
                                                 value={customMcpGuideInput}
                                                 onChange={(event) => setCustomMcpGuideInput(event.target.value)}
-                                                className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-2 py-1.5 text-xs text-[var(--text-primary)] outline-none transition-colors focus:border-[var(--accent)]"
+                                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] px-2 py-1.5 text-xs text-[var(--cursor-text-primary)] outline-none transition-colors focus:border-[var(--cursor-link)]"
                                                 placeholder={t('mcp.guide.custom.placeholder')}
                                             />
                                             <button
                                                 type="button"
                                                 onClick={handleInsertCustomMcpGuidePrompt}
                                                 disabled={customMcpGuideInput.trim().length === 0}
-                                                className="w-full rounded-md border border-[var(--border-secondary)] px-2 py-1 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-quaternary)] disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 {t('mcp.guide.insertPrompt')}
                                             </button>
@@ -1681,13 +1681,13 @@ export function SessionChat(props: {
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-xs text-[var(--text-tertiary)]">
+                            <div className="text-xs text-[var(--cursor-text-tertiary)]">
                                 {mcpFlavor ? `${t('mcp.dialog.flavor')}: ${mcpFlavor}` : null}
                                 {mcpCheckedAt ? ` · ${new Date(mcpCheckedAt).toLocaleString()}` : null}
                             </div>
                             <button
                                 type="button"
-                                className="rounded-md border border-[var(--border-secondary)] px-2 py-1 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-quaternary)] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                                 onClick={() => void refreshMcpStatus()}
                                 disabled={isMcpLoading}
                             >
@@ -1696,25 +1696,25 @@ export function SessionChat(props: {
                         </div>
 
                         {isMcpLoading ? (
-                            <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 text-sm text-[var(--text-tertiary)]">
+                            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 text-sm text-[var(--cursor-text-tertiary)]">
                                 {t('mcp.dialog.loading')}
                             </div>
                         ) : null}
 
                         {mcpError ? (
-                            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                            <div className="rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
                                 {mcpError}
                             </div>
                         ) : null}
 
                         {mcpWarning ? (
-                            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600">
+                            <div className="rounded-md border border-[var(--warn)]/30 bg-[var(--warn)]/10 p-3 text-sm text-[var(--warn)]">
                                 {mcpWarning}
                             </div>
                         ) : null}
 
                         {!isMcpLoading && mcpServers.length === 0 && !mcpError ? (
-                            <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 text-sm text-[var(--text-tertiary)]">
+                            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 text-sm text-[var(--cursor-text-tertiary)]">
                                 {t('mcp.dialog.empty')}
                             </div>
                         ) : null}
@@ -1724,47 +1724,47 @@ export function SessionChat(props: {
                                 {mcpServers.map((server) => (
                                     <div
                                         key={`${server.name}:${server.source ?? 'unknown'}`}
-                                        className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3"
+                                        className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3"
                                     >
                                         <div className="flex items-center justify-between gap-2">
-                                            <div className="text-sm font-semibold text-[var(--text-primary)]">
+                                            <div className="text-sm font-semibold text-[var(--cursor-text-primary)]">
                                                 {server.name}
                                             </div>
                                             <span
                                                 className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                                                     server.available
-                                                        ? 'bg-emerald-500/10 text-emerald-600'
-                                                        : 'bg-red-500/10 text-red-500'
+                                                        ? 'bg-[var(--success)]/10 text-[var(--success)]'
+                                                        : 'bg-[var(--danger)]/10 text-[var(--danger)]'
                                                 }`}
                                             >
                                                 {server.available ? t('mcp.server.available') : t('mcp.server.unavailable')}
                                             </span>
                                         </div>
-                                        <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-[var(--text-tertiary)] sm:grid-cols-2">
+                                        <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-[var(--cursor-text-tertiary)] sm:grid-cols-2">
                                             <div>
                                                 <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.status')}</span>
-                                                <div className="mt-1 break-all text-sm text-[var(--text-primary)]">{server.status}</div>
+                                                <div className="mt-1 break-all text-sm text-[var(--cursor-text-primary)]">{server.status}</div>
                                             </div>
                                             <div>
                                                 <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.transport')}</span>
-                                                <div className="mt-1 text-sm text-[var(--text-primary)]">{server.transport ?? 'unknown'}</div>
+                                                <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">{server.transport ?? 'unknown'}</div>
                                             </div>
                                             {server.source ? (
                                                 <div>
                                                     <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.source')}</span>
-                                                    <div className="mt-1 text-sm text-[var(--text-primary)]">{server.source}</div>
+                                                    <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">{server.source}</div>
                                                 </div>
                                             ) : null}
                                             {server.target ? (
                                                 <div>
                                                     <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.target')}</span>
-                                                    <div className="mt-1 break-all text-sm font-mono text-[var(--text-primary)]">{server.target}</div>
+                                                    <div className="mt-1 break-all text-sm font-mono text-[var(--cursor-text-primary)]">{server.target}</div>
                                                 </div>
                                             ) : null}
                                             {server.auth ? (
                                                 <div className="sm:col-span-2">
                                                     <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.auth')}</span>
-                                                    <div className="mt-1 break-all text-sm text-[var(--text-primary)]">{server.auth}</div>
+                                                    <div className="mt-1 break-all text-sm text-[var(--cursor-text-primary)]">{server.auth}</div>
                                                 </div>
                                             ) : null}
                                         </div>
@@ -1784,13 +1784,13 @@ export function SessionChat(props: {
                     </DialogHeader>
                     <div className="mt-3 max-h-[75vh] overflow-auto">
                         {isCodexStatusLoading ? (
-                            <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 text-sm text-[var(--text-tertiary)]">
+                            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 text-sm text-[var(--cursor-text-tertiary)]">
                                 {t('queueStatus.dialog.loading')}
                             </div>
                         ) : (
                             <div className="space-y-3">
                                 {codexStatusError ? (
-                                    <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                    <div className="rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
                                         {codexStatusError}
                                     </div>
                                 ) : null}
@@ -1798,45 +1798,45 @@ export function SessionChat(props: {
                                 {codexStatusDetailRows.length > 0 || codexQueueStatus ? (
                                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                         {codexQueueStatus ? (
-                                            <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 sm:col-span-2">
-                                                <div className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 sm:col-span-2">
+                                                <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                     Queue
                                                 </div>
                                                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                                    <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                                    <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                             Pending
                                                         </div>
-                                                        <div className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                                                        <div className="mt-1 text-lg font-semibold text-[var(--cursor-text-primary)]">
                                                             {codexQueueStatus.pendingCount}
                                                         </div>
                                                     </div>
-                                                    <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                                    <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                             In queue
                                                         </div>
                                                         <div className="mt-1">
                                                             <span
                                                                 className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                                                                     codexQueueStatus.inQueue
-                                                                        ? 'bg-emerald-500/10 text-emerald-600'
-                                                                        : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
+                                                                        ? 'bg-[var(--success)]/10 text-[var(--success)]'
+                                                                        : 'bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-tertiary)]'
                                                                 }`}
                                                             >
                                                                 {codexQueueStatus.inQueue ? 'yes' : 'no'}
                                                             </span>
                                                         </div>
                                                     </div>
-                                                    <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                                    <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                             Task running
                                                         </div>
                                                         <div className="mt-1">
                                                             <span
                                                                 className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
                                                                     codexQueueStatus.taskRunning
-                                                                        ? 'bg-blue-500/10 text-blue-600'
-                                                                        : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
+                                                                        ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
+                                                                        : 'bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-tertiary)]'
                                                                 }`}
                                                             >
                                                                 {codexQueueStatus.taskRunning ? 'yes' : 'no'}
@@ -1845,11 +1845,11 @@ export function SessionChat(props: {
                                                     </div>
                                                 </div>
                                                 {codexQueueStatus.nextPreview ? (
-                                                    <div className="mt-2 rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                                    <div className="mt-2 rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                             Next queued message
                                                         </div>
-                                                        <div className="mt-1 break-all text-sm font-mono text-[var(--text-primary)]">
+                                                        <div className="mt-1 break-all text-sm font-mono text-[var(--cursor-text-primary)]">
                                                             {codexQueueStatus.nextPreview}
                                                         </div>
                                                     </div>
@@ -1864,24 +1864,24 @@ export function SessionChat(props: {
                                             const rateLimit = isRateLimit ? parseRateLimitValue(row.value) : null
                                             const usedPercent = rateLimit?.usedPercent ?? null
                                             const progressToneClass = usedPercent === null
-                                                ? 'bg-[var(--border-secondary)]'
+                                                ? 'bg-[var(--cursor-stroke-primary)]'
                                                 : usedPercent >= 85
-                                                    ? 'bg-red-500'
+                                                    ? 'bg-[var(--danger)]'
                                                     : usedPercent >= 60
-                                                        ? 'bg-amber-500'
-                                                        : 'bg-emerald-500'
+                                                        ? 'bg-[var(--warn)]'
+                                                        : 'bg-[var(--success)]'
                                             const booleanToneClass = booleanTone === 'yes'
-                                                ? 'bg-emerald-500/10 text-emerald-600'
+                                                ? 'bg-[var(--success)]/10 text-[var(--success)]'
                                                 : booleanTone === 'no'
-                                                    ? 'bg-red-500/10 text-red-600'
-                                                    : 'bg-[var(--bg-quaternary)] text-[var(--text-tertiary)]'
+                                                    ? 'bg-[var(--danger)]/10 text-[var(--danger)]'
+                                                    : 'bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-tertiary)]'
 
                                             return (
                                                 <div
                                                     key={rowKey}
-                                                    className={`rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 ${isWide ? 'sm:col-span-2' : ''}`}
+                                                    className={`rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 ${isWide ? 'sm:col-span-2' : ''}`}
                                                 >
-                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                         {row.label}
                                                     </div>
                                                     {isRateLimit && rateLimit ? (
@@ -1890,12 +1890,12 @@ export function SessionChat(props: {
                                                                 <span className="text-sm font-semibold">
                                                                     {usedPercent === null ? t('queueStatus.dialog.empty') : `${usedPercent}%`}
                                                                 </span>
-                                                                <span className="text-xs text-[var(--text-tertiary)] break-all">
+                                                                <span className="text-xs text-[var(--cursor-text-tertiary)] break-all">
                                                                     {rateLimit.resetAt}
                                                                 </span>
                                                             </div>
                                                             {usedPercent !== null ? (
-                                                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-quaternary)]">
+                                                                <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--cursor-bg-quiet)]">
                                                                     <div
                                                                         className={`h-full rounded-full ${progressToneClass}`}
                                                                         style={{ width: `${Math.max(0, Math.min(100, usedPercent))}%` }}
@@ -1910,7 +1910,7 @@ export function SessionChat(props: {
                                                             </span>
                                                         </div>
                                                     ) : (
-                                                        <div className="mt-2 break-all text-sm font-mono text-[var(--text-primary)]">
+                                                        <div className="mt-2 break-all text-sm font-mono text-[var(--cursor-text-primary)]">
                                                             {row.value || t('queueStatus.dialog.empty')}
                                                         </div>
                                                     )}
@@ -1919,18 +1919,18 @@ export function SessionChat(props: {
                                         })}
                                     </div>
                                 ) : !codexStatusError ? (
-                                    <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 text-sm text-[var(--text-tertiary)]">
+                                    <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 text-sm text-[var(--cursor-text-tertiary)]">
                                         {codexStatusMessage || t('queueStatus.dialog.empty')}
                                     </div>
                                 ) : null}
 
                                 {sessionUsage ? (
-                                    <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3">
+                                    <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
                                         <div className="flex items-center justify-between gap-2">
-                                            <div className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                            <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                 {t('queueStatus.usage.title')}
                                             </div>
-                                            <div className="text-xs text-[var(--text-tertiary)]">
+                                            <div className="text-xs text-[var(--cursor-text-tertiary)]">
                                                 {sessionUsage.provider === 'claude'
                                                     ? t('settings.usage.provider.claude')
                                                     : sessionUsage.provider === 'codex'
@@ -1939,66 +1939,66 @@ export function SessionChat(props: {
                                             </div>
                                         </div>
                                         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                            <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                            <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.totalTokens')}
                                                 </div>
-                                                <div className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                                                <div className="mt-1 text-lg font-semibold text-[var(--cursor-text-primary)]">
                                                     {formatUsageNumber(sessionUsage.allTime.totalTokens)}
                                                 </div>
                                             </div>
-                                            <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                            <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.events')}
                                                 </div>
-                                                <div className="mt-1 text-sm text-[var(--text-primary)]">
+                                                <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
                                                     {formatUsageNumber(sessionUsage.usageEventCount)}
                                                 </div>
                                             </div>
-                                            <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                            <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.inputTokens')}
                                                 </div>
-                                                <div className="mt-1 text-sm text-[var(--text-primary)]">
+                                                <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
                                                     {formatUsageNumber(sessionUsage.allTime.inputTokens)}
                                                 </div>
                                             </div>
-                                            <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                            <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.outputTokens')}
                                                 </div>
-                                                <div className="mt-1 text-sm text-[var(--text-primary)]">
+                                                <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
                                                     {formatUsageNumber(sessionUsage.allTime.outputTokens)}
                                                 </div>
                                             </div>
-                                            <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                            <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.cachedInputTokens')}
                                                 </div>
-                                                <div className="mt-1 text-sm text-[var(--text-primary)]">
+                                                <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
                                                     {formatUsageNumber(sessionUsage.allTime.cachedInputTokens)}
                                                 </div>
                                             </div>
-                                            <div className="rounded-md bg-[var(--bg-quaternary)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                            <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
+                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.cacheCreationTokens')}
                                                 </div>
-                                                <div className="mt-1 text-sm text-[var(--text-primary)]">
+                                                <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
                                                     {formatUsageNumber(sessionUsage.allTime.cacheCreationTokens)}
                                                 </div>
                                             </div>
                                             {sessionUsage.allTime.reasoningOutputTokens > 0 ? (
-                                                <div className="rounded-md bg-[var(--bg-quaternary)] p-2 sm:col-span-2">
-                                                    <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                                <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2 sm:col-span-2">
+                                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                         {t('queueStatus.usage.reasoningOutputTokens')}
                                                     </div>
-                                                    <div className="mt-1 text-sm text-[var(--text-primary)]">
+                                                    <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
                                                         {formatUsageNumber(sessionUsage.allTime.reasoningOutputTokens)}
                                                     </div>
                                                 </div>
                                             ) : null}
                                         </div>
-                                        <div className="mt-2 text-[10px] text-[var(--text-tertiary)]">
+                                        <div className="mt-2 text-[10px] text-[var(--cursor-text-tertiary)]">
                                             {t('queueStatus.usage.messages')}: {formatUsageNumber(sessionUsage.messageCount)}
                                             {sessionUsage.lastUsageAt
                                                 ? ` · ${t('queueStatus.usage.lastUpdated')}: ${new Date(sessionUsage.lastUsageAt).toLocaleString()}`
@@ -2006,7 +2006,7 @@ export function SessionChat(props: {
                                         </div>
                                     </div>
                                 ) : sessionUsageError ? (
-                                    <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                    <div className="rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
                                         {sessionUsageError}
                                     </div>
                                 ) : null}
@@ -2024,7 +2024,7 @@ export function SessionChat(props: {
                     </DialogHeader>
                     <div className="mt-3 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-xs text-[var(--text-tertiary)]">
+                            <div className="text-xs text-[var(--cursor-text-tertiary)]">
                                 {t('queue.dialog.modeLabel')}: {codexSendMode === 'queue'
                                     ? t('queue.mode.queue')
                                     : t('queue.mode.direct')}
@@ -2032,7 +2032,7 @@ export function SessionChat(props: {
                             <div className="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    className="rounded-md border border-[var(--border-secondary)] px-2 py-1 text-xs text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-quaternary)] disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                                     onClick={() => void refreshCodexQueue()}
                                     disabled={isCodexQueueLoading || isCodexQueueMutating}
                                 >
@@ -2040,7 +2040,7 @@ export function SessionChat(props: {
                                 </button>
                                 <button
                                     type="button"
-                                    className="rounded-md border border-red-500/40 px-2 py-1 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-md border border-[var(--danger)]/40 px-2 py-1 text-xs text-[var(--danger)] transition-colors hover:bg-[var(--danger)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                                     onClick={handleCodexQueueClear}
                                     disabled={isCodexQueueMutating || codexQueueEntries.length === 0}
                                 >
@@ -2050,40 +2050,40 @@ export function SessionChat(props: {
                         </div>
 
                         {isCodexQueueLoading ? (
-                            <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 text-sm text-[var(--text-tertiary)]">
+                            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 text-sm text-[var(--cursor-text-tertiary)]">
                                 {t('queue.dialog.loading')}
                             </div>
                         ) : null}
 
                         {codexQueueError ? (
-                            <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                            <div className="rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
                                 {codexQueueError}
                             </div>
                         ) : null}
 
                         {codexQueueStatus ? (
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
+                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                         {t('queue.summary.pending')}
                                     </div>
-                                    <div className="mt-1 text-lg font-semibold text-[var(--text-primary)]">
+                                    <div className="mt-1 text-lg font-semibold text-[var(--cursor-text-primary)]">
                                         {codexQueueStatus.pendingCount}
                                     </div>
                                 </div>
-                                <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
+                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                         {t('queue.summary.inQueue')}
                                     </div>
-                                    <div className="mt-1 text-sm text-[var(--text-primary)]">
+                                    <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
                                         {codexQueueStatus.inQueue ? 'yes' : 'no'}
                                     </div>
                                 </div>
-                                <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
+                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                         {t('queue.summary.taskRunning')}
                                     </div>
-                                    <div className="mt-1 text-sm text-[var(--text-primary)]">
+                                    <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
                                         {codexQueueStatus.taskRunning ? 'yes' : 'no'}
                                     </div>
                                 </div>
@@ -2098,18 +2098,18 @@ export function SessionChat(props: {
                                     return (
                                         <div
                                             key={entry.id}
-                                            className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3"
+                                            className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3"
                                         >
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--text-tertiary)]">
+                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                                         #{index + 1}
                                                         {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
                                                     </div>
-                                                    <div className="mt-1 break-all text-sm font-mono text-[var(--text-primary)]">
+                                                    <div className="mt-1 break-all text-sm font-mono text-[var(--cursor-text-primary)]">
                                                         {previewText}
                                                     </div>
-                                                    <div className="mt-1 text-[10px] text-[var(--text-tertiary)]">
+                                                    <div className="mt-1 text-[10px] text-[var(--cursor-text-tertiary)]">
                                                         {new Date(entry.enqueuedAt).toLocaleTimeString()}
                                                     </div>
                                                 </div>
@@ -2118,7 +2118,7 @@ export function SessionChat(props: {
                                                         type="button"
                                                         aria-label={t('queue.entry.moveUp')}
                                                         title={t('queue.entry.moveUp')}
-                                                        className="rounded border border-[var(--border-secondary)] px-1.5 py-1 text-xs text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                                                        className="rounded border border-[var(--cursor-stroke-primary)] px-1.5 py-1 text-xs text-[var(--cursor-text-tertiary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                                                         onClick={() => handleCodexQueueMove(entry.id, index - 1)}
                                                         disabled={isCodexQueueMutating || index <= 0}
                                                     >
@@ -2128,7 +2128,7 @@ export function SessionChat(props: {
                                                         type="button"
                                                         aria-label={t('queue.entry.moveDown')}
                                                         title={t('queue.entry.moveDown')}
-                                                        className="rounded border border-[var(--border-secondary)] px-1.5 py-1 text-xs text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-quaternary)] hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+                                                        className="rounded border border-[var(--cursor-stroke-primary)] px-1.5 py-1 text-xs text-[var(--cursor-text-tertiary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                                                         onClick={() => handleCodexQueueMove(entry.id, index + 1)}
                                                         disabled={isCodexQueueMutating || index >= codexQueueEntries.length - 1}
                                                     >
@@ -2138,7 +2138,7 @@ export function SessionChat(props: {
                                                         type="button"
                                                         aria-label={t('queue.entry.remove')}
                                                         title={t('queue.entry.remove')}
-                                                        className="rounded border border-red-500/40 px-1.5 py-1 text-xs text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        className="rounded border border-[var(--danger)]/40 px-1.5 py-1 text-xs text-[var(--danger)] transition-colors hover:bg-[var(--danger)]/10 disabled:cursor-not-allowed disabled:opacity-50"
                                                         onClick={() => handleCodexQueueRemove(entry.id)}
                                                         disabled={isCodexQueueMutating}
                                                     >
@@ -2151,7 +2151,7 @@ export function SessionChat(props: {
                                 })}
                             </div>
                         ) : (
-                            <div className="rounded-md border border-[var(--border-secondary)] bg-[var(--bg-tertiary)] p-3 text-sm text-[var(--text-tertiary)]">
+                            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 text-sm text-[var(--cursor-text-tertiary)]">
                                 {t('queue.dialog.empty')}
                             </div>
                         )}

@@ -19,14 +19,14 @@ export function CodeBlock(props: {
                 <button
                     type="button"
                     onClick={() => copy(props.code)}
-                    className="absolute right-1.5 top-1.5 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
+                    className="absolute right-1.5 top-1.5 rounded p-1 text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]"
                     title={t('code.copy')}
                 >
                     {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
                 </button>
             ) : null}
 
-            <div className="min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden rounded-md bg-[var(--app-code-bg)]">
+            <div className="min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden rounded-md bg-[var(--cursor-bg-card)]">
                 <pre className="shiki m-0 w-max min-w-full p-2 pr-8 text-xs font-mono">
                     <code className="block">{highlighted ?? props.code}</code>
                 </pre>

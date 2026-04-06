@@ -14,7 +14,7 @@ function SelectionMark(props: { checked: boolean; mode: 'single' | 'multi' }) {
         ? (props.checked ? '☑' : '☐')
         : (props.checked ? '●' : '○')
     return (
-        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--app-hint)]">
+        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--cursor-text-secondary)]">
             {mark}
         </span>
     )
@@ -32,17 +32,17 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
-                props.checked ? 'bg-[var(--app-subtle-bg)]' : null
+                'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-[var(--cursor-bg-quiet)] disabled:pointer-events-none disabled:opacity-50',
+                props.checked ? 'bg-[var(--cursor-bg-quiet)]' : null
             )}
             disabled={props.disabled}
             onClick={props.onClick}
         >
             <SelectionMark checked={props.checked} mode={props.mode} />
             <span className="min-w-0 flex-1">
-                <div className="font-medium text-[var(--app-fg)] break-words">{props.title}</div>
+                <div className="font-medium text-[var(--cursor-text-primary)] break-words">{props.title}</div>
                 {props.description ? (
-                    <div className="mt-0.5 text-xs text-[var(--app-hint)] break-words">
+                    <div className="mt-0.5 text-xs text-[var(--cursor-text-secondary)] break-words">
                         {props.description}
                     </div>
                 ) : null}
@@ -258,14 +258,14 @@ export function AskUserQuestionFooter(props: {
     }
 
     return (
-        <div className="mt-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+        <div className="mt-3 rounded-lg border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] p-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
                         <Badge variant="default">
                             {t('tool.question')}
                         </Badge>
-                        <span className="font-mono text-xs text-[var(--app-hint)]">
+                        <span className="font-mono text-xs text-[var(--cursor-text-secondary)]">
                             [{clampedStep + 1}/{total}]
                         </span>
                     </div>
@@ -273,14 +273,14 @@ export function AskUserQuestionFooter(props: {
             </div>
 
             {error ? (
-                <div className="mt-2 text-xs text-red-600">
+                <div className="mt-2 text-xs text-[var(--danger)]">
                     {error}
                 </div>
             ) : null}
 
             {questions.length === 0 ? (
                 <div className="mt-3">
-                    <div className="text-sm text-[var(--app-hint)]">
+                    <div className="text-sm text-[var(--cursor-text-secondary)]">
                         {t('tool.askUserQuestion.fallback')}
                     </div>
                     <textarea
@@ -288,7 +288,7 @@ export function AskUserQuestionFooter(props: {
                         onChange={(e) => setFallbackText(e.target.value)}
                         disabled={props.disabled || loading}
                         placeholder={t('tool.askUserQuestion.placeholder')}
-                        className="mt-2 w-full min-h-[88px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
+                        className="mt-2 w-full min-h-[88px] resize-y rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-sm text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--cursor-button)] focus:border-transparent disabled:opacity-50"
                     />
                 </div>
             ) : (
@@ -304,7 +304,7 @@ export function AskUserQuestionFooter(props: {
                             ) : null}
                             {questions[clampedStep]?.question ? (
                                 <div className={cn(
-                                    "text-sm text-[var(--app-fg)] break-words",
+                                    "text-sm text-[var(--cursor-text-primary)] break-words",
                                     questions[clampedStep]?.header ? "mt-2" : ""
                                 )}>
                                     {questions[clampedStep].question}
@@ -344,7 +344,7 @@ export function AskUserQuestionFooter(props: {
                                 onChange={(e) => updateOtherText(clampedStep, e.target.value)}
                                 disabled={props.disabled || loading}
                                 placeholder={t('tool.askUserQuestion.otherPlaceholder')}
-                                className="mt-2 w-full min-h-[88px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
+                                className="mt-2 w-full min-h-[88px] resize-y rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-sm text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--cursor-button)] focus:border-transparent disabled:opacity-50"
                             />
                         ) : null}
                     </div>
@@ -389,7 +389,7 @@ export function AskUserQuestionFooter(props: {
                         >
                             {loading ? (
                                 <>
-                                    <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
+                                    <Spinner size="sm" label={null} className="text-[var(--cursor-button-text)]" />
                                     {t('tool.submitting')}
                                 </>
                             ) : (

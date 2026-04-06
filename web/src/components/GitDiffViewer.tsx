@@ -32,16 +32,16 @@ export function GitDiffViewer(props: {
     }), [props.diffContent, props.filePath, props.language, props.newContent, props.oldContent])
 
     return (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-bg)]">
+        <div className="overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)]">
             {showToolbar ? (
-                <div className="flex items-center justify-between gap-2 border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1">
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-soft)] px-2 py-1">
                     <div className="flex items-center gap-1">
                         <button
                             type="button"
                             onClick={() => setDiffViewMode(DiffModeEnum.Unified)}
                             className={`rounded border px-2 py-1 text-[11px] transition-colors ${diffViewMode === DiffModeEnum.Unified
-                                ? 'border-[var(--app-link)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)]'
-                                : 'border-[var(--app-border)] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]'}`}
+                                ? 'border-[var(--cursor-link)] bg-[var(--cursor-bg-secondary)] text-[var(--cursor-text-primary)]'
+                                : 'border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-secondary)] hover:text-[var(--cursor-text-primary)]'}`}
                             aria-pressed={diffViewMode === DiffModeEnum.Unified}
                             title="Show unified diff"
                         >
@@ -51,8 +51,8 @@ export function GitDiffViewer(props: {
                             type="button"
                             onClick={() => setDiffViewMode(DiffModeEnum.SplitGitHub)}
                             className={`rounded border px-2 py-1 text-[11px] transition-colors ${diffViewMode === DiffModeEnum.SplitGitHub
-                                ? 'border-[var(--app-link)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)]'
-                                : 'border-[var(--app-border)] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]'}`}
+                                ? 'border-[var(--cursor-link)] bg-[var(--cursor-bg-secondary)] text-[var(--cursor-text-primary)]'
+                                : 'border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-secondary)] hover:text-[var(--cursor-text-primary)]'}`}
                             aria-pressed={diffViewMode === DiffModeEnum.SplitGitHub}
                             title="Show side-by-side diff"
                         >
@@ -62,7 +62,7 @@ export function GitDiffViewer(props: {
                     <button
                         type="button"
                         onClick={toggleSoftWrap}
-                        className="rounded border border-[var(--app-border)] px-2 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="rounded border border-[var(--cursor-stroke-primary)] px-2 py-1 text-[11px] text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-secondary)] hover:text-[var(--cursor-text-primary)]"
                         aria-pressed={softWrap}
                         title={softWrap ? 'Disable soft wrap' : 'Enable soft wrap'}
                     >

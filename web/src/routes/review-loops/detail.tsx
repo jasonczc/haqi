@@ -18,10 +18,10 @@ import type { ReviewLoopUserPreference } from '@/types/api'
 
 function SectionDivider({ title }: { title: string }) {
     return (
-        <div className="flex items-center gap-2 text-[var(--app-hint)] font-mono text-xs select-none mt-4 mb-2">
-            <div className="border-t border-[var(--app-border)] w-4" />
+        <div className="flex items-center gap-2 text-[var(--text-tertiary)] font-mono text-xs select-none mt-4 mb-2">
+            <div className="border-t border-[var(--border-secondary)] w-4" />
             <span className="shrink-0">{title}</span>
-            <div className="flex-1 border-t border-[var(--app-border)]" />
+            <div className="flex-1 border-t border-[var(--border-secondary)]" />
         </div>
     )
 }
@@ -65,7 +65,7 @@ export default function ReviewLoopDetailPage() {
     if (error) {
         return (
             <div className="flex h-full items-center justify-center p-4 font-mono">
-                <div className="text-sm text-[var(--app-badge-error-text)]">err: {error}</div>
+                <div className="text-sm text-[var(--danger)]">err: {error}</div>
             </div>
         )
     }
@@ -79,17 +79,17 @@ export default function ReviewLoopDetailPage() {
     const isTerminal = loop.status === 'accepted' || loop.status === 'aborted' || loop.status === 'canceled'
 
     return (
-        <div className="flex h-full flex-col overflow-y-auto font-mono min-w-0">
+        <div className="review-loops-ui flex h-full flex-col overflow-y-auto font-mono min-w-0">
             <div className="mx-auto w-full max-w-3xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] min-w-0">
                 {/* ╭─ Header ─╮ */}
-                <div className="border border-[var(--app-divider)] rounded-sm p-4">
-                    <div className="text-sm text-[var(--app-fg)] leading-relaxed whitespace-pre-wrap">
+                <div className="border border-[var(--border-tertiary)] rounded-sm p-4">
+                    <div className="text-sm text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">
                         {loop.requirement.length > 300
                             ? loop.requirement.slice(0, 300) + '...'
                             : loop.requirement}
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--text-tertiary)]">
                         <span>status: <ReviewLoopStatusBadge status={loop.status} /></span>
                         <span>round: {loop.currentRound}/{loop.maxRounds}</span>
                         <span>progress: <ProgressBar progress={latestProgress} /></span>
@@ -100,22 +100,22 @@ export default function ReviewLoopDetailPage() {
                 {loop.acceptanceCriteria && latestVerdict?.criteriaStatus && latestVerdict.criteriaStatus.length > 0 ? (
                     <>
                         <SectionDivider title="Acceptance Criteria" />
-                        <div className="border border-[var(--app-divider)] rounded-sm p-3">
+                        <div className="border border-[var(--border-tertiary)] rounded-sm p-3">
                             <CriteriaChecklist criteria={latestVerdict.criteriaStatus} />
                         </div>
                     </>
                 ) : loop.acceptanceCriteria ? (
                     <>
                         <SectionDivider title="Acceptance Criteria" />
-                        <div className="border border-[var(--app-divider)] rounded-sm p-3">
-                            <pre className="font-mono text-xs text-[var(--app-fg)] whitespace-pre-wrap">{loop.acceptanceCriteria}</pre>
+                        <div className="border border-[var(--border-tertiary)] rounded-sm p-3">
+                            <pre className="font-mono text-xs text-[var(--text-primary)] whitespace-pre-wrap">{loop.acceptanceCriteria}</pre>
                         </div>
                     </>
                 ) : null}
 
                 {/* ─── Settings ─── */}
                 <SectionDivider title="Settings" />
-                <div className="border border-[var(--app-divider)] rounded-sm p-3">
+                <div className="border border-[var(--border-tertiary)] rounded-sm p-3">
                     <LoopSettingsPanel
                         userPreference={loop.userPreference}
                         maxRounds={loop.maxRounds}
@@ -128,7 +128,7 @@ export default function ReviewLoopDetailPage() {
 
                 {/* ─── Controls ─── */}
                 <SectionDivider title="Controls" />
-                <div className="border border-[var(--app-divider)] rounded-sm p-3">
+                <div className="border border-[var(--border-tertiary)] rounded-sm p-3">
                     <LoopControls
                         status={loop.status}
                         onContinue={handleContinue}
@@ -141,7 +141,7 @@ export default function ReviewLoopDetailPage() {
                 {/* ─── Timeline ─── */}
                 <SectionDivider title={`Timeline (${rounds.length} rounds)`} />
                 {rounds.length === 0 ? (
-                    <div className="text-xs text-[var(--app-hint)] py-2">no rounds yet.</div>
+                    <div className="text-xs text-[var(--text-tertiary)] py-2">no rounds yet.</div>
                 ) : (
                     <RoundTimeline rounds={rounds} />
                 )}

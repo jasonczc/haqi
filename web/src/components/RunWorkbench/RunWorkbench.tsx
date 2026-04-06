@@ -37,17 +37,17 @@ function WorkbenchTabBar(props: {
         ]
 
     return (
-        <div className="context-header flex items-center justify-between border-b border-[var(--border-tertiary)] bg-[var(--bg-editor)]">
+        <div className="context-header flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)]">
             <div className="context-tabs flex">
                 {tabs.filter(t => t.available).map(tab => (
                     <button
                         key={tab.key}
                         type="button"
                         onClick={() => props.onTabChange(tab.key)}
-                        className={`context-tab relative px-0 py-1 text-[var(--font-size-base)] font-medium transition-colors ${
+                        className={`context-tab relative px-0 py-1 text-[13px] font-medium transition-colors ${
                             props.activeTab === tab.key
-                                ? 'active text-[var(--text-primary)]'
-                                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                                ? 'active text-[var(--cursor-text-primary)]'
+                                : 'text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-secondary)]'
                         }`}
                     >
                         {tab.label}
@@ -59,7 +59,7 @@ function WorkbenchTabBar(props: {
                 <button
                     type="button"
                     onClick={() => setMenuOpen((open) => !open)}
-                    className="rounded p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)] transition-colors"
+                    className="rounded p-1.5 text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-soft)] transition-colors"
                     title="More options"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -72,13 +72,13 @@ function WorkbenchTabBar(props: {
                     <button type="button" className="dropdown-item">Open in Desktop</button>
                     <button type="button" className="dropdown-item">Configure Environment</button>
                     <div className="dropdown-divider" />
-                    <button type="button" className="dropdown-item text-red">Archive</button>
+                    <button type="button" className="dropdown-item dropdown-item-danger">Archive</button>
                 </div>
                 {/* Fullscreen */}
                 <button
                     type="button"
                     onClick={props.onFullscreen}
-                    className="rounded p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)] transition-colors"
+                    className="rounded p-1.5 text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-soft)] transition-colors"
                     title="Expand panel"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -92,7 +92,7 @@ function WorkbenchTabBar(props: {
                 <button
                     type="button"
                     onClick={props.onClose}
-                    className="rounded p-1.5 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)] transition-colors"
+                    className="rounded p-1.5 text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-soft)] transition-colors"
                     title="Toggle app panel"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -142,8 +142,8 @@ export function RunWorkbench(props: {
     }
 
     const containerClass = isFullscreen
-        ? 'context-panel fixed inset-0 z-50 flex flex-col bg-[var(--bg-editor)]'
-        : 'context-panel flex h-full w-full flex-col border-l border-[var(--border-tertiary)] bg-[var(--bg-editor)]'
+        ? 'context-panel fixed inset-0 z-50 flex flex-col bg-[var(--cursor-bg-card)]'
+        : 'context-panel flex h-full w-full flex-col border-l border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)]'
 
     return (
         <div className={containerClass}>

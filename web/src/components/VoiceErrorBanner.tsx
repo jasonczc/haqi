@@ -21,7 +21,7 @@ export function VoiceErrorBanner() {
     }
 
     return (
-        <div className="fixed top-0 left-0 right-0 bg-red-500 text-white text-center py-2 text-sm font-medium z-50 flex items-center justify-center border-b border-red-600">
+        <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-center border-b border-[var(--danger)]/20 bg-[var(--danger)]/12 py-2 text-center text-sm font-medium text-[var(--danger)]">
             {voice.errorMessage}
         </div>
     )

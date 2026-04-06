@@ -32,9 +32,9 @@ function formatDate(ts: number): string {
 
 function StatusBadge({ status, t }: { status: StoredCheckpoint['status']; t: (key: string) => string }) {
     const colorMap = {
-        ready: 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)] border border-[var(--app-badge-success-border)]',
-        creating: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)] border border-[var(--app-badge-warning-border)]',
-        failed: 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)] border border-[var(--app-badge-error-border)]',
+        ready: 'bg-[var(--cursor-badge-success-bg)] text-[var(--cursor-badge-success-text)] border border-[var(--cursor-badge-success-border)]',
+        creating: 'bg-[var(--cursor-badge-warning-bg)] text-[var(--cursor-badge-warning-text)] border border-[var(--cursor-badge-warning-border)]',
+        failed: 'bg-[var(--cursor-badge-error-bg)] text-[var(--cursor-badge-error-text)] border border-[var(--cursor-badge-error-border)]',
     } as const
     const labelMap = {
         ready: t('cloud.checkpoints.ready'),
@@ -76,20 +76,20 @@ function CollapsibleSection(props: {
 }) {
     const sectionContentId = useId()
     return (
-        <section className="border-b border-[var(--app-divider)]">
+        <section className="border-b border-[var(--cursor-stroke-secondary)]">
             <button
                 type="button"
                 onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
                 aria-expanded={props.isExpanded}
                 aria-controls={sectionContentId}
             >
                 <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
-                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
+                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
                 </div>
                 <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
                         props.isExpanded ? 'rotate-180' : ''
                     }`}
                 />
@@ -138,7 +138,7 @@ export default function CloudCheckpointsPage() {
     }
 
     if (checkpointsQuery.isError) {
-        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load checkpoints</div>
+        return <div className="p-4 text-sm text-[var(--cursor-badge-error-text)]">Failed to load checkpoints</div>
     }
 
     const checkpoints = (checkpointsQuery.data?.checkpoints ?? []) as unknown as StoredCheckpoint[]
@@ -153,7 +153,7 @@ export default function CloudCheckpointsPage() {
                     onToggle={() => setIsExpanded(!isExpanded)}
                 >
                     {checkpoints.length === 0 ? (
-                        <div className="px-3 py-6 text-center text-sm text-[var(--app-hint)]">
+                        <div className="px-3 py-6 text-center text-sm text-[var(--cursor-text-secondary)]">
                             <p>{t('cloud.checkpoints.empty')}</p>
                             <p className="mt-2 text-xs">
                                 Start a Setup session to configure an environment, then save it as a checkpoint.
@@ -174,25 +174,25 @@ export default function CloudCheckpointsPage() {
                             {checkpoints.map((checkpoint) => (
                                 <div
                                     key={checkpoint.id}
-                                    className={`flex items-start justify-between gap-3 border-b border-[var(--app-divider)] px-3 py-3${
+                                    className={`flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-secondary)] px-3 py-3${
                                         checkpoint.parentCheckpointId ? ' pl-8' : ''
                                     }`}
                                 >
                                     <div className="flex min-w-0 flex-col">
                                         <div className="flex items-center gap-2">
                                             <StatusBadge status={checkpoint.status} t={t} />
-                                            <span className="text-sm font-medium text-[var(--app-fg)]">{checkpoint.name}</span>
+                                            <span className="text-sm font-medium text-[var(--cursor-text-primary)]">{checkpoint.name}</span>
                                         </div>
-                                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--app-hint)]">
+                                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--cursor-text-secondary)]">
                                             {checkpoint.repoUrl ? (
                                                 <span>
-                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.repo')}</span>{' '}
+                                                    <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.checkpoints.repo')}</span>{' '}
                                                     {checkpoint.repoUrl}
                                                 </span>
                                             ) : null}
                                             {checkpoint.parentCheckpointId ? (
                                                 <span>
-                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.parent')}</span>{' '}
+                                                    <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.checkpoints.parent')}</span>{' '}
                                                     {(() => {
                                                         const parent = checkpoints.find(c => c.id === checkpoint.parentCheckpointId)
                                                         return parent
@@ -203,7 +203,7 @@ export default function CloudCheckpointsPage() {
                                             ) : null}
                                             {checkpoint.machineId ? (
                                                 <span>
-                                                    <span className="font-medium text-[var(--app-fg)]">{t('cloud.checkpoints.machine')}</span>{' '}
+                                                    <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.checkpoints.machine')}</span>{' '}
                                                     <span className="font-mono">{checkpoint.machineId}</span>
                                                 </span>
                                             ) : null}

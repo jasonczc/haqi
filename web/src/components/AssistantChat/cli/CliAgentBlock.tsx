@@ -14,13 +14,13 @@ function CliCodeBlockInner(props: { language: string; code: string }) {
     const { copied, copy } = useCopyToClipboard()
 
     return (
-        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-md border border-[var(--app-border)]">
-            <div className="flex items-center justify-between bg-[var(--app-code-bg)] px-2 py-0.5">
-                <span className="text-xs text-[var(--app-hint)]">{props.language}</span>
+        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)]">
+            <div className="flex items-center justify-between bg-[var(--cursor-code-bg)] px-2 py-0.5">
+                <span className="text-xs text-[var(--cursor-text-secondary)]">{props.language}</span>
                 <button
                     type="button"
                     onClick={() => copy(props.code)}
-                    className="rounded p-0.5 text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
+                    className="rounded p-0.5 text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)] transition-colors"
                 >
                     {copied ? <CheckIcon className="h-3 w-3" /> : <CopyIcon className="h-3 w-3" />}
                 </button>
@@ -28,7 +28,7 @@ function CliCodeBlockInner(props: { language: string; code: string }) {
             {isMermaidLanguage(props.language)
                 ? <MermaidBlock code={props.code} language={props.language} />
                 : (
-                    <pre className="shiki m-0 w-max min-w-full overflow-x-auto bg-[var(--app-code-bg)] p-2 text-sm font-mono">
+                    <pre className="shiki m-0 w-max min-w-full overflow-x-auto bg-[var(--cursor-code-bg)] p-2 text-sm font-mono">
                         <code className="block">{highlighted ?? props.code}</code>
                     </pre>
                 )}
@@ -50,7 +50,7 @@ function CliCodeBlock(props: ComponentPropsWithoutRef<'code'>) {
         <code
             {...rest}
             className={cn(
-                'break-words rounded bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]',
+                'break-words rounded bg-[var(--cursor-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]',
                 className
             )}
         >
@@ -70,10 +70,10 @@ const cliMarkdownComponents = {
         <p {...props} className="aui-md-p mb-1 leading-relaxed break-words [overflow-wrap:anywhere]" />
     ),
     a: (props: ComponentPropsWithoutRef<'a'>) => (
-        <a {...props} className="text-[var(--app-link)] underline" rel={props.target === '_blank' ? 'noreferrer' : undefined} />
+        <a {...props} className="text-[var(--cursor-link)] underline" rel={props.target === '_blank' ? 'noreferrer' : undefined} />
     ),
     blockquote: (props: ComponentPropsWithoutRef<'blockquote'>) => (
-        <blockquote {...props} className="border-l-4 border-[var(--app-hint)] pl-3 opacity-85 break-words" />
+        <blockquote {...props} className="border-l-4 border-[var(--cursor-text-secondary)] pl-3 opacity-85 break-words" />
     ),
     ul: (props: ComponentPropsWithoutRef<'ul'>) => (
         <ul {...props} className="aui-md-ul list-disc pl-5 my-0.5" />
@@ -85,7 +85,7 @@ const cliMarkdownComponents = {
         <li {...props} className="aui-md-li my-0" />
     ),
     hr: (props: ComponentPropsWithoutRef<'hr'>) => (
-        <hr {...props} className="border-[var(--app-divider)] my-1" />
+        <hr {...props} className="border-[var(--cursor-stroke-secondary)] my-1" />
     ),
     table: (props: ComponentPropsWithoutRef<'table'>) => (
         <div className="max-w-full overflow-x-auto my-1">
@@ -93,10 +93,10 @@ const cliMarkdownComponents = {
         </div>
     ),
     th: (props: ComponentPropsWithoutRef<'th'>) => (
-        <th {...props} className="border border-[var(--app-border)] px-2 py-1 text-left font-semibold bg-[var(--app-subtle-bg)]" />
+        <th {...props} className="border border-[var(--cursor-stroke-primary)] px-2 py-1 text-left font-semibold bg-[var(--cursor-bg-quiet)]" />
     ),
     td: (props: ComponentPropsWithoutRef<'td'>) => (
-        <td {...props} className="border border-[var(--app-border)] px-2 py-1" />
+        <td {...props} className="border border-[var(--cursor-stroke-primary)] px-2 py-1" />
     ),
 }
 
@@ -117,7 +117,7 @@ export const CliCliOutputBlock = memo(function CliCliOutputBlock(props: { block:
     const { block } = props
     const isUser = block.source === 'user'
     return (
-        <div className={`py-0.5 ${isUser ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}>
+        <div className={`py-0.5 ${isUser ? 'text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)]'}`}>
             <pre className="whitespace-pre-wrap break-words text-[length:inherit] leading-relaxed">{block.text}</pre>
         </div>
     )

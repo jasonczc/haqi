@@ -5,13 +5,13 @@ const statusConfig: Record<ReviewLoopStatus, {
     color: string
     active?: boolean
 }> = {
-    executing: { label: 'EXECUTING', color: 'var(--app-badge-warning-text)', active: true },
-    reviewing: { label: 'REVIEWING', color: 'var(--app-badge-info-text)', active: true },
-    waiting_user: { label: 'WAITING', color: 'var(--app-badge-warning-text)', active: true },
-    paused: { label: 'PAUSED', color: 'var(--app-badge-warning-text)' },
-    accepted: { label: 'ACCEPTED', color: 'var(--app-badge-success-text)' },
-    aborted: { label: 'ABORTED', color: 'var(--app-badge-error-text)' },
-    canceled: { label: 'CANCELED', color: 'var(--app-hint)' },
+    executing: { label: 'EXECUTING', color: 'var(--warn)', active: true },
+    reviewing: { label: 'REVIEWING', color: 'var(--cursor-info)', active: true },
+    waiting_user: { label: 'WAITING', color: 'var(--warn)', active: true },
+    paused: { label: 'PAUSED', color: 'var(--warn)' },
+    accepted: { label: 'ACCEPTED', color: 'var(--success)' },
+    aborted: { label: 'ABORTED', color: 'var(--danger)' },
+    canceled: { label: 'CANCELED', color: 'var(--text-tertiary)' },
 }
 
 export function ReviewLoopStatusBadge({ status }: { status: ReviewLoopStatus }) {

@@ -14,7 +14,7 @@ export function SessionTypeSelector(props: {
 
     return (
         <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
+            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
                 {t('newSession.type')}
             </label>
             <div className="flex flex-col gap-1.5">
@@ -30,7 +30,7 @@ export function SessionTypeSelector(props: {
                                     checked={props.sessionType === 'worktree'}
                                     onChange={() => props.onSessionTypeChange('worktree')}
                                     disabled={props.isDisabled}
-                                    className="accent-[var(--app-link)]"
+                                    className="accent-[var(--cursor-link)]"
                                 />
                                 <div className="flex-1">
                                     <div className="min-h-[34px] flex items-center">
@@ -42,7 +42,7 @@ export function SessionTypeSelector(props: {
                                                 value={props.worktreeName}
                                                 onChange={(e) => props.onWorktreeNameChange(e.target.value)}
                                                 disabled={props.isDisabled}
-                                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                                                className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-60"
                                             />
                                         ) : (
                                             <>
@@ -52,7 +52,7 @@ export function SessionTypeSelector(props: {
                                                 >
                                                     {t('newSession.type.worktree')}
                                                 </label>
-                                                <span className="ml-2 text-xs text-[var(--app-hint)]">
+                                                <span className="ml-2 text-xs text-[var(--cursor-text-secondary)]">
                                                     {t('newSession.type.worktree.desc')}
                                                 </span>
                                             </>
@@ -70,10 +70,10 @@ export function SessionTypeSelector(props: {
                                     checked={props.sessionType === 'setup'}
                                     onChange={() => props.onSessionTypeChange('setup')}
                                     disabled={props.isDisabled}
-                                    className="accent-[var(--app-link)]"
+                                    className="accent-[var(--cursor-link)]"
                                 />
                                 <span className="text-sm capitalize">Setup Environment</span>
-                                <span className="text-xs text-[var(--app-hint)]">
+                                <span className="text-xs text-[var(--cursor-text-secondary)]">
                                     Agent configures the development environment. Save as checkpoint when done.
                                 </span>
                             </label>
@@ -87,10 +87,10 @@ export function SessionTypeSelector(props: {
                                     checked={props.sessionType === 'simple'}
                                     onChange={() => props.onSessionTypeChange('simple')}
                                     disabled={props.isDisabled}
-                                    className="accent-[var(--app-link)]"
+                                    className="accent-[var(--cursor-link)]"
                                 />
                                 <span className="text-sm capitalize">{t('newSession.type.simple')}</span>
-                                <span className="text-xs text-[var(--app-hint)]">
+                                <span className="text-xs text-[var(--cursor-text-secondary)]">
                                     {t('newSession.type.simple.desc')}
                                 </span>
                             </label>

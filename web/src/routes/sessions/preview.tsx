@@ -130,27 +130,27 @@ export default function PreviewPage() {
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
-            <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
+        <div className="flex h-full min-h-0 flex-col bg-[var(--cursor-bg-card)]">
+            <div className="border-b border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] pt-[env(safe-area-inset-top)]">
                 <div className="mx-auto flex w-full max-w-content items-center gap-2 p-3">
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)] hover:text-[var(--cursor-text-primary)]"
                         aria-label="Back"
                     >
                         <BackIcon />
                     </button>
                     <div className="min-w-0 flex-1">
                         <div className="truncate font-semibold">Preview</div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">{sessionTitle}</div>
+                        <div className="truncate text-xs text-[var(--cursor-text-secondary)]">{sessionTitle}</div>
                     </div>
                     {frameUrl ? (
                         <a
                             href={frameUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)]"
+                            className="rounded-md border border-[var(--cursor-stroke-secondary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)]"
                         >
                             Open
                         </a>
@@ -159,7 +159,7 @@ export default function PreviewPage() {
             </div>
 
             <div className="mx-auto flex w-full max-w-content flex-1 min-h-0 flex-col gap-3 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                <div className="rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quaternary)] p-3">
                     <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                             type="text"
@@ -172,14 +172,14 @@ export default function PreviewPage() {
                                 }
                             }}
                             placeholder="http://localhost:3000"
-                            className="min-w-0 flex-1 rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            className="min-w-0 flex-1 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                         />
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
                                 onClick={() => void openPreview(inputUrl)}
                                 disabled={isSaving}
-                                className="rounded-md bg-[var(--app-link)] px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                className="rounded-md bg-[var(--cursor-link)] px-3 py-2 text-sm font-medium text-[var(--cursor-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isSaving ? 'Saving…' : 'Load'}
                             </button>
@@ -187,7 +187,7 @@ export default function PreviewPage() {
                                 type="button"
                                 onClick={() => setFrameKey((key) => key + 1)}
                                 disabled={!frameUrl}
-                                className="rounded-md border border-[var(--app-border)] px-3 py-2 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-md border border-[var(--cursor-stroke-secondary)] px-3 py-2 text-sm text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)] disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 Reload
                             </button>
@@ -195,7 +195,7 @@ export default function PreviewPage() {
                                 type="button"
                                 onClick={() => void clearPreview()}
                                 disabled={isSaving}
-                                className="rounded-md border border-[var(--app-border)] px-3 py-2 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                className="rounded-md border border-[var(--cursor-stroke-secondary)] px-3 py-2 text-sm text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)]"
                             >
                                 Clear
                             </button>
@@ -212,7 +212,7 @@ export default function PreviewPage() {
                                         setInputUrl(url)
                                         void openPreview(url)
                                     }}
-                                    className="max-w-full truncate rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-left text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-bg)]"
+                                    className="max-w-full truncate rounded bg-[var(--cursor-bg-quaternary)] px-2 py-1 text-left text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-card)]"
                                     title={url}
                                 >
                                     {url}
@@ -222,17 +222,17 @@ export default function PreviewPage() {
                     ) : null}
 
                     {formError ? (
-                        <div className="mt-2 text-sm text-red-600">{formError}</div>
+                        <div className="mt-2 text-sm text-[var(--cursor-danger)]">{formError}</div>
                     ) : null}
                     {error ? (
-                        <div className="mt-2 text-sm text-red-600">{error}</div>
+                        <div className="mt-2 text-sm text-[var(--cursor-danger)]">{error}</div>
                     ) : null}
-                    <div className="mt-2 text-xs text-[var(--app-hint)]">
+                    <div className="mt-2 text-xs text-[var(--cursor-text-secondary)]">
                         Some sites block embedding with iframe headers (X-Frame-Options/CSP).
                     </div>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-[var(--app-border)] bg-white">
+                <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)]">
                     {frameUrl ? (
                         <iframe
                             key={`${frameKey}:${frameUrl}`}
@@ -241,7 +241,7 @@ export default function PreviewPage() {
                             className="h-full w-full border-0"
                         />
                     ) : (
-                        <div className="flex h-full items-center justify-center p-4 text-sm text-[var(--app-hint)]">
+                        <div className="flex h-full items-center justify-center p-4 text-sm text-[var(--cursor-text-secondary)]">
                             Enter a URL and click Load to open the preview.
                         </div>
                     )}

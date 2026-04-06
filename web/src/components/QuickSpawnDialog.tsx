@@ -153,14 +153,14 @@ export function QuickSpawnDialog(props: {
                 <div className="flex flex-col gap-4 pt-2">
                     {/* Checkpoint selector */}
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-[var(--app-fg)]">
+                        <label className="text-sm font-medium text-[var(--text-primary)]">
                             Checkpoint
                         </label>
                         <select
                             value={checkpointId}
                             onChange={(e) => setCheckpointId(e.target.value)}
                             disabled={isSpawning}
-                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                            className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                         >
                             <option value="">— no checkpoint —</option>
                             {readyCheckpoints.map((cp) => (
@@ -170,13 +170,13 @@ export function QuickSpawnDialog(props: {
                             ))}
                         </select>
                         {checkpointsQuery.isLoading && (
-                            <span className="text-xs text-[var(--app-hint)]">Loading checkpoints...</span>
+                            <span className="text-xs text-[var(--text-tertiary)]">Loading checkpoints...</span>
                         )}
                     </div>
 
                     {/* Task textarea */}
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-[var(--app-fg)]">
+                        <label className="text-sm font-medium text-[var(--text-primary)]">
                             Task
                         </label>
                         <textarea
@@ -185,7 +185,7 @@ export function QuickSpawnDialog(props: {
                             placeholder="Describe what the agent should do..."
                             rows={4}
                             disabled={isSpawning}
-                            className="w-full resize-none rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                            className="w-full resize-none rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                         />
                     </div>
 
@@ -196,10 +196,10 @@ export function QuickSpawnDialog(props: {
                             checked={setupMode}
                             onChange={(e) => setSetupMode(e.target.checked)}
                             disabled={isSpawning}
-                            className="h-4 w-4 rounded border border-[var(--app-border)] accent-[var(--app-link)]"
+                            className="h-4 w-4 rounded border border-[var(--border-secondary)] accent-[var(--accent)]"
                         />
-                        <span className="font-medium text-[var(--app-fg)]">Setup Environment</span>
-                        <span className="text-[var(--app-hint)]">(installs deps, configures tools)</span>
+                        <span className="font-medium text-[var(--text-primary)]">Setup Environment</span>
+                        <span className="text-[var(--text-tertiary)]">(installs deps, configures tools)</span>
                     </label>
 
                     {/* Advanced section */}
@@ -207,7 +207,7 @@ export function QuickSpawnDialog(props: {
                         <button
                             type="button"
                             onClick={() => setAdvancedOpen((v) => !v)}
-                            className="flex items-center gap-1.5 text-sm text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
+                            className="flex items-center gap-1.5 text-sm text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
                         >
                             <ChevronDownIcon
                                 className={`transition-transform ${advancedOpen ? '' : '-rotate-90'}`}
@@ -216,17 +216,17 @@ export function QuickSpawnDialog(props: {
                         </button>
 
                         {advancedOpen && (
-                            <div className="mt-3 flex flex-col gap-3 rounded-md border border-[var(--app-border)] p-3">
+                            <div className="mt-3 flex flex-col gap-3 rounded-md border border-[var(--border-secondary)] p-3">
                                 {/* Agent */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-medium text-[var(--app-hint)]">
+                                    <label className="text-xs font-medium text-[var(--text-tertiary)]">
                                         Agent
                                     </label>
                                     <select
                                         value={agent}
                                         onChange={(e) => setAgent(e.target.value)}
                                         disabled={isSpawning}
-                                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                                        className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                                     >
                                         <option value="claude">Claude</option>
                                         <option value="codex">Codex</option>
@@ -235,7 +235,7 @@ export function QuickSpawnDialog(props: {
 
                                 {/* Model */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-medium text-[var(--app-hint)]">
+                                    <label className="text-xs font-medium text-[var(--text-tertiary)]">
                                         Model
                                     </label>
                                     <input
@@ -244,7 +244,7 @@ export function QuickSpawnDialog(props: {
                                         onChange={(e) => setModel(e.target.value)}
                                         placeholder="e.g. claude-opus-4-5 (leave blank for default)"
                                         disabled={isSpawning}
-                                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-60"
+                                        className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                                     />
                                 </div>
 
@@ -256,7 +256,7 @@ export function QuickSpawnDialog(props: {
                                 />
 
                                 {/* Worker status */}
-                                <div className="text-xs text-[var(--app-hint)]">
+                                <div className="text-xs text-[var(--text-tertiary)]">
                                     {workersQuery.isLoading
                                         ? 'Loading workers...'
                                         : activeWorker
@@ -269,7 +269,7 @@ export function QuickSpawnDialog(props: {
 
                     {/* Error */}
                     {spawnError && (
-                        <p className="rounded-md bg-[var(--app-badge-error-bg)] px-3 py-2 text-sm text-[var(--app-badge-error-text)]">
+                        <p className="rounded-md bg-[var(--bg-danger-secondary)] px-3 py-2 text-sm text-[var(--danger)]">
                             {spawnError}
                         </p>
                     )}

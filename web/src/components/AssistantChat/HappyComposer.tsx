@@ -1060,7 +1060,7 @@ export function HappyComposer(props: {
                     <FloatingOverlay maxHeight={320}>
                         {showPermissionSettings ? (
                             <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--cursor-text-secondary)]">
                                     {t('misc.permissionMode')}
                                 </div>
                                 {permissionModeOptions.map((option) => (
@@ -1071,7 +1071,7 @@ export function HappyComposer(props: {
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                                             controlsDisabled
                                                 ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                                : 'cursor-pointer hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         onClick={() => handlePermissionChange(option.mode)}
                                         onMouseDown={(e) => e.preventDefault()}
@@ -1079,15 +1079,15 @@ export function HappyComposer(props: {
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
                                                 permissionMode === option.mode
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
+                                                    ? 'border-[var(--cursor-link)]'
+                                                    : 'border-[var(--cursor-text-secondary)]'
                                             }`}
                                         >
                                             {permissionMode === option.mode && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                                <div className="h-2 w-2 rounded-full bg-[var(--cursor-link)]" />
                                             )}
                                         </div>
-                                        <span className={permissionMode === option.mode ? 'text-[var(--app-link)]' : ''}>
+                                        <span className={permissionMode === option.mode ? 'text-[var(--cursor-link)]' : ''}>
                                             {option.label}
                                         </span>
                                     </button>
@@ -1096,12 +1096,12 @@ export function HappyComposer(props: {
                         ) : null}
 
                         {showPermissionDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                            <div className="mx-3 h-px bg-[var(--cursor-stroke-secondary)]" />
                         ) : null}
 
                         {showModelSettings ? (
                             <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--cursor-text-secondary)]">
                                     {t('misc.model')}
                                 </div>
                                 {modelOptions.map((option) => (
@@ -1112,7 +1112,7 @@ export function HappyComposer(props: {
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                                             controlsDisabled
                                                 ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                                : 'cursor-pointer hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         onClick={() => handleModelChange(option.value)}
                                         onMouseDown={(e) => e.preventDefault()}
@@ -1120,15 +1120,15 @@ export function HappyComposer(props: {
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
                                                 currentModelValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
+                                                    ? 'border-[var(--cursor-link)]'
+                                                    : 'border-[var(--cursor-text-secondary)]'
                                             }`}
                                         >
                                             {currentModelValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                                <div className="h-2 w-2 rounded-full bg-[var(--cursor-link)]" />
                                             )}
                                         </div>
-                                        <span className={currentModelValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                        <span className={currentModelValue === option.value ? 'text-[var(--cursor-link)]' : ''}>
                                             {option.label}
                                         </span>
                                     </button>
@@ -1137,12 +1137,12 @@ export function HappyComposer(props: {
                         ) : null}
 
                         {showModelDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                            <div className="mx-3 h-px bg-[var(--cursor-stroke-secondary)]" />
                         ) : null}
 
                         {showThinkEffortSettings ? (
                             <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--cursor-text-secondary)]">
                                     {t('newSession.think')}
                                 </div>
                                 {thinkEffortOptions.map((option) => (
@@ -1153,7 +1153,7 @@ export function HappyComposer(props: {
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                                             controlsDisabled
                                                 ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                                : 'cursor-pointer hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         onClick={() => handleThinkEffortChange(option.value)}
                                         onMouseDown={(e) => e.preventDefault()}
@@ -1161,15 +1161,15 @@ export function HappyComposer(props: {
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
                                                 currentThinkEffortValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
+                                                    ? 'border-[var(--cursor-link)]'
+                                                    : 'border-[var(--cursor-text-secondary)]'
                                             }`}
                                         >
                                             {currentThinkEffortValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                                <div className="h-2 w-2 rounded-full bg-[var(--cursor-link)]" />
                                             )}
                                         </div>
-                                        <span className={currentThinkEffortValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                        <span className={currentThinkEffortValue === option.value ? 'text-[var(--cursor-link)]' : ''}>
                                             {option.label}
                                         </span>
                                     </button>
@@ -1178,12 +1178,12 @@ export function HappyComposer(props: {
                         ) : null}
 
                         {showThinkEffortDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                            <div className="mx-3 h-px bg-[var(--cursor-stroke-secondary)]" />
                         ) : null}
 
                         {showServiceTierSettings ? (
                             <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--cursor-text-secondary)]">
                                     {t('newSession.serviceTier')}
                                 </div>
                                 {serviceTierOptions.map((option) => (
@@ -1194,7 +1194,7 @@ export function HappyComposer(props: {
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                                             controlsDisabled
                                                 ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                                : 'cursor-pointer hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         onClick={() => handleServiceTierChange(option.value)}
                                         onMouseDown={(e) => e.preventDefault()}
@@ -1202,15 +1202,15 @@ export function HappyComposer(props: {
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
                                                 currentServiceTierValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
+                                                    ? 'border-[var(--cursor-link)]'
+                                                    : 'border-[var(--cursor-text-secondary)]'
                                             }`}
                                         >
                                             {currentServiceTierValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                                <div className="h-2 w-2 rounded-full bg-[var(--cursor-link)]" />
                                             )}
                                         </div>
-                                        <span className={currentServiceTierValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                        <span className={currentServiceTierValue === option.value ? 'text-[var(--cursor-link)]' : ''}>
                                             {option.label}
                                         </span>
                                     </button>
@@ -1262,7 +1262,7 @@ export function HappyComposer(props: {
     ])
 
     return (
-        <div className={`chat-input-wrapper px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)] ${cliMode ? 'cli-composer' : ''}`}>
+        <div className={`chat-input-wrapper px-3 ${bottomPaddingClass} pt-2 bg-[var(--cursor-bg-card)] ${cliMode ? 'cli-composer' : ''}`}>
             <div className="chat-input-shell mx-auto w-full max-w-content">
                 <ComposerPrimitive.Root className="relative" onSubmit={handleSubmit}>
                     {overlays}
@@ -1284,34 +1284,34 @@ export function HappyComposer(props: {
                         asChild
                         disabled={controlsDisabled}
                     >
-                        <div className={`chat-input-box overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
+                        <div className={`chat-input-box overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--cursor-link)] ${cliMode ? 'rounded border border-[var(--cursor-stroke-primary)] bg-transparent' : 'rounded-[20px] bg-[var(--cursor-bg-quiet)]'}`}>
                             {showInlineQueuePanel ? (
-                                <div className="chat-inline-queue border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2">
+                                <div className="chat-inline-queue border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] px-3 py-2">
                                     <div className="chat-inline-queue-row flex flex-wrap items-center gap-2">
-                                        <span className="chat-inline-queue-label text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                                        <span className="chat-inline-queue-label text-[11px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)]">
                                             {t('queue.dialog.title')}
                                         </span>
-                                        <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
+                                        <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-xs text-[var(--cursor-text-primary)]">
                                             {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                         </span>
                                         {inlineQueueTaskRunning ? (
-                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-600">
+                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-xs text-[var(--accent)]">
                                                 {t('queue.inline.running')}
                                             </span>
                                         ) : null}
                                         {inlineQueueInQueue ? (
-                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
+                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--success)]/10 px-2 py-0.5 text-xs text-[var(--success)]">
                                                 {t('queue.summary.inQueue')}
                                             </span>
                                         ) : null}
                                         <span
-                                            className="chat-inline-queue-headline min-w-0 flex-1 break-all text-xs text-[var(--app-hint)]"
+                                            className="chat-inline-queue-headline min-w-0 flex-1 break-all text-xs text-[var(--cursor-text-secondary)]"
                                         >
                                             {inlineQueueHeadline}
                                         </span>
                                         <button
                                             type="button"
-                                            className="chat-inline-queue-open rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="chat-inline-queue-open rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                                             onClick={handleCodexQueueOpen}
                                             disabled={controlsDisabled || !onCodexQueueOpen}
                                         >
@@ -1329,17 +1329,17 @@ export function HappyComposer(props: {
                                                         return (
                                                             <div
                                                                 key={entry.id}
-                                                                className="chat-inline-queue-entry flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
+                                                                className="chat-inline-queue-entry flex items-center gap-2 rounded-md bg-[var(--cursor-bg-quiet)] px-2 py-1.5"
                                                             >
-                                                                <span className="chat-inline-queue-index text-[10px] text-[var(--app-hint)]">
+                                                                <span className="chat-inline-queue-index text-[10px] text-[var(--cursor-text-secondary)]">
                                                                     #{index + 1}
                                                                 </span>
                                                                 <span
-                                                                    className="chat-inline-queue-preview block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
+                                                                    className="chat-inline-queue-preview block min-w-0 flex-1 truncate text-xs text-[var(--cursor-text-primary)]"
                                                                 >
                                                                     {previewText}
                                                                 </span>
-                                                                <span className="chat-inline-queue-time shrink-0 text-[10px] text-[var(--app-hint)]">
+                                                                <span className="chat-inline-queue-time shrink-0 text-[10px] text-[var(--cursor-text-secondary)]">
                                                                     {new Date(entry.enqueuedAt).toLocaleTimeString([], {
                                                                         hour: '2-digit',
                                                                         minute: '2-digit'
@@ -1349,17 +1349,17 @@ export function HappyComposer(props: {
                                                         )
                                                     })}
                                                     {codexQueueEntries.length > 5 ? (
-                                                        <div className="px-1 text-[11px] text-[var(--app-hint)]">
+                                                        <div className="px-1 text-[11px] text-[var(--cursor-text-secondary)]">
                                                             +{codexQueueEntries.length - 5}
                                                         </div>
                                                     ) : null}
                                                 </>
                                             ) : inlineQueuePendingCount > 0 ? (
-                                                <div className="px-1 text-xs text-[var(--app-hint)]">
+                                                <div className="px-1 text-xs text-[var(--cursor-text-secondary)]">
                                                     {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                                 </div>
                                             ) : (
-                                                <div className="px-1 text-xs text-[var(--app-hint)]">
+                                                <div className="px-1 text-xs text-[var(--cursor-text-secondary)]">
                                                     {t('queue.dialog.empty')}
                                                 </div>
                                             )}
@@ -1373,7 +1373,7 @@ export function HappyComposer(props: {
                                     {restoredDraftAttachments.map((attachment) => (
                                         <div
                                             key={`draft:${attachment.path}`}
-                                            className="chat-input-attachment flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
+                                            className="chat-input-attachment flex max-w-full items-center gap-2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2 py-1 text-xs text-[var(--cursor-text-primary)]"
                                             title={attachment.path}
                                         >
                                             <span className="chat-input-attachment-name max-w-[180px] truncate">
@@ -1381,7 +1381,7 @@ export function HappyComposer(props: {
                                             </span>
                                             <button
                                                 type="button"
-                                                className="chat-input-attachment-remove rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                                className="chat-input-attachment-remove rounded px-1 text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)]"
                                                 onClick={() => {
                                                     handleRemoveDraftAttachment(attachment)
                                                 }}
@@ -1397,7 +1397,7 @@ export function HappyComposer(props: {
 
                             <div className={`chat-input-row flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
                                 {cliMode && (
-                                    <span className="chat-cli-prompt mr-1.5 shrink-0 select-none text-[var(--cli-prompt-color,#3b82f6)] font-semibold text-sm">{'❯'}</span>
+                                    <span className="chat-cli-prompt mr-1.5 shrink-0 select-none text-[var(--accent)] font-semibold text-sm">{'❯'}</span>
                                 )}
                                 <ComposerPrimitive.Input
                                     ref={textareaRef}
@@ -1411,7 +1411,7 @@ export function HappyComposer(props: {
                                     onSelect={handleSelect}
                                     onKeyDown={handleKeyDown}
                                     onPaste={handlePaste}
-                                    className={`chat-input-field flex-1 resize-none bg-transparent leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[0.8125rem]' : 'text-base'}`}
+                                    className={`chat-input-field flex-1 resize-none bg-transparent leading-snug text-[var(--cursor-text-primary)] placeholder-[var(--cursor-text-secondary)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[0.8125rem]' : 'text-base'}`}
                                 />
                             </div>
 

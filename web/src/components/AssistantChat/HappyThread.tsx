@@ -20,7 +20,7 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--cursor-button)] text-[var(--cursor-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
         </button>
@@ -42,7 +42,7 @@ function MessageSkeleton() {
             <div className="space-y-3 animate-pulse">
                 {rows.map((row, index) => (
                     <div key={`skeleton-${index}`} className={row.align === 'end' ? 'flex justify-end' : 'flex justify-start'}>
-                        <div className={`${row.height} ${row.width} rounded-xl bg-[var(--app-subtle-bg)]`} />
+                        <div className={`${row.height} ${row.width} rounded-xl bg-[var(--cursor-bg-quiet)]`} />
                     </div>
                 ))}
             </div>
@@ -65,7 +65,7 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
                 <div
                     role="status"
                     aria-live="polite"
-                    className={`${controlClass} border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)]`}
+                    className={`${controlClass} border border-transparent bg-[var(--cursor-button)] text-[var(--cursor-button-text)]`}
                 >
                     <Spinner size="sm" label={null} className="text-current" />
                     {t('misc.loadingHistory')}
@@ -79,7 +79,7 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
             <button
                 type="button"
                 onClick={props.onLoadMore}
-                className={`${controlClass} border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]`}
+                className={`${controlClass} border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)]`}
             >
                 {t('misc.loadOlder')}
             </button>
@@ -175,7 +175,7 @@ export function HappyThread(props: {
                                 />
 
                                 {props.messagesWarning ? (
-                                    <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs">
+                                    <div className="mb-3 rounded-md border border-[var(--warn)]/20 bg-[var(--warn)]/10 p-2 text-xs text-[var(--warn)]">
                                         {props.messagesWarning}
                                     </div>
                                 ) : null}

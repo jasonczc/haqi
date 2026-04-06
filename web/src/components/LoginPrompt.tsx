@@ -123,7 +123,7 @@ export function LoginPrompt(props: LoginPromptProps) {
                 {/* Header */}
                 <div className="text-center space-y-2">
                     <div className="text-2xl font-semibold">{title}</div>
-                    <div className="text-sm text-[var(--app-hint)]">
+                    <div className="text-sm text-[var(--text-tertiary)]">
                         {subtitle}
                     </div>
                 </div>
@@ -138,12 +138,12 @@ export function LoginPrompt(props: LoginPromptProps) {
                             placeholder={t('login.placeholder')}
                             autoComplete="current-password"
                             disabled={isLoading}
-                            className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
+                            className="w-full rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2.5 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50"
                         />
                     </div>
 
                     {displayError && (
-                        <div className="text-sm text-red-500 text-center">
+                        <div className="text-center text-sm text-[var(--danger)]">
                             {displayError}
                         </div>
                     )}
@@ -152,11 +152,11 @@ export function LoginPrompt(props: LoginPromptProps) {
                         type="submit"
                         disabled={isLoading || !accessToken.trim()}
                         aria-busy={isLoading}
-                        className="w-full py-2.5 rounded-lg bg-[var(--app-button)] text-[var(--app-button-text)] font-medium disabled:opacity-50 hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--bg-neutral)] py-2.5 font-medium text-[var(--bg-editor)] transition-opacity hover:opacity-90 disabled:opacity-50"
                     >
                         {isLoading ? (
                             <>
-                                <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
+                                <Spinner size="sm" label={null} className="text-[var(--bg-editor)]" />
                                 {isBindMode ? t('login.bind.submitting') : t('login.submitting')}
                             </>
                         ) : (
@@ -167,13 +167,13 @@ export function LoginPrompt(props: LoginPromptProps) {
 
                 {/* Help links */}
                 {!isBindMode && (
-                    <div className="flex items-center justify-between text-xs text-[var(--app-hint)]">
-                        <a href="https://hapi.run/docs" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--app-fg)]">
+                    <div className="flex items-center justify-between text-xs text-[var(--text-tertiary)]">
+                        <a href="https://hapi.run/docs" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--text-primary)]">
                             {t('login.help')}
                         </a>
                         <Dialog open={isServerDialogOpen} onOpenChange={handleServerDialogOpenChange}>
                             <DialogTrigger asChild>
-                                <button type="button" className="underline hover:text-[var(--app-fg)]">
+                                <button type="button" className="underline hover:text-[var(--text-primary)]">
                                     Hub {props.serverUrl ? `${t('login.server.custom')}` : `${t('login.server.default')}`}
                                 </button>
                             </DialogTrigger>
@@ -185,7 +185,7 @@ export function LoginPrompt(props: LoginPromptProps) {
                                     </DialogDescription>
                                 </DialogHeader>
                                 <form onSubmit={handleSaveServer} className="space-y-4">
-                                    <div className="text-xs text-[var(--app-hint)]">
+                                    <div className="text-xs text-[var(--text-tertiary)]">
                                         {t('login.server.current')} {serverSummary}
                                     </div>
                                     <div className="space-y-2">
@@ -198,15 +198,15 @@ export function LoginPrompt(props: LoginPromptProps) {
                                                 setServerError(null)
                                             }}
                                             placeholder={t('login.server.placeholder')}
-                                            className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
+                                            className="w-full rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2.5 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                                         />
-                                        <div className="text-[11px] text-[var(--app-hint)]">
+                                        <div className="text-[11px] text-[var(--text-tertiary)]">
                                             {t('login.server.hint')}
                                         </div>
                                     </div>
 
                                     {serverError && (
-                                        <div className="text-sm text-red-500">
+                                        <div className="text-sm text-[var(--danger)]">
                                             {serverError}
                                         </div>
                                     )}
@@ -229,8 +229,8 @@ export function LoginPrompt(props: LoginPromptProps) {
             </div>
 
             {/* Footer */}
-            <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[var(--app-hint)] space-y-1">
-                <div>{t('login.footer')} <span className="text-red-500">♥</span> {t('login.footer.for')}</div>
+            <div className="absolute bottom-4 left-0 right-0 space-y-1 text-center text-xs text-[var(--text-tertiary)]">
+                <div>{t('login.footer')} <span className="text-[var(--danger)]">♥</span> {t('login.footer.for')}</div>
                 <div>{t('login.footer.copyright')} {new Date().getFullYear()} HAQI</div>
             </div>
         </div>

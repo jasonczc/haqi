@@ -40,7 +40,7 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--cursor-button)] text-[var(--cursor-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
         </button>
@@ -92,7 +92,7 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
                         {(props.hasMoreMessages || props.isLoadingMoreMessages) && (
                             <div className="flex justify-center py-2">
                                 {props.isLoadingMoreMessages ? (
-                                    <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)] shadow-sm">
+                                    <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-transparent bg-[var(--cursor-button)] text-[var(--cursor-button-text)] shadow-sm">
                                         <Spinner size="sm" label={null} className="text-current" />
                                         Loading…
                                     </div>
@@ -100,7 +100,7 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
                                     <button
                                         type="button"
                                         onClick={props.onLoadMore}
-                                        className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] shadow-sm transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                        className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] shadow-sm transition-colors hover:bg-[var(--cursor-bg-soft)]"
                                     >
                                         Load older
                                     </button>
@@ -115,7 +115,7 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
                         )}
 
                         {props.messagesWarning && (
-                            <div className="text-xs text-[var(--app-badge-warning-text)] italic py-1">
+                            <div className="text-xs text-[var(--cursor-badge-warning-text)] italic py-1">
                                 — {props.messagesWarning}
                             </div>
                         )}

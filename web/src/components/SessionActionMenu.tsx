@@ -267,17 +267,17 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         : undefined
 
     const baseItemClassName =
-        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]'
+        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]'
 
     return (
         <div
             ref={menuRef}
-            className="fixed z-50 min-w-[200px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
+            className="fixed z-50 min-w-[200px] animate-menu-pop rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-1 shadow-lg"
             style={menuStyle}
         >
             <div
                 id={headingId}
-                className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)]"
+                className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"
             >
                 {t('session.more')}
             </div>
@@ -290,10 +290,10 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 <button
                     type="button"
                     role="menuitem"
-                    className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                    className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
                     onClick={handleRename}
                 >
-                    <EditIcon className="text-[var(--app-hint)]" />
+                    <EditIcon className="text-[var(--text-tertiary)]" />
                     {t('session.action.rename')}
                 </button>
 
@@ -301,10 +301,10 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     <button
                         type="button"
                         role="menuitem"
-                        className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                        className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
                         onClick={handleSpawnSameConfig}
                     >
-                        <NewSessionIcon className="text-[var(--app-hint)]" />
+                        <NewSessionIcon className="text-[var(--text-tertiary)]" />
                         {t('session.action.newSameConfig')}
                     </button>
                 ) : null}
@@ -313,10 +313,10 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     <button
                         type="button"
                         role="menuitem"
-                        className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                        className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
                         onClick={handleDuplicate}
                     >
-                        <DuplicateIcon className="text-[var(--app-hint)]" />
+                        <DuplicateIcon className="text-[var(--text-tertiary)]" />
                         {t('session.action.duplicate')}
                     </button>
                 ) : null}
@@ -325,20 +325,20 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     <button
                         type="button"
                         role="menuitem"
-                        className={`${baseItemClassName} text-red-500 hover:bg-red-500/10`}
+                        className={`${baseItemClassName} text-[var(--danger)] hover:bg-[var(--bg-danger-secondary)]`}
                         onClick={handleArchive}
                     >
-                        <ArchiveIcon className="text-red-500" />
+                        <ArchiveIcon className="text-[var(--danger)]" />
                         {t('session.action.archive')}
                     </button>
                 ) : (
                     <button
                         type="button"
                         role="menuitem"
-                        className={`${baseItemClassName} text-red-500 hover:bg-red-500/10`}
+                        className={`${baseItemClassName} text-[var(--danger)] hover:bg-[var(--bg-danger-secondary)]`}
                         onClick={handleDelete}
                     >
-                        <TrashIcon className="text-red-500" />
+                        <TrashIcon className="text-[var(--danger)]" />
                         {t('session.action.delete')}
                     </button>
                 )}

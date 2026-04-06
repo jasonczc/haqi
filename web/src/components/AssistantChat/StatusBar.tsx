@@ -26,10 +26,10 @@ const VIBING_MESSAGES = [
 ]
 
 const PERMISSION_TONE_CLASSES: Record<PermissionModeTone, string> = {
-    neutral: 'text-[var(--app-hint)]',
-    info: 'text-blue-500',
-    warning: 'text-amber-500',
-    danger: 'text-red-500'
+    neutral: 'text-[var(--cursor-text-secondary)]',
+    info: 'text-[var(--accent)]',
+    warning: 'text-[var(--warn)]',
+    danger: 'text-[var(--danger)]'
 }
 
 function getConnectionStatus(
@@ -47,8 +47,8 @@ function getConnectionStatus(
     if (voiceStatus === 'connecting') {
         return {
             text: t('voice.connecting'),
-            color: 'text-[#007AFF]',
-            dotColor: 'bg-[#007AFF]',
+            color: 'text-[var(--accent)]',
+            dotColor: 'bg-[var(--accent)]',
             isPulsing: true
         }
     }
@@ -56,8 +56,8 @@ function getConnectionStatus(
     if (!active) {
         return {
             text: t('misc.offline'),
-            color: 'text-[#999]',
-            dotColor: 'bg-[#999]',
+            color: 'text-[var(--cursor-text-secondary)]',
+            dotColor: 'bg-[var(--cursor-text-secondary)]',
             isPulsing: false
         }
     }
@@ -65,8 +65,8 @@ function getConnectionStatus(
     if (hasPermissions) {
         return {
             text: t('misc.permissionRequired'),
-            color: 'text-[#FF9500]',
-            dotColor: 'bg-[#FF9500]',
+            color: 'text-[var(--warn)]',
+            dotColor: 'bg-[var(--warn)]',
             isPulsing: true
         }
     }
@@ -80,16 +80,16 @@ function getConnectionStatus(
                 : VIBING_MESSAGES[Math.floor(Math.random() * VIBING_MESSAGES.length)].toLowerCase() + '…'
         return {
             text: vibingMessage,
-            color: 'text-[#007AFF]',
-            dotColor: 'bg-[#007AFF]',
+            color: 'text-[var(--accent)]',
+            dotColor: 'bg-[var(--accent)]',
             isPulsing: true
         }
     }
 
     return {
         text: t('misc.online'),
-        color: 'text-[#34C759]',
-        dotColor: 'bg-[#34C759]',
+        color: 'text-[var(--success)]',
+        dotColor: 'bg-[var(--success)]',
         isPulsing: false
     }
 }
@@ -100,11 +100,11 @@ function getContextWarning(contextSize: number, maxContextSize: number, t: (key:
 
     const percent = Math.round(percentageRemaining)
     if (percentageRemaining <= 5) {
-        return { text: t('misc.percentLeft', { percent }), color: 'text-red-500' }
+        return { text: t('misc.percentLeft', { percent }), color: 'text-[var(--danger)]' }
     } else if (percentageRemaining <= 10) {
-        return { text: t('misc.percentLeft', { percent }), color: 'text-amber-500' }
+        return { text: t('misc.percentLeft', { percent }), color: 'text-[var(--warn)]' }
     } else {
-        return { text: t('misc.percentLeft', { percent }), color: 'text-[var(--app-hint)]' }
+        return { text: t('misc.percentLeft', { percent }), color: 'text-[var(--cursor-text-secondary)]' }
     }
 }
 
@@ -150,7 +150,7 @@ export function StatusBar(props: {
 
     const permissionModeLabel = displayPermissionMode ? getPermissionModeLabel(displayPermissionMode) : null
     const permissionModeTone = displayPermissionMode ? getPermissionModeTone(displayPermissionMode) : null
-    const permissionModeColor = permissionModeTone ? PERMISSION_TONE_CLASSES[permissionModeTone] : 'text-[var(--app-hint)]'
+    const permissionModeColor = permissionModeTone ? PERMISSION_TONE_CLASSES[permissionModeTone] : 'text-[var(--cursor-text-secondary)]'
     const normalizedCollaborationMode = typeof props.collaborationMode === 'string'
         ? props.collaborationMode.trim().toLowerCase()
         : ''
@@ -170,7 +170,7 @@ export function StatusBar(props: {
                         {connectionStatus.text}
                     </span>
                     {codexModeLabel ? (
-                        <span className={`composer-status-mode text-[10px] ${isCodexPlanMode ? 'text-blue-500' : 'text-[var(--app-hint)]'}`}>
+                        <span className={`composer-status-mode text-[10px] ${isCodexPlanMode ? 'text-[var(--accent)]' : 'text-[var(--cursor-text-secondary)]'}`}>
                             {codexModeLabel}
                         </span>
                     ) : null}
@@ -182,7 +182,7 @@ export function StatusBar(props: {
                             return (
                                 <span
                                     key={`${agent.name}:${agent.startedAt ?? index}`}
-                                    className="composer-status-chip max-w-[220px] truncate rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                    className="composer-status-chip max-w-[220px] truncate rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-[10px] text-[var(--cursor-text-secondary)]"
                                     title={label}
                                 >
                                     {label}

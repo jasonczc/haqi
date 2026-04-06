@@ -41,10 +41,10 @@ function ConnectionIndicator(props: { status: 'idle' | 'connecting' | 'connected
     const isConnecting = props.status === 'connecting'
     const label = isConnected ? 'Connected' : isConnecting ? 'Connecting' : 'Offline'
     const colorClass = isConnected
-        ? 'bg-emerald-500'
+        ? 'bg-[var(--cursor-success)]'
         : isConnecting
-          ? 'bg-amber-400 animate-pulse'
-          : 'bg-[var(--app-hint)]'
+          ? 'bg-[var(--warn)] animate-pulse'
+          : 'bg-[var(--cursor-text-secondary)]'
 
     return (
         <div className="flex items-center" aria-label={label} title={label} role="status">
@@ -167,8 +167,8 @@ function QuickKeyButton(props: {
             onPointerDown={handlePointerDown}
             disabled={disabled}
             aria-pressed={modifier ? isActive : undefined}
-            className={`flex-1 border-l border-[var(--app-border)] px-2 py-1.5 text-xs font-medium text-[var(--app-fg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-button)] focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent first:border-l-0 active:bg-[var(--app-subtle-bg)] sm:px-3 sm:text-sm ${
-                isActive ? 'bg-[var(--app-link)] text-[var(--app-bg)]' : 'hover:bg-[var(--app-subtle-bg)]'
+            className={`flex-1 border-l border-[var(--cursor-stroke-secondary)] px-2 py-1.5 text-xs font-medium text-[var(--cursor-text-primary)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cursor-button)] focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent first:border-l-0 active:bg-[var(--cursor-bg-quaternary)] sm:px-3 sm:text-sm ${
+                isActive ? 'bg-[var(--cursor-link)] text-[var(--cursor-bg-card)]' : 'hover:bg-[var(--cursor-bg-quaternary)]'
             }`}
             aria-label={input.description}
             title={popupDescription ? `${input.description} (long press: ${popupDescription})` : input.description}
@@ -416,18 +416,18 @@ export default function TerminalPage() {
 
     return (
         <div className="flex h-full flex-col">
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
+            <div className="bg-[var(--cursor-bg-card)] pt-[env(safe-area-inset-top)]">
+                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--cursor-stroke-secondary)]">
                     <button
                         type="button"
                         onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)] hover:text-[var(--cursor-text-primary)]"
                     >
                         <BackIcon />
                     </button>
                     <div className="min-w-0 flex-1">
                         <div className="truncate font-semibold">Terminal</div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">{subtitle}</div>
+                        <div className="truncate text-xs text-[var(--cursor-text-secondary)]">{subtitle}</div>
                     </div>
                     <ConnectionIndicator status={status} />
                 </div>
@@ -435,7 +435,7 @@ export default function TerminalPage() {
 
             {session.active ? null : (
                 <div className="px-3 pt-3">
-                    <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
+                    <div className="mx-auto w-full max-w-content rounded-md bg-[var(--cursor-bg-quaternary)] p-3 text-sm text-[var(--cursor-text-secondary)]">
                         Session is inactive. Terminal is unavailable.
                     </div>
                 </div>
@@ -443,7 +443,7 @@ export default function TerminalPage() {
 
             {errorMessage ? (
                 <div className="mx-auto w-full max-w-content px-3 pt-3">
-                    <div className="rounded-md border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] p-3 text-xs text-[var(--app-badge-error-text)]">
+                    <div className="rounded-md border border-[var(--cursor-danger-border)] bg-[var(--cursor-danger-bg)] p-3 text-xs text-[var(--cursor-danger)]">
                         {errorMessage}
                     </div>
                 </div>
@@ -451,20 +451,20 @@ export default function TerminalPage() {
 
             {exitInfo ? (
                 <div className="mx-auto w-full max-w-content px-3 pt-3">
-                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-3 text-xs text-[var(--app-hint)]">
+                    <div className="rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quaternary)] p-3 text-xs text-[var(--cursor-text-secondary)]">
                         Terminal exited{exitInfo.code !== null ? ` with code ${exitInfo.code}` : ''}
                         {exitInfo.signal ? ` (${exitInfo.signal})` : ''}.
                     </div>
                 </div>
             ) : null}
 
-            <div className="flex-1 overflow-hidden bg-[var(--app-bg)]">
+            <div className="flex-1 overflow-hidden bg-[var(--cursor-bg-card)]">
                 <div className="mx-auto h-full w-full max-w-content p-3">
                     <TerminalView onMount={handleTerminalMount} onResize={handleResize} className="h-full w-full" />
                 </div>
             </div>
 
-            <div className="bg-[var(--app-bg)] border-t border-[var(--app-border)] pb-[env(safe-area-inset-bottom)]">
+            <div className="bg-[var(--cursor-bg-card)] border-t border-[var(--cursor-stroke-secondary)] pb-[env(safe-area-inset-bottom)]">
                 <div className="mx-auto w-full max-w-content px-3">
                     <div className="flex flex-col gap-2 py-2">
                         <button
@@ -473,14 +473,14 @@ export default function TerminalPage() {
                                 void handlePasteAction()
                             }}
                             disabled={quickInputDisabled}
-                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm font-medium text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-button)] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quaternary)] px-3 py-2 text-sm font-medium text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cursor-button)] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {t('button.paste')}
                         </button>
                         {QUICK_INPUT_ROWS.map((row, rowIndex) => (
                             <div
                                 key={`terminal-quick-row-${rowIndex}`}
-                                className="flex items-stretch overflow-hidden rounded-md bg-[var(--app-secondary-bg)]"
+                                className="flex items-stretch overflow-hidden rounded-md bg-[var(--cursor-bg-quaternary)]"
                             >
                                 {row.map((input) => {
                                     const modifier = input.modifier
@@ -524,7 +524,7 @@ export default function TerminalPage() {
                         value={manualPasteText}
                         onChange={(event) => setManualPasteText(event.target.value)}
                         placeholder={t('terminal.paste.placeholder')}
-                        className="mt-2 min-h-32 w-full resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        className="mt-2 min-h-32 w-full resize-y rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                         autoCapitalize="none"
                         autoCorrect="off"
                     />

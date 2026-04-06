@@ -61,25 +61,25 @@ export function DiffView(props: {
                 <button
                     type="button"
                     className={cn(
-                        'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                        'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cursor-link)]',
                         suppressFocusRing && 'focus-visible:ring-0'
                     )}
                     onPointerDown={onTriggerPointerDown}
                     onKeyDown={onTriggerKeyDown}
                     onBlur={onTriggerBlur}
                 >
-                    <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] transition-colors hover:bg-[var(--app-secondary-bg)]">
+                    <div className="overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-soft)] transition-colors hover:bg-[var(--cursor-bg-secondary)]">
                         {props.filePath ? (
-                            <div className="truncate border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-hint)]">
+                            <div className="truncate border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-soft)] px-2 py-1 text-xs text-[var(--cursor-text-secondary)]">
                                 {props.filePath}
                             </div>
                         ) : null}
                         <div className="px-2 py-2">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0 truncate font-mono text-xs text-[var(--app-hint)]">
+                                <div className="min-w-0 truncate font-mono text-xs text-[var(--cursor-text-secondary)]">
                                     {props.filePath ? stats.label : subtitle}
                                 </div>
-                                <div className="shrink-0 text-xs text-[var(--app-link)]">
+                                <div className="shrink-0 text-xs text-[var(--cursor-link)]">
                                     {t('diff.view')}
                                 </div>
                             </div>
@@ -104,7 +104,7 @@ export function DiffView(props: {
 
 function DiffFallback() {
     return (
-        <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-4 text-xs text-[var(--app-hint)]">
+        <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-soft)] px-3 py-4 text-xs text-[var(--cursor-text-secondary)]">
             Loading diff…
         </div>
     )

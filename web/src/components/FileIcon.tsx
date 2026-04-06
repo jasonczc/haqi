@@ -1,23 +1,23 @@
 import { useMemo } from 'react'
 
 const EXTENSION_COLORS: Record<string, string> = {
-    ts: '#3178c6',
-    tsx: '#3178c6',
-    js: '#f7df1e',
-    jsx: '#f7df1e',
-    json: '#f59e0b',
-    md: '#64748b',
-    mdx: '#64748b',
-    css: '#2563eb',
-    scss: '#db2777',
-    html: '#f97316',
-    yml: '#ef4444',
-    yaml: '#ef4444',
-    sh: '#10b981',
-    bash: '#10b981',
-    py: '#3776ab',
-    go: '#0ea5e9',
-    rs: '#f97316',
+    ts: 'rgb(49 120 198)',
+    tsx: 'rgb(49 120 198)',
+    js: 'rgb(247 223 30)',
+    jsx: 'rgb(247 223 30)',
+    json: 'rgb(245 158 11)',
+    md: 'rgb(100 116 139)',
+    mdx: 'rgb(100 116 139)',
+    css: 'rgb(37 99 235)',
+    scss: 'rgb(219 39 119)',
+    html: 'rgb(249 115 22)',
+    yml: 'rgb(239 68 68)',
+    yaml: 'rgb(239 68 68)',
+    sh: 'rgb(16 185 129)',
+    bash: 'rgb(16 185 129)',
+    py: 'rgb(55 118 171)',
+    go: 'rgb(14 165 233)',
+    rs: 'rgb(249 115 22)',
 }
 
 function getFileExtension(fileName: string): string {
@@ -34,7 +34,7 @@ export function FileIcon(props: { fileName: string; size?: number }) {
     const size = props.size ?? 20
     const color = useMemo(() => {
         const ext = getFileExtension(props.fileName)
-        return EXTENSION_COLORS[ext] ?? 'var(--app-hint)'
+        return EXTENSION_COLORS[ext] ?? 'var(--cursor-text-secondary)'
     }, [props.fileName])
 
     return (

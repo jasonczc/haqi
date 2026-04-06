@@ -58,20 +58,20 @@ function CollapsibleSection(props: {
 }) {
     const sectionContentId = useId()
     return (
-        <section className="border-b border-[var(--app-divider)]">
+        <section className="border-b border-[var(--cursor-stroke-secondary)]">
             <button
                 type="button"
                 onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
+                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
                 aria-expanded={props.isExpanded}
                 aria-controls={sectionContentId}
             >
                 <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
-                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
+                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
+                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
                 </div>
                 <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
+                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
                         props.isExpanded ? 'rotate-180' : ''
                     }`}
                 />
@@ -150,12 +150,12 @@ function EnrollmentTokensSection() {
             onToggle={() => setIsExpanded(!isExpanded)}
         >
             {activeTokens.length === 0 ? (
-                <div className="px-3 py-4 text-center text-sm text-[var(--app-hint)]">
+                <div className="px-3 py-4 text-center text-sm text-[var(--cursor-text-secondary)]">
                     {t('cloud.tokens.empty')}
                 </div>
             ) : (
                 <div>
-                    <div className="border-b border-[var(--app-divider)] px-3 py-2 text-xs text-[var(--app-hint)]">
+                    <div className="border-b border-[var(--cursor-stroke-secondary)] px-3 py-2 text-xs text-[var(--cursor-text-secondary)]">
                         Full tokens are shown only once at creation. Revoke and regenerate if needed.
                     </div>
                     {activeTokens.map((token) => {
@@ -164,7 +164,7 @@ function EnrollmentTokensSection() {
                         return (
                             <div
                                 key={token.id}
-                                className="border-b border-[var(--app-divider)] px-3 py-3"
+                                className="border-b border-[var(--cursor-stroke-secondary)] px-3 py-3"
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex min-w-0 flex-col">
@@ -182,7 +182,7 @@ function EnrollmentTokensSection() {
                                                         value={editLabel}
                                                         onChange={(e) => setEditLabel(e.target.value)}
                                                         placeholder="Label"
-                                                        className="w-32 rounded border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--app-link)]"
+                                                        className="w-32 rounded border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--cursor-link)]"
                                                         autoFocus
                                                     />
                                                     <Button type="submit" size="sm" disabled={labelMutation.isPending}>
@@ -195,24 +195,24 @@ function EnrollmentTokensSection() {
                                             ) : (
                                                 <>
                                                     {token.label ? (
-                                                        <span className="text-sm font-medium text-[var(--app-fg)]">{token.label}</span>
+                                                        <span className="text-sm font-medium text-[var(--cursor-text-primary)]">{token.label}</span>
                                                     ) : (
-                                                        <span className="text-sm text-[var(--app-hint)] italic">no label</span>
+                                                        <span className="text-sm text-[var(--cursor-text-secondary)] italic">no label</span>
                                                     )}
-                                                    <code className="font-mono text-xs text-[var(--app-hint)]">{token.tokenPreview}</code>
+                                                    <code className="font-mono text-xs text-[var(--cursor-text-secondary)]">{token.tokenPreview}</code>
                                                     {isExpired ? (
-                                                        <span className="rounded bg-[var(--app-badge-error-bg)] px-1.5 py-0.5 text-xs text-[var(--app-badge-error-text)]">
+                                                        <span className="rounded bg-[var(--cursor-badge-error-bg)] px-1.5 py-0.5 text-xs text-[var(--cursor-badge-error-text)]">
                                                             expired
                                                         </span>
                                                     ) : (
-                                                        <span className="rounded bg-[var(--app-badge-success-bg)] px-1.5 py-0.5 text-xs text-[var(--app-badge-success-text)]">
+                                                        <span className="rounded bg-[var(--cursor-badge-success-bg)] px-1.5 py-0.5 text-xs text-[var(--cursor-badge-success-text)]">
                                                             active
                                                         </span>
                                                     )}
                                                 </>
                                             )}
                                         </div>
-                                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--app-hint)]">
+                                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--cursor-text-secondary)]">
                                             <span>{t('cloud.tokens.created')} {formatDate(token.createdAt)}</span>
                                             {token.expiresAt ? (
                                                 <span>{t('cloud.tokens.expires')} {formatDate(token.expiresAt)}</span>
@@ -323,20 +323,20 @@ function WorkersEmptyState() {
     }
 
     return (
-        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">
+        <div className="px-3 py-4 text-sm text-[var(--cursor-text-secondary)]">
             <p className="text-center">{t('cloud.workers.empty')}</p>
 
             {/* Local worker status */}
             {hasLocalWorker ? (
-                <div className="mt-3 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-3">
+                <div className="mt-3 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <span className={`h-2 w-2 rounded-full ${localWorker!.running ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                            <span className="text-sm font-medium text-[var(--app-fg)]">
+                            <span className={`h-2 w-2 rounded-full ${localWorker!.running ? 'bg-[var(--success)]' : 'bg-[var(--danger)]'}`} />
+                            <span className="text-sm font-medium text-[var(--cursor-text-primary)]">
                                 Local Worker {localWorker!.running ? '(running)' : '(stopped)'}
                             </span>
                             {localWorker!.pid ? (
-                                <span className="text-xs text-[var(--app-hint)]">pid {localWorker!.pid}</span>
+                                <span className="text-xs text-[var(--cursor-text-secondary)]">pid {localWorker!.pid}</span>
                             ) : null}
                         </div>
                         <div className="flex items-center gap-1">
@@ -367,17 +367,17 @@ function WorkersEmptyState() {
                         </div>
                     </div>
                     {localWorker!.exitCode != null && localWorker!.exitCode !== 0 ? (
-                        <div className="mt-1 text-xs text-[var(--app-badge-error-text)]">
+                        <div className="mt-1 text-xs text-[var(--cursor-badge-error-text)]">
                             Exited with code {localWorker!.exitCode}
                         </div>
                     ) : null}
                     {localWorker!.running ? (
-                        <div className="mt-1 text-xs text-[var(--app-hint)]">
+                        <div className="mt-1 text-xs text-[var(--cursor-text-secondary)]">
                             Waiting for worker to finish enrollment and connect...
                         </div>
                     ) : null}
                     {showLogs && localWorker!.logs?.length ? (
-                        <div className="mt-2 max-h-48 overflow-y-auto rounded bg-black/80 p-2 font-mono text-xs text-green-400">
+                        <div className="mt-2 max-h-48 overflow-y-auto rounded bg-black/80 p-2 font-mono text-xs text-[var(--success)]">
                             {localWorker!.logs.map((line, i) => (
                                 <div key={i} className="whitespace-pre-wrap break-all">{line}</div>
                             ))}
@@ -395,7 +395,7 @@ function WorkersEmptyState() {
                         {starting ? 'Starting...' : 'Start Worker on This Machine'}
                     </Button>
                     {startError ? (
-                        <p className="mt-2 text-[var(--app-badge-error-text)]">{startError}</p>
+                        <p className="mt-2 text-[var(--cursor-badge-error-text)]">{startError}</p>
                     ) : null}
                 </div>
             )}
@@ -444,7 +444,7 @@ function WorkerActions({ worker }: { worker: CloudWorkerSummary }) {
                     {stopping ? 'Stopping...' : 'Stop'}
                 </Button>
             ) : worker.active ? (
-                <span className="text-xs text-[var(--app-hint)]">remote</span>
+                <span className="text-xs text-[var(--cursor-text-secondary)]">remote</span>
             ) : null}
         </div>
     )
@@ -508,7 +508,7 @@ export default function CloudWorkersPage() {
     }
 
     if (workersQuery.isError) {
-        return <div className="p-4 text-sm text-[var(--app-badge-error-text)]">Failed to load workers</div>
+        return <div className="p-4 text-sm text-[var(--cursor-badge-error-text)]">Failed to load workers</div>
     }
 
     const workers: CloudWorkerSummary[] = workersQuery.data?.workers ?? []
@@ -524,7 +524,7 @@ export default function CloudWorkersPage() {
                 <div className="px-3 pb-3">
                     <div className="flex flex-wrap items-end gap-3">
                         <div className="min-w-[14rem] flex-1">
-                            <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                            <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
                                 Label (optional)
                             </label>
                             <input
@@ -532,11 +532,11 @@ export default function CloudWorkersPage() {
                                 placeholder="e.g. gpu-worker-1"
                                 value={tokenLabel}
                                 onChange={(event) => setTokenLabel(event.target.value)}
-                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
                         </div>
                         <div className="w-28">
-                            <label className="mb-1 block text-xs font-medium text-[var(--app-hint)]">
+                            <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
                                 TTL (min)
                             </label>
                             <input
@@ -544,7 +544,7 @@ export default function CloudWorkersPage() {
                                 min={1}
                                 value={tokenTtl}
                                 onChange={(event) => setTokenTtl(event.target.value)}
-                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
                         </div>
                         <Button
@@ -557,11 +557,11 @@ export default function CloudWorkersPage() {
                         </Button>
                     </div>
                     {tokenMutation.error instanceof Error ? (
-                        <div className="mt-2 text-sm text-[var(--app-badge-error-text)]">{tokenMutation.error.message}</div>
+                        <div className="mt-2 text-sm text-[var(--cursor-badge-error-text)]">{tokenMutation.error.message}</div>
                     ) : null}
                     {generatedToken ? (
-                        <div className="mt-3 rounded-md border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] p-3">
-                            <div className="text-sm font-medium text-[var(--app-badge-success-text)]">
+                        <div className="mt-3 rounded-md border border-[var(--cursor-badge-success-border)] bg-[var(--cursor-badge-success-bg)] p-3">
+                            <div className="text-sm font-medium text-[var(--cursor-badge-success-text)]">
                                 Token generated — copy it now, it will not be shown again.
                             </div>
                             <div className="mt-2 flex items-start gap-2">
@@ -578,7 +578,7 @@ export default function CloudWorkersPage() {
                                 </Button>
                             </div>
                             <div className="mt-3">
-                                <div className="text-xs font-medium text-[var(--app-hint)]">Install command:</div>
+                                <div className="text-xs font-medium text-[var(--cursor-text-secondary)]">Install command:</div>
                                 <div className="mt-1 flex items-start gap-2">
                                     <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
                                         {installCommand}
@@ -613,62 +613,62 @@ export default function CloudWorkersPage() {
                         {workers.map((worker) => (
                             <div
                                 key={worker.machineId}
-                                className="border-b border-[var(--app-divider)] px-3 py-3"
+                                className="border-b border-[var(--cursor-stroke-secondary)] px-3 py-3"
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex items-center gap-2">
                                         <span
                                             className={`h-2 w-2 shrink-0 rounded-full ${
                                                 worker.active
-                                                    ? 'bg-emerald-500'
-                                                    : 'bg-[var(--app-hint)]'
+                                                    ? 'bg-[var(--success)]'
+                                                    : 'bg-[var(--cursor-text-secondary)]'
                                             }`}
                                         />
-                                        <span className="font-mono text-sm font-medium text-[var(--app-fg)]">{worker.machineId}</span>
+                                        <span className="font-mono text-sm font-medium text-[var(--cursor-text-primary)]">{worker.machineId}</span>
                                         {worker.provider ? (
-                                            <span className="text-xs text-[var(--app-hint)]">{worker.provider}</span>
+                                            <span className="text-xs text-[var(--cursor-text-secondary)]">{worker.provider}</span>
                                         ) : null}
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {worker.lifecycle ? (
-                                            <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]">
+                                            <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]">
                                                 {worker.lifecycle}
                                             </span>
                                         ) : null}
-                                        <span className="text-xs text-[var(--app-hint)]">
+                                        <span className="text-xs text-[var(--cursor-text-secondary)]">
                                             {formatLastSeen(worker.updatedAt)}
                                         </span>
                                         <WorkerActions worker={worker} />
                                     </div>
                                 </div>
-                                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 pl-4 text-xs text-[var(--app-hint)]">
+                                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 pl-4 text-xs text-[var(--cursor-text-secondary)]">
                                     {worker.region ? (
                                         <span>
-                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.region')}</span>{' '}
+                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.region')}</span>{' '}
                                             {worker.region}
                                         </span>
                                     ) : null}
                                     {worker.workerVersion ? (
                                         <span>
-                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.version')}</span>{' '}
+                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.version')}</span>{' '}
                                             {worker.workerVersion}
                                         </span>
                                     ) : null}
                                     {worker.resources?.cpu != null ? (
                                         <span>
-                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.cpu')}</span>{' '}
+                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.cpu')}</span>{' '}
                                             {worker.resources.cpu} cores
                                         </span>
                                     ) : null}
                                     {worker.resources?.memoryMb != null ? (
                                         <span>
-                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.memory')}</span>{' '}
+                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.memory')}</span>{' '}
                                             {formatMemory(worker.resources.memoryMb)}
                                         </span>
                                     ) : null}
                                     {worker.resources?.diskGb != null ? (
                                         <span>
-                                            <span className="font-medium text-[var(--app-fg)]">{t('cloud.workers.disk')}</span>{' '}
+                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.disk')}</span>{' '}
                                             {worker.resources.diskGb} GB
                                         </span>
                                     ) : null}
@@ -678,7 +678,7 @@ export default function CloudWorkersPage() {
                                         {worker.labels.map((label) => (
                                             <span
                                                 key={label}
-                                                className="rounded bg-[var(--app-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--app-hint)]"
+                                                className="rounded bg-[var(--cursor-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--cursor-text-secondary)]"
                                             >
                                                 {label}
                                             </span>
