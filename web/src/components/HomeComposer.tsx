@@ -234,9 +234,64 @@ export function HomeComposer(props: {
     const { spawnSession, isPending } = useSpawnSession(props.api)
     const { machines } = useMachines(props.api, true)
     const isCloud = isCloudBackend(executionBackend)
-    useCloudWorkers(props.api, isCloud)
+    const { workers: allWorkers } = useCloudWorkers(props.api, true) // always enabled for phase detection
     const { environments: cloudEnvironments } = useCloudEnvironments(props.api, isCloud)
-    const { checkpoints: cloudCheckpoints } = useCloudCheckpoints(props.api, isCloud)
+    const { checkpoints: cloudCheckpoints } = useCloudCheckpoints(props.api, true) // always enabled for phase detection
+
+    // ── Phase detection ──
+    const hasActiveWorker = allWorkers.some(w => w.active && w.selectable)
+    const hasCheckpoint = cloudCheckpoints.length > 0
+    const [skipOnboard, setSkipOnboard] = useState(() => localStorage.getItem('haqi-onboard-skip') === 'true')
+    const [startingLocalWorker, setStartingLocalWorker] = useState(false)
+    const [localWorkerError, setLocalWorkerError] = useState<string | null>(null)
+    const [setupAgent, setSetupAgent] = useState<'claude' | 'codex'>('claude')
+    const [setupRepoUrl, setSetupRepoUrl] = useState('')
+
+    const onboardPhase: 'worker' | 'setup' | 'ready' =
+        !hasActiveWorker ? 'worker' :
+        !hasCheckpoint && !skipOnboard ? 'setup' :
+        'ready'
+
+    const handleSkipOnboard = useCallback(() => {
+        setSkipOnboard(true)
+        localStorage.setItem('haqi-onboard-skip', 'true')
+    }, [])
+
+    const handleStartLocalWorker = useCallback(async () => {
+        if (!props.api) return
+        setStartingLocalWorker(true)
+        setLocalWorkerError(null)
+        try {
+            await props.api.startLocalWorker()
+        } catch (err: any) {
+            setLocalWorkerError(err?.message ?? 'Failed to start worker')
+        } finally {
+            setStartingLocalWorker(false)
+        }
+    }, [props.api])
+
+    const handleStartSetup = useCallback(async () => {
+        const worker = allWorkers.find(w => w.active && w.selectable)
+        if (!worker) return
+        try {
+            const result = await spawnSession({
+                machineId: worker.machineId,
+                agent: setupAgent,
+                sessionType: 'setup',
+                executionBackend: (worker as any).executorType ?? 'cloud-self-hosted',
+                runtimeKind: 'host-process',
+                yolo: true,
+                workspaceSource: setupRepoUrl.trim() ? { repository: { url: setupRepoUrl.trim() } } : undefined,
+            })
+            if (result.type === 'success' && result.sessionId) {
+                props.onOpenSession(result.sessionId)
+            } else if (result.type === 'accepted') {
+                navigate({ to: '/settings/requests/$requestId', params: { requestId: result.requestId } })
+            }
+        } catch (err: any) {
+            setLocalWorkerError(err?.message ?? 'Failed to start setup')
+        }
+    }, [allWorkers, setupAgent, setupRepoUrl, spawnSession, props, navigate])
 
     // ── Derived data ──
     const selectableMachines = useMemo(() => {
@@ -476,6 +531,87 @@ export function HomeComposer(props: {
                 <div className="home-hero">
                     <div className="home-eyebrow">New agent</div>
 
+                    {/* ── Phase 1: No worker ── */}
+                    {onboardPhase === 'worker' ? (
+                        <div className="prompt-container">
+                            <div className="prompt-card" style={{ padding: '24px' }}>
+                                <div className="chip-popover-label" style={{ padding: 0, marginBottom: 8, fontSize: 14, textTransform: 'none', letterSpacing: 'normal', color: 'var(--cursor-text-primary)', fontWeight: 600 }}>
+                                    Connect a worker to start
+                                </div>
+                                <div style={{ fontSize: 13, color: 'var(--cursor-text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                                    A worker runs on your machine and executes agent tasks. Start one with a single click.
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <button
+                                        type="button"
+                                        className="action-btn active"
+                                        style={{ width: 'auto', borderRadius: 8, padding: '8px 16px', height: 'auto', fontSize: 13, gap: 6 }}
+                                        onClick={handleStartLocalWorker}
+                                        disabled={startingLocalWorker}
+                                    >
+                                        {startingLocalWorker ? <SpinnerSvg /> : null}
+                                        {startingLocalWorker ? 'Starting...' : 'Start Worker on This Machine'}
+                                    </button>
+                                </div>
+                                {localWorkerError ? (
+                                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--cursor-danger, #dc2626)' }}>{localWorkerError}</div>
+                                ) : null}
+                                <div style={{ marginTop: 12, fontSize: 12, color: 'var(--cursor-text-tertiary)' }}>
+                                    Waiting for worker to come online...
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {/* ── Phase 2: No checkpoint ── */}
+                    {onboardPhase === 'setup' ? (
+                        <div className="prompt-container">
+                            <div className="prompt-card" style={{ padding: '24px' }}>
+                                <div style={{ fontSize: 14, color: 'var(--cursor-text-primary)', fontWeight: 600, marginBottom: 8 }}>
+                                    Setup your environment
+                                </div>
+                                <div style={{ fontSize: 13, color: 'var(--cursor-text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                                    Start a setup session to install dependencies. Save a checkpoint when done to reuse the environment instantly.
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                                    <input
+                                        type="text"
+                                        className="chip-popover-input"
+                                        placeholder="Repository URL (optional)"
+                                        value={setupRepoUrl}
+                                        onChange={e => setSetupRepoUrl(e.target.value)}
+                                    />
+                                    <div className="chip-popover-pills">
+                                        <button type="button" className={`chip-popover-pill ${setupAgent === 'claude' ? 'active' : ''}`} onClick={() => setSetupAgent('claude')}>Claude</button>
+                                        <button type="button" className={`chip-popover-pill ${setupAgent === 'codex' ? 'active' : ''}`} onClick={() => setSetupAgent('codex')}>Codex</button>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <button
+                                        type="button"
+                                        className="action-btn active"
+                                        style={{ width: 'auto', borderRadius: 8, padding: '8px 16px', height: 'auto', fontSize: 13 }}
+                                        onClick={handleStartSetup}
+                                        disabled={isPending}
+                                    >
+                                        {isPending ? <SpinnerSvg /> : null}
+                                        {isPending ? 'Starting...' : 'Start Setup Session'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="pill-btn"
+                                        onClick={handleSkipOnboard}
+                                    >
+                                        Skip — use without Docker
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {/* ── Phase 3: Normal composer ── */}
+                    {onboardPhase !== 'ready' ? null : (<>
+
                     {/* ── Repo selector ── */}
                     <div className="repo-selector">
                         {showRepoPanel ? (
@@ -622,6 +758,7 @@ export function HomeComposer(props: {
                             </button>
                         ))}
                     </div>
+                    </>)}
                 </div>
 
                 {/* ── Agent list ── */}
@@ -757,7 +894,7 @@ export function HomeComposer(props: {
                                 <PopoverOption
                                     key={cp.id}
                                     selected={checkpointId === cp.id}
-                                    onClick={() => setCheckpointId(cp.id)}
+                                    onClick={() => { setCheckpointId(cp.id); setRuntimeKind('docker-session') }}
                                 >
                                     {cp.id}
                                 </PopoverOption>
