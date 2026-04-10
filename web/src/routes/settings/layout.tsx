@@ -81,7 +81,7 @@ function NavGroup(props: { items: SettingsNavItem[] }) {
 
 export default function SettingsLayout() {
     return (
-        <div className="settings-wrapper">
+        <div className="cursor-theme settings-wrapper">
             <aside className="settings-sidebar">
                 <div className="settings-sidebar-header">
                     <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">

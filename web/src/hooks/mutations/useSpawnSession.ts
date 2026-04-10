@@ -43,6 +43,7 @@ type SpawnInput = {
         autoDetect?: boolean
         preferredPort?: number
     }
+    initialPrompt?: string
 }
 
 export function useSpawnSession(api: ApiClient | null): {
@@ -82,7 +83,8 @@ export function useSpawnSession(api: ApiClient | null): {
                 persistentWorkspace: input.persistentWorkspace,
                 secrets: input.secrets,
                 labels: input.labels,
-                preview: input.preview
+                preview: input.preview,
+                initialPrompt: input.initialPrompt
             })
         },
         onSuccess: (result) => {

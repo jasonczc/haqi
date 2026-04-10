@@ -111,7 +111,7 @@ export default function SettingsOverviewPage() {
             <CursorSettingsSection>
                 <CursorSettingsCard className="p-6">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <div className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">AI Line Edits in the last year</div>
+                        <div className="text-[13px] leading-[18px] font-semibold text-[var(--cursor-text-primary)]">AI Line Edits in the last year</div>
                         <div className="overview-tabs">
                             <button type="button" className="overview-tab-btn active">All</button>
                             <button type="button" className="overview-tab-btn">Cloud</button>
@@ -119,7 +119,7 @@ export default function SettingsOverviewPage() {
                         </div>
                     </div>
 
-                    <div style={{ fontSize: 40, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
+                    <div style={{ fontSize: 40, fontWeight: 600, marginBottom: 8, color: 'var(--cursor-text-primary)' }}>
                         {sessions.length.toLocaleString()}
                     </div>
 

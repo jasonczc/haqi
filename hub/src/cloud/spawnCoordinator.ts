@@ -377,7 +377,8 @@ export class SpawnCoordinator {
 
             const request = requestParse.data
             const namespace = existing.namespace
-            if (!request.workspaceSource?.repository && request.sessionType !== 'setup') {
+            const needsDockerImage = request.runtimeKind !== 'host-process' && request.runtimeKind !== 'daemon-session'
+            if (!request.workspaceSource?.repository && request.sessionType !== 'setup' && needsDockerImage) {
                 this.failRequest(namespace, requestId, {
                     phase: 'queued',
                     code: 'cloud_repo_required',
@@ -389,7 +390,7 @@ export class SpawnCoordinator {
             }
             const requestedEnvironment = this.resolveEnvironment(request)
             const checkpoint = this.resolveCheckpoint(request, requestedEnvironment)
-            if (!checkpoint && request.sessionType !== 'setup') {
+            if (!checkpoint && request.sessionType !== 'setup' && needsDockerImage) {
                 this.failRequest(namespace, requestId, {
                     phase: 'queued',
                     code: 'checkpoint_not_found',

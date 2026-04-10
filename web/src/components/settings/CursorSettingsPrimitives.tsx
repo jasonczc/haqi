@@ -3,22 +3,22 @@ import { Link, type LinkProps } from '@tanstack/react-router'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
-const headerTitleClass = 'text-[16px] leading-6 font-semibold text-[var(--text-primary)]'
-const headerSubtitleClass = 'text-[13px] leading-[18px] text-[var(--text-secondary)]'
+const headerTitleClass = 'text-[16px] leading-6 font-semibold text-[var(--cursor-text-primary)]'
+const headerSubtitleClass = 'text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]'
 
 const buttonVariants = cva(
-    'inline-flex items-center justify-center gap-2 rounded-md border text-[13px] leading-[18px] font-normal transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:pointer-events-none disabled:opacity-50',
+    'settings-btn-outline disabled:pointer-events-none disabled:opacity-50',
     {
         variants: {
             variant: {
-                primary: 'border-[var(--border-secondary)] bg-[var(--bg-editor)] text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)]',
-                outline: 'border-[var(--border-secondary)] bg-transparent text-[var(--text-primary)] hover:bg-[var(--bg-quaternary)]',
-                neutral: 'border-[var(--border-secondary)] bg-[var(--bg-quinary)] text-[var(--text-secondary)] hover:bg-[var(--bg-quaternary)]',
-                danger: 'border-[var(--border-danger)] bg-[var(--bg-danger-quaternary)] text-[var(--danger)] hover:bg-[var(--bg-danger-tertiary)]',
+                primary: '',
+                outline: '',
+                neutral: '',
+                danger: '!border-[var(--cursor-danger-border)] !bg-[var(--cursor-danger-bg)] !text-[var(--cursor-danger)]',
             },
             size: {
-                sm: 'h-8 px-3',
-                md: 'h-9 px-4',
+                sm: '!py-1 !px-3',
+                md: '',
             },
         },
         defaultVariants: {
@@ -60,12 +60,12 @@ export function CursorSettingsSection(props: {
                 <div className="mb-3 flex items-end justify-between gap-3">
                     <div className="min-w-0">
                         {props.title ? (
-                            <div className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">
+                            <div className="text-[13px] leading-[18px] font-semibold text-[var(--cursor-text-primary)]">
                                 {props.title}
                             </div>
                         ) : null}
                         {props.subtitle ? (
-                            <div className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
+                            <div className="mt-1 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
                                 {props.subtitle}
                             </div>
                         ) : null}
@@ -83,11 +83,7 @@ export function CursorSettingsCard(props: {
     children: React.ReactNode
 }) {
     return (
-        <div className={cn(
-            'overflow-hidden rounded-lg border border-[var(--border-tertiary)] bg-[var(--bg-editor)] shadow-[0_1px_2px_var(--shadow-tertiary),0_8px_24px_var(--shadow-tertiary)]',
-            props.className
-        )}
-        >
+        <div className={cn('settings-card', props.className)}>
             {props.children}
         </div>
     )
@@ -100,7 +96,7 @@ export function CursorDialogShell(props: {
     return (
         <div
             className={cn(
-                'overflow-hidden rounded-xl border border-[var(--border-secondary)] bg-[var(--bg-editor)] shadow-[0_16px_64px_var(--shadow-tertiary)]',
+                'overflow-hidden rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] shadow-[0_16px_64px_var(--shadow-tertiary)]',
                 props.className
             )}
         >
@@ -116,11 +112,11 @@ export function CursorDialogHeader(props: {
     action?: React.ReactNode
 }) {
     return (
-        <div className={cn('flex items-start justify-between gap-4 border-b border-[var(--border-tertiary)] px-5 py-4', props.className)}>
+        <div className={cn('flex items-start justify-between gap-4 border-b border-[var(--cursor-stroke-tertiary)] px-5 py-4', props.className)}>
             <div className="min-w-0">
-                <div className="text-[15px] font-semibold leading-6 text-[var(--text-primary)]">{props.title}</div>
+                <div className="text-[15px] font-semibold leading-6 text-[var(--cursor-text-primary)]">{props.title}</div>
                 {props.description ? (
-                    <div className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">{props.description}</div>
+                    <div className="mt-1 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">{props.description}</div>
                 ) : null}
             </div>
             {props.action ? <div className="shrink-0">{props.action}</div> : null}
@@ -140,7 +136,7 @@ export function CursorDialogFooter(props: {
     children: React.ReactNode
 }) {
     return (
-        <div className={cn('flex items-center justify-end gap-2 border-t border-[var(--border-tertiary)] pt-4', props.className)}>
+        <div className={cn('flex items-center justify-end gap-2 border-t border-[var(--cursor-stroke-tertiary)] pt-4', props.className)}>
             {props.children}
         </div>
     )
@@ -158,34 +154,24 @@ export function CursorSettingsRow(props: {
     return (
         <div
             className={cn(
-                'flex justify-between gap-3 px-4 py-4',
-                props.alignTop ? 'items-start' : 'items-center',
-                props.noBorder ? '' : 'border-b border-[var(--border-tertiary)] last:border-b-0',
+                'settings-row',
+                props.alignTop ? 'items-start' : '',
+                props.noBorder ? 'settings-row-nobottom' : '',
                 props.className
             )}
         >
             {props.children ?? (
                 <>
-                    <div className="min-w-0 flex-1">
+                    <div className="settings-row-left" style={{ flex: 1 }}>
                         {props.title ? (
-                            <div className="flex items-center gap-2 text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">
-                                {props.title}
-                            </div>
+                            <div className="settings-row-title">{props.title}</div>
                         ) : null}
                         {props.description ? (
-                            <div className={cn(
-                                'text-[13px] leading-[18px] text-[var(--text-secondary)]',
-                                props.title ? 'mt-1' : ''
-                            )}
-                            >
-                                {props.description}
-                            </div>
+                            <div className="settings-row-desc">{props.description}</div>
                         ) : null}
                     </div>
                     {props.control ? (
-                        <div className="flex shrink-0 items-center gap-3">
-                            {props.control}
-                        </div>
+                        <div className="settings-row-right">{props.control}</div>
                     ) : null}
                 </>
             )}
@@ -200,7 +186,7 @@ export function CursorFieldLabel(props: {
     className?: string
 }) {
     const label = (
-        <span className={cn('text-[12px] leading-4 font-medium text-[var(--text-secondary)]', props.className)}>
+        <span className={cn('text-[12px] leading-4 font-medium text-[var(--cursor-text-secondary)]', props.className)}>
             {props.children}
         </span>
     )
@@ -226,7 +212,7 @@ export function CursorFieldHint(props: {
         ? 'text-[var(--danger)]'
         : props.tone === 'accent'
             ? 'text-[var(--accent)]'
-            : 'text-[var(--text-secondary)]'
+            : 'text-[var(--cursor-text-secondary)]'
     return (
         <div className={cn('pt-1 text-[11px] leading-4', toneClass, props.className)}>
             {props.children}
@@ -261,7 +247,7 @@ export function CursorSettingsBadge(props: {
             ? 'bg-[var(--bg-danger-quaternary)] text-[var(--danger)]'
             : props.tone === 'accent'
                 ? 'bg-[var(--bg-accent-tertiary)] text-[var(--accent)]'
-                : 'bg-[var(--bg-quaternary)] text-[var(--text-secondary)]'
+                : 'bg-[var(--cursor-bg-hover)] text-[var(--cursor-text-secondary)]'
     return (
         <span
             title={props.title}
@@ -287,7 +273,7 @@ export function CursorBadgeButton(props: {
             title={props.title}
             className={cn('max-w-full disabled:opacity-50', props.className)}
         >
-            <CursorSettingsBadge className="max-w-full cursor-pointer truncate rounded-full transition-colors hover:bg-[var(--bg-quaternary)]">
+            <CursorSettingsBadge className="max-w-full cursor-pointer truncate rounded-full transition-colors hover:bg-[var(--cursor-bg-hover)]">
                 {props.children}
             </CursorSettingsBadge>
         </button>
@@ -301,7 +287,7 @@ export function CursorCodeBlock(props: {
     return (
         <code
             className={cn(
-                'flex-1 break-all rounded-md border border-[var(--border-tertiary)] bg-[var(--bg-editor)] px-3 py-2 font-[var(--font-mono)] text-[12px] leading-4 text-[var(--text-primary)]',
+                'flex-1 break-all rounded-md border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] px-3 py-2 font-[var(--font-mono)] text-[12px] leading-4 text-[var(--cursor-text-primary)]',
                 props.className
             )}
         >
@@ -315,7 +301,7 @@ export function CursorInlineCode(props: {
     className?: string
 }) {
     return (
-        <code className={cn('font-[var(--font-mono)] text-[12px] leading-4 text-[var(--text-secondary)]', props.className)}>
+        <code className={cn('font-[var(--font-mono)] text-[12px] leading-4 text-[var(--cursor-text-secondary)]', props.className)}>
             {props.children}
         </code>
     )
@@ -342,12 +328,12 @@ export function CursorEmptyState(props: {
 }) {
     return (
         <div className={cn(
-            'flex flex-col items-center justify-center gap-3 rounded-lg border border-[var(--border-tertiary)] bg-[var(--bg-editor)] px-4 py-12 text-center',
+            'flex flex-col items-center justify-center gap-3 rounded-lg border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] px-4 py-12 text-center',
             props.className
         )}
         >
-            <div className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">{props.title}</div>
-            <div className="max-w-[34rem] text-[13px] leading-[18px] text-[var(--text-secondary)]">{props.description}</div>
+            <div className="text-[13px] leading-[18px] font-semibold text-[var(--cursor-text-primary)]">{props.title}</div>
+            <div className="max-w-[34rem] text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">{props.description}</div>
             {props.action ? props.action : null}
         </div>
     )
@@ -394,7 +380,7 @@ export const CursorTextField = React.forwardRef<HTMLInputElement, React.InputHTM
             <input
                 ref={ref}
                 className={cn(
-                    'w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] text-[13px] leading-[18px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50',
+                    'w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[13px] leading-[18px] text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50',
                     compact ? 'h-8 px-3 py-1.5' : 'h-9 px-3 py-2',
                     mono ? 'font-[var(--font-mono)]' : '',
                     className
@@ -412,7 +398,7 @@ export function CursorTextArea(
     return (
         <textarea
             className={cn(
-                'w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-[13px] leading-[18px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50',
+                'w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-[13px] leading-[18px] text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50',
                 className
             )}
             {...rest}
@@ -426,18 +412,18 @@ export function CursorSelect(
     const { className, children, ...rest } = props
     return (
         <div className={cn(
-            'relative min-w-[200px] rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] text-[13px] leading-[18px] text-[var(--text-primary)] transition-colors focus-within:ring-2 focus-within:ring-[var(--accent)]',
+            'relative min-w-[200px] rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[13px] leading-[18px] text-[var(--cursor-text-primary)] transition-colors focus-within:ring-2 focus-within:ring-[var(--accent)]',
             className
         )}
         >
             <select
-                className="h-9 w-full appearance-none bg-transparent px-3 pr-8 text-[13px] leading-[18px] text-[var(--text-primary)] focus:outline-none disabled:opacity-50"
+                className="h-9 w-full appearance-none bg-transparent px-3 pr-8 text-[13px] leading-[18px] text-[var(--cursor-text-primary)] focus:outline-none disabled:opacity-50"
                 {...rest}
             >
                 {children}
             </select>
             <svg
-                className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]"
+                className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--cursor-text-tertiary)]"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -456,14 +442,14 @@ export function CursorSelectButton(props: React.ButtonHTMLAttributes<HTMLButtonE
     return (
         <button
             className={cn(
-                'inline-flex min-w-[200px] items-center justify-between gap-2 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-[13px] leading-[18px] text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-quaternary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]',
+                'inline-flex min-w-[200px] items-center justify-between gap-2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-[13px] leading-[18px] text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]',
                 className
             )}
             {...rest}
         >
             <span className="truncate">{children}</span>
             <svg
-                className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]"
+                className="h-3.5 w-3.5 shrink-0 text-[var(--cursor-text-tertiary)]"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -482,13 +468,13 @@ export const CursorSearchField = React.forwardRef<HTMLInputElement, React.InputH
         const { className, compact, ...rest } = props
         return (
             <div className={cn(
-                'flex items-center gap-2 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] text-[var(--text-primary)] transition-colors focus-within:border-[var(--border-primary)] focus-within:ring-2 focus-within:ring-[var(--accent)] hover:border-[var(--border-primary)]',
+                'flex items-center gap-2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] transition-colors focus-within:border-[var(--cursor-stroke-primary)] focus-within:ring-2 focus-within:ring-[var(--accent)] hover:border-[var(--cursor-stroke-primary)]',
                 compact ? 'px-2 py-1.5' : 'px-3 py-2',
                 className
             )}
             >
                 <svg
-                    className="h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)]"
+                    className="h-3.5 w-3.5 shrink-0 text-[var(--cursor-text-tertiary)]"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -501,7 +487,7 @@ export const CursorSearchField = React.forwardRef<HTMLInputElement, React.InputH
                 </svg>
                 <input
                     ref={ref}
-                    className="w-full bg-transparent text-[13px] leading-[18px] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
+                    className="w-full bg-transparent text-[13px] leading-[18px] text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] focus:outline-none"
                     {...rest}
                 />
             </div>
@@ -525,12 +511,12 @@ export function CursorToggle(props: {
                 'relative inline-flex h-5 w-9 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] disabled:opacity-50',
                 props.checked
                     ? 'border-[var(--border-success)] bg-[var(--success)]'
-                    : 'border-[var(--border-secondary)] bg-[var(--bg-secondary)]'
+                    : 'border-[var(--cursor-stroke-secondary)] bg-[var(--bg-secondary)]'
             )}
         >
             <span
                 className={cn(
-                    'absolute top-[1px] h-4 w-4 rounded-full bg-[var(--bg-editor)] shadow-[0_1px_2px_var(--shadow-primary)] transition-transform',
+                    'absolute top-[1px] h-4 w-4 rounded-full bg-[var(--cursor-bg-card)] shadow-[0_1px_2px_var(--shadow-primary)] transition-transform',
                     props.checked ? 'translate-x-[18px]' : 'translate-x-[1px]'
                 )}
             />
@@ -547,11 +533,11 @@ export function CursorToggleRow(props: {
     className?: string
 }) {
     return (
-        <label className={cn('flex items-center justify-between gap-3 rounded-md border border-[var(--border-tertiary)] bg-[var(--bg-quinary)] px-3 py-2', props.className)}>
+        <label className={cn('flex items-center justify-between gap-3 rounded-md border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-hover)] px-3 py-2', props.className)}>
             <div className="flex min-w-0 flex-col">
-                <span className="text-[13px] leading-[18px] text-[var(--text-primary)]">{props.label}</span>
+                <span className="text-[13px] leading-[18px] text-[var(--cursor-text-primary)]">{props.label}</span>
                 {props.description ? (
-                    <span className="text-[12px] leading-4 text-[var(--text-secondary)]">{props.description}</span>
+                    <span className="text-[12px] leading-4 text-[var(--cursor-text-secondary)]">{props.description}</span>
                 ) : null}
             </div>
             <CursorToggle
@@ -584,9 +570,9 @@ export function CursorChoiceRow(props: {
                 disabled={props.disabled}
             />
             <div className={cn('flex min-w-0 items-center gap-2', props.controlClassName)}>
-                <span className="text-[13px] leading-[18px] text-[var(--text-primary)]">{props.label}</span>
+                <span className="text-[13px] leading-[18px] text-[var(--cursor-text-primary)]">{props.label}</span>
                 {props.description ? (
-                    <span className="text-[12px] leading-4 text-[var(--text-secondary)]">{props.description}</span>
+                    <span className="text-[12px] leading-4 text-[var(--cursor-text-secondary)]">{props.description}</span>
                 ) : null}
             </div>
         </label>
@@ -620,8 +606,8 @@ export function CursorTabButton(props: {
             className={cn(
                 'relative inline-flex h-9 items-center border-b-2 px-0 text-[13px] font-medium transition-colors',
                 props.active
-                    ? 'border-[var(--text-primary)] text-[var(--text-primary)]'
-                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                    ? 'border-[var(--cursor-text-primary)] text-[var(--cursor-text-primary)]'
+                    : 'border-transparent text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]',
                 props.className
             )}
         >
@@ -638,23 +624,23 @@ export function CursorExpandableRow(props: {
 }) {
     const [open, setOpen] = React.useState(Boolean(props.defaultOpen))
     return (
-        <div className="border-b border-[var(--border-tertiary)] last:border-b-0">
+        <div className="border-b border-[var(--cursor-stroke-tertiary)] last:border-b-0">
             <button
                 type="button"
                 onClick={() => setOpen((value) => !value)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-[var(--bg-quaternary)]"
+                className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-[var(--cursor-bg-hover)]"
             >
                 <div className="min-w-0">
-                    <div className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">{props.title}</div>
+                    <div className="text-[13px] leading-[18px] font-semibold text-[var(--cursor-text-primary)]">{props.title}</div>
                 </div>
                 <div className="flex min-w-0 items-center gap-2">
                     {props.description ? (
-                        <div className="truncate text-[13px] leading-[18px] text-[var(--text-secondary)]">
+                        <div className="truncate text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">
                             {props.description}
                         </div>
                     ) : null}
                     <svg
-                        className={cn('h-3.5 w-3.5 shrink-0 text-[var(--text-tertiary)] transition-transform', open ? 'rotate-90' : '')}
+                        className={cn('h-3.5 w-3.5 shrink-0 text-[var(--cursor-text-tertiary)] transition-transform', open ? 'rotate-90' : '')}
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -667,7 +653,7 @@ export function CursorExpandableRow(props: {
                 </div>
             </button>
             {open ? (
-                <div className="border-t border-[var(--border-tertiary)] bg-[var(--bg-quinary)] px-4 py-4">
+                <div className="border-t border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-hover)] px-4 py-4">
                     {props.children}
                 </div>
             ) : null}
@@ -690,19 +676,19 @@ export function CursorCollapsibleSection(props: {
                 <button
                     type="button"
                     onClick={props.onToggle}
-                    className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-[var(--bg-quaternary)]"
+                    className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-[var(--cursor-bg-hover)]"
                     aria-expanded={props.isExpanded}
                     aria-controls={sectionContentId}
                 >
                     <div className="flex min-w-0 flex-col">
-                        <span className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">{props.title}</span>
+                        <span className="text-[13px] leading-[18px] font-semibold text-[var(--cursor-text-primary)]">{props.title}</span>
                         {props.description ? (
-                            <span className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">{props.description}</span>
+                            <span className="mt-1 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">{props.description}</span>
                         ) : null}
                     </div>
                     <svg
                         className={cn(
-                            'mt-0.5 h-4 w-4 shrink-0 text-[var(--text-tertiary)] transition-transform',
+                            'mt-0.5 h-4 w-4 shrink-0 text-[var(--cursor-text-tertiary)] transition-transform',
                             props.isExpanded ? 'rotate-180' : ''
                         )}
                         viewBox="0 0 24 24"
@@ -728,7 +714,7 @@ export function CursorDetailGrid(props: {
     className?: string
 }) {
     return (
-        <CursorSettingsCard className={cn('grid gap-3 border-[var(--border-secondary)] bg-[var(--bg-editor)] p-4 text-sm md:grid-cols-2', props.className)}>
+        <CursorSettingsCard className={cn('grid gap-3 border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-4 text-sm md:grid-cols-2', props.className)}>
             {props.children}
         </CursorSettingsCard>
     )
@@ -741,7 +727,7 @@ export function CursorDetailItem(props: {
 }) {
     return (
         <div className={props.className}>
-            <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-secondary)]">{props.label}</div>
+            <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">{props.label}</div>
             <div className="mt-1 font-medium">{props.value}</div>
         </div>
     )

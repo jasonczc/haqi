@@ -1,6 +1,6 @@
 export default function ReviewLoopsIndexPage() {
     return (
-        <div className="review-loops-ui flex h-full items-center justify-center font-mono">
+        <div className="cursor-theme review-loops-ui flex h-full items-center justify-center font-mono">
             <div className="text-xs text-[var(--text-tertiary)] leading-relaxed">
                 <div className="flex">
                     <span className="text-[var(--border-tertiary)] select-none mr-2">{'│'}</span>

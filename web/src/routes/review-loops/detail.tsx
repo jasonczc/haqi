@@ -79,7 +79,7 @@ export default function ReviewLoopDetailPage() {
     const isTerminal = loop.status === 'accepted' || loop.status === 'aborted' || loop.status === 'canceled'
 
     return (
-        <div className="review-loops-ui flex h-full flex-col overflow-y-auto font-mono min-w-0">
+        <div className="cursor-theme review-loops-ui flex h-full flex-col overflow-y-auto font-mono min-w-0">
             <div className="mx-auto w-full max-w-3xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] min-w-0">
                 {/* ╭─ Header ─╮ */}
                 <div className="border border-[var(--border-tertiary)] rounded-sm p-4">

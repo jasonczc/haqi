@@ -2953,7 +2953,7 @@ export default function GroupDetailPage() {
     }
 
     return (
-        <div className="groups-ui flex h-full flex-col bg-[var(--cursor-bg-app)]">
+        <div className="cursor-theme groups-ui flex h-full flex-col bg-[var(--cursor-bg-app)]">
             {/* B. Members (collapsible) */}
             <div className="border-b border-[var(--cursor-stroke-secondary)]">
                 <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--cursor-text-secondary)]">

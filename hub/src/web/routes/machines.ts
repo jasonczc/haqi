@@ -106,10 +106,11 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             if (parsed.data.directory?.trim()) {
                 return c.json({ error: 'Cloud sessions do not accept directory; use workspaceSource.repository' }, 400)
             }
-            // Setup sessions can run without a checkpoint (fresh image) and without a repo
-            if (parsed.data.sessionType !== 'setup') {
+            // Setup sessions and host-process/daemon-session runtime can run without a checkpoint and without a repo
+            const needsDockerImage = parsed.data.runtimeKind !== 'host-process' && parsed.data.runtimeKind !== 'daemon-session'
+            if (parsed.data.sessionType !== 'setup' && needsDockerImage) {
                 if (!parsed.data.checkpointId?.trim() && !parsed.data.workspaceSource?.repository) {
-                    return c.json({ error: 'Cloud sessions require checkpointId or workspaceSource.repository' }, 400)
+                    return c.json({ error: 'Cloud docker sessions require checkpointId or workspaceSource.repository' }, 400)
                 }
             }
         }

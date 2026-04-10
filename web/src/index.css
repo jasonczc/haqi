@@ -1,7 +1,12 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
-@import "./styles/cursor-theme.css";
-@import "./styles/cursor-theme-v2.css";
+
+/* Fix Tailwind v4 border-color default: ensure borders use theme colors, not currentColor */
+@layer base {
+    *, ::before, ::after {
+        border-color: var(--cursor-stroke-tertiary, rgba(0, 0, 0, 0.06));
+    }
+}
 
 :root {
     --cursor-bg-app: var(--tg-theme-bg-color, #ffffff);
