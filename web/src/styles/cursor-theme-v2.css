@@ -1103,8 +1103,8 @@ html.dark body,
 }
 
 .chat-header {
-    background: var(--cursor-bg-card);
-    border-bottom: 1px solid var(--cursor-stroke-tertiary);
+    background: var(--cursor-bg-card) !important;
+    border-bottom: 1px solid var(--cursor-stroke-tertiary) !important;
 }
 
 .chat-center {
@@ -1328,7 +1328,7 @@ html.dark body,
     position: sticky;
     bottom: 0;
     z-index: 5;
-    background: linear-gradient(to top, var(--cursor-bg-card) 70%, rgba(255, 255, 255, 0));
+    background: linear-gradient(to top, var(--cursor-bg-card) 70%, rgba(255, 255, 255, 0)) !important;
     padding-bottom: 16px;
 }
 
@@ -1337,9 +1337,10 @@ html.dark body,
 }
 
 .chat-input-box {
-    background: var(--cursor-bg-card);
-    border: 1px solid var(--cursor-stroke-secondary);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    background: var(--cursor-bg-card) !important;
+    border: 1px solid var(--cursor-stroke-secondary) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
 }
 
 .composer-status-bar {
@@ -1452,8 +1453,8 @@ html.dark body,
 
 .context-panel {
     width: 440px;
-    background: var(--cursor-bg-card);
-    border-left: 1px solid var(--cursor-stroke-tertiary);
+    background: var(--cursor-bg-card) !important;
+    border-left: 1px solid var(--cursor-stroke-tertiary) !important;
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -2196,4 +2197,227 @@ html.dark body,
         padding-left: 8px;
         padding-right: 8px;
     }
+}
+
+/* ============================================================
+   Chip Popover (floating panels for tool-chips)
+   ============================================================ */
+.chip-popover {
+    position: fixed;
+    z-index: 100;
+    background: var(--cursor-bg-card);
+    border: 1px solid var(--cursor-stroke-secondary);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: 8px 0;
+    max-height: 420px;
+    overflow-y: auto;
+    animation: chip-popover-in 0.12s ease-out;
+}
+
+@keyframes chip-popover-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.chip-popover::-webkit-scrollbar { width: 4px; }
+.chip-popover::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 2px;
+}
+
+.chip-popover-group {
+    padding: 4px 0;
+}
+
+.chip-popover-group + .chip-popover-group {
+    border-top: 1px solid var(--cursor-stroke-tertiary);
+}
+
+.chip-popover-label {
+    padding: 4px 14px 2px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--cursor-text-tertiary);
+}
+
+.chip-popover-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    gap: 8px;
+}
+
+.chip-popover-row-left {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.chip-popover-row-label {
+    font-size: 13px;
+    color: var(--cursor-text-primary);
+}
+
+.chip-popover-row-desc {
+    font-size: 11px;
+    color: var(--cursor-text-tertiary);
+}
+
+.chip-popover-row-right {
+    flex-shrink: 0;
+}
+
+.chip-popover-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 7px 14px;
+    background: none;
+    border: none;
+    font-size: 13px;
+    color: var(--cursor-text-primary);
+    cursor: pointer;
+    transition: background 0.1s;
+    text-align: left;
+}
+
+.chip-popover-option:hover {
+    background: var(--cursor-bg-hover);
+}
+
+.chip-popover-option.selected {
+    font-weight: 500;
+}
+
+.chip-popover-option svg {
+    color: var(--cursor-success, #16a34a);
+    flex-shrink: 0;
+}
+
+.chip-popover-pills {
+    display: flex;
+    gap: 4px;
+    padding: 4px 14px;
+    flex-wrap: wrap;
+}
+
+.chip-popover-pill {
+    padding: 3px 10px;
+    border-radius: 9999px;
+    border: 1px solid var(--cursor-stroke-secondary);
+    background: transparent;
+    font-size: 12px;
+    color: var(--cursor-text-secondary);
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.chip-popover-pill:hover {
+    border-color: var(--cursor-stroke-primary);
+    color: var(--cursor-text-primary);
+}
+
+.chip-popover-pill.active {
+    background: var(--cursor-text-primary);
+    border-color: var(--cursor-text-primary);
+    color: var(--cursor-bg-card);
+}
+
+.chip-popover-input {
+    width: 100%;
+    padding: 5px 10px;
+    border: 1px solid var(--cursor-stroke-secondary);
+    border-radius: 6px;
+    font-size: 12px;
+    background: var(--cursor-bg-card);
+    color: var(--cursor-text-primary);
+    outline: none;
+}
+
+.chip-popover-input:focus {
+    border-color: var(--cursor-stroke-primary);
+}
+
+.chip-popover-input::placeholder {
+    color: var(--cursor-text-tertiary);
+}
+
+.chip-popover-toggle {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.chip-popover-toggle input {
+    opacity: 0; width: 0; height: 0;
+}
+
+.chip-popover-toggle-track {
+    position: absolute;
+    inset: 0;
+    border-radius: 9px;
+    background: var(--cursor-stroke-secondary);
+    transition: background 0.15s;
+}
+
+.chip-popover-toggle input:checked + .chip-popover-toggle-track {
+    background: var(--cursor-success, #16a34a);
+}
+
+.chip-popover-toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    transition: transform 0.15s;
+}
+
+.chip-popover-toggle input:checked ~ .chip-popover-toggle-thumb {
+    transform: translateX(14px);
+}
+
+/* ============================================================
+   Bridge: map non-prefixed vars (used in Tailwind classes)
+   to the --cursor-* reference values.
+   Loaded AFTER cursor-theme.css so these override the
+   color-mix() definitions with exact reference values.
+   ============================================================ */
+.cursor-theme {
+    /* Text */
+    --text-primary:    var(--cursor-text-primary);
+    --text-secondary:  var(--cursor-text-secondary);
+    --text-tertiary:   var(--cursor-text-tertiary);
+    --text-quaternary: var(--cursor-text-quaternary);
+
+    /* Borders → map to cursor stroke tokens */
+    --border-primary:   var(--cursor-stroke-primary);
+    --border-secondary: var(--cursor-stroke-secondary);
+    --border-tertiary:  var(--cursor-stroke-tertiary);
+
+    /* Backgrounds */
+    --bg-editor:     var(--cursor-bg-card);
+    --bg-chrome:     var(--cursor-bg-sidebar);
+    --bg-sidebar:    var(--cursor-bg-sidebar);
+    --bg-elevated:   var(--cursor-bg-card);
+    --bg-quaternary: var(--cursor-bg-hover);
+    --bg-quinary:    var(--cursor-bg-hover);
+    --bg-tertiary:   rgba(0, 0, 0, 0.06);
+    --bg-secondary:  rgba(0, 0, 0, 0.08);
+
+    /* Shadows */
+    --shadow-primary:   rgba(0, 0, 0, 0.12);
+    --shadow-secondary: rgba(0, 0, 0, 0.07);
+    --shadow-tertiary:  rgba(0, 0, 0, 0.036);
 }
