@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import type { ApiClient } from '@/api/client'
 import type {
     ExecutionBackend,
-    Machine,
+
     NetworkMode,
     RuntimeKind,
     SessionSummary,
@@ -25,7 +25,7 @@ import {
     PopoverPillRow,
 } from '@/components/ChipPopover'
 import {
-    MODEL_OPTIONS,
+
     CODEX_SERVICE_TIER_OPTIONS,
     getThinkEffortOptions,
     getModelOptionsForAgent,
@@ -180,7 +180,7 @@ export function HomeComposer(props: {
     const [repoBranch, setRepoBranch] = useState(() => lastConfig?.repositoryBranch ?? '')
     const [showRepoPanel, setShowRepoPanel] = useState(false)
     const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => lastConfig?.workspaceMode ?? 'ephemeral')
-    const [directory, setDirectory] = useState('')
+    const [directory] = useState('')
 
     // ── Agent / Model state ──
     const initialAgent = lastConfig?.agent ?? loadPreferredAgent()
@@ -234,7 +234,7 @@ export function HomeComposer(props: {
     const { spawnSession, isPending } = useSpawnSession(props.api)
     const { machines } = useMachines(props.api, true)
     const isCloud = isCloudBackend(executionBackend)
-    const { workers: cloudWorkers } = useCloudWorkers(props.api, isCloud)
+    useCloudWorkers(props.api, isCloud)
     const { environments: cloudEnvironments } = useCloudEnvironments(props.api, isCloud)
     const { checkpoints: cloudCheckpoints } = useCloudCheckpoints(props.api, isCloud)
 
@@ -711,7 +711,7 @@ export function HomeComposer(props: {
                                     selected={machineId === m.id}
                                     onClick={() => setMachineId(m.id)}
                                 >
-                                    {m.name ?? m.id}
+                                    {m.metadata?.host ?? m.id}
                                 </PopoverOption>
                             ))}
                         </PopoverGroup>

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     Navigate,
@@ -26,6 +26,7 @@ import {
     loadPreferredYoloMode
 } from '@/components/NewSession/preferences'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
+// MODEL_OPTIONS, getThinkEffortOptions moved to HomeComposer.tsx
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
@@ -40,6 +41,9 @@ import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
+import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
+import type { ApiClient } from '@/api/client'
+import { HomeComposer } from '@/components/HomeComposer'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
@@ -386,119 +390,8 @@ function SessionStatusIcon(props: { state: 'draft' | 'merged' | 'open'; classNam
     )
 }
 
-function HomeComposer(props: { onNewSession: () => void; onOpenSession: (sessionId: string) => void; sessions: SessionSummary[] }) {
-    return (
-        <div className="flex flex-1 flex-col items-center justify-start px-8">
-            <div className="content-wrapper w-full max-w-[800px] pt-[15vh]">
-                <div className="home-hero">
-                    <div className="home-eyebrow">New agent</div>
-
-                    {/* Select repository button */}
-                    <div className="repo-selector">
-                        <button type="button" className="repo-btn">
-                            Select repository
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                        </button>
-                    </div>
-
-                    {/* Prompt input area */}
-                    <div className="prompt-container">
-                        <div className="prompt-card">
-                            <textarea
-                                placeholder="Ask Cursor to build, fix bugs, explore"
-                                rows={4}
-                                className="prompt-input w-full resize-none bg-transparent focus:outline-none"
-                            />
-                            <div className="prompt-footer">
-                                <div className="prompt-tools">
-                                    <button className="tool-chip" type="button">
-                                        Codex 5.3 High
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                    </button>
-                                    <button className="tool-chip" type="button">
-                                        MCPs
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                    </button>
-                                </div>
-                                <div className="prompt-actions">
-                                    <button className="action-btn" type="button" aria-label="Add context">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
-                                    </button>
-                                    <button className="action-btn active" type="button" aria-label="Start agent" onClick={props.onNewSession}>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Suggested prompts */}
-                    <div className="action-pills">
-                        <button className="pill-btn" type="button" onClick={props.onNewSession}>
-                            Run security audit
-                        </button>
-                        <button className="pill-btn" type="button" onClick={props.onNewSession}>
-                            Improve AGENTS.md
-                        </button>
-                        <button className="pill-btn" type="button" onClick={props.onNewSession}>
-                            Solve a TODO
-                        </button>
-                    </div>
-                </div>
-
-                <div className="home-section-header">
-                    <div className="home-section-title">Recent runs</div>
-                    <div className="home-section-meta">{Math.min(props.sessions.length, 8)} visible</div>
-                </div>
-
-                {/* Recent runs cards */}
-                <div className="agent-list mt-2 w-full">
-                    {props.sessions.slice(0, 8).map(s => {
-                        const title = getSessionDisplayTitle(s)
-                        const model = s.metadata?.model || s.modelMode || 'default'
-                        const time = formatHomeTime(s.updatedAt)
-                        const meta = s.metadata as any
-                        const additions = meta?.prAdditions as number | undefined
-                        const deletions = meta?.prDeletions as number | undefined
-                        const state = getSessionHistoryState(s)
-                        return (
-                            <button key={s.id} type="button" className="agent-row w-full text-left" onClick={() => props.onOpenSession(s.id)}>
-                                <div className="metadata-card">
-                                    <div className="meta-row">
-                                        <span className="meta-file-count">
-                                            {meta?.changedFilesCount ? `${meta.changedFilesCount} files` : 'Session'}
-                                        </span>
-                                        {(additions || deletions) ? (
-                                            <div className="meta-diff">
-                                                {additions ? <span className="diff-add">+{additions}</span> : null}
-                                                {deletions ? <span className="diff-sub">-{deletions}</span> : null}
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                    <div className={`badge ${state === 'open' ? 'badge-open' : state === 'merged' ? 'badge-merged' : 'badge-draft'}`}>
-                                        <SessionStatusIcon state={state} />
-                                        {state === 'open' ? 'Open' : state === 'merged' ? 'Merged' : 'Draft'}
-                                    </div>
-                                </div>
-                                <div className="agent-info">
-                                    <div className="agent-title">{title}</div>
-                                    <div className="agent-subtitle">
-                                        <SessionStatusIcon state={state} className={state === 'open' ? 'icon-green' : state === 'merged' ? 'icon-purple' : 'icon-gray'} />
-                                        <span>{model}</span>
-                                        <span style={{ opacity: 0.4 }}>·</span>
-                                        <span>{s.metadata?.path?.split('/').filter(Boolean).pop() ?? 'haqi'}</span>
-                                        <span style={{ opacity: 0.4 }}>·</span>
-                                        <span>{time}</span>
-                                    </div>
-                                </div>
-                            </button>
-                        )
-                    })}
-                </div>
-            </div>
-        </div>
-    )
-}
+// HomeComposer is imported from @/components/HomeComposer
+// (old inline function deleted — see git history)
 
 function SessionsPage() {
     const { api } = useAppContext()
@@ -778,7 +671,7 @@ function SessionsPage() {
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
             <div className="cursor-theme flex h-full min-h-0">
                 <div
-                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--bg-chrome)]`}
+                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} shrink-0 flex-col bg-[var(--bg-chrome)]`}
                     style={sidebarStyle}
                 >
                     {renderSidebarContent()}
@@ -824,7 +717,60 @@ function SessionsPage() {
 
                 <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--bg-editor)]`}>
                     {isSessionsIndex ? (
-                        <HomeComposer onNewSession={openNewSession} onOpenSession={selectSession} sessions={visibleSessions} />
+                        <HomeComposer
+                            api={api}
+                            onOpenSession={selectSession}
+                            sessions={visibleSessions}
+                            renderAgentList={() => (
+                                <>
+                                    <div className="home-section-header">
+                                        <div className="home-section-title">Recent runs</div>
+                                        <div className="home-section-meta">{Math.min(visibleSessions.length, 8)} visible</div>
+                                    </div>
+                                    <div className="agent-list mt-2 w-full">
+                                        {visibleSessions.slice(0, 8).map(s => {
+                                            const title = getSessionDisplayTitle(s)
+                                            const sessionModel = s.metadata?.model || s.modelMode || 'default'
+                                            const time = formatHomeTime(s.updatedAt)
+                                            const meta = s.metadata as any
+                                            const additions = meta?.prAdditions as number | undefined
+                                            const deletions = meta?.prDeletions as number | undefined
+                                            const state = getSessionHistoryState(s)
+                                            return (
+                                                <button key={s.id} type="button" className="agent-row w-full text-left" onClick={() => selectSession(s.id)}>
+                                                    <div className="metadata-card">
+                                                        <div className="meta-row">
+                                                            <span className="meta-file-count">{meta?.changedFilesCount ? `${meta.changedFilesCount} files` : 'Session'}</span>
+                                                            {(additions || deletions) ? (
+                                                                <div className="meta-diff">
+                                                                    {additions ? <span className="diff-add">+{additions}</span> : null}
+                                                                    {deletions ? <span className="diff-sub">-{deletions}</span> : null}
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
+                                                        <div className={`badge ${state === 'open' ? 'badge-open' : state === 'merged' ? 'badge-merged' : 'badge-draft'}`}>
+                                                            <SessionStatusIcon state={state} />
+                                                            {state === 'open' ? 'Open' : state === 'merged' ? 'Merged' : 'Draft'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="agent-info">
+                                                        <div className="agent-title">{title}</div>
+                                                        <div className="agent-subtitle">
+                                                            <SessionStatusIcon state={state} className={state === 'open' ? 'icon-green' : state === 'merged' ? 'icon-purple' : 'icon-gray'} />
+                                                            <span>{sessionModel}</span>
+                                                            <span style={{ opacity: 0.4 }}>·</span>
+                                                            <span>{s.metadata?.path?.split('/').filter(Boolean).pop() ?? 'haqi'}</span>
+                                                            <span style={{ opacity: 0.4 }}>·</span>
+                                                            <span>{time}</span>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </>
+                            )}
+                        />
                     ) : (
                         <div className="flex-1 min-h-0">
                             <Outlet />
@@ -981,7 +927,7 @@ function SessionPage() {
     }
 
     return (
-        <div className="chat-layout flex h-full min-h-0 bg-[var(--bg-editor)]">
+        <div className="cursor-theme chat-layout flex h-full min-h-0 bg-[var(--bg-editor)]">
             {/* Left: Chat */}
             <div className={`chat-main flex min-w-0 flex-col ${workbenchOpen ? 'flex-1' : 'w-full'}`}>
                 <SessionChat
@@ -1111,7 +1057,7 @@ function NewSessionPage() {
     const submitDisabled = Boolean(machinesLoading || machinesError)
 
     return (
-        <div className="chat-layout flex min-h-0 flex-col bg-[var(--cursor-bg-card)]">
+        <div className="cursor-theme chat-layout flex min-h-0 flex-col bg-[var(--cursor-bg-card)]">
             <div className="chat-header flex items-center gap-2 border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
                 {!isTelegramApp() && (
                     <button
