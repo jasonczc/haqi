@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import {
+    CursorSearchField,
+    CursorSelectButton,
+    CursorSettingsCard,
+    CursorTextLink,
+    CursorTextField,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -116,29 +123,28 @@ export function RepoPicker(props: {
         return (
             <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-[var(--text-tertiary)]">
+                    <label className="text-[12px] leading-4 font-medium text-[var(--text-secondary)]">
                         Repository URL
                     </label>
                     {props.sessionId && (
-                        <button
-                            type="button"
-                            onClick={() => {
+                        <CursorTextLink
+                            href="#"
+                            onClick={(event) => {
+                                event.preventDefault()
                                 setManualMode(false)
                                 setIsOpen(true)
                             }}
-                            className="text-[10px] text-[var(--accent)] hover:underline"
                         >
                             Browse repos
-                        </button>
+                        </CursorTextLink>
                     )}
                 </div>
-                <input
+                <CursorTextField
                     type="url"
                     value={props.value}
                     onChange={(e) => props.onChange(e.target.value)}
                     placeholder="https://github.com/owner/repo"
                     disabled={props.disabled}
-                    className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                 />
             </div>
         )
@@ -147,54 +153,35 @@ export function RepoPicker(props: {
     return (
         <div className="relative" ref={dropdownRef}>
             <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-[var(--text-tertiary)]">
+                <label className="text-[12px] leading-4 font-medium text-[var(--text-secondary)]">
                     Repository
                 </label>
                 {/* Trigger button — Cursor style */}
-                <button
+                <CursorSelectButton
                     type="button"
                     onClick={() => setIsOpen(!isOpen)}
                     disabled={props.disabled}
-                    className="flex w-full items-center justify-between rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--bg-quaternary)] disabled:opacity-60"
+                    className="w-full"
                 >
                     <span className={selectedName ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}>
                         {selectedName ?? 'Select repository'}
                     </span>
-                    <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        className={`text-[var(--text-tertiary)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                    >
-                        <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                </button>
+                </CursorSelectButton>
             </div>
 
             {/* Dropdown */}
             {isOpen && (
-                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[320px] overflow-hidden rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] shadow-lg">
+                <CursorSettingsCard className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[320px] overflow-hidden border-[var(--border-secondary)] shadow-[0_16px_40px_var(--shadow-tertiary)]">
                     {/* Search */}
                     <div className="border-b border-[var(--border-tertiary)] px-3 py-2">
-                        <div className="flex items-center gap-2">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="11" cy="11" r="8" />
-                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                            <input
-                                ref={searchRef}
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Search repositories..."
-                                className="w-full bg-transparent text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none"
-                            />
-                        </div>
+                        <CursorSearchField
+                            ref={searchRef}
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search repositories..."
+                            compact
+                            className="border-0 px-0 py-0"
+                        />
                     </div>
 
                     {/* Repo list */}
@@ -250,21 +237,21 @@ export function RepoPicker(props: {
                             >
                                 Enter URL manually
                             </button>
-                            <a
+                            <CursorTextLink
                                 href="https://github.com/settings/installations"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-[11px] text-[var(--accent)] hover:underline"
+                                className="flex items-center gap-1"
                             >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <circle cx="12" cy="12" r="3" />
                                     <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
                                 </svg>
                                 Add repositories
-                            </a>
+                            </CursorTextLink>
                         </div>
                     </div>
-                </div>
+                </CursorSettingsCard>
             )}
         </div>
     )

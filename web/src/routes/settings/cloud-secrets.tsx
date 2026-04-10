@@ -1,8 +1,17 @@
-import { useMemo, useState, useId } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
+import {
+    CursorButton,
+    CursorCollapsibleSection,
+    CursorSettingsBadge,
+    CursorSettingsHeader,
+    CursorSettingsSection,
+    CursorSelect,
+    CursorTextArea,
+    CursorTextField,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { useTranslation } from '@/lib/use-translation'
@@ -26,61 +35,6 @@ const EMPTY_DRAFT: SecretDraft = {
     envName: '',
     filePath: '',
     adapter: 'generic'
-}
-
-function ChevronDownIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    )
-}
-
-function CollapsibleSection(props: {
-    title: string
-    description: string
-    isExpanded: boolean
-    onToggle: () => void
-    children: React.ReactNode
-}) {
-    const sectionContentId = useId()
-    return (
-        <section className="border-b border-[var(--cursor-stroke-secondary)]">
-            <button
-                type="button"
-                onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
-                aria-expanded={props.isExpanded}
-                aria-controls={sectionContentId}
-            >
-                <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
-                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
-                </div>
-                <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
-                        props.isExpanded ? 'rotate-180' : ''
-                    }`}
-                />
-            </button>
-            {props.isExpanded && (
-                <div id={sectionContentId}>
-                    {props.children}
-                </div>
-            )}
-        </section>
-    )
 }
 
 export default function CloudSecretsPage() {
@@ -222,253 +176,257 @@ export default function CloudSecretsPage() {
     return (
         <>
             <div className="mx-auto w-full max-w-content">
-                <CollapsibleSection
+                <CursorSettingsHeader
                     title="Secrets"
-                    description={`${secrets.length} secret${secrets.length !== 1 ? 's' : ''} configured`}
-                    isExpanded={secretsExpanded}
-                    onToggle={() => setSecretsExpanded(!secretsExpanded)}
-                >
-                    {secrets.length === 0 ? (
-                        <div className="px-3 py-4 text-center text-sm text-[var(--cursor-text-secondary)]">
-                            No cloud secrets yet.
-                        </div>
-                    ) : (
-                        <div>
-                            {secrets.map((secret) => (
-                                <div
-                                    key={secret.id}
-                                    className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-secondary)] px-3 py-3"
-                                >
-                                    <div className="flex min-w-0 flex-col">
-                                        <span className="text-sm font-medium text-[var(--cursor-text-primary)]">{secret.name}</span>
-                                        <span className="mt-0.5 text-xs text-[var(--cursor-text-secondary)]">
-                                            {secret.adapter ?? 'generic'} · {secret.mountAs ?? 'env'}
-                                            {secret.envName ? ` · ${secret.envName}` : ''}
-                                            {secret.filePath ? ` · ${secret.filePath}` : ''}
-                                        </span>
-                                        {secret.description ? (
-                                            <span className="mt-0.5 text-xs text-[var(--cursor-text-secondary)]">{secret.description}</span>
-                                        ) : null}
-                                    </div>
-                                    <div className="flex shrink-0 gap-1.5">
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                setDraft({
-                                                    id: secret.id,
-                                                    name: secret.name,
-                                                    value: '',
-                                                    description: secret.description ?? '',
-                                                    mountAs: secret.mountAs ?? 'env',
-                                                    envName: secret.envName ?? '',
-                                                    filePath: secret.filePath ?? '',
-                                                    adapter: secret.adapter ?? 'generic'
-                                                })
-                                                setCreateExpanded(true)
-                                            }}
-                                        >
-                                            Edit
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                void navigator.clipboard?.writeText(secret.name).catch(() => undefined)
-                                            }}
-                                        >
-                                            Copy ref
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="destructive"
-                                            onClick={() => setDeleteSecretId(secret.id)}
-                                            disabled={deleteMutation.isPending}
-                                        >
-                                            Delete
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CollapsibleSection>
+                    description="Secrets available to self-hosted cloud workers. Configure env/file mounts and issue enrollment tokens from the same surface."
+                />
 
-                <CollapsibleSection
-                    title={submitLabel}
-                    description="Add or update a cloud secret for worker containers"
-                    isExpanded={createExpanded}
-                    onToggle={() => setCreateExpanded(!createExpanded)}
-                >
-                    <div className="px-3 pb-3">
-                        <div className="grid gap-3 text-sm">
-                            <input
+                <CursorSettingsSection className="space-y-4">
+                    <CursorCollapsibleSection
+                        title="Secrets"
+                        description={`${secrets.length} secret${secrets.length !== 1 ? 's' : ''} configured`}
+                        isExpanded={secretsExpanded}
+                        onToggle={() => setSecretsExpanded(!secretsExpanded)}
+                    >
+                        {secrets.length === 0 ? (
+                            <div className="px-4 py-6 text-center text-[13px] leading-[18px] text-[var(--text-secondary)]">
+                                No cloud secrets yet.
+                            </div>
+                        ) : (
+                            <div>
+                                {secrets.map((secret) => (
+                                    <div
+                                        key={secret.id}
+                                        className="flex items-start justify-between gap-3 border-b border-[var(--border-tertiary)] px-4 py-4 last:border-b-0"
+                                    >
+                                        <div className="flex min-w-0 flex-col">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">{secret.name}</span>
+                                                <CursorSettingsBadge>{secret.adapter ?? 'generic'}</CursorSettingsBadge>
+                                                <CursorSettingsBadge tone="accent">{secret.mountAs ?? 'env'}</CursorSettingsBadge>
+                                            </div>
+                                            <span className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                {secret.envName ? `env ${secret.envName}` : null}
+                                                {secret.envName && secret.filePath ? ' · ' : null}
+                                                {secret.filePath ? `file ${secret.filePath}` : null}
+                                            </span>
+                                            {secret.description ? (
+                                                <span className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">{secret.description}</span>
+                                            ) : null}
+                                        </div>
+                                        <div className="flex shrink-0 gap-1.5">
+                                            <CursorButton
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    setDraft({
+                                                        id: secret.id,
+                                                        name: secret.name,
+                                                        value: '',
+                                                        description: secret.description ?? '',
+                                                        mountAs: secret.mountAs ?? 'env',
+                                                        envName: secret.envName ?? '',
+                                                        filePath: secret.filePath ?? '',
+                                                        adapter: secret.adapter ?? 'generic'
+                                                    })
+                                                    setCreateExpanded(true)
+                                                }}
+                                            >
+                                                Edit
+                                            </CursorButton>
+                                            <CursorButton
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    void navigator.clipboard?.writeText(secret.name).catch(() => undefined)
+                                                }}
+                                            >
+                                                Copy ref
+                                            </CursorButton>
+                                            <CursorButton
+                                                type="button"
+                                                size="sm"
+                                                variant="danger"
+                                                onClick={() => setDeleteSecretId(secret.id)}
+                                                disabled={deleteMutation.isPending}
+                                            >
+                                                Delete
+                                            </CursorButton>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CursorCollapsibleSection>
+
+                    <CursorCollapsibleSection
+                        title={submitLabel}
+                        description="Add or update a cloud secret for worker containers"
+                        isExpanded={createExpanded}
+                        onToggle={() => setCreateExpanded(!createExpanded)}
+                    >
+                        <div className="space-y-3 px-4 pb-4">
+                            <CursorTextField
                                 type="text"
                                 placeholder="Secret name"
                                 value={draft.name}
                                 onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))}
-                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
-                            <textarea
+                            <CursorTextArea
                                 placeholder={draft.id ? 'Leave empty to keep current value' : 'Secret value'}
                                 value={draft.value}
                                 onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))}
                                 rows={4}
-                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
-                            <textarea
+                            <CursorTextArea
                                 placeholder="Description"
                                 value={draft.description}
                                 onChange={(event) => setDraft((current) => ({ ...current, description: event.target.value }))}
                                 rows={2}
-                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
                             <div className="grid gap-3 sm:grid-cols-2">
-                                <select
+                                <CursorSelect
                                     value={draft.adapter}
                                     onChange={(event) => setDraft((current) => ({ ...current, adapter: event.target.value as SecretDraft['adapter'] }))}
-                                    className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                                 >
                                     <option value="generic">generic</option>
                                     <option value="git">git</option>
                                     <option value="claude">claude</option>
                                     <option value="gemini">gemini</option>
                                     <option value="codex">codex</option>
-                                </select>
-                                <select
+                                </CursorSelect>
+                                <CursorSelect
                                     value={draft.mountAs}
                                     onChange={(event) => setDraft((current) => ({ ...current, mountAs: event.target.value as SecretDraft['mountAs'] }))}
-                                    className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                                 >
                                     <option value="env">env</option>
                                     <option value="file">file</option>
-                                </select>
+                                </CursorSelect>
                             </div>
-                            <input
+                            <CursorTextField
                                 type="text"
                                 placeholder="Env name (optional)"
                                 value={draft.envName}
                                 onChange={(event) => setDraft((current) => ({ ...current, envName: event.target.value }))}
-                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
-                            <input
+                            <CursorTextField
                                 type="text"
                                 placeholder="File path inside temp mount (optional)"
                                 value={draft.filePath}
                                 onChange={(event) => setDraft((current) => ({ ...current, filePath: event.target.value }))}
-                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                             />
-                            <div className="text-xs text-[var(--cursor-text-secondary)]">{helperText}</div>
+                            <div className="text-[12px] leading-4 text-[var(--text-secondary)]">{helperText}</div>
                             <div className="flex gap-2">
-                                <Button
+                                <CursorButton
                                     type="button"
                                     size="sm"
                                     onClick={() => saveMutation.mutate()}
                                     disabled={saveMutation.isPending || !draft.name.trim()}
                                 >
                                     {submitLabel}
-                                </Button>
+                                </CursorButton>
                                 {draft.id ? (
-                                    <Button
+                                    <CursorButton
                                         type="button"
                                         size="sm"
                                         variant="outline"
                                         onClick={() => setDraft(EMPTY_DRAFT)}
                                     >
                                         {t('button.cancel')}
-                                    </Button>
+                                    </CursorButton>
                                 ) : null}
                             </div>
                             {saveMutation.error instanceof Error ? (
-                                <div className="text-sm text-[var(--cursor-badge-error-text)]">{saveMutation.error.message}</div>
+                                <div className="text-[13px] leading-[18px] text-[var(--danger)]">{saveMutation.error.message}</div>
                             ) : null}
                         </div>
-                    </div>
-                </CollapsibleSection>
+                    </CursorCollapsibleSection>
 
-                <CollapsibleSection
-                    title={t('cloud.tokens.title')}
-                    description="Enrollment tokens for connecting workers"
-                    isExpanded={tokensExpanded}
-                    onToggle={() => setTokensExpanded(!tokensExpanded)}
-                >
-                    <div className="border-b border-[var(--cursor-stroke-secondary)] px-3 pb-3">
-                        <div className="flex flex-wrap items-end gap-3">
-                            <div className="min-w-[14rem] flex-1">
-                                <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
-                                    Token label
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Token label"
-                                    value={tokenLabel}
-                                    onChange={(event) => setTokenLabel(event.target.value)}
-                                    className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
-                                />
-                            </div>
-                            <div className="w-28">
-                                <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
-                                    TTL (min)
-                                </label>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    value={tokenTtl}
-                                    onChange={(event) => setTokenTtl(event.target.value)}
-                                    className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
-                                />
-                            </div>
-                            <Button type="button" size="sm" onClick={() => tokenMutation.mutate()} disabled={tokenMutation.isPending}>
-                                Mint token
-                            </Button>
-                        </div>
-                        {lastIssuedToken ? (
-                            <div className="mt-3 rounded-md border border-[var(--cursor-badge-success-border)] bg-[var(--cursor-badge-success-bg)] p-3 text-sm text-[var(--cursor-badge-success-text)]">
-                                <div className="font-medium">Copy this token now</div>
-                                <div className="mt-1 break-all font-mono text-xs">{lastIssuedToken}</div>
-                            </div>
-                        ) : null}
-                    </div>
-                    {tokens.length === 0 ? (
-                        <div className="px-3 py-4 text-center text-sm text-[var(--cursor-text-secondary)]">
-                            {t('cloud.tokens.empty')}
-                        </div>
-                    ) : (
-                        <div>
-                            {tokens.map((token) => (
-                                <div
-                                    key={token.id}
-                                    className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-secondary)] px-3 py-3"
-                                >
-                                    <div className="flex min-w-0 flex-col">
-                                        <span className="text-sm font-medium text-[var(--cursor-text-primary)]">
-                                            {token.label ?? token.tokenPreview}
-                                        </span>
-                                        <span className="mt-0.5 text-xs text-[var(--cursor-text-secondary)]">
-                                            {token.tokenPreview}
-                                            {token.expiresAt ? ` · expires ${new Date(token.expiresAt).toLocaleString()}` : ''}
-                                            {token.revokedAt ? ' · revoked' : ''}
-                                        </span>
-                                    </div>
-                                    {!token.revokedAt ? (
-                                        <Button
-                                            type="button"
-                                            size="sm"
-                                            variant="destructive"
-                                            onClick={() => setRevokeTokenId(token.id)}
-                                            disabled={revokeTokenMutation.isPending}
-                                        >
-                                            {t('cloud.tokens.revoke')}
-                                        </Button>
-                                    ) : null}
+                    <CursorCollapsibleSection
+                        title={t('cloud.tokens.title')}
+                        description="Enrollment tokens for connecting workers"
+                        isExpanded={tokensExpanded}
+                        onToggle={() => setTokensExpanded(!tokensExpanded)}
+                    >
+                        <div className="border-b border-[var(--border-tertiary)] px-4 pb-4">
+                            <div className="flex flex-wrap items-end gap-3">
+                                <div className="min-w-[14rem] flex-1">
+                                    <label className="mb-1 block text-[12px] leading-4 font-medium text-[var(--text-secondary)]">
+                                        Token label
+                                    </label>
+                                    <CursorTextField
+                                        type="text"
+                                        placeholder="Token label"
+                                        value={tokenLabel}
+                                        onChange={(event) => setTokenLabel(event.target.value)}
+                                    />
                                 </div>
-                            ))}
+                                <div className="w-28">
+                                    <label className="mb-1 block text-[12px] leading-4 font-medium text-[var(--text-secondary)]">
+                                        TTL (min)
+                                    </label>
+                                    <CursorTextField
+                                        type="number"
+                                        min={1}
+                                        value={tokenTtl}
+                                        onChange={(event) => setTokenTtl(event.target.value)}
+                                    />
+                                </div>
+                                <CursorButton type="button" size="sm" onClick={() => tokenMutation.mutate()} disabled={tokenMutation.isPending}>
+                                    Mint token
+                                </CursorButton>
+                            </div>
+                            {lastIssuedToken ? (
+                                <div className="mt-4 rounded-lg border border-[var(--border-success)] bg-[var(--bg-success-quaternary)] p-4 text-[13px] leading-[18px] text-[var(--success)]">
+                                    <div className="font-semibold">Copy this token now</div>
+                                    <div className="mt-2 break-all font-[var(--font-mono)] text-[12px] leading-4">{lastIssuedToken}</div>
+                                </div>
+                            ) : null}
                         </div>
-                    )}
-                </CollapsibleSection>
+                        {tokens.length === 0 ? (
+                            <div className="px-4 py-6 text-center text-[13px] leading-[18px] text-[var(--text-secondary)]">
+                                {t('cloud.tokens.empty')}
+                            </div>
+                        ) : (
+                            <div>
+                                {tokens.map((token) => (
+                                    <div
+                                        key={token.id}
+                                        className="flex items-start justify-between gap-3 border-b border-[var(--border-tertiary)] px-4 py-4 last:border-b-0"
+                                    >
+                                        <div className="flex min-w-0 flex-col">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">
+                                                    {token.label ?? token.tokenPreview}
+                                                </span>
+                                                <CursorSettingsBadge tone={token.revokedAt ? 'danger' : 'success'}>
+                                                    {token.revokedAt ? 'revoked' : 'active'}
+                                                </CursorSettingsBadge>
+                                            </div>
+                                            <span className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                {token.tokenPreview}
+                                                {token.expiresAt ? ` · expires ${new Date(token.expiresAt).toLocaleString()}` : ''}
+                                            </span>
+                                        </div>
+                                        {!token.revokedAt ? (
+                                            <CursorButton
+                                                type="button"
+                                                size="sm"
+                                                variant="danger"
+                                                onClick={() => setRevokeTokenId(token.id)}
+                                                disabled={revokeTokenMutation.isPending}
+                                            >
+                                                {t('cloud.tokens.revoke')}
+                                            </CursorButton>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CursorCollapsibleSection>
+                </CursorSettingsSection>
             </div>
             <ConfirmDialog
                 isOpen={!!deleteSecretId}

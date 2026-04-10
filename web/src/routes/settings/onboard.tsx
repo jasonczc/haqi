@@ -1,7 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
+import {
+    CursorButton,
+    CursorCodeBlock,
+    CursorFieldLabel,
+    CursorNotice,
+    CursorSettingsCard,
+    CursorSettingsHeader,
+    CursorSettingsSection,
+    CursorSelect,
+    CursorTextField,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
@@ -89,19 +99,19 @@ function StepAddWorker(props: { onNext: () => void }) {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-base font-semibold text-[var(--cursor-text-primary)]">Step 1: Add a Worker</h2>
-                <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
+                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 1: Add a Worker</h2>
+                <p className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">
                     A worker runs on your machine and executes cloud agent tasks.
                     This page will automatically advance once a worker comes online.
                 </p>
             </div>
 
-            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-4">
-                <div className="text-sm font-medium text-[var(--cursor-text-primary)]">Quick Start</div>
-                <p className="mt-1 text-xs text-[var(--cursor-text-secondary)]">
+            <CursorSettingsCard className="border-[var(--border-secondary)] bg-[var(--bg-quinary)] p-4 shadow-none">
+                <div className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">Quick Start</div>
+                <p className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                     Start a worker process directly on this machine with one click.
                 </p>
-                <Button
+                <CursorButton
                     type="button"
                     size="sm"
                     className="mt-2"
@@ -109,104 +119,104 @@ function StepAddWorker(props: { onNext: () => void }) {
                     disabled={startingLocal}
                 >
                     {startingLocal ? 'Starting...' : 'Start Worker on This Machine'}
-                </Button>
+                </CursorButton>
                 {localStartError ? (
-                    <div className="mt-1 text-xs text-[var(--cursor-badge-error-text)]">{localStartError}</div>
+                    <CursorNotice tone="danger" className="mt-2">
+                        {localStartError}
+                    </CursorNotice>
                 ) : null}
-            </div>
+            </CursorSettingsCard>
 
-            <div className="text-xs text-[var(--cursor-text-secondary)]">Or generate a token to connect a remote worker:</div>
+            <div className="text-[12px] leading-4 text-[var(--text-secondary)]">Or generate a token to connect a remote worker:</div>
 
             <div className="flex flex-wrap items-end gap-3">
                 <div className="min-w-[14rem] flex-1">
-                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
-                        Label (optional)
-                    </label>
-                    <input
+                    <div className="mb-1">
+                        <CursorFieldLabel>Label (optional)</CursorFieldLabel>
+                    </div>
+                    <CursorTextField
                         type="text"
                         placeholder="e.g. gpu-worker-1"
                         value={tokenLabel}
                         onChange={(e) => setTokenLabel(e.target.value)}
-                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     />
                 </div>
                 <div className="w-28">
-                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
-                        TTL (min)
-                    </label>
-                    <input
+                    <div className="mb-1">
+                        <CursorFieldLabel>TTL (min)</CursorFieldLabel>
+                    </div>
+                    <CursorTextField
                         type="number"
                         min={1}
                         value={tokenTtl}
                         onChange={(e) => setTokenTtl(e.target.value)}
-                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     />
                 </div>
-                <Button
+                <CursorButton
                     type="button"
                     size="sm"
                     onClick={() => tokenMutation.mutate()}
                     disabled={tokenMutation.isPending}
                 >
                     {tokenMutation.isPending ? 'Generating...' : 'Generate Token'}
-                </Button>
+                </CursorButton>
             </div>
 
             {tokenMutation.error instanceof Error ? (
-                <div className="text-sm text-[var(--cursor-badge-error-text)]">{tokenMutation.error.message}</div>
+                <CursorNotice tone="danger">{tokenMutation.error.message}</CursorNotice>
             ) : null}
 
             {generatedToken ? (
-                <div className="rounded-md border border-[var(--cursor-badge-success-border)] bg-[var(--cursor-badge-success-bg)] p-3">
-                    <div className="text-sm font-medium text-[var(--cursor-badge-success-text)]">
-                        Token generated — copy it now, it will not be shown again.
+                <CursorSettingsCard className="border-[var(--border-success)] bg-[var(--bg-success-quaternary)] p-4 shadow-none">
+                    <div className="text-[13px] leading-[18px] font-semibold text-[var(--success)]">
+                        Token generated. Copy it now; it will not be shown again.
                     </div>
-                    <div className="mt-2 flex items-start gap-2">
-                        <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
+                    <div className="mt-3 flex items-start gap-2">
+                        <CursorCodeBlock>
                             {generatedToken}
-                        </code>
-                        <Button
+                        </CursorCodeBlock>
+                        <CursorButton
                             type="button"
                             size="sm"
                             variant="outline"
                             onClick={() => handleCopy(generatedToken)}
                         >
                             {copied ? 'Copied' : 'Copy'}
-                        </Button>
+                        </CursorButton>
                     </div>
-                    <div className="mt-3">
-                        <div className="text-xs font-medium text-[var(--cursor-text-secondary)]">Install command:</div>
-                        <div className="mt-1 flex items-start gap-2">
-                            <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
+                    <div className="mt-4">
+                        <CursorFieldLabel>Install command</CursorFieldLabel>
+                        <div className="mt-2 flex items-start gap-2">
+                            <CursorCodeBlock>
                                 {installCommand}
-                            </code>
-                            <Button
+                            </CursorCodeBlock>
+                            <CursorButton
                                 type="button"
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleCopy(installCommand)}
                             >
                                 Copy
-                            </Button>
+                            </CursorButton>
                         </div>
                     </div>
-                </div>
+                </CursorSettingsCard>
             ) : null}
 
             {workersQuery.data?.workers?.length ? (
-                <div className="text-sm text-[var(--cursor-badge-success-text)]">
+                <div className="text-[13px] leading-[18px] text-[var(--success)]">
                     Worker connected — advancing…
                 </div>
             ) : generatedToken ? (
-                <div className="text-xs text-[var(--cursor-text-secondary)]">
+                <div className="text-[12px] leading-4 text-[var(--text-secondary)]">
                     Waiting for worker to come online…
                 </div>
             ) : null}
 
             <div className="flex justify-end">
-                <Button type="button" variant="outline" size="sm" onClick={props.onNext}>
+                <CursorButton type="button" variant="outline" size="sm" onClick={props.onNext}>
                     Skip
-                </Button>
+                </CursorButton>
             </div>
         </div>
     )
@@ -268,8 +278,8 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-base font-semibold text-[var(--cursor-text-primary)]">Step 2: Setup Environment</h2>
-                <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
+                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 2: Setup Environment</h2>
+                <p className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">
                     Provide a repository URL and choose an agent. The agent will clone the repo and set up your workspace.
                     You'll be taken to the session to watch the agent configure your environment.
                 </p>
@@ -277,58 +287,57 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
 
             <div className="flex flex-col gap-3">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
+                    <label className="mb-1 block text-[12px] leading-4 font-medium text-[var(--text-secondary)]">
                         Repository URL (optional)
                     </label>
-                    <input
+                    <CursorTextField
                         type="url"
                         placeholder="https://github.com/org/repo"
                         value={repoUrl}
                         onChange={(e) => setRepoUrl(e.target.value)}
-                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     />
                 </div>
 
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
+                    <label className="mb-1 block text-[12px] leading-4 font-medium text-[var(--text-secondary)]">
                         Agent
                     </label>
-                    <select
+                    <CursorSelect
                         value={agent}
                         onChange={(e) => setAgent(e.target.value as AgentFlavor)}
-                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
+                        className="min-w-0"
                     >
                         {AGENT_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
                                 {opt.label}
                             </option>
                         ))}
-                    </select>
+                    </CursorSelect>
                 </div>
             </div>
 
             {!firstWorker ? (
-                <div className="text-sm text-[var(--cursor-text-secondary)]">
+                <div className="text-[13px] leading-[18px] text-[var(--text-secondary)]">
                     No workers found. You can skip this step and set up your environment manually later.
                 </div>
             ) : null}
 
             {error ? (
-                <div className="text-sm text-[var(--cursor-badge-error-text)]">{error}</div>
+                <div className="text-[13px] leading-[18px] text-[var(--danger)]">{error}</div>
             ) : null}
 
             <div className="flex items-center justify-between">
-                <Button
+                <CursorButton
                     type="button"
                     size="sm"
                     onClick={() => void handleStartSetup()}
                     disabled={isPending || !firstWorker}
                 >
                     {isPending ? 'Starting...' : 'Start Setup'}
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={props.onNext}>
+                </CursorButton>
+                <CursorButton type="button" variant="outline" size="sm" onClick={props.onNext}>
                     Skip
-                </Button>
+                </CursorButton>
             </div>
         </div>
     )
@@ -340,25 +349,25 @@ function StepSaveCheckpoint(props: { onNext: () => void }) {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-base font-semibold text-[var(--cursor-text-primary)]">Step 3: Save a Checkpoint</h2>
-                <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
+                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 3: Save a Checkpoint</h2>
+                <p className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">
                     Once the setup session finishes, save a checkpoint of your configured environment.
                     Checkpoints let you spawn new agents from the same starting state instantly.
                 </p>
             </div>
 
-            <div className="rounded-md border border-[var(--cursor-badge-info-border)] bg-[var(--cursor-badge-info-bg)] px-4 py-3 text-sm text-[var(--cursor-badge-info-text)]">
+            <div className="rounded-lg border border-[var(--border-accent)] bg-[var(--bg-accent-tertiary)] px-4 py-3 text-[13px] leading-[18px] text-[var(--accent)]">
                 In the session view, click the <strong>Save Checkpoint</strong> button after the agent finishes setting up.
                 Then come back here and click the button below.
             </div>
 
             <div className="flex items-center justify-between">
-                <Button type="button" size="sm" onClick={props.onNext}>
+                <CursorButton type="button" size="sm" onClick={props.onNext}>
                     I've saved a checkpoint
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={props.onNext}>
+                </CursorButton>
+                <CursorButton type="button" variant="outline" size="sm" onClick={props.onNext}>
                     Skip
-                </Button>
+                </CursorButton>
             </div>
         </div>
     )
@@ -431,32 +440,31 @@ function StepSecrets() {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-base font-semibold text-[var(--cursor-text-primary)]">Step 4: Add Secrets</h2>
-                <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
+                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 4: Add Secrets</h2>
+                <p className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">
                     Add credentials that your cloud agents will use. These are stored securely on the hub.
                 </p>
             </div>
 
             <div className="flex flex-col gap-3">
                 <div>
-                    <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
-                        GITHUB_TOKEN <span className="text-[var(--cursor-badge-error-text)]">*</span>
+                    <label className="mb-1 block text-[12px] leading-4 font-medium text-[var(--text-secondary)]">
+                        GITHUB_TOKEN <span className="text-[var(--danger)]">*</span>
                     </label>
-                    <input
+                    <CursorTextField
                         type="password"
                         placeholder="ghp_..."
                         value={githubToken}
                         onChange={(e) => setGithubToken(e.target.value)}
-                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
                     />
-                    <p className="mt-1 text-xs text-[var(--cursor-text-secondary)]">
+                    <p className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                         Required. Used by agents to clone repos and create pull requests.
                         Create one at{' '}
                         <a
                             href="https://github.com/settings/tokens"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="underline hover:no-underline"
+                            className="text-[var(--accent)] underline hover:no-underline"
                         >
                             github.com/settings/tokens
                         </a>
@@ -465,54 +473,55 @@ function StepSecrets() {
                 </div>
 
                 <div>
-                    <div className="mb-2 text-xs font-medium text-[var(--cursor-text-secondary)]">
+                    <div className="mb-2 text-[12px] leading-4 font-medium text-[var(--text-secondary)]">
                         Additional secrets (optional)
                     </div>
                     {extras.map((extra, index) => (
                         <div key={index} className="mb-2 flex gap-2">
-                            <input
+                            <CursorTextField
                                 type="text"
                                 placeholder="KEY"
                                 value={extra.key}
                                 onChange={(e) => updateExtra(index, 'key', e.target.value)}
-                                className="w-40 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
+                                className="w-40"
+                                mono
                             />
-                            <input
+                            <CursorTextField
                                 type="password"
                                 placeholder="value"
                                 value={extra.value}
                                 onChange={(e) => updateExtra(index, 'value', e.target.value)}
-                                className="flex-1 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
+                                className="flex-1"
                             />
-                            <Button
+                            <CursorButton
                                 type="button"
                                 variant="outline"
                                 size="sm"
                                 onClick={() => removeExtra(index)}
                             >
                                 ×
-                            </Button>
+                            </CursorButton>
                         </div>
                     ))}
-                    <Button type="button" variant="outline" size="sm" onClick={addExtra}>
+                    <CursorButton type="button" variant="outline" size="sm" onClick={addExtra}>
                         + Add secret
-                    </Button>
+                    </CursorButton>
                 </div>
             </div>
 
             {error ? (
-                <div className="text-sm text-[var(--cursor-badge-error-text)]">{error}</div>
+                <div className="text-[13px] leading-[18px] text-[var(--danger)]">{error}</div>
             ) : null}
 
             <div className="flex justify-end">
-                <Button
+                <CursorButton
                     type="button"
                     size="sm"
                     onClick={() => void handleFinish()}
                     disabled={saving}
                 >
                     {saving ? 'Saving...' : 'Finish'}
-                </Button>
+                </CursorButton>
             </div>
         </div>
     )
@@ -533,23 +542,23 @@ function StepIndicator(props: { current: number }) {
                         <div
                             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
                                 done
-                                    ? 'bg-[var(--cursor-link)] text-white'
+                                    ? 'bg-[var(--accent)] text-white'
                                     : active
-                                      ? 'border-2 border-[var(--cursor-link)] text-[var(--cursor-link)]'
-                                      : 'border border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-secondary)]'
+                                      ? 'border-2 border-[var(--accent)] text-[var(--accent)]'
+                                      : 'border border-[var(--border-secondary)] text-[var(--text-secondary)]'
                             }`}
                         >
                             {done ? '✓' : index + 1}
                         </div>
                         <span
                             className={`text-xs ${
-                                active ? 'font-medium text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)]'
+                                active ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
                             }`}
                         >
                             {label}
                         </span>
                         {index < STEP_LABELS.length - 1 ? (
-                            <div className="h-px w-6 bg-[var(--cursor-stroke-secondary)]" />
+                            <div className="h-px w-6 bg-[var(--border-tertiary)]" />
                         ) : null}
                     </div>
                 )
@@ -570,23 +579,23 @@ export default function CloudOnboardPage() {
     return (
         <div className="mx-auto w-full max-w-content px-4 py-8">
             <div className="mx-auto max-w-2xl">
-                <div className="mb-8">
-                    <h1 className="text-lg font-semibold text-[var(--cursor-text-primary)]">Get started with cloud agents</h1>
-                    <p className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
-                        Follow these steps to set up your first cloud agent workspace.
-                    </p>
-                </div>
+                <CursorSettingsHeader
+                    title="Get started with cloud agents"
+                    description="Follow these steps to set up your first cloud agent workspace."
+                />
 
                 <div className="mb-8 overflow-x-auto">
                     <StepIndicator current={step} />
                 </div>
 
-                <div className="rounded-lg border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-6">
+                <CursorSettingsSection>
+                    <CursorSettingsCard className="p-6">
                     {step === 0 ? <StepAddWorker onNext={next} /> : null}
                     {step === 1 ? <StepSetupEnvironment onNext={next} /> : null}
                     {step === 2 ? <StepSaveCheckpoint onNext={next} /> : null}
                     {step === 3 ? <StepSecrets /> : null}
-                </div>
+                    </CursorSettingsCard>
+                </CursorSettingsSection>
             </div>
         </div>
     )

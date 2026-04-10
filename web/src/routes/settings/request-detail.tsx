@@ -1,8 +1,14 @@
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
 import { LoadingState } from '@/components/LoadingState'
+import {
+    CursorButton,
+    CursorDetailGrid,
+    CursorDetailItem,
+    CursorSettingsCard,
+    CursorSettingsHeader,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -116,56 +122,47 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
     return (
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
             <div className="flex items-center justify-between gap-3">
-                <div>
-                    <div className="text-xs uppercase tracking-[0.12em] text-[var(--cursor-text-secondary)]">Cloud Request</div>
-                    <h1 className="text-xl font-semibold">{request.id}</h1>
-                </div>
+                <CursorSettingsHeader title={request.id} description="Cloud Request" />
                 <div className="flex gap-2">
-                    <Button
+                    <CursorButton
                         type="button"
                         variant="outline"
                         onClick={() => navigate({ to: '/sessions/new' })}
                     >
                         New Session
-                    </Button>
+                    </CursorButton>
                     {canCancel ? (
-                        <Button
+                        <CursorButton
                             type="button"
                             variant="outline"
                             onClick={() => cancelMutation.mutate()}
                             disabled={cancelMutation.isPending}
                         >
                             Cancel
-                        </Button>
+                        </CursorButton>
                     ) : null}
                     {canRetry ? (
-                        <Button
+                        <CursorButton
                             type="button"
                             onClick={() => retryMutation.mutate()}
                             disabled={retryMutation.isPending}
                         >
                             Retry
-                        </Button>
+                        </CursorButton>
                     ) : null}
                 </div>
             </div>
 
-            <div className="grid gap-3 rounded-lg border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-4 text-sm md:grid-cols-2">
-                <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Phase</div>
-                    <div className="mt-1 font-medium">{request.phase}</div>
-                </div>
-                <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Worker</div>
-                    <div className="mt-1 font-medium">{request.selectedMachineId ?? 'pending scheduler'}</div>
-                </div>
-                <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Workspace</div>
-                    <div className="mt-1 font-medium">
-                        {request.workspaceId ? (
+            <CursorDetailGrid>
+                <CursorDetailItem label="Phase" value={request.phase} />
+                <CursorDetailItem label="Worker" value={request.selectedMachineId ?? 'pending scheduler'} />
+                <CursorDetailItem
+                    label="Workspace"
+                    value={
+                        request.workspaceId ? (
                             <button
                                 type="button"
-                                className="text-[var(--cursor-link)] hover:underline"
+                                className="text-[var(--accent)] hover:underline"
                                 onClick={() => navigate({
                                     to: '/settings/workspaces/$workspaceId',
                                     params: { workspaceId: request.workspaceId! }
@@ -173,40 +170,34 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
                             >
                                 {request.workspaceId}
                             </button>
-                        ) : 'pending'}
-                    </div>
-                </div>
-                <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Environment</div>
-                    <div className="mt-1 font-medium">{request.request.environmentId ?? request.request.environment?.id ?? 'default'}</div>
-                </div>
-                <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Checkpoint</div>
-                    <div className="mt-1 font-medium">{request.request.checkpointId ?? request.request.environment?.runtime?.checkpointId ?? 'default'}</div>
-                </div>
-                <div>
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Launch</div>
-                    <div className="mt-1 font-medium">{request.request.launchMode ?? 'interactive'}</div>
-                </div>
-                <div className="md:col-span-2">
-                    <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Repository</div>
-                    <div className="mt-1 font-medium">
-                        {repository?.url ?? 'none'}
-                    </div>
-                    {repository ? (
-                        <div className="mt-1 text-[var(--cursor-text-secondary)]">{formatRef(repository.ref)}</div>
-                    ) : null}
-                </div>
+                        ) : 'pending'
+                    }
+                />
+                <CursorDetailItem label="Environment" value={request.request.environmentId ?? request.request.environment?.id ?? 'default'} />
+                <CursorDetailItem label="Checkpoint" value={request.request.checkpointId ?? request.request.environment?.runtime?.checkpointId ?? 'default'} />
+                <CursorDetailItem label="Launch" value={request.request.launchMode ?? 'interactive'} />
+                <CursorDetailItem
+                    className="md:col-span-2"
+                    label="Repository"
+                    value={(
+                        <>
+                            <div>{repository?.url ?? 'none'}</div>
+                            {repository ? (
+                                <div className="mt-1 text-[var(--text-secondary)]">{formatRef(repository.ref)}</div>
+                            ) : null}
+                        </>
+                    )}
+                />
                 {request.error ? (
                     <div className="md:col-span-2">
-                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">Last Error</div>
+                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-secondary)]">Last Error</div>
                         <div className="mt-1 rounded-md border border-[var(--danger)]/20 bg-[var(--danger)]/10 p-3 text-[var(--danger)]">
                             <div className="font-medium">{request.error.code ?? 'error'}</div>
                             <div className="mt-1">{request.error.message}</div>
                         </div>
                     </div>
                 ) : null}
-            </div>
+            </CursorDetailGrid>
         </div>
     )
 }

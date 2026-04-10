@@ -1,5 +1,6 @@
 import type { AgentType, ModelOption } from './types'
 import { getModelOptionsForAgent } from './types'
+import { CursorFieldHint, CursorFieldLabel, CursorSelect, CursorTextField } from '@/components/settings/CursorSettingsPrimitives'
 import { useTranslation } from '@/lib/use-translation'
 
 export function ModelSelector(props: {
@@ -18,33 +19,32 @@ export function ModelSelector(props: {
 
     return (
         <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
+            <CursorFieldLabel>
                 {t('newSession.model')}{' '}
                 <span className="font-normal">({t('newSession.model.optional')})</span>
-            </label>
-            <select
+            </CursorFieldLabel>
+            <CursorSelect
                 value={props.model}
                 onChange={(e) => props.onModelChange(e.target.value)}
                 disabled={props.isDisabled}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
+                className="min-w-0"
             >
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>
                         {option.label}
                     </option>
                 ))}
-            </select>
-            <input
+            </CursorSelect>
+            <CursorTextField
                 type="text"
                 value={props.customModel}
                 onChange={(e) => props.onCustomModelChange(e.target.value)}
                 disabled={props.isDisabled}
                 placeholder={t('newSession.model.customPlaceholder')}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
             />
-            <span className="text-[11px] text-[var(--cursor-text-secondary)]">
+            <CursorFieldHint className="pt-0">
                 {t('newSession.model.customHint')}
-            </span>
+            </CursorFieldHint>
         </div>
     )
 }

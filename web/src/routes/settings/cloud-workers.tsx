@@ -1,9 +1,21 @@
-import { useState, useId, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
+import {
+    CursorButton,
+    CursorCollapsibleSection,
+    CursorCodeBlock,
+    CursorEmptyState,
+    CursorExpandableRow,
+    CursorFieldLabel,
+    CursorInlineCode,
+    CursorNotice,
+    CursorSettingsBadge,
+    CursorSettingsHeader,
+    CursorSettingsSection,
+    CursorTextField,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { useTranslation } from '@/lib/use-translation'
@@ -28,61 +40,6 @@ function formatMemory(memoryMb: number): string {
 
 function formatDate(ts: number): string {
     return new Date(ts).toLocaleString()
-}
-
-function ChevronDownIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    )
-}
-
-function CollapsibleSection(props: {
-    title: string
-    description: string
-    isExpanded: boolean
-    onToggle: () => void
-    children: React.ReactNode
-}) {
-    const sectionContentId = useId()
-    return (
-        <section className="border-b border-[var(--cursor-stroke-secondary)]">
-            <button
-                type="button"
-                onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
-                aria-expanded={props.isExpanded}
-                aria-controls={sectionContentId}
-            >
-                <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
-                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
-                </div>
-                <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
-                        props.isExpanded ? 'rotate-180' : ''
-                    }`}
-                />
-            </button>
-            {props.isExpanded && (
-                <div id={sectionContentId}>
-                    {props.children}
-                </div>
-            )}
-        </section>
-    )
 }
 
 function EnrollmentTokensSection() {
@@ -143,19 +100,17 @@ function EnrollmentTokensSection() {
     }
 
     return (
-        <CollapsibleSection
+        <CursorCollapsibleSection
             title={t('cloud.tokens.title')}
             description="Active enrollment tokens for this hub"
             isExpanded={isExpanded}
             onToggle={() => setIsExpanded(!isExpanded)}
         >
             {activeTokens.length === 0 ? (
-                <div className="px-3 py-4 text-center text-sm text-[var(--cursor-text-secondary)]">
-                    {t('cloud.tokens.empty')}
-                </div>
+                <div className="px-4 py-6 text-center text-[13px] leading-[18px] text-[var(--text-secondary)]">{t('cloud.tokens.empty')}</div>
             ) : (
                 <div>
-                    <div className="border-b border-[var(--cursor-stroke-secondary)] px-3 py-2 text-xs text-[var(--cursor-text-secondary)]">
+                    <div className="border-b border-[var(--border-tertiary)] px-4 py-3 text-[12px] leading-4 text-[var(--text-secondary)]">
                         Full tokens are shown only once at creation. Revoke and regenerate if needed.
                     </div>
                     {activeTokens.map((token) => {
@@ -164,7 +119,7 @@ function EnrollmentTokensSection() {
                         return (
                             <div
                                 key={token.id}
-                                className="border-b border-[var(--cursor-stroke-secondary)] px-3 py-3"
+                                className="border-b border-[var(--border-tertiary)] px-4 py-4 last:border-b-0"
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="flex min-w-0 flex-col">
@@ -177,42 +132,39 @@ function EnrollmentTokensSection() {
                                                         labelMutation.mutate({ tokenId: token.id, label: editLabel })
                                                     }}
                                                 >
-                                                    <input
+                                                    <CursorTextField
                                                         type="text"
                                                         value={editLabel}
                                                         onChange={(e) => setEditLabel(e.target.value)}
                                                         placeholder="Label"
-                                                        className="w-32 rounded border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] px-2 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--cursor-link)]"
+                                                        compact
+                                                        className="w-32"
                                                         autoFocus
                                                     />
-                                                    <Button type="submit" size="sm" disabled={labelMutation.isPending}>
+                                                    <CursorButton type="submit" size="sm" disabled={labelMutation.isPending}>
                                                         {labelMutation.isPending ? '...' : 'Save'}
-                                                    </Button>
-                                                    <Button type="button" variant="outline" size="sm" onClick={() => setEditingTokenId(null)}>
+                                                    </CursorButton>
+                                                    <CursorButton type="button" variant="outline" size="sm" onClick={() => setEditingTokenId(null)}>
                                                         Cancel
-                                                    </Button>
+                                                    </CursorButton>
                                                 </form>
                                             ) : (
                                                 <>
                                                     {token.label ? (
-                                                        <span className="text-sm font-medium text-[var(--cursor-text-primary)]">{token.label}</span>
+                                                        <span className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">{token.label}</span>
                                                     ) : (
-                                                        <span className="text-sm text-[var(--cursor-text-secondary)] italic">no label</span>
+                                                        <span className="text-[13px] leading-[18px] italic text-[var(--text-secondary)]">no label</span>
                                                     )}
-                                                    <code className="font-mono text-xs text-[var(--cursor-text-secondary)]">{token.tokenPreview}</code>
+                                                    <CursorInlineCode>{token.tokenPreview}</CursorInlineCode>
                                                     {isExpired ? (
-                                                        <span className="rounded bg-[var(--cursor-badge-error-bg)] px-1.5 py-0.5 text-xs text-[var(--cursor-badge-error-text)]">
-                                                            expired
-                                                        </span>
+                                                        <CursorSettingsBadge tone="danger">expired</CursorSettingsBadge>
                                                     ) : (
-                                                        <span className="rounded bg-[var(--cursor-badge-success-bg)] px-1.5 py-0.5 text-xs text-[var(--cursor-badge-success-text)]">
-                                                            active
-                                                        </span>
+                                                        <CursorSettingsBadge tone="success">active</CursorSettingsBadge>
                                                     )}
                                                 </>
                                             )}
                                         </div>
-                                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--cursor-text-secondary)]">
+                                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                                             <span>{t('cloud.tokens.created')} {formatDate(token.createdAt)}</span>
                                             {token.expiresAt ? (
                                                 <span>{t('cloud.tokens.expires')} {formatDate(token.expiresAt)}</span>
@@ -221,29 +173,29 @@ function EnrollmentTokensSection() {
                                     </div>
                                     {!isEditing ? (
                                         <div className="flex shrink-0 items-center gap-1">
-                                            <Button
+                                            <CursorButton
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => startEditLabel(token)}
                                             >
                                                 Rename
-                                            </Button>
-                                            <Button
+                                            </CursorButton>
+                                            <CursorButton
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => extendMutation.mutate(token.id)}
                                                 disabled={extendMutation.isPending}
                                             >
                                                 {extendMutation.isPending ? '...' : '+1h'}
-                                            </Button>
-                                            <Button
-                                                variant="destructive"
+                                            </CursorButton>
+                                            <CursorButton
+                                                variant="danger"
                                                 size="sm"
                                                 onClick={() => setRevokeTokenId(token.id)}
                                                 disabled={revokeMutation.isPending}
                                             >
                                                 {t('cloud.tokens.revoke')}
-                                            </Button>
+                                            </CursorButton>
                                         </div>
                                     ) : null}
                                 </div>
@@ -267,7 +219,7 @@ function EnrollmentTokensSection() {
                 isPending={revokeMutation.isPending}
                 destructive
             />
-        </CollapsibleSection>
+        </CursorCollapsibleSection>
     )
 }
 
@@ -323,61 +275,65 @@ function WorkersEmptyState() {
     }
 
     return (
-        <div className="px-3 py-4 text-sm text-[var(--cursor-text-secondary)]">
-            <p className="text-center">{t('cloud.workers.empty')}</p>
+        <div className="px-4 py-4">
+            <CursorEmptyState
+                title={t('cloud.workers.empty')}
+                description="No workers connected yet. Start a local worker here or enroll a remote machine with a generated token."
+                className="border-dashed bg-[var(--bg-quinary)] py-8"
+            />
 
             {/* Local worker status */}
             {hasLocalWorker ? (
-                <div className="mt-3 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
+                <div className="mt-4 rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-quinary)] p-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <span className={`h-2 w-2 rounded-full ${localWorker!.running ? 'bg-[var(--success)]' : 'bg-[var(--danger)]'}`} />
-                            <span className="text-sm font-medium text-[var(--cursor-text-primary)]">
+                            <span className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">
                                 Local Worker {localWorker!.running ? '(running)' : '(stopped)'}
                             </span>
                             {localWorker!.pid ? (
-                                <span className="text-xs text-[var(--cursor-text-secondary)]">pid {localWorker!.pid}</span>
+                                <span className="text-[12px] leading-4 text-[var(--text-secondary)]">pid {localWorker!.pid}</span>
                             ) : null}
                         </div>
                         <div className="flex items-center gap-1">
-                            <Button
+                            <CursorButton
                                 variant="outline"
                                 size="sm"
                                 onClick={() => setShowLogs(v => !v)}
                             >
                                 {showLogs ? 'Hide Logs' : 'Logs'}
-                            </Button>
+                            </CursorButton>
                             {localWorker!.running ? (
-                                <Button
-                                    variant="destructive"
+                                <CursorButton
+                                    variant="danger"
                                     size="sm"
                                     onClick={() => void handleStopLocal()}
                                 >
                                     Stop
-                                </Button>
+                                </CursorButton>
                             ) : (
-                                <Button
+                                <CursorButton
                                     size="sm"
                                     onClick={() => void handleStartLocal()}
                                     disabled={starting}
                                 >
                                     {starting ? 'Starting...' : 'Restart'}
-                                </Button>
+                                </CursorButton>
                             )}
                         </div>
                     </div>
                     {localWorker!.exitCode != null && localWorker!.exitCode !== 0 ? (
-                        <div className="mt-1 text-xs text-[var(--cursor-badge-error-text)]">
+                        <div className="mt-2 text-[12px] leading-4 text-[var(--danger)]">
                             Exited with code {localWorker!.exitCode}
                         </div>
                     ) : null}
                     {localWorker!.running ? (
-                        <div className="mt-1 text-xs text-[var(--cursor-text-secondary)]">
+                        <div className="mt-2 text-[12px] leading-4 text-[var(--text-secondary)]">
                             Waiting for worker to finish enrollment and connect...
                         </div>
                     ) : null}
                     {showLogs && localWorker!.logs?.length ? (
-                        <div className="mt-2 max-h-48 overflow-y-auto rounded bg-black/80 p-2 font-mono text-xs text-[var(--success)]">
+                        <div className="mt-3 max-h-48 overflow-y-auto rounded-md border border-[var(--border-tertiary)] bg-black/85 p-3 font-[var(--font-mono)] text-[12px] leading-4 text-[var(--success)]">
                             {localWorker!.logs.map((line, i) => (
                                 <div key={i} className="whitespace-pre-wrap break-all">{line}</div>
                             ))}
@@ -386,16 +342,16 @@ function WorkersEmptyState() {
                     ) : null}
                 </div>
             ) : (
-                <div className="mt-3 text-center">
-                    <Button
+                <div className="mt-4 flex justify-center">
+                    <CursorButton
                         size="sm"
                         onClick={() => void handleStartLocal()}
                         disabled={starting}
                     >
                         {starting ? 'Starting...' : 'Start Worker on This Machine'}
-                    </Button>
+                    </CursorButton>
                     {startError ? (
-                        <p className="mt-2 text-[var(--cursor-badge-error-text)]">{startError}</p>
+                        <p className="ml-3 text-[13px] leading-[18px] text-[var(--danger)]">{startError}</p>
                     ) : null}
                 </div>
             )}
@@ -435,16 +391,16 @@ function WorkerActions({ worker }: { worker: CloudWorkerSummary }) {
     return (
         <div className="flex items-center gap-1">
             {isLocalWorker ? (
-                <Button
-                    variant="destructive"
+                <CursorButton
+                    variant="danger"
                     size="sm"
                     onClick={() => void handleStop()}
                     disabled={stopping}
                 >
                     {stopping ? 'Stopping...' : 'Stop'}
-                </Button>
+                </CursorButton>
             ) : worker.active ? (
-                <span className="text-xs text-[var(--cursor-text-secondary)]">remote</span>
+                <CursorSettingsBadge>remote</CursorSettingsBadge>
             ) : null}
         </div>
     )
@@ -515,181 +471,185 @@ export default function CloudWorkersPage() {
 
     return (
         <div className="mx-auto w-full max-w-content">
-            <CollapsibleSection
-                title="Add Worker"
-                description="Generate an enrollment token and use it to connect a new worker to this hub."
-                isExpanded={addWorkerExpanded}
-                onToggle={() => setAddWorkerExpanded(!addWorkerExpanded)}
-            >
-                <div className="px-3 pb-3">
-                    <div className="flex flex-wrap items-end gap-3">
-                        <div className="min-w-[14rem] flex-1">
-                            <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
-                                Label (optional)
-                            </label>
-                            <input
-                                type="text"
-                                placeholder="e.g. gpu-worker-1"
-                                value={tokenLabel}
-                                onChange={(event) => setTokenLabel(event.target.value)}
-                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
-                            />
-                        </div>
-                        <div className="w-28">
-                            <label className="mb-1 block text-xs font-medium text-[var(--cursor-text-secondary)]">
-                                TTL (min)
-                            </label>
-                            <input
-                                type="number"
-                                min={1}
-                                value={tokenTtl}
-                                onChange={(event) => setTokenTtl(event.target.value)}
-                                className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)]"
-                            />
-                        </div>
-                        <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => tokenMutation.mutate()}
-                            disabled={tokenMutation.isPending}
-                        >
-                            {tokenMutation.isPending ? 'Generating...' : 'Generate Token'}
-                        </Button>
-                    </div>
-                    {tokenMutation.error instanceof Error ? (
-                        <div className="mt-2 text-sm text-[var(--cursor-badge-error-text)]">{tokenMutation.error.message}</div>
-                    ) : null}
-                    {generatedToken ? (
-                        <div className="mt-3 rounded-md border border-[var(--cursor-badge-success-border)] bg-[var(--cursor-badge-success-bg)] p-3">
-                            <div className="text-sm font-medium text-[var(--cursor-badge-success-text)]">
-                                Token generated — copy it now, it will not be shown again.
+            <CursorSettingsHeader
+                title="Workers"
+                description="Self-hosted cloud workers enrolled to this hub. Generate tokens, start a local worker, and inspect connected capacity."
+            />
+
+            <CursorSettingsSection className="space-y-4">
+                <CursorCollapsibleSection
+                    title="Add Worker"
+                    description="Generate an enrollment token and use it to connect a new worker to this hub."
+                    isExpanded={addWorkerExpanded}
+                    onToggle={() => setAddWorkerExpanded(!addWorkerExpanded)}
+                >
+                    <div className="px-4 pb-4">
+                        <div className="flex flex-wrap items-end gap-3">
+                            <div className="min-w-[14rem] flex-1">
+                                <div className="mb-1">
+                                    <CursorFieldLabel>Label (optional)</CursorFieldLabel>
+                                </div>
+                                <CursorTextField
+                                    type="text"
+                                    placeholder="e.g. gpu-worker-1"
+                                    value={tokenLabel}
+                                    onChange={(event) => setTokenLabel(event.target.value)}
+                                />
                             </div>
-                            <div className="mt-2 flex items-start gap-2">
-                                <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
-                                    {generatedToken}
-                                </code>
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleCopy(generatedToken, 'token')}
-                                >
-                                    {copiedField === 'token' ? 'Copied' : 'Copy Token'}
-                                </Button>
+                            <div className="w-28">
+                                <div className="mb-1">
+                                    <CursorFieldLabel>TTL (min)</CursorFieldLabel>
+                                </div>
+                                <CursorTextField
+                                    type="number"
+                                    min={1}
+                                    value={tokenTtl}
+                                    onChange={(event) => setTokenTtl(event.target.value)}
+                                />
                             </div>
-                            <div className="mt-3">
-                                <div className="text-xs font-medium text-[var(--cursor-text-secondary)]">Install command:</div>
-                                <div className="mt-1 flex items-start gap-2">
-                                    <code className="flex-1 break-all rounded bg-black/5 px-2 py-1 font-mono text-xs">
-                                        {installCommand}
-                                    </code>
-                                    <Button
+                            <CursorButton
+                                type="button"
+                                size="sm"
+                                onClick={() => tokenMutation.mutate()}
+                                disabled={tokenMutation.isPending}
+                            >
+                                {tokenMutation.isPending ? 'Generating...' : 'Generate Token'}
+                            </CursorButton>
+                        </div>
+                        {tokenMutation.error instanceof Error ? (
+                            <CursorNotice tone="danger" className="mt-3">
+                                {tokenMutation.error.message}
+                            </CursorNotice>
+                        ) : null}
+                        {generatedToken ? (
+                            <div className="mt-4 rounded-lg border border-[var(--border-success)] bg-[var(--bg-success-quaternary)] p-4">
+                                <div className="text-[13px] leading-[18px] font-semibold text-[var(--success)]">
+                                    Token generated. Copy it now; it will not be shown again.
+                                </div>
+                                <div className="mt-3 flex items-start gap-2">
+                                    <CursorCodeBlock>
+                                        {generatedToken}
+                                    </CursorCodeBlock>
+                                    <CursorButton
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => handleCopy(installCommand, 'cmd')}
+                                        onClick={() => handleCopy(generatedToken, 'token')}
                                     >
-                                        {copiedField === 'cmd' ? 'Copied' : 'Copy Command'}
-                                    </Button>
+                                        {copiedField === 'token' ? 'Copied' : 'Copy Token'}
+                                    </CursorButton>
+                                </div>
+                                <div className="mt-4">
+                                    <CursorFieldLabel>Install command</CursorFieldLabel>
+                                    <div className="mt-2 flex items-start gap-2">
+                                        <CursorCodeBlock>
+                                            {installCommand}
+                                        </CursorCodeBlock>
+                                        <CursorButton
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleCopy(installCommand, 'cmd')}
+                                        >
+                                            {copiedField === 'cmd' ? 'Copied' : 'Copy Command'}
+                                        </CursorButton>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : null}
-                </div>
-            </CollapsibleSection>
-
-            <EnrollmentTokensSection />
-
-            <CollapsibleSection
-                title="Workers"
-                description={`${workers.length} worker${workers.length !== 1 ? 's' : ''} registered`}
-                isExpanded={workersExpanded}
-                onToggle={() => setWorkersExpanded(!workersExpanded)}
-            >
-                {workers.length === 0 ? (
-                    <WorkersEmptyState />
-                ) : (
-                    <div>
-                        {workers.map((worker) => (
-                            <div
-                                key={worker.machineId}
-                                className="border-b border-[var(--cursor-stroke-secondary)] px-3 py-3"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="flex items-center gap-2">
-                                        <span
-                                            className={`h-2 w-2 shrink-0 rounded-full ${
-                                                worker.active
-                                                    ? 'bg-[var(--success)]'
-                                                    : 'bg-[var(--cursor-text-secondary)]'
-                                            }`}
-                                        />
-                                        <span className="font-mono text-sm font-medium text-[var(--cursor-text-primary)]">{worker.machineId}</span>
-                                        {worker.provider ? (
-                                            <span className="text-xs text-[var(--cursor-text-secondary)]">{worker.provider}</span>
-                                        ) : null}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {worker.lifecycle ? (
-                                            <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--cursor-badge-info-bg)] text-[var(--cursor-badge-info-text)]">
-                                                {worker.lifecycle}
-                                            </span>
-                                        ) : null}
-                                        <span className="text-xs text-[var(--cursor-text-secondary)]">
-                                            {formatLastSeen(worker.updatedAt)}
-                                        </span>
-                                        <WorkerActions worker={worker} />
-                                    </div>
-                                </div>
-                                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 pl-4 text-xs text-[var(--cursor-text-secondary)]">
-                                    {worker.region ? (
-                                        <span>
-                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.region')}</span>{' '}
-                                            {worker.region}
-                                        </span>
-                                    ) : null}
-                                    {worker.workerVersion ? (
-                                        <span>
-                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.version')}</span>{' '}
-                                            {worker.workerVersion}
-                                        </span>
-                                    ) : null}
-                                    {worker.resources?.cpu != null ? (
-                                        <span>
-                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.cpu')}</span>{' '}
-                                            {worker.resources.cpu} cores
-                                        </span>
-                                    ) : null}
-                                    {worker.resources?.memoryMb != null ? (
-                                        <span>
-                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.memory')}</span>{' '}
-                                            {formatMemory(worker.resources.memoryMb)}
-                                        </span>
-                                    ) : null}
-                                    {worker.resources?.diskGb != null ? (
-                                        <span>
-                                            <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.workers.disk')}</span>{' '}
-                                            {worker.resources.diskGb} GB
-                                        </span>
-                                    ) : null}
-                                </div>
-                                {worker.labels && worker.labels.length > 0 ? (
-                                    <div className="mt-1.5 flex flex-wrap gap-1 pl-4">
-                                        {worker.labels.map((label) => (
-                                            <span
-                                                key={label}
-                                                className="rounded bg-[var(--cursor-bg-secondary)] px-1.5 py-0.5 text-xs text-[var(--cursor-text-secondary)]"
-                                            >
-                                                {label}
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : null}
-                            </div>
-                        ))}
+                        ) : null}
                     </div>
-                )}
-            </CollapsibleSection>
+                </CursorCollapsibleSection>
+
+                <EnrollmentTokensSection />
+
+                <CursorCollapsibleSection
+                    title="Workers"
+                    description={`${workers.length} worker${workers.length !== 1 ? 's' : ''} registered`}
+                    isExpanded={workersExpanded}
+                    onToggle={() => setWorkersExpanded(!workersExpanded)}
+                >
+                    {workers.length === 0 ? (
+                        <WorkersEmptyState />
+                    ) : (
+                        <div>
+                            {workers.map((worker) => (
+                                <CursorExpandableRow
+                                    key={worker.machineId}
+                                    defaultOpen={false}
+                                    title={(
+                                        <div className="flex min-w-0 items-center gap-2">
+                                            <span
+                                                className={`h-2 w-2 shrink-0 rounded-full ${
+                                                    worker.active ? 'bg-[var(--success)]' : 'bg-[var(--text-tertiary)]'
+                                                }`}
+                                            />
+                                            <span className="font-[var(--font-mono)] text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">{worker.machineId}</span>
+                                            {worker.provider ? (
+                                                <span className="text-[12px] leading-4 text-[var(--text-secondary)]">{worker.provider}</span>
+                                            ) : null}
+                                        </div>
+                                    )}
+                                    description={(
+                                        <div className="flex items-center gap-2">
+                                            {worker.lifecycle ? (
+                                                <CursorSettingsBadge tone="accent">{worker.lifecycle}</CursorSettingsBadge>
+                                            ) : null}
+                                            <span className="text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                {formatLastSeen(worker.updatedAt)}
+                                            </span>
+                                        </div>
+                                    )}
+                                >
+                                    <div className="space-y-3">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="grid flex-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                                                {worker.region ? (
+                                                    <div className="text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                        <span className="font-medium text-[var(--text-primary)]">{t('cloud.workers.region')}</span>{' '}
+                                                        {worker.region}
+                                                    </div>
+                                                ) : null}
+                                                {worker.workerVersion ? (
+                                                    <div className="text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                        <span className="font-medium text-[var(--text-primary)]">{t('cloud.workers.version')}</span>{' '}
+                                                        {worker.workerVersion}
+                                                    </div>
+                                                ) : null}
+                                                {worker.resources?.cpu != null ? (
+                                                    <div className="text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                        <span className="font-medium text-[var(--text-primary)]">{t('cloud.workers.cpu')}</span>{' '}
+                                                        {worker.resources.cpu} cores
+                                                    </div>
+                                                ) : null}
+                                                {worker.resources?.memoryMb != null ? (
+                                                    <div className="text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                        <span className="font-medium text-[var(--text-primary)]">{t('cloud.workers.memory')}</span>{' '}
+                                                        {formatMemory(worker.resources.memoryMb)}
+                                                    </div>
+                                                ) : null}
+                                                {worker.resources?.diskGb != null ? (
+                                                    <div className="text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                        <span className="font-medium text-[var(--text-primary)]">{t('cloud.workers.disk')}</span>{' '}
+                                                        {worker.resources.diskGb} GB
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                            <WorkerActions worker={worker} />
+                                        </div>
+                                        {worker.labels && worker.labels.length > 0 ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {worker.labels.map((label) => (
+                                                    <CursorSettingsBadge key={label}>{label}</CursorSettingsBadge>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                </CursorExpandableRow>
+                            ))}
+                        </div>
+                    )}
+                </CursorCollapsibleSection>
+            </CursorSettingsSection>
         </div>
     )
 }

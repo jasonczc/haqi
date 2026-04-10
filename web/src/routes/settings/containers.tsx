@@ -1,9 +1,16 @@
-import { useState, useId } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
+import {
+    CursorCollapsibleSection,
+    CursorButton,
+    CursorEmptyState,
+    CursorSettingsHeader,
+    CursorSettingsSection,
+    cursorButtonClassName,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -19,61 +26,6 @@ type ContainerInfo = {
 type MachineContainers = {
     machineId: string
     containers: ContainerInfo[]
-}
-
-function ChevronDownIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    )
-}
-
-function CollapsibleSection(props: {
-    title: string
-    description: string
-    isExpanded: boolean
-    onToggle: () => void
-    children: React.ReactNode
-}) {
-    const sectionContentId = useId()
-    return (
-        <section className="border-b border-[var(--cursor-stroke-secondary)]">
-            <button
-                type="button"
-                onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
-                aria-expanded={props.isExpanded}
-                aria-controls={sectionContentId}
-            >
-                <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
-                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
-                </div>
-                <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
-                        props.isExpanded ? 'rotate-180' : ''
-                    }`}
-                />
-            </button>
-            {props.isExpanded && (
-                <div id={sectionContentId}>
-                    {props.children}
-                </div>
-            )}
-        </section>
-    )
 }
 
 export default function CloudContainersPage() {
@@ -132,81 +84,92 @@ export default function CloudContainersPage() {
     return (
         <>
             <div className="mx-auto w-full max-w-content">
-                <CollapsibleSection
+                <CursorSettingsHeader
                     title="Containers"
-                    description={`${allContainers.length} container${allContainers.length !== 1 ? 's' : ''} across all workers`}
-                    isExpanded={isExpanded}
-                    onToggle={() => setIsExpanded(!isExpanded)}
-                >
-                    {allContainers.length === 0 ? (
-                        <div className="px-3 py-6 text-center text-sm text-[var(--cursor-text-secondary)]">
-                            <p>{t('cloud.containers.empty')}</p>
-                            <Link
-                                to="/sessions/new"
-                                className="mt-2 inline-block text-[var(--cursor-link)] underline hover:no-underline"
-                            >
-                                Create a new session
-                            </Link>
-                        </div>
-                    ) : (
-                        <div>
-                            {allContainers.map((c) => {
-                                const isRunning = c.status?.includes('Up')
-                                return (
-                                    <div
-                                        key={c.id}
-                                        className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-secondary)] px-3 py-3"
-                                    >
-                                        <div className="flex min-w-0 flex-col">
-                                            <div className="flex items-center gap-2">
-                                                <span
-                                                    className={`h-2 w-2 shrink-0 rounded-full ${
-                                                        isRunning ? 'bg-[var(--success)]' : 'bg-[var(--cursor-text-secondary)]'
-                                                    }`}
-                                                />
-                                                <span className="text-sm font-medium text-[var(--cursor-text-primary)]">
-                                                    {c.name || c.id?.slice(0, 12)}
-                                                </span>
+                    description="Live container inventory across connected cloud workers, including runtime, workspace, and stop/remove controls."
+                />
+                <CursorSettingsSection>
+                    <CursorCollapsibleSection
+                        title="Containers"
+                        description={`${allContainers.length} container${allContainers.length !== 1 ? 's' : ''} across all workers`}
+                        isExpanded={isExpanded}
+                        onToggle={() => setIsExpanded(!isExpanded)}
+                    >
+                        {allContainers.length === 0 ? (
+                            <div className="px-4 py-6">
+                                <CursorEmptyState
+                                    title={t('cloud.containers.empty')}
+                                    description="No cloud containers are currently running or tracked."
+                                    action={(
+                                        <Link
+                                            to="/sessions/new"
+                                            className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}
+                                        >
+                                            Create a new session
+                                        </Link>
+                                    )}
+                                />
+                            </div>
+                        ) : (
+                            <div>
+                                {allContainers.map((c) => {
+                                    const isRunning = c.status?.includes('Up')
+                                    return (
+                                        <div
+                                            key={c.id}
+                                            className="flex items-start justify-between gap-3 border-b border-[var(--border-tertiary)] px-4 py-4 last:border-b-0"
+                                        >
+                                            <div className="flex min-w-0 flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <span
+                                                        className={`h-2 w-2 shrink-0 rounded-full ${
+                                                            isRunning ? 'bg-[var(--success)]' : 'bg-[var(--text-tertiary)]'
+                                                        }`}
+                                                    />
+                                                    <span className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">
+                                                        {c.name || c.id?.slice(0, 12)}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 pl-4 text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                    {c.runtime && <span>Runtime: {c.runtime}</span>}
+                                                    {c.workspaceId && <span>Workspace: {c.workspaceId}</span>}
+                                                    {c.ports && <span>Ports: {c.ports}</span>}
+                                                </div>
                                             </div>
-                                            <div className="mt-0.5 flex flex-wrap gap-x-3 pl-4 text-xs text-[var(--cursor-text-secondary)]">
-                                                {c.runtime && <span>Runtime: {c.runtime}</span>}
-                                                {c.workspaceId && <span>Workspace: {c.workspaceId}</span>}
-                                                {c.ports && <span>Ports: {c.ports}</span>}
+                                            <div className="flex shrink-0 gap-1.5">
+                                                {isRunning && (
+                                                    <>
+                                                        <CursorButton
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => stopSessionMutation.mutate({ machineId: c.machineId, containerId: c.id })}
+                                                        >
+                                                            {t('cloud.containers.stopSession')}
+                                                        </CursorButton>
+                                                        <CursorButton
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => stopMutation.mutate({ machineId: c.machineId, containerId: c.id })}
+                                                        >
+                                                            {t('cloud.containers.stop')}
+                                                        </CursorButton>
+                                                    </>
+                                                )}
+                                                <CursorButton
+                                                    variant="danger"
+                                                    size="sm"
+                                                    onClick={() => setRemoveTarget({ machineId: c.machineId, containerId: c.id })}
+                                                >
+                                                    {t('cloud.containers.remove')}
+                                                </CursorButton>
                                             </div>
                                         </div>
-                                        <div className="flex shrink-0 gap-1.5">
-                                            {isRunning && (
-                                                <>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => stopSessionMutation.mutate({ machineId: c.machineId, containerId: c.id })}
-                                                    >
-                                                        {t('cloud.containers.stopSession')}
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => stopMutation.mutate({ machineId: c.machineId, containerId: c.id })}
-                                                    >
-                                                        {t('cloud.containers.stop')}
-                                                    </Button>
-                                                </>
-                                            )}
-                                            <Button
-                                                variant="destructive"
-                                                size="sm"
-                                                onClick={() => setRemoveTarget({ machineId: c.machineId, containerId: c.id })}
-                                            >
-                                                {t('cloud.containers.remove')}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </CollapsibleSection>
+                                    )
+                                })}
+                            </div>
+                        )}
+                    </CursorCollapsibleSection>
+                </CursorSettingsSection>
             </div>
             <ConfirmDialog
                 isOpen={!!removeTarget}

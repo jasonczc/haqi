@@ -1,4 +1,5 @@
 import type { Machine } from '@/types/api'
+import { CursorFieldLabel, CursorSelect } from '@/components/settings/CursorSettingsPrimitives'
 import { useTranslation } from '@/lib/use-translation'
 
 function getMachineTitle(machine: Machine): string {
@@ -19,14 +20,12 @@ export function MachineSelector(props: {
 
     return (
         <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
-                {t('newSession.machine')}
-            </label>
-            <select
+            <CursorFieldLabel>{t('newSession.machine')}</CursorFieldLabel>
+            <CursorSelect
                 value={props.machineId ?? ''}
                 onChange={(e) => props.onChange(e.target.value)}
                 disabled={props.isDisabled}
-                className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
+                className="min-w-0"
             >
                 {props.showAutoOption ? (
                     <option value="auto">
@@ -45,7 +44,7 @@ export function MachineSelector(props: {
                         {m.metadata?.platform ? ` (${m.metadata.platform})` : ''}
                     </option>
                 ))}
-            </select>
+            </CursorSelect>
         </div>
     )
 }

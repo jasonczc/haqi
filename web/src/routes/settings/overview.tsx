@@ -1,5 +1,14 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import {
+    CursorSettingsBadge,
+    CursorSettingsCard,
+    CursorSettingsHeader,
+    CursorSettingsRow,
+    CursorSettingsSection,
+    cursorButtonClassName,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -93,16 +102,16 @@ export default function SettingsOverviewPage() {
     }, [sessions])
 
     return (
-        <>
-            <div className="settings-header">
-                <h1>Overview</h1>
-                <p>Track activity, session volume, and the current cloud usage footprint.</p>
-            </div>
+        <div className="mx-auto w-full max-w-content">
+            <CursorSettingsHeader
+                title="Overview"
+                description="Track activity, session volume, and the current cloud usage footprint."
+            />
 
-            <div className="settings-section">
-                <div className="settings-card" style={{ padding: 24 }}>
+            <CursorSettingsSection>
+                <CursorSettingsCard className="p-6">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <div className="settings-section-title" style={{ marginBottom: 0 }}>AI Line Edits in the last year</div>
+                        <div className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">AI Line Edits in the last year</div>
                         <div className="overview-tabs">
                             <button type="button" className="overview-tab-btn active">All</button>
                             <button type="button" className="overview-tab-btn">Cloud</button>
@@ -110,7 +119,7 @@ export default function SettingsOverviewPage() {
                         </div>
                     </div>
 
-                    <div style={{ fontSize: 40, fontWeight: 600, marginBottom: 8, color: 'var(--cursor-text-primary)' }}>
+                    <div style={{ fontSize: 40, fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>
                         {sessions.length.toLocaleString()}
                     </div>
 
@@ -130,41 +139,36 @@ export default function SettingsOverviewPage() {
                             <div className="stat-value">{cloudSessions}</div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-            <div className="settings-section">
-                <div className="settings-section-title">Quick Links</div>
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Source Control</span>
-                            <span className="settings-row-desc">Connect GitHub or GitLab and control where PRs land.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <a className="settings-link" href="/settings/integrations">Open Integrations</a>
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Cloud Agents</span>
-                            <span className="settings-row-desc">Manage environments, workers, secrets, defaults, and API keys.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <a className="settings-link" href="/settings/cloud-agents">Open Cloud Agents</a>
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Active Today</span>
-                            <span className="settings-row-desc">Current sessions actively running or waiting on responses.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">{activeToday}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </>
+            <CursorSettingsSection title="Quick Links">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Source Control"
+                        description="Connect GitHub or GitLab and control where PRs land."
+                        control={(
+                            <Link to="/settings/integrations" className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}>
+                                Open Integrations
+                            </Link>
+                        )}
+                    />
+                    <CursorSettingsRow
+                        title="Cloud Agents"
+                        description="Manage environments, workers, secrets, defaults, and API keys."
+                        control={(
+                            <Link to="/settings/cloud-agents" className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}>
+                                Open Cloud Agents
+                            </Link>
+                        )}
+                    />
+                    <CursorSettingsRow
+                        title="Active Today"
+                        description="Current sessions actively running or waiting on responses."
+                        control={<CursorSettingsBadge>{activeToday}</CursorSettingsBadge>}
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
+        </div>
     )
 }

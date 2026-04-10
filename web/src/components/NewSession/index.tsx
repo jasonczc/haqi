@@ -25,6 +25,7 @@ import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizePreviewUrlInput } from '@/lib/preview-url'
+import { CursorBadgeButton, CursorFieldLabel, CursorNotice, CursorTextField } from '@/components/settings/CursorSettingsPrimitives'
 import {
     CLAUDE_THINK_EFFORT_OPTIONS,
     CODEX_THINK_EFFORT_OPTIONS,
@@ -644,7 +645,7 @@ export function NewSession(props: {
     return (
         <form
             id={props.formId}
-            className="flex flex-col divide-y divide-[var(--cursor-stroke-tertiary)]"
+            className="flex flex-col divide-y divide-[var(--border-tertiary)]"
             onKeyDown={handleFormKeyDown}
             onSubmit={handleSubmit}
         >
@@ -657,8 +658,10 @@ export function NewSession(props: {
                 onChange={handleMachineChange}
             />
             {runnerSpawnError ? (
-                <div className="px-3 py-2 text-xs text-[var(--cursor-danger)]">
-                    Runner last spawn error: {runnerSpawnError}
+                <div className="px-3 py-3">
+                    <CursorNotice tone="danger">
+                        Runner last spawn error: {runnerSpawnError}
+                    </CursorNotice>
                 </div>
             ) : null}
             {executionBackend === 'local' ? (
@@ -724,30 +727,26 @@ export function NewSession(props: {
                 onTtlMinutesChange={setTtlMinutes}
             />
             <div className="flex flex-col gap-1.5 px-3 py-3">
-                <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
-                    Preview URL (optional)
-                </label>
-                <input
+                <CursorFieldLabel>Preview URL (optional)</CursorFieldLabel>
+                <CursorTextField
                     type="text"
                     placeholder="http://localhost:3000"
                     value={previewUrlInput}
                     onChange={(event) => setPreviewUrlInput(event.target.value)}
                     disabled={isFormDisabled}
-                    className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                 />
                 {previewUrlHistory.length > 0 ? (
                     <div className="flex flex-wrap gap-1 pt-1">
                         {previewUrlHistory.slice(0, 8).map((url) => (
-                            <button
+                            <CursorBadgeButton
                                 key={url}
-                                type="button"
                                 onClick={() => setPreviewUrlInput(url)}
                                 disabled={isFormDisabled}
-                                className="max-w-[240px] truncate rounded bg-[var(--cursor-bg-quaternary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-quaternary)] disabled:opacity-50"
+                                className="max-w-[240px]"
                                 title={url}
                             >
                                 {url}
-                            </button>
+                            </CursorBadgeButton>
                         ))}
                     </div>
                 ) : null}
@@ -792,8 +791,8 @@ export function NewSession(props: {
             />
 
             {(error ?? spawnError) ? (
-                <div className="px-3 py-2 text-sm text-[var(--cursor-danger)]">
-                    {error ?? spawnError}
+                <div className="px-3 py-3">
+                    <CursorNotice tone="danger">{error ?? spawnError}</CursorNotice>
                 </div>
             ) : null}
 

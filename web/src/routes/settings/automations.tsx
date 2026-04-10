@@ -1,4 +1,15 @@
 import { useState } from 'react'
+import {
+    CursorButton,
+    CursorEmptyState,
+    CursorIconButton,
+    CursorSearchField,
+    CursorSettingsCard,
+    CursorSettingsHeader,
+    CursorSettingsSection,
+    CursorTabButton,
+    CursorTextArea,
+} from '@/components/settings/CursorSettingsPrimitives'
 
 type AutomationTemplate = {
     icon: string
@@ -41,15 +52,15 @@ const TEMPLATES: AutomationTemplate[] = [
 
 function StatCard(props: { label: string; value: string | number; link?: boolean }) {
     return (
-        <div className="rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] px-4 py-3">
-            <div className="text-[12px] text-[var(--cursor-text-secondary)]">{props.label}</div>
+        <CursorSettingsCard className="border-[var(--border-secondary)] px-4 py-3 shadow-none">
+            <div className="text-[12px] leading-4 text-[var(--text-secondary)]">{props.label}</div>
             <div className="mt-0.5 flex items-center gap-1">
-                <span className="text-xl font-semibold text-[var(--cursor-text-primary)]">{props.value}</span>
+                <span className="text-xl font-semibold text-[var(--text-primary)]">{props.value}</span>
                 {props.link && (
-                    <span className="text-[var(--cursor-text-secondary)]">→</span>
+                    <span className="text-[var(--text-secondary)]">→</span>
                 )}
             </div>
-        </div>
+        </CursorSettingsCard>
     )
 }
 
@@ -58,12 +69,12 @@ function TemplateCard(props: { template: AutomationTemplate; onClick: () => void
         <button
             type="button"
             onClick={props.onClick}
-            className="flex flex-col gap-2 rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-4 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)] hover:border-[var(--cursor-stroke-primary)]"
+            className="flex flex-col gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-4 text-left transition-colors hover:bg-[var(--bg-quaternary)] hover:border-[var(--border-secondary)]"
         >
             <span className="text-lg">{props.template.icon}</span>
             <div>
-                <div className="text-[13px] font-semibold text-[var(--cursor-text-primary)]">{props.template.title}</div>
-                <div className="mt-0.5 text-[12px] text-[var(--cursor-text-secondary)] leading-relaxed">
+                <div className="text-[13px] font-semibold text-[var(--text-primary)]">{props.template.title}</div>
+                <div className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">
                     {props.template.description}
                 </div>
             </div>
@@ -76,112 +87,88 @@ export default function CloudAutomationsPage() {
     const [prompt, setPrompt] = useState('')
 
     return (
-        <div>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+        <div className="mx-auto w-full max-w-content">
+            <div className="mb-6 flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-[var(--cursor-text-primary)]">Automations</h1>
-                    <p className="mt-1 text-[13px] text-[var(--cursor-text-secondary)]">
-                        Automate repetitive tasks with always-on cloud agents that respond to environment triggers.
-                    </p>
+                    <CursorSettingsHeader
+                        title="Automations"
+                        description="Automate repetitive tasks with always-on cloud agents that respond to environment triggers."
+                    />
                 </div>
-                <button
+                <CursorButton
                     type="button"
-                    className="flex items-center gap-2 rounded-lg bg-[var(--cursor-button)] px-4 py-2 text-[13px] font-medium text-[var(--cursor-button-text)] transition-colors hover:opacity-90"
+                    className="shrink-0"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
                     New Automation
-                </button>
+                </CursorButton>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-3 mb-6">
-                <StatCard label="Total Automations" value={0} />
-                <StatCard label="Successful · 7d" value={0} />
-                <StatCard label="Failed · 7d" value={0} />
-                <StatCard label="Run History" value="" link />
-            </div>
+            <CursorSettingsSection className="mb-6">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatCard label="Total Automations" value={0} />
+                    <StatCard label="Successful · 7d" value={0} />
+                    <StatCard label="Failed · 7d" value={0} />
+                    <StatCard label="Run History" value="" link />
+                </div>
+            </CursorSettingsSection>
 
-            {/* NLP prompt input */}
-            <div className="mb-6">
-                <div className="relative rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] overflow-hidden">
-                    <textarea
+            <CursorSettingsSection className="mb-6">
+                <CursorSettingsCard className="overflow-hidden border-[var(--border-secondary)] shadow-none">
+                    <CursorTextArea
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder="Review every new pull request for security issues, then post a concise risk summary as a PR comment"
                         rows={3}
-                        className="w-full resize-none bg-transparent px-4 py-3 text-sm text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-secondary)] focus:outline-none"
+                        className="w-full resize-none border-0 bg-transparent px-4 py-3 shadow-none focus:ring-0"
                     />
                     <div className="flex justify-end px-3 pb-2">
-                        <button
+                        <CursorIconButton
                             type="button"
                             disabled={!prompt.trim()}
-                            className="rounded-full bg-[var(--cursor-button)] p-2 text-[var(--cursor-button-text)] transition-colors disabled:opacity-30"
                         >
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <line x1="22" y1="2" x2="11" y2="13" />
                                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
                             </svg>
-                        </button>
+                        </CursorIconButton>
                     </div>
-                </div>
-            </div>
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-            {/* Tabs */}
-            <div className="flex items-center gap-4 border-b border-[var(--cursor-stroke-secondary)] mb-4">
-                <button
-                    type="button"
+            <div className="mb-4 flex items-center gap-4 border-b border-[var(--border-tertiary)]">
+                <CursorTabButton
+                    active={activeTab === 'mine'}
                     onClick={() => setActiveTab('mine')}
-                    className={`relative pb-2 text-[13px] font-medium transition-colors ${
-                        activeTab === 'mine' ? 'text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]'
-                    }`}
                 >
                     Mine
-                    {activeTab === 'mine' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--cursor-text-primary)]" />}
-                </button>
-                <button
-                    type="button"
+                </CursorTabButton>
+                <CursorTabButton
+                    active={activeTab === 'all'}
                     onClick={() => setActiveTab('all')}
-                    className={`relative pb-2 text-[13px] font-medium transition-colors ${
-                        activeTab === 'all' ? 'text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]'
-                    }`}
                 >
                     All
-                    {activeTab === 'all' && <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--cursor-text-primary)]" />}
-                </button>
+                </CursorTabButton>
                 <div className="flex-1" />
-                <button
-                    type="button"
-                    className="pb-2 text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)] transition-colors"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="11" cy="11" r="8" />
-                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                </button>
-            </div>
-
-            {/* Empty state */}
-            <div className="flex flex-col items-center justify-center rounded-lg border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quiet)] py-16 mb-8">
-                <div className="text-[15px] font-semibold text-[var(--cursor-text-primary)]">No Automations Yet</div>
-                <div className="mt-1 text-[13px] text-[var(--cursor-text-secondary)] text-center max-w-xs">
-                    Run agents on a schedule or automatically in response to events. Billed at plan rates.
+                <div className="w-48 pb-2">
+                    <CursorSearchField placeholder="Search automations" compact />
                 </div>
-                <button
-                    type="button"
-                    className="mt-4 rounded-md border border-[var(--cursor-stroke-primary)] px-4 py-2 text-[13px] font-medium text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-secondary)]"
-                >
-                    Create Automation
-                </button>
             </div>
 
-            {/* Templates */}
+            <CursorSettingsSection className="mb-8">
+                <CursorEmptyState
+                    title="No Automations Yet"
+                    description="Run agents on a schedule or automatically in response to events. Billed at plan rates."
+                    action={<CursorButton type="button" variant="outline">Create Automation</CursorButton>}
+                />
+            </CursorSettingsSection>
+
             <div>
-                <h2 className="text-[13px] font-semibold text-[var(--cursor-text-secondary)] mb-3">Most popular automations</h2>
-                <div className="grid grid-cols-2 gap-3">
+                <h2 className="mb-3 text-[13px] font-semibold text-[var(--text-secondary)]">Most popular automations</h2>
+                <div className="grid gap-3 md:grid-cols-2">
                     {TEMPLATES.map(template => (
                         <TemplateCard
                             key={template.title}

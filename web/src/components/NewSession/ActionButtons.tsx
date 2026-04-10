@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/Spinner'
+import { CursorButton } from '@/components/settings/CursorSettingsPrimitives'
 import { useTranslation } from '@/lib/use-translation'
 
 export function ActionButtons(props: {
@@ -12,15 +12,15 @@ export function ActionButtons(props: {
 
     return (
         <div className="flex gap-2 px-3 py-3">
-            <Button
+            <CursorButton
                 type="button"
-                variant="secondary"
+                variant="outline"
                 onClick={props.onCancel}
                 disabled={props.isDisabled}
             >
                 {t('button.cancel')}
-            </Button>
-            <Button
+            </CursorButton>
+            <CursorButton
                 type="submit"
                 disabled={!props.canCreate}
                 aria-busy={props.isPending}
@@ -28,13 +28,13 @@ export function ActionButtons(props: {
             >
                 {props.isPending ? (
                     <>
-                        <Spinner size="sm" label={null} className="text-[var(--cursor-button-text)]" />
+                        <Spinner size="sm" label={null} className="text-current" />
                         {t('newSession.creating')}
                     </>
                 ) : (
                     t('newSession.create')
                 )}
-            </Button>
+            </CursorButton>
         </div>
     )
 }

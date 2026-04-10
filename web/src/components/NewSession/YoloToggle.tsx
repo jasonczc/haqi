@@ -1,5 +1,5 @@
 import { useTranslation } from '@/lib/use-translation'
-import { Switch } from '@/components/ui/Switch'
+import { CursorFieldLabel, CursorToggleRow } from '@/components/settings/CursorSettingsPrimitives'
 
 export function YoloToggle(props: {
     yoloMode: boolean
@@ -10,25 +10,15 @@ export function YoloToggle(props: {
 
     return (
         <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
-                {t('newSession.yolo')}
-            </label>
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-col">
-                    <span className="text-sm text-[var(--cursor-text-primary)]">
-                        {t('newSession.yolo.title')}
-                    </span>
-                    <span className="text-xs text-[var(--cursor-text-secondary)]">
-                        {t('newSession.yolo.desc')}
-                    </span>
-                </div>
-                <Switch
-                    checked={props.yoloMode}
-                    onCheckedChange={props.onToggle}
-                    disabled={props.isDisabled}
-                    ariaLabel={t('newSession.yolo.title')}
-                />
-            </div>
+            <CursorFieldLabel>{t('newSession.yolo')}</CursorFieldLabel>
+            <CursorToggleRow
+                label={t('newSession.yolo.title')}
+                description={t('newSession.yolo.desc')}
+                checked={props.yoloMode}
+                onCheckedChange={props.onToggle}
+                disabled={props.isDisabled}
+                className="border-0 bg-transparent px-0 py-0"
+            />
         </div>
     )
 }

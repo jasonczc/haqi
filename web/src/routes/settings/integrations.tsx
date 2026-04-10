@@ -1,4 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
+import {
+    CursorEmptyState,
+    CursorSettingsBadge,
+    CursorSettingsCard,
+    CursorSettingsHeader,
+    CursorSettingsRow,
+    CursorSettingsSection,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -18,81 +26,58 @@ export default function SettingsIntegrationsPage() {
     const machineCount = machinesQuery.data?.machines.length ?? 0
 
     return (
-        <>
-            <div className="settings-header">
-                <h1>Integrations</h1>
-                <p>Connection surface for code hosts, notifications, and local machines that back remote sessions.</p>
-            </div>
+        <div className="mx-auto w-full max-w-content">
+            <CursorSettingsHeader
+                title="Integrations"
+                description="Connection surface for code hosts, notifications, and local machines that back remote sessions."
+            />
 
-            <div className="settings-section">
-                <div className="settings-section-title">Code Hosts</div>
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">GitHub</span>
-                            <span className="settings-row-desc">Pull requests, code review, and remote repo context.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">Planned</span>
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">GitLab</span>
-                            <span className="settings-row-desc">Repository routing and merge-request workflows.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">Planned</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <CursorSettingsSection title="Code Hosts">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="GitHub"
+                        description="Pull requests, code review, and remote repo context."
+                        control={<CursorSettingsBadge>Planned</CursorSettingsBadge>}
+                    />
+                    <CursorSettingsRow
+                        title="GitLab"
+                        description="Repository routing and merge-request workflows."
+                        control={<CursorSettingsBadge>Planned</CursorSettingsBadge>}
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-            <div className="settings-section">
-                <div className="settings-section-title">Notifications</div>
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Slack</span>
-                            <span className="settings-row-desc">Post cloud-agent status and review summaries into shared channels.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">Coming soon</span>
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Telegram</span>
-                            <span className="settings-row-desc">Approve, inspect, and manage sessions from mobile notifications.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">Built-in</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <CursorSettingsSection title="Notifications">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Slack"
+                        description="Post cloud-agent status and review summaries into shared channels."
+                        control={<CursorSettingsBadge>Coming soon</CursorSettingsBadge>}
+                    />
+                    <CursorSettingsRow
+                        title="Telegram"
+                        description="Approve, inspect, and manage sessions from mobile notifications."
+                        control={<CursorSettingsBadge tone="accent">Built-in</CursorSettingsBadge>}
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-            <div className="settings-section">
-                <div className="settings-section-title">Connected Machines</div>
+            <CursorSettingsSection title="Connected Machines">
                 {machineCount === 0 ? (
-                    <div className="settings-empty-state">
-                        <div className="settings-empty-title">No machines connected</div>
-                        <div className="settings-empty-desc">Connect at least one machine to expose desktop, terminal, and self-hosted worker integrations.</div>
-                    </div>
+                    <CursorEmptyState
+                        title="No machines connected"
+                        description="Connect at least one machine to expose desktop, terminal, and self-hosted worker integrations."
+                    />
                 ) : (
-                    <div className="settings-card">
-                        <div className="settings-row">
-                            <div className="settings-row-left">
-                                <span className="settings-row-title">Available runtime targets</span>
-                                <span className="settings-row-desc">Machines currently visible to the hub for sessions and worker routing.</span>
-                            </div>
-                            <div className="settings-row-right">
-                                <span className="settings-badge">{machineCount}</span>
-                            </div>
-                        </div>
-                    </div>
+                    <CursorSettingsCard>
+                        <CursorSettingsRow
+                            title="Available runtime targets"
+                            description="Machines currently visible to the hub for sessions and worker routing."
+                            control={<CursorSettingsBadge>{machineCount}</CursorSettingsBadge>}
+                        />
+                    </CursorSettingsCard>
                 )}
-            </div>
-        </>
+            </CursorSettingsSection>
+        </div>
     )
 }

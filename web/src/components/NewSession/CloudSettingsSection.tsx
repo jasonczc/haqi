@@ -1,4 +1,16 @@
 import { Link } from '@tanstack/react-router'
+import {
+    CursorChoiceRow,
+    CursorFieldHint,
+    CursorFieldLabel,
+    CursorNotice,
+    CursorSettingsCard,
+    CursorSettingsBadge,
+    CursorSelect,
+    CursorTextArea,
+    CursorTextField,
+    CursorToggleRow,
+} from '@/components/settings/CursorSettingsPrimitives'
 import type { CloudCheckpoint, CloudEnvironmentSummary, ExecutionBackend, RuntimeKind } from '@/types/api'
 import type { CloudInventorySummary, CloudRuntimeWarning } from './cloudInventory'
 import { useTranslation } from '@/lib/use-translation'
@@ -73,76 +85,65 @@ export function CloudSettingsSection(props: {
     return (
         <div className="flex flex-col gap-3 px-3 py-3">
             <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
-                    {t('newSession.executionBackend')}
-                </label>
-                <div className="flex flex-col gap-2 text-sm">
-                    <label className="flex items-center gap-2">
-                        <input
-                            type="radio"
-                            name="executionBackend"
-                            checked={props.executionBackend === 'local'}
-                            onChange={() => props.onExecutionBackendChange('local')}
-                            disabled={props.isDisabled}
-                            className="accent-[var(--cursor-link)]"
-                        />
-                        <span>{t('newSession.executionBackend.local')}</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                        <input
-                            type="radio"
-                            name="executionBackend"
-                            checked={props.executionBackend === 'cloud-self-hosted'}
-                            onChange={() => props.onExecutionBackendChange('cloud-self-hosted')}
-                            disabled={props.isDisabled}
-                            className="accent-[var(--cursor-link)]"
-                        />
-                        <span>{t('newSession.executionBackend.cloudSelfHosted')}</span>
-                    </label>
-                    <label className="flex items-center gap-2">
-                        <input
-                            type="radio"
-                            name="executionBackend"
-                            checked={props.executionBackend === 'cloud-managed'}
-                            onChange={() => props.onExecutionBackendChange('cloud-managed')}
-                            disabled={props.isDisabled}
-                            className="accent-[var(--cursor-link)]"
-                        />
-                        <span>{t('newSession.executionBackend.cloudManaged')}</span>
-                    </label>
+                <CursorFieldLabel>{t('newSession.executionBackend')}</CursorFieldLabel>
+                <div className="flex flex-col gap-2">
+                    <CursorChoiceRow
+                        name="executionBackend"
+                        value="local"
+                        checked={props.executionBackend === 'local'}
+                        onChange={() => props.onExecutionBackendChange('local')}
+                        disabled={props.isDisabled}
+                        label={t('newSession.executionBackend.local')}
+                    />
+                    <CursorChoiceRow
+                        name="executionBackend"
+                        value="cloud-self-hosted"
+                        checked={props.executionBackend === 'cloud-self-hosted'}
+                        onChange={() => props.onExecutionBackendChange('cloud-self-hosted')}
+                        disabled={props.isDisabled}
+                        label={t('newSession.executionBackend.cloudSelfHosted')}
+                    />
+                    <CursorChoiceRow
+                        name="executionBackend"
+                        value="cloud-managed"
+                        checked={props.executionBackend === 'cloud-managed'}
+                        onChange={() => props.onExecutionBackendChange('cloud-managed')}
+                        disabled={props.isDisabled}
+                        label={t('newSession.executionBackend.cloudManaged')}
+                    />
                 </div>
             </div>
 
             {isCloud ? (
                 <>
-                    <div className="rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quaternary)]/40 px-3 py-2 text-xs text-[var(--cursor-text-secondary)]">
-                        <div className="font-medium text-[var(--cursor-text-primary)]">
+                    <CursorSettingsCard className="border-[var(--border-secondary)] bg-[var(--bg-quinary)] px-3 py-3 shadow-none">
+                        <div className="text-[12px] leading-4 font-medium text-[var(--text-primary)]">
                             {t('newSession.cloudInventory.title')}
                         </div>
-                        <div className="mt-1">
+                        <div className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                             {t('newSession.cloudInventory.providerCount', { count: props.cloudInventorySummary.providerCount })}
                         </div>
-                        <div className="mt-1">
+                        <div className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                             {t('newSession.cloudInventory.workerCount', { count: props.cloudInventorySummary.workerCount })}
                         </div>
-                        <div className="mt-1">
+                        <div className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                             {t('newSession.cloudInventory.activeWorkers', {
                                 active: props.cloudInventorySummary.activeWorkerCount,
                                 total: props.cloudInventorySummary.workerCount
                             })}
                         </div>
                         {props.selectedProviderType ? (
-                            <div className="mt-1">
+                            <div className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                                 {t(`newSession.cloudInventory.type.${props.selectedProviderType === 'managed' ? 'managed' : 'selfHosted'}`)}
                             </div>
                         ) : null}
                         {props.selectedWorkerLifecycle ? (
-                            <div className="mt-1">
+                            <div className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                                 {t('newSession.cloudInventory.lifecycle')}: {props.selectedWorkerLifecycle}
                             </div>
                         ) : null}
                         {props.selectedEnvironmentSummary ? (
-                            <div className="mt-1">
+                            <div className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
                                 {t('newSession.cloudInventory.environmentSummary', {
                                     runtime: environmentRuntimeLabel(props.selectedEnvironmentSummary),
                                     services: props.selectedEnvironmentSummary.serviceCount,
@@ -150,313 +151,256 @@ export function CloudSettingsSection(props: {
                                 })}
                             </div>
                         ) : null}
-                    </div>
+                    </CursorSettingsCard>
 
                     {showNoWorkerGuidance ? (
-                        <div className="rounded-md border border-[var(--cursor-warning-border)] bg-[var(--cursor-warning-bg)] px-3 py-2 text-xs text-[var(--cursor-warning)]">
+                        <CursorNotice>
                             <div className="font-medium">{t('cloud.workers.noWorkersOnline')}</div>
                             <Link
                                 to="/settings/cloud-agents"
-                                className="mt-1 block text-[var(--cursor-link)] hover:underline"
+                                className="mt-1 block text-[var(--accent)] hover:underline"
                             >
                                 {t('cloud.workers.goToManagement')}
                             </Link>
-                        </div>
+                        </CursorNotice>
                     ) : null}
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
-                            Launch Mode
-                        </label>
-                        <div className="flex flex-col gap-2 text-sm">
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    name="launchMode"
-                                    checked={props.launchMode === 'interactive'}
-                                    onChange={() => props.onLaunchModeChange('interactive')}
-                                    disabled={props.isDisabled}
-                                    className="accent-[var(--cursor-link)]"
-                                />
-                                <span>Interactive</span>
-                            </label>
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    name="launchMode"
-                                    checked={props.launchMode === 'background'}
-                                    onChange={() => props.onLaunchModeChange('background')}
-                                    disabled={props.isDisabled}
-                                    className="accent-[var(--cursor-link)]"
-                                />
-                                <span>Background</span>
-                            </label>
+                        <CursorFieldLabel>Launch Mode</CursorFieldLabel>
+                        <div className="flex flex-col gap-2">
+                            <CursorChoiceRow
+                                name="launchMode"
+                                value="interactive"
+                                checked={props.launchMode === 'interactive'}
+                                onChange={() => props.onLaunchModeChange('interactive')}
+                                disabled={props.isDisabled}
+                                label="Interactive"
+                            />
+                            <CursorChoiceRow
+                                name="launchMode"
+                                value="background"
+                                checked={props.launchMode === 'background'}
+                                onChange={() => props.onLaunchModeChange('background')}
+                                disabled={props.isDisabled}
+                                label="Background"
+                            />
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]">
-                            {t('newSession.runtimeKind')}
-                        </label>
-                        <div className="flex flex-col gap-2 text-sm">
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    name="runtimeKind"
-                                    checked={props.runtimeKind === 'docker-session'}
-                                    onChange={() => props.onRuntimeKindChange('docker-session')}
-                                    disabled={props.isDisabled}
-                                    className="accent-[var(--cursor-link)]"
-                                />
-                                <span>{t('newSession.runtimeKind.dockerSession')}</span>
-                            </label>
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    name="runtimeKind"
-                                    checked={props.runtimeKind === 'daemon-session'}
-                                    onChange={() => props.onRuntimeKindChange('daemon-session')}
-                                    disabled={props.isDisabled}
-                                    className="accent-[var(--cursor-link)]"
-                                />
-                                <span>Daemon Session</span>
-                            </label>
+                        <CursorFieldLabel>{t('newSession.runtimeKind')}</CursorFieldLabel>
+                        <div className="flex flex-col gap-2">
+                            <CursorChoiceRow
+                                name="runtimeKind"
+                                value="docker-session"
+                                checked={props.runtimeKind === 'docker-session'}
+                                onChange={() => props.onRuntimeKindChange('docker-session')}
+                                disabled={props.isDisabled}
+                                label={t('newSession.runtimeKind.dockerSession')}
+                            />
+                            <CursorChoiceRow
+                                name="runtimeKind"
+                                value="daemon-session"
+                                checked={props.runtimeKind === 'daemon-session'}
+                                onChange={() => props.onRuntimeKindChange('daemon-session')}
+                                disabled={props.isDisabled}
+                                label="Daemon Session"
+                            />
                         </div>
-                        <div className="pt-1 text-[11px] text-[var(--cursor-text-secondary)]">
+                        <CursorFieldHint>
                             {props.runtimeKind === 'daemon-session'
                                 ? 'Long-running daemon container on the cloud worker.'
                                 : 'Cloud runtime is container-backed and checkpoint-based.'}
-                        </div>
+                        </CursorFieldHint>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-checkpoint-id">
-                            Checkpoint
-                        </label>
-                        <input
+                        <CursorFieldLabel htmlFor="new-session-checkpoint-id">Checkpoint</CursorFieldLabel>
+                        <CursorTextField
                             id="new-session-checkpoint-id"
                             type="text"
                             placeholder="ghcr.io/org/dev:latest"
                             value={props.checkpointId}
                             onChange={(event) => props.onCheckpointIdChange(event.target.value)}
                             disabled={props.isDisabled}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                         />
                         {props.cloudCheckpointsLoading ? (
-                            <div className="pt-1 text-[11px] text-[var(--cursor-text-secondary)]">Loading checkpoints…</div>
+                            <CursorFieldHint>Loading checkpoints…</CursorFieldHint>
                         ) : props.cloudCheckpointsError ? (
-                            <div className="pt-1 text-[11px] text-[var(--cursor-danger)]">{props.cloudCheckpointsError}</div>
+                            <CursorFieldHint tone="danger">{props.cloudCheckpointsError}</CursorFieldHint>
                         ) : props.cloudCheckpoints.length > 0 ? (
                             <div className="flex flex-wrap gap-1 pt-1">
                                 {props.cloudCheckpoints.map((checkpoint) => (
-                                    <span
+                                    <CursorSettingsBadge
                                         key={checkpoint.id}
-                                        className="rounded-full bg-[var(--cursor-bg-quaternary)] px-2 py-1 text-[11px] text-[var(--cursor-text-primary)]"
+                                        className="rounded-full"
                                         title={checkpoint.image}
                                     >
                                         {checkpoint.id}
-                                    </span>
+                                    </CursorSettingsBadge>
                                 ))}
                             </div>
                         ) : null}
                         {props.selectedCheckpoint ? (
-                            <div className="pt-1 text-[11px] text-[var(--cursor-text-secondary)]">
-                                {props.selectedCheckpoint.image}
-                            </div>
+                            <CursorFieldHint>{props.selectedCheckpoint.image}</CursorFieldHint>
                         ) : null}
                     </div>
 
                     {props.runtimeWarning ? (
-                        <div className="rounded-md border border-[var(--cursor-warning-border)] bg-[var(--cursor-warning-bg)] px-3 py-2 text-xs text-[var(--cursor-warning)]">
+                        <CursorNotice>
                             {t(`newSession.cloudWarning.${props.runtimeWarning}`)}
-                        </div>
+                        </CursorNotice>
                     ) : null}
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-environment-id">
-                            {t('newSession.environmentId')}
-                        </label>
-                        <input
+                        <CursorFieldLabel htmlFor="new-session-environment-id">{t('newSession.environmentId')}</CursorFieldLabel>
+                        <CursorTextField
                             id="new-session-environment-id"
                             type="text"
                             placeholder={t('newSession.environmentIdPlaceholder')}
                             value={props.environmentId}
                             onChange={(event) => props.onEnvironmentIdChange(event.target.value)}
                             disabled={props.isDisabled}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                         />
                         {props.cloudEnvironmentsLoading ? (
-                            <div className="pt-1 text-[11px] text-[var(--cursor-text-secondary)]">
-                                {t('newSession.cloudEnvironment.loading')}
-                            </div>
+                            <CursorFieldHint>{t('newSession.cloudEnvironment.loading')}</CursorFieldHint>
                         ) : props.cloudEnvironmentsError ? (
-                            <div className="pt-1 text-[11px] text-[var(--cursor-danger)]">
-                                {props.cloudEnvironmentsError}
-                            </div>
+                            <CursorFieldHint tone="danger">{props.cloudEnvironmentsError}</CursorFieldHint>
                         ) : props.cloudEnvironments.length > 0 ? (
                             <div className="flex flex-wrap gap-1 pt-1">
                                 {props.cloudEnvironments.map((environment) => (
-                                    <span
+                                    <CursorSettingsBadge
                                         key={environment.id}
-                                        className="rounded-full bg-[var(--cursor-bg-quaternary)] px-2 py-1 text-[11px] text-[var(--cursor-text-primary)]"
+                                        className="rounded-full"
                                         title={`${environment.runtimeKind ?? 'host-process'} · ${environment.serviceCount} services`}
                                     >
                                         {environment.id} · {environmentRuntimeLabel(environment)} · {environment.serviceCount}
-                                    </span>
+                                    </CursorSettingsBadge>
                                 ))}
                             </div>
                         ) : null}
                         {props.selectedEnvironmentSummary ? (
-                            <div className="pt-1 text-[11px] text-[var(--cursor-text-secondary)]">
+                            <CursorFieldHint>
                                 {t('newSession.cloudEnvironment.selected', { id: props.selectedEnvironmentSummary.id })}
                                 {props.selectedEnvironmentSummary.runtimeKind ? ` · ${environmentRuntimeLabel(props.selectedEnvironmentSummary)}` : ''}
                                 {props.selectedEnvironmentSummary.hasPreviewPorts ? ` · ${t('newSession.cloudEnvironment.previewPorts')}` : ''}
-                            </div>
+                            </CursorFieldHint>
                         ) : selectedEnvironmentMissing ? (
-                            <div className="pt-1 text-[11px] text-[var(--cursor-warning)]">
-                                {t('newSession.cloudEnvironment.selectedMissing')}
-                            </div>
+                            <CursorFieldHint tone="accent">{t('newSession.cloudEnvironment.selectedMissing')}</CursorFieldHint>
                         ) : null}
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-repository-url">
-                            {t('newSession.repositoryUrl')}
-                        </label>
-                        <input
+                        <CursorFieldLabel htmlFor="new-session-repository-url">{t('newSession.repositoryUrl')}</CursorFieldLabel>
+                        <CursorTextField
                             id="new-session-repository-url"
                             type="text"
                             placeholder="https://github.com/org/repo.git"
                             value={props.repositoryUrl}
                             onChange={(event) => props.onRepositoryUrlChange(event.target.value)}
                             disabled={props.isDisabled}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                         />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-repository-branch">
-                            {t('newSession.repositoryBranch')}
-                        </label>
-                        <input
+                        <CursorFieldLabel htmlFor="new-session-repository-branch">{t('newSession.repositoryBranch')}</CursorFieldLabel>
+                        <CursorTextField
                             id="new-session-repository-branch"
                             type="text"
                             placeholder="main"
                             value={props.repositoryBranch}
                             onChange={(event) => props.onRepositoryBranchChange(event.target.value)}
                             disabled={props.isDisabled}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                         />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-network-policy">
-                            {t('newSession.networkPolicy')}
-                        </label>
-                        <select
+                        <CursorFieldLabel htmlFor="new-session-network-policy">{t('newSession.networkPolicy')}</CursorFieldLabel>
+                        <CursorSelect
                             id="new-session-network-policy"
                             value={props.networkPolicy}
                             onChange={(event) => props.onNetworkPolicyChange(event.target.value as 'default' | 'restricted' | 'off')}
                             disabled={props.isDisabled}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
+                            className="min-w-0"
                         >
                             <option value="default">{t('newSession.networkPolicy.default')}</option>
                             <option value="restricted">{t('newSession.networkPolicy.restricted')}</option>
                             <option value="off">{t('newSession.networkPolicy.off')}</option>
-                        </select>
+                        </CursorSelect>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-labels">
-                            {t('newSession.labels')}
-                        </label>
-                        <textarea
+                        <CursorFieldLabel htmlFor="new-session-labels">{t('newSession.labels')}</CursorFieldLabel>
+                        <CursorTextArea
                             id="new-session-labels"
                             placeholder={t('newSession.labelsPlaceholder')}
                             value={props.labelsInput}
                             onChange={(event) => props.onLabelsInputChange(event.target.value)}
                             disabled={props.isDisabled}
                             rows={2}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                         />
-                        <div className="text-[11px] text-[var(--cursor-text-secondary)]">
-                            {t('newSession.labelsHint')}
-                        </div>
+                        <CursorFieldHint className="pt-0">{t('newSession.labelsHint')}</CursorFieldHint>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between gap-2">
-                            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-secrets">
-                                {t('newSession.secrets')}
-                            </label>
-                            <a
-                                href="/settings/cloud-agents"
-                                className="text-[11px] text-[var(--cursor-link)] hover:underline"
-                            >
-                                Manage secrets
-                            </a>
-                        </div>
-                        <textarea
+                        <CursorFieldLabel
+                            htmlFor="new-session-secrets"
+                            action={(
+                                <a
+                                    href="/settings/cloud-agents"
+                                    className="text-[11px] text-[var(--accent)] hover:underline"
+                                >
+                                    Manage secrets
+                                </a>
+                            )}
+                        >
+                            {t('newSession.secrets')}
+                        </CursorFieldLabel>
+                        <CursorTextArea
                             id="new-session-secrets"
                             placeholder={t('newSession.secretsPlaceholder')}
                             value={props.secretsInput}
                             onChange={(event) => props.onSecretsInputChange(event.target.value)}
                             disabled={props.isDisabled}
                             rows={2}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                         />
-                        <div className="text-[11px] text-[var(--cursor-text-secondary)]">
-                            {t('newSession.secretsHint')}
-                        </div>
+                        <CursorFieldHint className="pt-0">{t('newSession.secretsHint')}</CursorFieldHint>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-workspace-mode">
-                            {t('newSession.workspaceMode')}
-                        </label>
-                        <select
+                        <CursorFieldLabel htmlFor="new-session-workspace-mode">{t('newSession.workspaceMode')}</CursorFieldLabel>
+                        <CursorSelect
                             id="new-session-workspace-mode"
                             value={props.workspaceMode}
                             onChange={(event) => props.onWorkspaceModeChange(event.target.value as 'ephemeral' | 'persistent' | 'snapshot-derived')}
                             disabled={props.isDisabled}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
+                            className="min-w-0"
                         >
                             <option value="ephemeral">{t('newSession.workspaceMode.ephemeral')}</option>
                             <option value="persistent">{t('newSession.workspaceMode.persistent')}</option>
                             <option value="snapshot-derived">{t('newSession.workspaceMode.snapshotDerived')}</option>
-                        </select>
+                        </CursorSelect>
                     </div>
 
-                    <label className="flex items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            checked={props.persistentWorkspace}
-                            onChange={(event) => props.onPersistentWorkspaceChange(event.target.checked)}
-                            disabled={props.isDisabled}
-                            className="accent-[var(--cursor-link)]"
-                        />
-                        <span>{t('newSession.persistentWorkspace')}</span>
-                    </label>
+                    <CursorToggleRow
+                        label={t('newSession.persistentWorkspace')}
+                        checked={props.persistentWorkspace}
+                        onCheckedChange={props.onPersistentWorkspaceChange}
+                        disabled={props.isDisabled}
+                    />
 
-                    <div className="flex flex-col gap-2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quaternary)]/40 px-3 py-2">
-                        <div className="text-xs font-medium text-[var(--cursor-text-secondary)]">
-                            {t('newSession.previewPolicy')}
-                        </div>
-                        <label className="flex items-center gap-2 text-sm">
-                            <input
-                                type="checkbox"
-                                checked={props.previewAutoDetect}
-                                onChange={(event) => props.onPreviewAutoDetectChange(event.target.checked)}
-                                disabled={props.isDisabled}
-                                className="accent-[var(--cursor-link)]"
-                            />
-                            <span>{t('newSession.previewPolicy.autoDetect')}</span>
-                        </label>
+                    <div className="flex flex-col gap-3 rounded-md border border-[var(--border-secondary)] bg-[var(--bg-quinary)] px-3 py-3">
+                        <CursorFieldLabel>{t('newSession.previewPolicy')}</CursorFieldLabel>
+                        <CursorToggleRow
+                            label={t('newSession.previewPolicy.autoDetect')}
+                            checked={props.previewAutoDetect}
+                            onCheckedChange={props.onPreviewAutoDetectChange}
+                            disabled={props.isDisabled}
+                            className="border-0 bg-transparent px-0 py-0"
+                        />
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-preview-port">
-                                {t('newSession.previewPolicy.preferredPort')}
-                            </label>
-                            <input
+                            <CursorFieldLabel htmlFor="new-session-preview-port">{t('newSession.previewPolicy.preferredPort')}</CursorFieldLabel>
+                            <CursorTextField
                                 id="new-session-preview-port"
                                 type="number"
                                 min={1}
@@ -465,16 +409,13 @@ export function CloudSettingsSection(props: {
                                 value={props.previewPreferredPort}
                                 onChange={(event) => props.onPreviewPreferredPortChange(event.target.value)}
                                 disabled={props.isDisabled}
-                                className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                             />
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-[var(--cursor-text-secondary)]" htmlFor="new-session-ttl-minutes">
-                            {t('newSession.ttlMinutes')}
-                        </label>
-                        <input
+                        <CursorFieldLabel htmlFor="new-session-ttl-minutes">{t('newSession.ttlMinutes')}</CursorFieldLabel>
+                        <CursorTextField
                             id="new-session-ttl-minutes"
                             type="number"
                             min={1}
@@ -483,7 +424,6 @@ export function CloudSettingsSection(props: {
                             value={props.ttlMinutes}
                             onChange={(event) => props.onTtlMinutesChange(event.target.value)}
                             disabled={props.isDisabled}
-                            className="w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--cursor-link)] disabled:opacity-50"
                         />
                     </div>
                 </>

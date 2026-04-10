@@ -1,10 +1,18 @@
-import { useState, useId } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { LoadingState } from '@/components/LoadingState'
 import { QuickSpawnDialog } from '@/components/QuickSpawnDialog'
+import {
+    CursorButton,
+    CursorCollapsibleSection,
+    CursorEmptyState,
+    CursorSettingsBadge,
+    CursorSettingsHeader,
+    CursorSettingsSection,
+    cursorButtonClassName,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { useTranslation } from '@/lib/use-translation'
@@ -31,10 +39,10 @@ function formatDate(ts: number): string {
 }
 
 function StatusBadge({ status, t }: { status: StoredCheckpoint['status']; t: (key: string) => string }) {
-    const colorMap = {
-        ready: 'bg-[var(--cursor-badge-success-bg)] text-[var(--cursor-badge-success-text)] border border-[var(--cursor-badge-success-border)]',
-        creating: 'bg-[var(--cursor-badge-warning-bg)] text-[var(--cursor-badge-warning-text)] border border-[var(--cursor-badge-warning-border)]',
-        failed: 'bg-[var(--cursor-badge-error-bg)] text-[var(--cursor-badge-error-text)] border border-[var(--cursor-badge-error-border)]',
+    const toneMap = {
+        ready: 'success',
+        creating: 'accent',
+        failed: 'danger',
     } as const
     const labelMap = {
         ready: t('cloud.checkpoints.ready'),
@@ -42,64 +50,9 @@ function StatusBadge({ status, t }: { status: StoredCheckpoint['status']; t: (ke
         failed: t('cloud.checkpoints.failed'),
     } as const
     return (
-        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorMap[status]}`}>
+        <CursorSettingsBadge tone={toneMap[status]} className="rounded-full">
             {labelMap[status]}
-        </span>
-    )
-}
-
-function ChevronDownIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    )
-}
-
-function CollapsibleSection(props: {
-    title: string
-    description: string
-    isExpanded: boolean
-    onToggle: () => void
-    children: React.ReactNode
-}) {
-    const sectionContentId = useId()
-    return (
-        <section className="border-b border-[var(--cursor-stroke-secondary)]">
-            <button
-                type="button"
-                onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--cursor-bg-quiet)]"
-                aria-expanded={props.isExpanded}
-                aria-controls={sectionContentId}
-            >
-                <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--cursor-text-primary)]">{props.title}</span>
-                    <span className="text-xs text-[var(--cursor-text-secondary)]">{props.description}</span>
-                </div>
-                <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--cursor-text-secondary)] transition-transform ${
-                        props.isExpanded ? 'rotate-180' : ''
-                    }`}
-                />
-            </button>
-            {props.isExpanded && (
-                <div id={sectionContentId}>
-                    {props.children}
-                </div>
-            )}
-        </section>
+        </CursorSettingsBadge>
     )
 }
 
@@ -146,101 +99,106 @@ export default function CloudCheckpointsPage() {
     return (
         <>
             <div className="mx-auto w-full max-w-content">
-                <CollapsibleSection
+                <CursorSettingsHeader
                     title="Checkpoints"
-                    description={`${checkpoints.length} checkpoint${checkpoints.length !== 1 ? 's' : ''} available`}
-                    isExpanded={isExpanded}
-                    onToggle={() => setIsExpanded(!isExpanded)}
-                >
-                    {checkpoints.length === 0 ? (
-                        <div className="px-3 py-6 text-center text-sm text-[var(--cursor-text-secondary)]">
-                            <p>{t('cloud.checkpoints.empty')}</p>
-                            <p className="mt-2 text-xs">
-                                Start a Setup session to configure an environment, then save it as a checkpoint.
-                            </p>
-                            <div className="mt-3 flex items-center justify-center gap-2">
-                                <Button size="sm" onClick={() => setSpawnOpen(true)}>
-                                    Start Setup Session
-                                </Button>
-                                <Link to="/settings/onboard">
-                                    <Button variant="outline" size="sm">
-                                        Onboarding Guide
-                                    </Button>
-                                </Link>
+                    description="Saved cloud runtime snapshots that can boot new sessions or serve as parents for derived setup runs."
+                />
+
+                <CursorSettingsSection>
+                    <CursorCollapsibleSection
+                        title="Checkpoints"
+                        description={`${checkpoints.length} checkpoint${checkpoints.length !== 1 ? 's' : ''} available`}
+                        isExpanded={isExpanded}
+                        onToggle={() => setIsExpanded(!isExpanded)}
+                    >
+                        {checkpoints.length === 0 ? (
+                            <div className="px-4 py-6">
+                                <CursorEmptyState
+                                    title={t('cloud.checkpoints.empty')}
+                                    description="Start a Setup session to configure an environment, then save it as a checkpoint."
+                                    action={(
+                                        <div className="flex items-center justify-center gap-2">
+                                            <CursorButton size="sm" onClick={() => setSpawnOpen(true)}>
+                                                Start Setup Session
+                                            </CursorButton>
+                                            <Link to="/settings/onboard" className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}>
+                                                Onboarding Guide
+                                            </Link>
+                                        </div>
+                                    )}
+                                />
                             </div>
-                        </div>
-                    ) : (
-                        <div>
-                            {checkpoints.map((checkpoint) => (
-                                <div
-                                    key={checkpoint.id}
-                                    className={`flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-secondary)] px-3 py-3${
-                                        checkpoint.parentCheckpointId ? ' pl-8' : ''
-                                    }`}
-                                >
-                                    <div className="flex min-w-0 flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <StatusBadge status={checkpoint.status} t={t} />
-                                            <span className="text-sm font-medium text-[var(--cursor-text-primary)]">{checkpoint.name}</span>
+                        ) : (
+                            <div>
+                                {checkpoints.map((checkpoint) => (
+                                    <div
+                                        key={checkpoint.id}
+                                        className={`flex items-start justify-between gap-3 border-b border-[var(--border-tertiary)] px-4 py-4 last:border-b-0${
+                                            checkpoint.parentCheckpointId ? ' pl-8' : ''
+                                        }`}
+                                    >
+                                        <div className="flex min-w-0 flex-col">
+                                            <div className="flex items-center gap-2">
+                                                <StatusBadge status={checkpoint.status} t={t} />
+                                                <span className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">{checkpoint.name}</span>
+                                            </div>
+                                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[12px] leading-4 text-[var(--text-secondary)]">
+                                                {checkpoint.repoUrl ? (
+                                                    <span>
+                                                        <span className="font-medium text-[var(--text-primary)]">{t('cloud.checkpoints.repo')}</span>{' '}
+                                                        {checkpoint.repoUrl}
+                                                    </span>
+                                                ) : null}
+                                                {checkpoint.parentCheckpointId ? (
+                                                    <span>
+                                                        <span className="font-medium text-[var(--text-primary)]">{t('cloud.checkpoints.parent')}</span>{' '}
+                                                        {(() => {
+                                                            const parent = checkpoints.find(c => c.id === checkpoint.parentCheckpointId)
+                                                            return parent
+                                                                ? <span className="font-[var(--font-mono)]">{parent.name} ({checkpoint.parentCheckpointId.slice(0, 8)})</span>
+                                                                : <span className="font-[var(--font-mono)]">{checkpoint.parentCheckpointId.slice(0, 12)}</span>
+                                                        })()}
+                                                    </span>
+                                                ) : null}
+                                                {checkpoint.machineId ? (
+                                                    <span>
+                                                        <span className="font-medium text-[var(--text-primary)]">{t('cloud.checkpoints.machine')}</span>{' '}
+                                                        <span className="font-[var(--font-mono)]">{checkpoint.machineId}</span>
+                                                    </span>
+                                                ) : null}
+                                                <span>{formatDate(checkpoint.createdAt)}</span>
+                                            </div>
                                         </div>
-                                        <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-[var(--cursor-text-secondary)]">
-                                            {checkpoint.repoUrl ? (
-                                                <span>
-                                                    <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.checkpoints.repo')}</span>{' '}
-                                                    {checkpoint.repoUrl}
-                                                </span>
-                                            ) : null}
-                                            {checkpoint.parentCheckpointId ? (
-                                                <span>
-                                                    <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.checkpoints.parent')}</span>{' '}
-                                                    {(() => {
-                                                        const parent = checkpoints.find(c => c.id === checkpoint.parentCheckpointId)
-                                                        return parent
-                                                            ? <span className="font-mono">{parent.name} ({checkpoint.parentCheckpointId.slice(0, 8)})</span>
-                                                            : <span className="font-mono">{checkpoint.parentCheckpointId.slice(0, 12)}</span>
-                                                    })()}
-                                                </span>
-                                            ) : null}
-                                            {checkpoint.machineId ? (
-                                                <span>
-                                                    <span className="font-medium text-[var(--cursor-text-primary)]">{t('cloud.checkpoints.machine')}</span>{' '}
-                                                    <span className="font-mono">{checkpoint.machineId}</span>
-                                                </span>
-                                            ) : null}
-                                            <span>{formatDate(checkpoint.createdAt)}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex shrink-0 gap-1.5">
-                                        <Link
-                                            to="/sessions/new"
-                                            search={{ checkpointId: checkpoint.id }}
-                                        >
-                                            <Button variant="outline" size="sm">
+                                        <div className="flex shrink-0 gap-1.5">
+                                            <Link
+                                                to="/sessions/new"
+                                                search={{ checkpointId: checkpoint.id }}
+                                                className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}
+                                            >
                                                 {t('cloud.checkpoints.newSession')}
-                                            </Button>
-                                        </Link>
-                                        <Link
-                                            to="/sessions/new"
-                                            search={{ checkpointId: checkpoint.id, sessionType: 'setup' }}
-                                        >
-                                            <Button variant="outline" size="sm">
+                                            </Link>
+                                            <Link
+                                                to="/sessions/new"
+                                                search={{ checkpointId: checkpoint.id, sessionType: 'setup' }}
+                                                className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}
+                                            >
                                                 {t('cloud.checkpoints.derive')}
-                                            </Button>
-                                        </Link>
-                                        <Button
-                                            variant="destructive"
-                                            size="sm"
-                                            onClick={() => setDeleteId(checkpoint.id)}
-                                            disabled={deleteMutation.isPending}
-                                        >
-                                            {t('cloud.checkpoints.delete')}
-                                        </Button>
+                                            </Link>
+                                            <CursorButton
+                                                variant="danger"
+                                                size="sm"
+                                                onClick={() => setDeleteId(checkpoint.id)}
+                                                disabled={deleteMutation.isPending}
+                                            >
+                                                {t('cloud.checkpoints.delete')}
+                                            </CursorButton>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </CollapsibleSection>
+                                ))}
+                            </div>
+                        )}
+                    </CursorCollapsibleSection>
+                </CursorSettingsSection>
             </div>
             <ConfirmDialog
                 isOpen={!!deleteId}

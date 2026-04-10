@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import {
+    CursorEmptyState,
+    CursorSettingsBadge,
+    CursorSettingsCard,
+    CursorSettingsHeader,
+    CursorSettingsRow,
+    CursorSettingsSection,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import type { UsageOverview } from '@/types/api'
@@ -59,86 +67,61 @@ export default function SettingsUsagePage() {
     }, [api])
 
     return (
-        <>
-            <div className="settings-header">
-                <h1>Usage</h1>
-                <p>High-level activity metrics for sessions, active runs, and recent throughput.</p>
-            </div>
+        <div className="mx-auto w-full max-w-content">
+            <CursorSettingsHeader
+                title="Usage"
+                description="High-level activity metrics for sessions, active runs, and recent throughput."
+            />
 
-            <div className="settings-section">
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Total sessions</span>
-                            <span className="settings-row-desc">All visible sessions in the current namespace.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">{sessions.length}</span>
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Active now</span>
-                            <span className="settings-row-desc">Sessions currently marked active.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">{activeCount}</span>
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Thinking now</span>
-                            <span className="settings-row-desc">Sessions still waiting on agent output.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">{thinkingCount}</span>
-                        </div>
-                    </div>
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Updated in last 7 days</span>
-                            <span className="settings-row-desc">Recent session churn; good seed for future graphs.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">{thisWeekCount}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <CursorSettingsSection>
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Total sessions"
+                        description="All visible sessions in the current namespace."
+                        control={<CursorSettingsBadge>{sessions.length}</CursorSettingsBadge>}
+                    />
+                    <CursorSettingsRow
+                        title="Active now"
+                        description="Sessions currently marked active."
+                        control={<CursorSettingsBadge>{activeCount}</CursorSettingsBadge>}
+                    />
+                    <CursorSettingsRow
+                        title="Thinking now"
+                        description="Sessions still waiting on agent output."
+                        control={<CursorSettingsBadge>{thinkingCount}</CursorSettingsBadge>}
+                    />
+                    <CursorSettingsRow
+                        title="Updated in last 7 days"
+                        description="Recent session churn; good seed for future graphs."
+                        control={<CursorSettingsBadge>{thisWeekCount}</CursorSettingsBadge>}
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-            <div className="settings-section">
-                <div className="settings-section-title">Provider Token Usage</div>
+            <CursorSettingsSection title="Provider Token Usage">
                 {usageLoading ? (
-                    <div className="settings-empty-state">
-                        <div className="settings-empty-title">Loading usage overview…</div>
-                    </div>
+                    <CursorEmptyState title="Loading usage overview…" description="Fetching provider-level token usage and event counts." />
                 ) : usageError ? (
-                    <div className="settings-empty-state">
-                        <div className="settings-empty-title">Usage unavailable</div>
-                        <div className="settings-empty-desc">{usageError}</div>
-                    </div>
+                    <CursorEmptyState title="Usage unavailable" description={usageError} />
                 ) : usageOverview ? (
-                    <div className="settings-card">
+                    <CursorSettingsCard>
                         {[usageOverview.claude, usageOverview.codex].map((provider) => (
-                            <div key={provider.provider} className="settings-row">
-                                <div className="settings-row-left">
-                                    <span className="settings-row-title">{provider.provider === 'claude' ? 'Claude' : 'Codex'}</span>
-                                    <span className="settings-row-desc">
-                                        {provider.available
-                                            ? `${provider.eventCount} events · ${provider.filesScanned} files scanned · last 30d ${provider.last30Days.totalTokens.toLocaleString()} tokens`
-                                            : 'Unavailable'}
-                                    </span>
-                                </div>
-                                <div className="settings-row-right">
-                                    <span className="settings-badge">
+                            <CursorSettingsRow
+                                key={provider.provider}
+                                title={provider.provider === 'claude' ? 'Claude' : 'Codex'}
+                                description={provider.available
+                                    ? `${provider.eventCount} events · ${provider.filesScanned} files scanned · last 30d ${provider.last30Days.totalTokens.toLocaleString()} tokens`
+                                    : 'Unavailable'}
+                                control={(
+                                    <CursorSettingsBadge>
                                         {provider.available ? provider.allTime.totalTokens.toLocaleString() : '—'}
-                                    </span>
-                                </div>
-                            </div>
+                                    </CursorSettingsBadge>
+                                )}
+                            />
                         ))}
-                    </div>
+                    </CursorSettingsCard>
                 ) : null}
-            </div>
-        </>
+            </CursorSettingsSection>
+        </div>
     )
 }

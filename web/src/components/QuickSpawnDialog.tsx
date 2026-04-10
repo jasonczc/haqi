@@ -2,8 +2,21 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { RepoPicker } from '@/components/RepoPicker'
+import {
+    CursorButton,
+    CursorDialogBody,
+    CursorDialogFooter,
+    CursorDialogHeader,
+    CursorDialogShell,
+    CursorFieldLabel,
+    CursorNotice,
+    CursorSelect,
+    CursorSettingsCard,
+    CursorTextArea,
+    CursorTextField,
+    CursorToggleRow,
+} from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import type { CloudCheckpoint } from '@hapi/protocol/types'
@@ -145,22 +158,22 @@ export function QuickSpawnDialog(props: {
 
     return (
         <Dialog open={props.open} onOpenChange={(open) => { if (!open) handleClose() }}>
-            <DialogContent className="max-w-md">
-                <DialogHeader>
-                    <DialogTitle>New Cloud Session</DialogTitle>
-                </DialogHeader>
+            <DialogContent className="max-w-[560px] border-0 bg-transparent p-0 shadow-none">
+                <CursorDialogShell>
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>New Cloud Session</DialogTitle>
+                    </DialogHeader>
+                    <CursorDialogHeader title="New Cloud Session" />
 
-                <div className="flex flex-col gap-4 pt-2">
+                    <CursorDialogBody>
                     {/* Checkpoint selector */}
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-[var(--text-primary)]">
-                            Checkpoint
-                        </label>
-                        <select
+                        <CursorFieldLabel className="text-[13px] leading-[18px] text-[var(--text-primary)]">Checkpoint</CursorFieldLabel>
+                        <CursorSelect
                             value={checkpointId}
                             onChange={(e) => setCheckpointId(e.target.value)}
                             disabled={isSpawning}
-                            className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
+                            className="min-w-0"
                         >
                             <option value="">— no checkpoint —</option>
                             {readyCheckpoints.map((cp) => (
@@ -168,7 +181,7 @@ export function QuickSpawnDialog(props: {
                                     {cp.name ?? cp.id}
                                 </option>
                             ))}
-                        </select>
+                        </CursorSelect>
                         {checkpointsQuery.isLoading && (
                             <span className="text-xs text-[var(--text-tertiary)]">Loading checkpoints...</span>
                         )}
@@ -176,38 +189,32 @@ export function QuickSpawnDialog(props: {
 
                     {/* Task textarea */}
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-[var(--text-primary)]">
-                            Task
-                        </label>
-                        <textarea
+                        <CursorFieldLabel className="text-[13px] leading-[18px] text-[var(--text-primary)]">Task</CursorFieldLabel>
+                        <CursorTextArea
                             value={task}
                             onChange={(e) => setTask(e.target.value)}
                             placeholder="Describe what the agent should do..."
                             rows={4}
                             disabled={isSpawning}
-                            className="w-full resize-none rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
+                            className="resize-none"
                         />
                     </div>
 
                     {/* Setup Environment checkbox */}
-                    <label className="flex cursor-pointer items-center gap-2 text-sm">
-                        <input
-                            type="checkbox"
-                            checked={setupMode}
-                            onChange={(e) => setSetupMode(e.target.checked)}
-                            disabled={isSpawning}
-                            className="h-4 w-4 rounded border border-[var(--border-secondary)] accent-[var(--accent)]"
-                        />
-                        <span className="font-medium text-[var(--text-primary)]">Setup Environment</span>
-                        <span className="text-[var(--text-tertiary)]">(installs deps, configures tools)</span>
-                    </label>
+                    <CursorToggleRow
+                        label="Setup Environment"
+                        description="(installs deps, configures tools)"
+                        checked={setupMode}
+                        onCheckedChange={setSetupMode}
+                        disabled={isSpawning}
+                    />
 
                     {/* Advanced section */}
                     <div className="flex flex-col gap-0">
                         <button
                             type="button"
                             onClick={() => setAdvancedOpen((v) => !v)}
-                            className="flex items-center gap-1.5 text-sm text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
+                            className="flex items-center gap-1.5 text-[13px] leading-[18px] text-[var(--text-tertiary)] transition-colors hover:text-[var(--text-primary)]"
                         >
                             <ChevronDownIcon
                                 className={`transition-transform ${advancedOpen ? '' : '-rotate-90'}`}
@@ -216,35 +223,30 @@ export function QuickSpawnDialog(props: {
                         </button>
 
                         {advancedOpen && (
-                            <div className="mt-3 flex flex-col gap-3 rounded-md border border-[var(--border-secondary)] p-3">
+                            <CursorSettingsCard className="mt-3 flex flex-col gap-3 border-[var(--border-secondary)] bg-[var(--bg-quinary)] p-3 shadow-none">
                                 {/* Agent */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-medium text-[var(--text-tertiary)]">
-                                        Agent
-                                    </label>
-                                    <select
+                                    <CursorFieldLabel>Agent</CursorFieldLabel>
+                                    <CursorSelect
                                         value={agent}
                                         onChange={(e) => setAgent(e.target.value)}
                                         disabled={isSpawning}
-                                        className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
+                                        className="min-w-0"
                                     >
                                         <option value="claude">Claude</option>
                                         <option value="codex">Codex</option>
-                                    </select>
+                                    </CursorSelect>
                                 </div>
 
                                 {/* Model */}
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-xs font-medium text-[var(--text-tertiary)]">
-                                        Model
-                                    </label>
-                                    <input
+                                    <CursorFieldLabel>Model</CursorFieldLabel>
+                                    <CursorTextField
                                         type="text"
                                         value={model}
                                         onChange={(e) => setModel(e.target.value)}
                                         placeholder="e.g. claude-opus-4-5 (leave blank for default)"
                                         disabled={isSpawning}
-                                        className="w-full rounded-md border border-[var(--border-secondary)] bg-[var(--bg-editor)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-60"
                                     />
                                 </div>
 
@@ -263,37 +265,37 @@ export function QuickSpawnDialog(props: {
                                           ? `Worker: ${activeWorker.machineId} (${activeWorker.provider})`
                                           : 'No active worker available'}
                                 </div>
-                            </div>
+                            </CursorSettingsCard>
                         )}
                     </div>
 
                     {/* Error */}
                     {spawnError && (
-                        <p className="rounded-md bg-[var(--bg-danger-secondary)] px-3 py-2 text-sm text-[var(--danger)]">
+                        <CursorNotice tone="danger" className="text-sm">
                             {spawnError}
-                        </p>
+                        </CursorNotice>
                     )}
 
                     {/* Actions */}
-                    <div className="flex justify-end gap-2 pt-1">
-                        <Button
+                    <CursorDialogFooter>
+                        <CursorButton
                             variant="outline"
                             size="sm"
                             onClick={handleClose}
                             disabled={isSpawning}
                         >
                             Cancel
-                        </Button>
-                        <Button
-                            variant="default"
+                        </CursorButton>
+                        <CursorButton
                             size="sm"
                             onClick={() => void handleStart()}
                             disabled={!canStart}
                         >
                             {isSpawning ? 'Starting...' : 'Start Agent'}
-                        </Button>
-                    </div>
-                </div>
+                        </CursorButton>
+                    </CursorDialogFooter>
+                    </CursorDialogBody>
+                </CursorDialogShell>
             </DialogContent>
         </Dialog>
     )

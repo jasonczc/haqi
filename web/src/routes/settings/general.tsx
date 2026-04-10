@@ -13,6 +13,14 @@ import {
 } from '@/hooks/useImageUploadCompression'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
+import {
+    CursorSettingsCard,
+    CursorSettingsHeader,
+    CursorSettingsRow,
+    CursorSettingsSection,
+    CursorSelect,
+    CursorToggle,
+} from '@/components/settings/CursorSettingsPrimitives'
 
 const locales: Array<{ value: Locale; label: string }> = [
     { value: 'en', label: 'English' },
@@ -81,219 +89,166 @@ export default function SettingsGeneralPage() {
 
     return (
         <>
-            <div className="settings-header">
-                <h1>General</h1>
-                <p>Personal defaults for language, appearance, composer behavior, and Codex queue controls.</p>
-            </div>
+            <CursorSettingsHeader
+                title="General"
+                description="Personal defaults for language, appearance, composer behavior, and Codex queue controls."
+            />
 
-            <div className="settings-section">
-                <div className="settings-section-title">Appearance</div>
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Language</span>
-                            <span className="settings-row-desc">Select the UI language used in the web app.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select className="settings-input" value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
+            <CursorSettingsSection title="Appearance">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Language"
+                        description="Select the UI language used in the web app."
+                        control={
+                            <CursorSelect value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
                                 {locales.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Theme</span>
-                            <span className="settings-row-desc">Choose light, dark, or system appearance.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select className="settings-input" value={themePreference} onChange={(event) => setThemePreference(event.target.value as ThemePreference)}>
+                            </CursorSelect>
+                        }
+                    />
+                    <CursorSettingsRow
+                        title="Theme"
+                        description="Choose light, dark, or system appearance."
+                        control={
+                            <CursorSelect value={themePreference} onChange={(event) => setThemePreference(event.target.value as ThemePreference)}>
                                 {themeOptions.map((option) => (
                                     <option key={option} value={option}>{formatThemeLabel(option)}</option>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Font scale</span>
-                            <span className="settings-row-desc">Increase or decrease overall reading density.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select className="settings-input" value={fontScale} onChange={(event) => setFontScale(event.target.value as unknown as FontScale)}>
+                            </CursorSelect>
+                        }
+                    />
+                    <CursorSettingsRow
+                        title="Font scale"
+                        description="Increase or decrease overall reading density."
+                        noBorder
+                        control={
+                            <CursorSelect value={fontScale} onChange={(event) => setFontScale(event.target.value as unknown as FontScale)}>
                                 {fontScaleOptions.map((option) => (
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                            </CursorSelect>
+                        }
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-            <div className="settings-section">
-                <div className="settings-section-title">Composer</div>
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Enter key behavior</span>
-                            <span className="settings-row-desc">Control whether Enter sends immediately or inserts a newline.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select className="settings-input" value={enterBehavior} onChange={(event) => setEnterBehavior(event.target.value as typeof enterBehavior)}>
+            <CursorSettingsSection title="Composer">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Enter key behavior"
+                        description="Control whether Enter sends immediately or inserts a newline."
+                        control={
+                            <CursorSelect value={enterBehavior} onChange={(event) => setEnterBehavior(event.target.value as typeof enterBehavior)}>
                                 <option value="send">Send message</option>
                                 <option value="newline">Insert newline</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Inline queue panel</span>
-                            <span className="settings-row-desc">Show Codex queue state inline above the composer.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select className="settings-input" value={queueInlinePanelMode} onChange={(event) => setQueueInlinePanelMode(event.target.value as QueueInlinePanelMode)}>
+                            </CursorSelect>
+                        }
+                    />
+                    <CursorSettingsRow
+                        title="Inline queue panel"
+                        description="Show Codex queue state inline above the composer."
+                        control={
+                            <CursorSelect value={queueInlinePanelMode} onChange={(event) => setQueueInlinePanelMode(event.target.value as QueueInlinePanelMode)}>
                                 {queuePanelModes.map((option) => (
                                     <option key={option} value={option}>{formatQueueLabel(option)}</option>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Default Codex send mode</span>
-                            <span className="settings-row-desc">Choose whether Codex messages run immediately or enter the queue by default.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select className="settings-input" value={codexSendModeDefault} onChange={(event) => setCodexSendModeDefault(event.target.value as (typeof sendModes)[number])}>
+                            </CursorSelect>
+                        }
+                    />
+                    <CursorSettingsRow
+                        title="Default Codex send mode"
+                        description="Choose whether Codex messages run immediately or enter the queue by default."
+                        control={
+                            <CursorSelect value={codexSendModeDefault} onChange={(event) => setCodexSendModeDefault(event.target.value as (typeof sendModes)[number])}>
                                 {sendModes.map((option) => (
                                     <option key={option} value={option}>{formatSendModeLabel(option)}</option>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Reopen session position</span>
-                            <span className="settings-row-desc">Choose where the timeline lands when a session is reopened.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select className="settings-input" value={sessionReopenPosition} onChange={(event) => setSessionReopenPosition(event.target.value as SessionReopenPositionPreference)}>
+                            </CursorSelect>
+                        }
+                    />
+                    <CursorSettingsRow
+                        title="Reopen session position"
+                        description="Choose where the timeline lands when a session is reopened."
+                        noBorder
+                        control={
+                            <CursorSelect value={sessionReopenPosition} onChange={(event) => setSessionReopenPosition(event.target.value as SessionReopenPositionPreference)}>
                                 {reopenModes.map((option) => (
                                     <option key={option} value={option}>{formatReopenLabel(option)}</option>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                            </CursorSelect>
+                        }
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-            <div className="settings-section">
-                <div className="settings-section-title">Workflow</div>
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Project quick create</span>
-                            <span className="settings-row-desc">Start a new session from the current project context without extra setup.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <label className="settings-toggle">
-                                <input type="checkbox" checked={projectQuickCreateEnabled} onChange={() => setProjectQuickCreateEnabled(!projectQuickCreateEnabled)} />
-                                <span className="settings-toggle-slider" />
-                            </label>
-                        </div>
-                    </div>
+            <CursorSettingsSection title="Workflow">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Project quick create"
+                        description="Start a new session from the current project context without extra setup."
+                        control={<CursorToggle checked={projectQuickCreateEnabled} onCheckedChange={setProjectQuickCreateEnabled} />}
+                    />
+                    <CursorSettingsRow
+                        title="Skip archive confirmation"
+                        description="Archive sessions immediately without showing the confirmation dialog."
+                        noBorder
+                        control={<CursorToggle checked={skipArchiveConfirmation} onCheckedChange={setSkipArchiveConfirmation} />}
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Skip archive confirmation</span>
-                            <span className="settings-row-desc">Archive sessions immediately without showing the confirmation dialog.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <label className="settings-toggle">
-                                <input type="checkbox" checked={skipArchiveConfirmation} onChange={() => setSkipArchiveConfirmation(!skipArchiveConfirmation)} />
-                                <span className="settings-toggle-slider" />
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="settings-section">
-                <div className="settings-section-title">Uploads</div>
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Compress uploaded images</span>
-                            <span className="settings-row-desc">Reduce screenshot and image size before upload.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <label className="settings-toggle">
-                                <input type="checkbox" checked={imageUploadCompressionEnabled} onChange={() => setImageUploadCompressionEnabled(!imageUploadCompressionEnabled)} />
-                                <span className="settings-toggle-slider" />
-                            </label>
-                        </div>
-                    </div>
-
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Compression level</span>
-                            <span className="settings-row-desc">Trade off quality and file size for inline screenshots.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select
-                                className="settings-input"
+            <CursorSettingsSection title="Uploads">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Compress uploaded images"
+                        description="Reduce screenshot and image size before upload."
+                        control={<CursorToggle checked={imageUploadCompressionEnabled} onCheckedChange={setImageUploadCompressionEnabled} />}
+                    />
+                    <CursorSettingsRow
+                        title="Compression level"
+                        description="Trade off quality and file size for inline screenshots."
+                        control={
+                            <CursorSelect
                                 value={imageUploadCompressionLevel}
-                                disabled={!imageUploadCompressionEnabled}
                                 onChange={(event) => setImageUploadCompressionLevel(event.target.value as ImageUploadCompressionLevel)}
+                                disabled={!imageUploadCompressionEnabled}
                             >
                                 {imageCompressionLevels.map((option) => (
                                     <option key={option} value={option}>{formatCompressionLevel(option)}</option>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Target upload size</span>
-                            <span className="settings-row-desc">Optional soft cap for compressed image payloads.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <select
-                                className="settings-input"
+                            </CursorSelect>
+                        }
+                    />
+                    <CursorSettingsRow
+                        title="Target upload size"
+                        description="Optional soft cap for compressed image payloads."
+                        noBorder
+                        control={
+                            <CursorSelect
                                 value={imageUploadCompressionTargetSize}
-                                disabled={!imageUploadCompressionEnabled}
                                 onChange={(event) => setImageUploadCompressionTargetSize(event.target.value as ImageUploadCompressionTargetSize)}
+                                disabled={!imageUploadCompressionEnabled}
                             >
                                 {imageCompressionTargetSizes.map((option) => (
                                     <option key={option} value={option}>{formatCompressionTarget(option)}</option>
                                 ))}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                            </CursorSelect>
+                        }
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
 
-            <div className="settings-section">
-                <div className="settings-section-title">About</div>
-                <div className="settings-card">
-                    <div className="settings-row">
-                        <div className="settings-row-left">
-                            <span className="settings-row-title">Protocol version</span>
-                            <span className="settings-row-desc">Web client compatibility version used by hub and runner.</span>
-                        </div>
-                        <div className="settings-row-right">
-                            <span className="settings-badge">{PROTOCOL_VERSION}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <CursorSettingsSection title="About">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Protocol version"
+                        description="Web client compatibility version used by hub and runner."
+                        control={<span className="text-[13px] leading-[18px] text-[var(--text-secondary)]">{PROTOCOL_VERSION}</span>}
+                        noBorder
+                    />
+                </CursorSettingsCard>
+            </CursorSettingsSection>
         </>
     )
 }
