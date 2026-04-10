@@ -104,7 +104,19 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         }
 
         if (requestId) {
-          return Array.from(pidToTrackedSession.values()).find((session) => session.spawnRequestId === requestId) ?? undefined;
+          const byReq = Array.from(pidToTrackedSession.values()).find((session) => session.spawnRequestId === requestId);
+          if (byReq) return byReq;
+        }
+
+        // Fallback: if only one runner-spawned session is awaiting, match it
+        // (handles PID mismatch when bun forks a child process)
+        if (pid) {
+          const awaitingSessions = Array.from(pidToTrackedSession.entries())
+            .filter(([, s]) => s.startedBy === 'runner' && !s.happySessionId);
+          if (awaitingSessions.length === 1) {
+            logger.debug(`[RUNNER RUN] Webhook PID ${pid} unmatched, but only one awaiting session (PID ${awaitingSessions[0][0]}) — matching by inference`);
+            return awaitingSessions[0][1];
+          }
         }
 
         return undefined;
@@ -127,23 +139,35 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         }
         logger.debug(`[RUNNER RUN] Updated runner-spawned session ${sessionId} with metadata`);
 
-        // Resolve any awaiter for this PID
-        const awaiter = pid !== undefined ? pidToAwaiter.get(pid) : undefined;
-        if (awaiter) {
-          if (pid !== undefined) {
-            pidToAwaiter.delete(pid);
-            pidToErrorAwaiter.delete(pid);
-          }
+        // Resolve any awaiter — try PID, then requestId, then tracked session's parent PID
+        let awaiterResolved = false;
+        if (pid !== undefined && pidToAwaiter.has(pid)) {
+          const awaiter = pidToAwaiter.get(pid)!;
+          pidToAwaiter.delete(pid);
+          pidToErrorAwaiter.delete(pid);
           awaiter(existingSession);
+          awaiterResolved = true;
           logger.debug(`[RUNNER RUN] Resolved session awaiter for PID ${pid}`);
         }
-        if (requestId) {
+        if (!awaiterResolved && requestId) {
           const requestAwaiter = requestIdToAwaiter.get(requestId);
           if (requestAwaiter) {
             requestIdToAwaiter.delete(requestId);
             requestIdToErrorAwaiter.delete(requestId);
             requestAwaiter(existingSession);
+            awaiterResolved = true;
             logger.debug(`[RUNNER RUN] Resolved session awaiter for requestId ${requestId}`);
+          }
+        }
+        // Fallback: child process PID may differ from spawned PID (bun forks)
+        if (!awaiterResolved && existingSession.pid) {
+          const parentAwaiter = pidToAwaiter.get(existingSession.pid);
+          if (parentAwaiter) {
+            pidToAwaiter.delete(existingSession.pid);
+            pidToErrorAwaiter.delete(existingSession.pid);
+            parentAwaiter(existingSession);
+            awaiterResolved = true;
+            logger.debug(`[RUNNER RUN] Resolved session awaiter via parent PID ${existingSession.pid}`);
           }
         }
 
@@ -390,6 +414,13 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         } else if ((options.runtimeKind === 'daemon-session' || options.runtimeKind === 'docker-session') && !spawnDirectory) {
           // Docker/daemon sessions without a repo can run with no local directory
           logger.debug(`[RUNNER RUN] Docker session without local directory — will use container workspace`);
+        } else if (options.runtimeKind === 'host-process' && !spawnDirectory) {
+          // Host-process cloud sessions without explicit directory — use a temp workspace
+          const os = await import('node:os');
+          const path = await import('node:path');
+          spawnDirectory = path.join(os.homedir(), '.hapi', 'workspaces', `session-${Date.now().toString(36)}`);
+          await fs.mkdir(spawnDirectory, { recursive: true });
+          logger.debug(`[RUNNER RUN] Host-process session without directory — created workspace: ${spawnDirectory}`);
         } else if (sessionType === 'simple' && !spawnDirectory) {
           spawnFailed = true;
           syncCloudRunnerState({
@@ -742,7 +773,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               executionCwd,
               workingDirectory: spawnDirectory,
               env: extraEnv,
-              options
+              options,
+              controlPort
             });
 
         const MAX_TAIL_CHARS = 4000;
@@ -892,8 +924,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           });
         }
 
-        // Daemon-session containers need longer to start (pull image + boot daemon + spawn agent)
-        const webhookTimeoutMs = execution.runtimeKind === 'daemon-session' ? 60_000 : 15_000;
+        // Daemon-session and host-process need longer to start (CLI boot + model init)
+        const webhookTimeoutMs = execution.runtimeKind === 'daemon-session' || execution.runtimeKind === 'host-process' ? 180_000 : 15_000;
         logger.debug(`[RUNNER RUN] Waiting for session webhook for PID ${pid} (timeout: ${webhookTimeoutMs}ms)`);
         spawnResult = await new Promise<SpawnSessionResult>((resolve) => {
           const timeout = setTimeout(() => {

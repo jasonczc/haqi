@@ -123,7 +123,9 @@ export function startHostProcessExecutor(params: {
     workingDirectory: string
     env: Record<string, string>
     options: SpawnSessionOptions
+    controlPort?: number
 }): HostProcessExecutionResult {
+    const callbackUrl = params.controlPort ? `http://127.0.0.1:${params.controlPort}` : undefined
     const childProcess = spawnHappyCLI(buildSpawnArgs(params.options), {
         cwd: params.executionCwd,
         detached: true,
@@ -131,7 +133,8 @@ export function startHostProcessExecutor(params: {
         env: {
             ...process.env,
             ...params.env,
-            HAPI_WORKING_DIRECTORY: params.workingDirectory
+            HAPI_WORKING_DIRECTORY: params.workingDirectory,
+            ...(callbackUrl ? { HAPI_RUNNER_CALLBACK_URL: callbackUrl } : {})
         }
     })
 
