@@ -615,9 +615,6 @@ function SessionsPage() {
                                             {additions ? `+${additions}` : formatHomeTime(session.updatedAt)}
                                             {deletions ? <span style={{ color: '#ef4444' }}> -{deletions}</span> : null}
                                         </span>
-                                        <button type="button" className="history-archive" title="Archive" onClick={(event) => event.stopPropagation()}>
-                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8Z"/><path d="M10 12h4"/></svg>
-                                        </button>
                                     </button>
                                     {childTitle ? (
                                         <button

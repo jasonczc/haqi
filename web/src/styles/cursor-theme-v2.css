@@ -715,28 +715,6 @@ html.dark body,
     margin-left: 6px;
 }
 
-.history-archive {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    color: var(--cursor-text-tertiary);
-}
-
-.history-item:hover .history-archive {
-    display: inline-flex;
-}
-
-.history-archive:hover {
-    background: var(--cursor-bg-quaternary);
-    color: var(--cursor-text-primary);
-}
-
 .history-sub-item {
     display: flex;
     align-items: center;
