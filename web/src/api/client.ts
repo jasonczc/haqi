@@ -1078,6 +1078,22 @@ export class ApiClient {
         }
     }
 
+    async getCloudRequestLogs(requestId: string): Promise<{
+        content: string
+        truncated: boolean
+        found: boolean
+        machineId?: string
+        error?: string
+    }> {
+        return await this.request(`/api/cloud/requests/${encodeURIComponent(requestId)}/logs`) as {
+            content: string
+            truncated: boolean
+            found: boolean
+            machineId?: string
+            error?: string
+        }
+    }
+
     async getCloudEnvironments(): Promise<import('@/types/api').CloudEnvironmentsResponse> {
         return await this.request<import('@/types/api').CloudEnvironmentsResponse>('/api/machines/cloud/environments')
     }

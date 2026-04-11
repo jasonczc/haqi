@@ -130,8 +130,7 @@ export async function runCursor(opts: {
     } finally {
         const localFailure = sessionWrapperRef.current?.localLaunchFailure;
         if (localFailure?.exitReason === 'exit') {
-            lifecycle.setExitCode(1);
-            lifecycle.setArchiveReason(`Local launch failed: ${formatFailureReason(localFailure.message)}`);
+            lifecycle.markCrash(new Error(`Local launch failed: ${formatFailureReason(localFailure.message)}`));
         }
         await lifecycle.cleanupAndExit();
     }

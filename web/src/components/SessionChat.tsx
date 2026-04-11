@@ -386,6 +386,129 @@ function normalizeCodexCollaborationMode(value: string | undefined): 'plan' | 'd
     return value?.trim().toLowerCase() === 'plan' ? 'plan' : 'default'
 }
 
+/**
+ * Banner shown when `session.active === false`. Three modes:
+ *   1. Crashed: metadata.archiveDetail is set → red banner with exit code,
+ *      stderr/stdout tails, and a Retry button that spawns a same-config session.
+ *   2. User-archived: archiveReason matches "user" → neutral "archived" banner.
+ *   3. Idle: fallback — existing "Session is inactive" message.
+ */
+function SessionInactiveBanner(props: {
+    session: Session
+    onNavigateToSession: (sessionId: string) => void
+    spawnSameConfigSession: () => Promise<string>
+    addToast: (toast: { title: string; body: string; sessionId: string; url: string }) => void
+}) {
+    const [stderrExpanded, setStderrExpanded] = useState(false)
+    const [stdoutExpanded, setStdoutExpanded] = useState(false)
+    const [retrying, setRetrying] = useState(false)
+
+    const detail = props.session.metadata?.archiveDetail
+
+    if (detail) {
+        const stderrTrimmed = (detail.stderrTail ?? '').trim()
+        const stdoutTrimmed = (detail.stdoutTail ?? '').trim()
+        const exitLabel = detail.exitCode !== null
+            ? `exit ${detail.exitCode}`
+            : detail.signal
+                ? `signal ${detail.signal}`
+                : 'unknown'
+
+        const handleRetry = async () => {
+            if (retrying) return
+            setRetrying(true)
+            try {
+                const newId = await props.spawnSameConfigSession()
+                props.onNavigateToSession(newId)
+            } catch (err) {
+                props.addToast({
+                    title: 'Retry failed',
+                    body: err instanceof Error ? err.message : String(err),
+                    sessionId: props.session.id,
+                    url: ''
+                })
+            } finally {
+                setRetrying(false)
+            }
+        }
+
+        return (
+            <div className="px-3 pt-3">
+                <div className="w-full rounded-lg border border-[var(--danger,#ef4444)]/40 bg-[var(--danger,#ef4444)]/10 px-4 py-3 text-[var(--cursor-text-primary)]">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <div className="text-[13px] font-semibold text-[var(--danger,#ef4444)]">
+                                Session crashed ({exitLabel})
+                            </div>
+                            <div className="mt-0.5 text-[12px] text-[var(--cursor-text-tertiary)]">
+                                The agent process exited before responding. See the logs below for the root cause.
+                                {detail.spawnRequestId ? (
+                                    <> Request <code className="font-mono">{detail.spawnRequestId.slice(0, 8)}</code>.</>
+                                ) : null}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => void handleRetry()}
+                            disabled={retrying}
+                            className="shrink-0 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] px-3 py-1.5 text-[12px] font-medium text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)] disabled:opacity-60"
+                        >
+                            {retrying ? 'Retrying…' : 'Retry'}
+                        </button>
+                    </div>
+                    {stderrTrimmed ? (
+                        <div className="mt-2">
+                            <button
+                                type="button"
+                                onClick={() => setStderrExpanded(v => !v)}
+                                className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]"
+                            >
+                                <span>stderr</span>
+                                <span>{stderrExpanded ? '▾' : '▸'}</span>
+                            </button>
+                            {stderrExpanded ? (
+                                <pre className="mt-1 max-h-64 overflow-auto rounded bg-[var(--cursor-bg-app)] p-2 font-mono text-[11px] leading-relaxed text-[var(--cursor-text-secondary)] whitespace-pre-wrap break-all">
+                                    {stderrTrimmed}
+                                </pre>
+                            ) : (
+                                <div className="mt-1 truncate font-mono text-[11px] text-[var(--cursor-text-secondary)]">
+                                    {stderrTrimmed.split('\n').slice(-1)[0]}
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
+                    {stdoutTrimmed && stdoutTrimmed !== stderrTrimmed ? (
+                        <div className="mt-2">
+                            <button
+                                type="button"
+                                onClick={() => setStdoutExpanded(v => !v)}
+                                className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]"
+                            >
+                                <span>stdout</span>
+                                <span>{stdoutExpanded ? '▾' : '▸'}</span>
+                            </button>
+                            {stdoutExpanded ? (
+                                <pre className="mt-1 max-h-64 overflow-auto rounded bg-[var(--cursor-bg-app)] p-2 font-mono text-[11px] leading-relaxed text-[var(--cursor-text-secondary)] whitespace-pre-wrap break-all">
+                                    {stdoutTrimmed}
+                                </pre>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
+            </div>
+        )
+    }
+
+    // Plain inactive fallback
+    return (
+        <div className="px-3 pt-3">
+            <div className="w-full rounded-lg bg-[var(--cursor-bg-quiet)] px-4 py-2.5 text-[var(--font-size-base)] text-[var(--cursor-text-tertiary)]">
+                Session is inactive. Sending will resume it automatically.
+            </div>
+        </div>
+    )
+}
+
 export function SessionChat(props: {
     api: ApiClient
     session: Session
@@ -500,7 +623,8 @@ export function SessionChat(props: {
         setModel,
         setThinkEffort,
         setServiceTier,
-        setCollaborationMode
+        setCollaborationMode,
+        spawnSameConfigSession
     } = useSessionActions(
         props.api,
         props.session.id,
@@ -1343,11 +1467,14 @@ export function SessionChat(props: {
             )}
 
             {sessionInactive ? (
-                <div className="px-3 pt-3">
-                    <div className="w-full rounded-lg bg-[var(--cursor-bg-quiet)] px-4 py-2.5 text-[var(--font-size-base)] text-[var(--cursor-text-tertiary)]">
-                        Session is inactive. Sending will resume it automatically.
-                    </div>
-                </div>
+                <SessionInactiveBanner
+                    session={props.session}
+                    onNavigateToSession={(sessionId) =>
+                        navigate({ to: '/sessions/$sessionId', params: { sessionId } })
+                    }
+                    spawnSameConfigSession={spawnSameConfigSession}
+                    addToast={addToast}
+                />
             ) : null}
 
             <AssistantRuntimeProvider runtime={runtime}>

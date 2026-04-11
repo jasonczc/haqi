@@ -639,6 +639,10 @@ export class RpcGateway {
         return this.machineRpc(machineId, 'docker-cleanup', params)
     }
 
+    async getSpawnLog(machineId: string, spawnRequestId: string): Promise<unknown> {
+        return this.machineRpc(machineId, 'get-spawn-log', { spawnRequestId })
+    }
+
     async listMcpServers(sessionId: string): Promise<RpcMcpServersResponse> {
         try {
             return await this.sessionRpc(sessionId, 'listMcpServers', {}) as RpcMcpServersResponse

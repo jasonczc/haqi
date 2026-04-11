@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import type { FileHandle } from 'node:fs/promises';
 
+import { ARCHIVE_DETAIL_TAIL_MAX_CHARS } from '@hapi/protocol/schemas';
 import { ApiClient } from '@/api/api';
 import { TrackedSession } from './types';
 import { RunnerState, Metadata, MachineMetadata } from '@/api/types';
@@ -31,6 +32,8 @@ import { buildSpawnEnvironment, startHostProcessExecutor } from '@/cloud/executo
 import { startDockerSessionExecutor } from '@/cloud/executors/DockerSessionExecutor';
 import { startDaemonSessionExecutor } from '@/cloud/executors/DaemonSessionExecutor';
 import { ensureWorkspaceContainer } from '@/cloud/executors/WorkspaceContainerManager';
+import { SpawnLogger, pruneOldSpawnLogs } from './spawnLog';
+import { reportCrashToHub } from './reportCrash';
 import { mergePreviewTargets } from '@/cloud/preview/previewReporter';
 import type { PreparedWorkspace, PreparedWorkspaceCleanup, ResolvedEnvironmentTemplate } from '@/cloud/types';
 import { runEnvironmentCommands } from '@/cloud/environment/runEnvironmentCommands';
@@ -65,6 +68,10 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     // (agent sessions) inherit them and can connect back to the Hub.
     process.env.CLI_API_TOKEN = options.getAuthToken();
     process.env.HAPI_API_URL = options.getApiUrl();
+
+    // Drop spawn log files older than a week. Fire-and-forget — failure here
+    // never blocks startup.
+    void pruneOldSpawnLogs();
 
     // Setup state - key by PID
     const pidToTrackedSession = new Map<number, TrackedSession>();
@@ -524,15 +531,49 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         if (isCloudDockerSession && dockerRuntime && resolvedEnvironment.runtimeKind !== 'daemon-session') {
           updateWorkspacePreparation('pulling-checkpoint', 20);
           await dockerRuntime.ensureAvailable();
+
+          // Resolve the checkpoint image tag. ensureWorkspaceContainer uses
+          // params.checkpointImage as the literal docker image to run; if we
+          // only pass checkpointId (a uuid) it falls back to haqi-workspace:dev
+          // and the user's checkpoint state is silently ignored.
+          const effectiveCheckpointId = options.checkpointId ?? preparedWorkspace.checkpointId;
+          let checkpointImage: string | undefined = effectiveCheckpointId
+            ? `haqi-checkpoint:${effectiveCheckpointId}`
+            : undefined;
+          if (checkpointImage) {
+            try {
+              const { runDockerCommand: runCmd } = await import('@/cloud/docker/dockerCli');
+              await runCmd(['inspect', '--type=image', checkpointImage]);
+              logger.debug(`[RUNNER RUN] Checkpoint image ${checkpointImage} found, will use for container`);
+            } catch {
+              logger.debug(`[RUNNER RUN] Checkpoint image ${checkpointImage} not found locally, falling back to base image`);
+              checkpointImage = undefined;
+            }
+          }
+
           const workspaceContainer = await ensureWorkspaceContainer({
             runtime: dockerRuntime,
             workspace: preparedWorkspace,
             environment: resolvedEnvironment,
-            checkpointId: options.checkpointId ?? preparedWorkspace.checkpointId,
+            checkpointImage,
+            checkpointId: effectiveCheckpointId,
             sessionLabel: spawnRequestId
           });
           workspaceContainerId = workspaceContainer.containerId;
           workspaceContainerPreviewTargets = workspaceContainer.previewTargets;
+
+          // Bake host credentials (Claude OAuth, Codex auth.json, …) into the
+          // container's overlay layer. Skip when reusing a checkpoint image —
+          // those already carry baked credentials from the previous save. The
+          // downstream DockerSessionExecutor receives the existing container
+          // here and won't re-inject, so this is the only place credentials
+          // get into a fresh docker-session container.
+          if (!checkpointImage) {
+            const { injectHostCredentialsIntoContainer } = await import('@/cloud/credentials/hostCredentials');
+            await injectHostCredentialsIntoContainer(workspaceContainerId).catch((err) => {
+              logger.debug('[RUNNER RUN] credential injection failed', err);
+            });
+          }
 
           if (repositorySource) {
             updateWorkspacePreparation('syncing-repo', 30);
@@ -780,6 +821,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
 
         const MAX_TAIL_CHARS = 4000;
         let stderrTail = '';
+        let stdoutTail = '';
         const appendTail = (current: string, chunk: Buffer | string): string => {
           const text = chunk.toString();
           if (!text) {
@@ -794,12 +836,29 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             return;
           }
           logger.debug('[RUNNER RUN] Child stderr tail', trimmed);
+          spawnLogger.event('stderr.tail', trimmed);
         };
+
+        // Dedicated per-spawn log file (~/.hapi/logs/spawn/{requestId}.log).
+        // Captures stdout, stderr, lifecycle events for later UI inspection.
+        const spawnLogger = new SpawnLogger(spawnRequestId);
+        spawnLogger.event('spawn.begin', {
+          spawnRequestId,
+          agent: options.agent,
+          runtimeKind: options.runtimeKind,
+          executionBackend: options.executionBackend,
+          checkpointId: options.checkpointId ?? null
+        });
 
         if ('childProcess' in execution) {
           happyProcess = execution.childProcess;
           happyProcess.stderr?.on('data', (data) => {
             stderrTail = appendTail(stderrTail, data);
+            spawnLogger.stderr(data);
+          });
+          happyProcess.stdout?.on('data', (data) => {
+            stdoutTail = appendTail(stdoutTail, data);
+            spawnLogger.stdout(data);
           });
 
           let spawnErrorBeforePidCheck: Error | null = null;
@@ -901,7 +960,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             observedExitCode = typeof code === 'number' ? code : null;
             observedExitSignal = signal ?? null;
             logger.debug(`[RUNNER RUN] Child PID ${pid} exited with code ${code}, signal ${signal}`);
-            if (code !== 0 || signal) {
+            spawnLogger.event('child.exit', { code, signal });
+            const isAbnormalExit = code !== 0 || Boolean(signal);
+            if (isAbnormalExit) {
               logStderrTail();
             }
             const errorAwaiter = pidToErrorAwaiter.get(pid);
@@ -909,12 +970,35 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               pidToErrorAwaiter.delete(pid);
               pidToAwaiter.delete(pid);
               errorAwaiter(buildWebhookFailureMessage('exit-before-webhook'));
+            } else if (isAbnormalExit) {
+              const trackedForCrash = pidToTrackedSession.get(pid);
+              const crashSessionId = trackedForCrash?.happySessionId;
+              if (crashSessionId) {
+                // The inner SpawnSessionOptions doesn't carry credentials;
+                // outer runRunnerLoop propagated them to process.env at startup.
+                void reportCrashToHub({
+                  hubUrl: process.env.HAPI_API_URL ?? '',
+                  authToken: process.env.CLI_API_TOKEN ?? '',
+                  sessionId: crashSessionId,
+                  detail: {
+                    exitCode: observedExitCode,
+                    signal: observedExitSignal,
+                    stderrTail: stderrTail.trim().slice(-ARCHIVE_DETAIL_TAIL_MAX_CHARS),
+                    stdoutTail: stdoutTail.trim().slice(-ARCHIVE_DETAIL_TAIL_MAX_CHARS),
+                    spawnRequestId: trackedForCrash?.spawnRequestId,
+                    at: Date.now()
+                  }
+                }).catch((err) => logger.debug('[RUNNER RUN] crash report threw', err));
+              }
             }
+            spawnLogger.close();
             onChildExited(pid);
           });
 
           happyProcess.on('error', (error) => {
             logger.debug(`[RUNNER RUN] Child process error:`, error);
+            spawnLogger.event('child.error', error instanceof Error ? { name: error.name, message: error.message } : String(error));
+            spawnLogger.close();
             const errorAwaiter = pidToErrorAwaiter.get(pid);
             if (errorAwaiter) {
               pidToErrorAwaiter.delete(pid);
@@ -1378,15 +1462,32 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       dockerCleanup: async (params) => {
         const { cleanupDockerStorage } = await import('@/cloud/docker/dockerStorage')
         return await cleanupDockerStorage(params)
+      },
+      getSpawnLog: async (params) => {
+        const { readSpawnLog } = await import('./spawnLog')
+        const result = readSpawnLog(params.spawnRequestId)
+        if (!result) {
+          return { content: '', truncated: false, found: false }
+        }
+        return { content: result.content, truncated: result.truncated, found: true }
       }
     });
 
     // Connect to server
     apiMachine.connect();
 
+    // Worker capacity precedence: explicit env var > capabilities-detected
+    // maxConcurrentSessions > 1. The previous default of 1 silently capped
+    // every cloud worker at one concurrent session even when capability
+    // detection said the host could handle more, causing surprise
+    // no_matching_cloud_worker rejections after the first spawn.
+    const detectedCapacity = options.metadata?.capabilities?.maxConcurrentSessions
+    const envCapacity = Number.parseInt(process.env.HAPI_RUNNER_CAPACITY_TOTAL ?? '', 10)
     const configuredCapacityTotal = Math.max(
       1,
-      Number.parseInt(process.env.HAPI_RUNNER_CAPACITY_TOTAL ?? '1', 10) || 1
+      Number.isFinite(envCapacity) && envCapacity > 0
+        ? envCapacity
+        : (detectedCapacity && detectedCapacity > 0 ? detectedCapacity : 1)
     );
     let activeSpawnCount = 0;
     let cloudRunnerCurrentSessionId: string | null | undefined = undefined;

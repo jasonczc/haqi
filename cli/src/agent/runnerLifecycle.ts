@@ -1,4 +1,6 @@
 import type { ApiSessionClient } from '@/api/apiSession'
+import { ARCHIVE_DETAIL_TAIL_MAX_CHARS, type ArchiveDetail } from '@hapi/protocol/schemas'
+import type { Metadata } from '@hapi/protocol/types'
 import { logger } from '@/ui/logger'
 import { restoreTerminalState } from '@/ui/terminalState'
 
@@ -19,21 +21,34 @@ export type RunnerLifecycle = {
     registerProcessHandlers: () => void
 }
 
+function formatCrashMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.stack ?? `${error.name}: ${error.message}`
+    }
+    if (typeof error === 'string') return error
+    try {
+        return JSON.stringify(error)
+    } catch {
+        return String(error)
+    }
+}
+
 export function createRunnerLifecycle(options: RunnerLifecycleOptions): RunnerLifecycle {
     let exitCode = 0
     let archiveReason = 'User terminated'
-    let cleanupStarted = false
+    let crashDetail: ArchiveDetail | undefined = undefined
     let cleanupPromise: Promise<void> | null = null
 
     const logPrefix = `[${options.logTag}]`
 
     const archiveAndClose = async () => {
-        options.session.updateMetadata((currentMetadata) => ({
-            ...currentMetadata,
+        options.session.updateMetadata((currentMetadata): Metadata => ({
+            ...(currentMetadata as Metadata),
             lifecycleState: 'archived',
             lifecycleStateSince: Date.now(),
             archivedBy: 'cli',
-            archiveReason
+            archiveReason,
+            ...(crashDetail ? { archiveDetail: crashDetail } : {})
         }))
 
         options.session.sendSessionDeath()
@@ -46,7 +61,6 @@ export function createRunnerLifecycle(options: RunnerLifecycleOptions): RunnerLi
             return cleanupPromise
         }
 
-        cleanupStarted = true
         cleanupPromise = (async () => {
             logger.debug(`${logPrefix} Cleanup start`)
             restoreTerminalState()
@@ -92,8 +106,22 @@ export function createRunnerLifecycle(options: RunnerLifecycleOptions): RunnerLi
 
     const markCrash = (error: unknown) => {
         logger.debug(`${logPrefix} Unhandled error:`, error)
+        const message = formatCrashMessage(error)
         exitCode = 1
         archiveReason = 'Session crashed'
+        crashDetail = {
+            exitCode,
+            signal: null,
+            stderrTail: message.slice(-ARCHIVE_DETAIL_TAIL_MAX_CHARS),
+            at: Date.now()
+        }
+        // Also write to real stderr so the parent worker's stderr pipe captures
+        // the message — logger.debug only goes to the in-container log file.
+        try {
+            process.stderr.write(`${logPrefix} Unhandled error: ${message}\n`)
+        } catch {
+            // never let error reporting itself crash
+        }
     }
 
     const registerProcessHandlers = () => {

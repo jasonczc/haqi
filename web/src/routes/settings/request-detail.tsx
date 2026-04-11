@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { LoadingState } from '@/components/LoadingState'
@@ -6,7 +6,6 @@ import {
     CursorButton,
     CursorDetailGrid,
     CursorDetailItem,
-    CursorSettingsCard,
     CursorSettingsHeader,
 } from '@/components/settings/CursorSettingsPrimitives'
 import { useAppContext } from '@/lib/app-context'
@@ -198,6 +197,85 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
                     </div>
                 ) : null}
             </CursorDetailGrid>
+
+            <SpawnLogsPanel requestId={request.id} />
+        </div>
+    )
+}
+
+/**
+ * Fetches and displays the per-spawn log file from the worker.
+ * Lazy — only fetches when the user clicks "Load logs".
+ */
+function SpawnLogsPanel(props: { requestId: string }) {
+    const { api } = useAppContext()
+    const [expanded, setExpanded] = useState(false)
+
+    const logsQuery = useQuery({
+        queryKey: ['cloud-request-logs', props.requestId],
+        enabled: Boolean(api) && expanded,
+        queryFn: async () => {
+            if (!api) throw new Error('API unavailable')
+            return await api.getCloudRequestLogs(props.requestId)
+        },
+        staleTime: 5_000
+    })
+
+    return (
+        <div className="rounded-md border border-[var(--border-tertiary)] bg-[var(--bg-secondary)] p-3">
+            <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="text-[13px] font-semibold text-[var(--text-primary)]">Spawn logs</div>
+                    <div className="text-[11px] text-[var(--text-tertiary)]">
+                        The full stdout, stderr, and lifecycle events captured by the worker for this spawn.
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    {expanded ? (
+                        <CursorButton
+                            type="button"
+                            variant="outline"
+                            onClick={() => void logsQuery.refetch()}
+                            disabled={logsQuery.isFetching}
+                        >
+                            {logsQuery.isFetching ? 'Refreshing…' : 'Refresh'}
+                        </CursorButton>
+                    ) : null}
+                    <CursorButton
+                        type="button"
+                        variant={expanded ? 'outline' : 'primary'}
+                        onClick={() => setExpanded(v => !v)}
+                    >
+                        {expanded ? 'Hide' : 'Load logs'}
+                    </CursorButton>
+                </div>
+            </div>
+            {expanded ? (
+                <div className="mt-3">
+                    {logsQuery.isLoading ? (
+                        <div className="text-[12px] text-[var(--text-tertiary)]">Loading…</div>
+                    ) : logsQuery.isError ? (
+                        <div className="text-[12px] text-[var(--danger)]">
+                            {logsQuery.error instanceof Error ? logsQuery.error.message : 'Failed to load logs'}
+                        </div>
+                    ) : !logsQuery.data?.found ? (
+                        <div className="text-[12px] text-[var(--text-tertiary)]">
+                            No spawn log available for this request (worker may have pruned it, or the spawn was from an older build without per-spawn logging).
+                        </div>
+                    ) : (
+                        <>
+                            {logsQuery.data.truncated ? (
+                                <div className="mb-1 text-[11px] text-[var(--text-tertiary)]">
+                                    Output truncated — showing tail only.
+                                </div>
+                            ) : null}
+                            <pre className="max-h-[50vh] overflow-auto rounded bg-[var(--bg-primary)] p-3 font-mono text-[11px] leading-[1.4] text-[var(--text-primary)] whitespace-pre-wrap break-all">
+                                {logsQuery.data.content || '(empty)'}
+                            </pre>
+                        </>
+                    )}
+                </div>
+            ) : null}
         </div>
     )
 }

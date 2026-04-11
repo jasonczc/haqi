@@ -381,13 +381,18 @@ export class SpawnCoordinator {
             const checkpoint = this.resolveCheckpoint(request, requestedEnvironment)
 
             // Source validation: a cloud session is valid if ANY of the following:
-            //   1. sessionType === 'setup'                 — bare session for env config
-            //   2. runtimeKind is host-process/daemon      — no Docker image needed
-            //   3. checkpoint exists                        — checkpoint has baked state (repo optional)
-            //   4. workspaceSource.repository exists        — fresh clone into a fresh container
-            //   5. environment.runtime.image is set         — custom pre-built image
+            //   1. sessionType === 'setup'                    — bare session for env config
+            //   2. runtimeKind is a known container runtime   — all three have a default
+            //      base image (haqi-workspace:dev) or their own lifecycle, so no explicit
+            //      source is required
+            //   3. checkpoint exists                           — checkpoint has baked state
+            //   4. workspaceSource.repository exists           — fresh clone into a fresh container
+            //   5. environment.runtime.image is set            — custom pre-built image
             const hasSetupType = request.sessionType === 'setup'
-            const hasFlexibleRuntime = request.runtimeKind === 'host-process' || request.runtimeKind === 'daemon-session'
+            const hasFlexibleRuntime =
+                request.runtimeKind === 'host-process'
+                || request.runtimeKind === 'daemon-session'
+                || request.runtimeKind === 'docker-session'
             const hasCheckpoint = Boolean(checkpoint)
             const hasRepo = Boolean(request.workspaceSource?.repository)
             const hasEnvImage = Boolean(requestedEnvironment?.runtime?.image)
@@ -546,7 +551,11 @@ export class SpawnCoordinator {
             const spawnPayload: MachineSpawnRequest = {
                 ...request,
                 spawnRequestId: requestId,
-                checkpointId: checkpoint?.id,
+                // Prefer the resolved DB checkpoint (canonical ID) when available,
+                // otherwise pass through whatever the client sent. The worker then
+                // tries `docker inspect haqi-checkpoint:{id}` and falls back to the
+                // base image if the tag doesn't exist — so invalid IDs fail safe.
+                checkpointId: checkpoint?.id ?? request.checkpointId,
                 repoSyncPolicy: request.repoSyncPolicy ?? 'fetch-reset',
                 environment,
                 resolvedEnvironment: environment,

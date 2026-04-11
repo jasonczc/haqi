@@ -133,6 +133,52 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         return c.json({ request })
     })
 
+    app.get('/cloud/requests/:id/logs', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+        const namespace = c.get('namespace')
+        const requestId = c.req.param('id')
+        const request = engine.getCloudRequestByNamespace(requestId, namespace)
+        if (!request) {
+            return c.json({ error: 'Request not found' }, 404)
+        }
+        // Prefer the machine that actually ran the spawn; fall back to any
+        // online worker in the namespace (worker may have reassigned by now).
+        const machineId = request.selectedMachineId
+            ?? request.requestedMachineId
+            ?? engine.getOnlineMachinesByNamespace(namespace)[0]?.id
+        if (!machineId) {
+            return c.json({ error: 'No worker available to fetch logs from' }, 503)
+        }
+        try {
+            const result = await engine.rpcGetSpawnLog(machineId, requestId) as {
+                content?: string
+                truncated?: boolean
+                found?: boolean
+            } | null | undefined
+            if (!result || !result.found) {
+                return c.json({
+                    content: '',
+                    truncated: false,
+                    found: false,
+                    machineId
+                })
+            }
+            return c.json({
+                content: typeof result.content === 'string' ? result.content : '',
+                truncated: Boolean(result.truncated),
+                found: true,
+                machineId
+            })
+        } catch (err) {
+            return c.json({
+                error: err instanceof Error ? err.message : 'Failed to fetch spawn log'
+            }, 500)
+        }
+    })
+
     app.get('/cloud/workspaces', (c) => {
         const engine = getSyncEngine()
         if (!engine) {

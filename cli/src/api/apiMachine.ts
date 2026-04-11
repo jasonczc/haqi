@@ -84,6 +84,11 @@ type MachineRpcHandlers = {
         freedBytesVolumes: number
         errors: string[]
     }>
+    getSpawnLog: (params: { spawnRequestId: string }) => Promise<{
+        content: string
+        truncated: boolean
+        found: boolean
+    }>
 }
 
 interface PathExistsRequest {
@@ -165,7 +170,7 @@ export class ApiMachineClient {
         })
     }
 
-    setRPCHandlers({ spawnSession, stopSession, requestShutdown, containerList, containerStopSession, containerStop, containerRemove, containerLogs, checkpointCreate, checkpointDelete, previewForward, dockerCleanup }: MachineRpcHandlers): void {
+    setRPCHandlers({ spawnSession, stopSession, requestShutdown, containerList, containerStopSession, containerStop, containerRemove, containerLogs, checkpointCreate, checkpointDelete, previewForward, dockerCleanup, getSpawnLog }: MachineRpcHandlers): void {
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
             const {
                 directory,
@@ -314,6 +319,14 @@ export class ApiMachineClient {
                 pruneBuildCache: params?.pruneBuildCache === true,
                 pruneVolumes: params?.pruneVolumes === true
             })
+        })
+
+        this.rpcHandlerManager.registerHandler('get-spawn-log', async (params: any) => {
+            const spawnRequestId = typeof params?.spawnRequestId === 'string' ? params.spawnRequestId : ''
+            if (!spawnRequestId.trim()) {
+                throw new Error('spawnRequestId is required')
+            }
+            return await getSpawnLog({ spawnRequestId })
         })
     }
 

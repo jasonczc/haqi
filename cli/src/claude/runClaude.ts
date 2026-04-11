@@ -859,8 +859,10 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     const localFailure = currentSessionRef.current?.localLaunchFailure;
     if (localFailure?.exitReason === 'exit') {
-        lifecycle.setExitCode(1);
-        lifecycle.setArchiveReason(`Local launch failed: ${formatFailureReason(localFailure.message)}`);
+        // Route through markCrash so the failure surfaces to stderr (worker
+        // pipe) and archiveDetail (UI banner). setArchiveReason alone only
+        // updates session metadata which the worker can't see.
+        lifecycle.markCrash(new Error(`Local launch failed: ${formatFailureReason(localFailure.message)}`));
     }
 
     if (loopFailed) {

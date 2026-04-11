@@ -1,4 +1,5 @@
 import { AgentStateSchema, MetadataSchema, TeamStateSchema } from '@hapi/protocol/schemas'
+import type { ArchiveDetail } from '@hapi/protocol/schemas'
 import type { ModelMode, PermissionMode, Session } from '@hapi/protocol/types'
 import type { PreviewUrlHistoryEntry, Store } from '../store'
 import { clampAliveTime } from './aliveTime'
@@ -305,6 +306,36 @@ export class SessionCache {
         }
 
         this.refreshSession(sessionId)
+    }
+
+    async recordSessionCrash(
+        sessionId: string,
+        detail: ArchiveDetail
+    ): Promise<void> {
+        await this.updateSessionMetadata(sessionId, (current) => ({
+            ...(current ?? { path: '', host: '' }),
+            lifecycleState: 'archived',
+            lifecycleStateSince: detail.at,
+            archivedBy: 'worker',
+            archiveReason: 'Session crashed',
+            archiveDetail: detail
+        }))
+
+        // Flip to inactive (in-memory cache) and broadcast — but only if the
+        // session wasn't already torn down by handleSessionEnd, otherwise we
+        // emit a duplicate no-op event.
+        const session = this.sessions.get(sessionId) ?? this.refreshSession(sessionId)
+        if (!session) return
+        if (session.active || session.thinking) {
+            session.active = false
+            session.thinking = false
+            session.thinkingAt = detail.at
+            this.publisher.emit({
+                type: 'session-updated',
+                sessionId,
+                data: { active: false, thinking: false }
+            })
+        }
     }
 
     async setPreviewUrl(sessionId: string, previewUrl: string | null): Promise<void> {

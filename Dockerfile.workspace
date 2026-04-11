@@ -75,8 +75,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code CLI globally via npm
+# Install agent CLIs globally via npm. Both Claude and Codex are baked into
+# the base image so checkpoint sessions work for either flavor without an
+# additional setup step. `|| echo` prevents an npm registry blip from breaking
+# the whole image build — the missing binary surfaces at run time as a clear
+# "agent X not installed" error from the runner.
 RUN npm install -g @anthropic-ai/claude-code || echo "claude install skipped"
+RUN npm install -g @openai/codex || echo "codex install skipped"
 
 # Copy daemon binary
 COPY --from=builder /build/daemon/dist/haqi-daemon /usr/local/bin/haqi-daemon

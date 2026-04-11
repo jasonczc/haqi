@@ -458,6 +458,22 @@ export const PreviewTargetSchema = z.object({
 
 export type PreviewTarget = z.infer<typeof PreviewTargetSchema>
 
+// Populated when a spawned child exits abnormally after the session webhook
+// registration. Lets the UI render a crash banner without walking worker logs.
+// Single source of truth: every writer (worker runnerLoop, in-container CLI
+// shutdown handler, hub crash-report endpoint) imports this type so the shape
+// and the tail-size budget can't drift.
+export const ARCHIVE_DETAIL_TAIL_MAX_CHARS = 4000
+export const ArchiveDetailSchema = z.object({
+    exitCode: z.number().int().nullable(),
+    signal: z.string().nullable(),
+    stderrTail: z.string(),
+    stdoutTail: z.string().optional(),
+    spawnRequestId: z.string().optional(),
+    at: z.number()
+})
+export type ArchiveDetail = z.infer<typeof ArchiveDetailSchema>
+
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),
@@ -489,6 +505,7 @@ export const MetadataSchema = z.object({
     lifecycleStateSince: z.number().optional(),
     archivedBy: z.string().optional(),
     archiveReason: z.string().optional(),
+    archiveDetail: ArchiveDetailSchema.optional(),
     flavor: z.string().nullish(),
     worktree: WorktreeMetadataSchema.optional(),
     executionBackend: ExecutionBackendSchema.optional(),

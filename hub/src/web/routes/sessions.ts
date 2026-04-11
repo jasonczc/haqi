@@ -1,5 +1,5 @@
 import { getPermissionModesForFlavor, isModelModeAllowedForFlavor, isPermissionModeAllowedForFlavor, toSessionSummary } from '@hapi/protocol'
-import { ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
+import { ArchiveDetailSchema, ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
 import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import type { SyncEngine, Session } from '../../sync/syncEngine'
@@ -47,6 +47,8 @@ const uploadSchema = z.object({
     content: z.string().min(1),
     mimeType: z.string().min(1).max(255)
 })
+
+const crashReportSchema = ArchiveDetailSchema
 
 const uploadDeleteSchema = z.object({
     path: z.string().min(1)
@@ -669,6 +671,34 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         await engine.archiveSession(sessionResult.sessionId)
+        return c.json({ ok: true })
+    })
+
+    // Worker-initiated crash report: the runnerLoop POSTs here whenever a
+    // spawned child exits abnormally AFTER the session webhook registration
+    // (i.e. during "running" state). We write the detail onto session metadata
+    // so the UI can render a crash banner instead of lying about "inactive".
+    app.post('/sessions/:id/crash-report', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        // Don't use requireActive — the session may already be flipped to inactive
+        // by handleSessionEnd by the time we get here.
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = crashReportSchema.safeParse(body)
+        if (!parsed.success) {
+            const issues = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ')
+            return c.json({ error: `Invalid body: ${issues}` }, 400)
+        }
+
+        await engine.recordSessionCrash(sessionResult.sessionId, parsed.data)
         return c.json({ ok: true })
     })
 

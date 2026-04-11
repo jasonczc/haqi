@@ -609,8 +609,12 @@ export async function runCodex(opts: {
     } finally {
         const localFailure = sessionWrapperRef.current?.localLaunchFailure;
         if (localFailure?.exitReason === 'exit') {
-            lifecycle.setExitCode(1);
-            lifecycle.setArchiveReason(`Local launch failed: ${formatFailureReason(localFailure.message)}`);
+            // Route through markCrash so the failure message is written to
+            // stderr (worker captures it), populated into archiveDetail (UI
+            // banner shows it), and the exit code/reason are set consistently.
+            // setArchiveReason alone only updates session metadata, which the
+            // worker can't see until after the crash report races against it.
+            lifecycle.markCrash(new Error(`Local launch failed: ${formatFailureReason(localFailure.message)}`));
         }
         await lifecycle.cleanupAndExit();
     }

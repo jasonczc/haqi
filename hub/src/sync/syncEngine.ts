@@ -9,6 +9,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { inferClaudeModelModeFromModel, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import type { ArchiveDetail } from '@hapi/protocol/schemas'
 import type {
     CloudSecret,
     CloudSpawnRequest,
@@ -1251,6 +1252,10 @@ export class SyncEngine {
 
     async deleteSession(sessionId: string): Promise<void> {
         await this.sessionCache.deleteSession(sessionId)
+    }
+
+    async recordSessionCrash(sessionId: string, detail: ArchiveDetail): Promise<void> {
+        await this.sessionCache.recordSessionCrash(sessionId, detail)
     }
 
     async applySessionConfig(
@@ -2782,6 +2787,10 @@ ${note.content}
             pruneBuildCache: options.pruneBuildCache === true,
             pruneVolumes: options.pruneVolumes === true
         })
+    }
+
+    async rpcGetSpawnLog(machineId: string, spawnRequestId: string): Promise<unknown> {
+        return this.rpcGateway.getSpawnLog(machineId, spawnRequestId)
     }
 
     private normalizeQueueText(value: string | undefined): string | undefined {

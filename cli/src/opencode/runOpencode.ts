@@ -137,8 +137,7 @@ export async function runOpencode(opts: {
     } finally {
         const localFailure = sessionWrapperRef.current?.localLaunchFailure;
         if (localFailure?.exitReason === 'exit') {
-            lifecycle.setExitCode(1);
-            lifecycle.setArchiveReason(`Local launch failed: ${localFailure.message.slice(0, 200)}`);
+            lifecycle.markCrash(new Error(`Local launch failed: ${localFailure.message.slice(0, 200)}`));
         }
         await lifecycle.cleanupAndExit();
     }
