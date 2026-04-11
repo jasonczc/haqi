@@ -7,48 +7,7 @@ import { ensureWorkspaceContainer } from './WorkspaceContainerManager'
 import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInContainer'
 import { DaemonClient } from './DaemonClient'
 import { buildSpawnArgs } from './HostProcessExecutor'
-
-/**
- * Extract Claude OAuth token from macOS Keychain or ~/.claude/.credentials.json.
- * Returns the access token string or undefined if not found.
- */
-function extractClaudeOAuthToken(): string | undefined {
-    // First try environment variable
-    if (process.env.CLAUDE_CODE_OAUTH_TOKEN) return process.env.CLAUDE_CODE_OAUTH_TOKEN
-    if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
-
-    // Try credentials file
-    try {
-        const fs = require('node:fs') as typeof import('node:fs')
-        const path = require('node:path') as typeof import('node:path')
-        const os = require('node:os') as typeof import('node:os')
-        const credPath = path.join(os.homedir(), '.claude', '.credentials.json')
-        if (fs.existsSync(credPath)) {
-            const raw = fs.readFileSync(credPath, 'utf-8')
-            const parsed = JSON.parse(raw)
-            const token = parsed?.claudeAiOauth?.accessToken
-            if (typeof token === 'string') return token
-        }
-    } catch { /* ignore */ }
-
-    // Try macOS keychain
-    if (process.platform === 'darwin') {
-        try {
-            const { execSync } = require('node:child_process') as typeof import('node:child_process')
-            const raw = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
-                encoding: 'utf-8',
-                stdio: ['ignore', 'pipe', 'ignore']
-            }).trim()
-            if (raw) {
-                const parsed = JSON.parse(raw)
-                const token = parsed?.claudeAiOauth?.accessToken
-                if (typeof token === 'string') return token
-            }
-        } catch { /* ignore */ }
-    }
-
-    return undefined
-}
+import { collectHostCredentials } from '@/cloud/credentials/hostCredentials'
 
 const DAEMON_PORT = 9876
 
@@ -119,7 +78,7 @@ export async function startDaemonSessionExecutor(params: {
 
                         // Spawn new agent in existing container
                         const spawnArgs = buildSpawnArgs(params.options)
-                        const reattachToken = extractClaudeOAuthToken()
+                        const reattachCreds = collectHostCredentials()
                         const spawnResponse = await client.spawn({
                             command: ['haqi', ...spawnArgs],
                             cwd: params.workspace.workingDirectory,
@@ -132,8 +91,7 @@ export async function startDaemonSessionExecutor(params: {
                                 HAPI_RUNTIME_KIND: 'daemon-session',
                                 ...(params.options.sessionType ? { HAPI_SESSION_TYPE: params.options.sessionType } : {}),
                                 ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {}),
-                                ...(reattachToken ? { CLAUDE_CODE_OAUTH_TOKEN: reattachToken } : {}),
-                                ...(process.env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } : {})
+                                ...reattachCreds.env
                             }
                         })
 
@@ -202,6 +160,19 @@ export async function startDaemonSessionExecutor(params: {
 
     await client.waitReady(30_000)
 
+    // Bake host credentials into the container filesystem.
+    // This writes to the container's overlay layer (not mounts), so they
+    // persist through docker commit and thus through checkpoint save/reuse.
+    // Only do this for fresh containers (not checkpoints) since checkpoint
+    // images already have baked credentials from their previous save.
+    if (!checkpointImage) {
+        const { injectHostCredentialsIntoContainer } = await import('@/cloud/credentials/hostCredentials')
+        await injectHostCredentialsIntoContainer(containerId).catch((err) => {
+            // Non-fatal; agent will fall back to env var tokens
+            console.warn('[DaemonSessionExecutor] Credential injection failed:', err)
+        })
+    }
+
     // Sync repository inside the running container
     if (params.repositorySource) {
         await syncRepositoryInContainer({
@@ -233,7 +204,7 @@ export async function startDaemonSessionExecutor(params: {
     const callbackUrl = params.controlPort
         ? `http://host.docker.internal:${params.controlPort}`
         : undefined
-    const claudeOAuthToken = extractClaudeOAuthToken()
+    const hostCreds = collectHostCredentials()
     const spawnResponse = await client.spawn({
         command: ['haqi', ...spawnArgs],
         cwd: params.workspace.workingDirectory,
@@ -248,8 +219,7 @@ export async function startDaemonSessionExecutor(params: {
             ...(noVncPort ? { HAPI_NOVNC_PORT: String(noVncPort) } : {}),
             ...(params.options.sessionType ? { HAPI_SESSION_TYPE: params.options.sessionType } : {}),
             ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {}),
-            ...(claudeOAuthToken ? { CLAUDE_CODE_OAUTH_TOKEN: claudeOAuthToken } : {}),
-            ...(process.env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } : {})
+            ...hostCreds.env
         }
     })
 

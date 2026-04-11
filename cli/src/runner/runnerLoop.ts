@@ -1304,6 +1304,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           const runtime = new DockerCliRuntime()
           await runtime.ensureAvailable()
           const { runDockerCommand } = await import('@/cloud/docker/dockerCli')
+          // Credentials were already baked into the container layer at spawn
+          // time (see injectHostCredentialsIntoContainer), so docker commit
+          // captures them automatically.
           await runDockerCommand(['commit', params.containerId, dockerImage])
           return { dockerImage, success: true }
         } catch (err) {

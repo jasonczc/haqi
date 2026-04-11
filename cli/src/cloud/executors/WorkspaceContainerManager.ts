@@ -1,6 +1,3 @@
-import fs from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
 import type { PreviewTarget } from '@hapi/protocol/types'
 import type { DockerCliRuntime, DockerRunSpec } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
@@ -57,21 +54,11 @@ export async function ensureWorkspaceContainer(params: {
         mounts.push(`${params.workspace.desktopStatePath}:${params.workspace.desktopStatePath}`)
     }
 
-    const claudeConfigDir = path.join(os.homedir(), '.claude')
-    try {
-        await fs.access(claudeConfigDir)
-        mounts.push(`${claudeConfigDir}:/root/.claude:ro`)
-    } catch {
-        // ~/.claude doesn't exist, skip mount
-    }
-
-    const codexConfigDir = path.join(os.homedir(), '.codex')
-    try {
-        await fs.access(codexConfigDir)
-        mounts.push(`${codexConfigDir}:/root/.codex:ro`)
-    } catch {
-        // skip
-    }
+    // NOTE: we intentionally do NOT mount ~/.claude or ~/.codex here.
+    // Mounted directories are not captured by `docker commit`, which breaks
+    // the checkpoint flow. Credentials are injected into the container
+    // filesystem AFTER creation via injectHostCredentials() so they become
+    // part of the image layer and persist across checkpoints.
 
     const envVars = params.daemonMode
         ? [`HAQI_DAEMON_AUTH_TOKEN=${params.daemonMode.authToken}`]
