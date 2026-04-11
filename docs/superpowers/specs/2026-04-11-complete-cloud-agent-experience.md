@@ -24,7 +24,7 @@
 | OAuth token → container | ✅ | `CLAUDE_CODE_OAUTH_TOKEN` env var |
 | initialPrompt delivery | ✅ | Via `handleSessionAlive` after socket joins room |
 | Agent message in chat | ✅ | User message delivered to agent, appears in timeline |
-| Agent response iteration | ⚠️ | **Known SDK bug**: haqi's Claude SDK throws empty `{}` error during response iteration. Claude CLI itself works via direct `claude -p` invocation in container. |
+| Agent response iteration | ✅ | Fixed: Claude CLI refuses `--dangerously-skip-permissions` as root → downgrade `bypassPermissions`→`acceptEdits` when UID=0 |
 | Checkpoint save (docker commit) | ✅ | `haqi-checkpoint:{id}` images created (4.3GB) |
 | Checkpoint reuse (spawn from image) | ✅ | New session from checkpoint succeeds in 5s |
 | HomeComposer Phase detection | ✅ | Phase 1 → Phase 2 → Phase 3 auto-advance |
@@ -185,33 +185,42 @@ Later spawn: { checkpointId: 'xxx' }
   → new container in 5s from checkpoint state
 ```
 
-## Known Issue: Agent SDK Response
+## Fix 7: Claude CLI permission mode as root (FIXED)
 
-**Symptom:** After the user message arrives at the agent, the agent logs:
+**Symptom:** After the user message arrives at the agent, the agent logged:
 ```
-[claudeRemoteLauncher] Starting remote launcher
-[remote]: launch
-[Claude SDK] Global claude command available
-[claudeRemote] Thinking state changed to: true
-[claudeRemote] Starting to iterate over response
-[metadataExtractor] Captured SDK metadata: {...tools...model: claude-sonnet-4-6}
-[claudeRemote] Thinking state changed to: false
 [remote]: launch error {}
-[remote]: launch finally
-[MessageQueue2] Waiting for messages...
+```
+and an "agent" message appeared in the timeline: `"Process exited unexpectedly"`.
+
+**Root cause:** The logger was serializing the Error object without its enumerable fields, hiding the real error. After improving error logging, the actual cause was:
+```
+Claude Code process exited with code 1
+stderr: --dangerously-skip-permissions cannot be used with root/sudo privileges for security reasons
 ```
 
-Then an "agent" message appears in the timeline: `"Process exited unexpectedly"`.
+Claude CLI's `bypassPermissions` mode (which yolo mode uses) translates to `--dangerously-skip-permissions`, which the binary refuses to run under root/sudo for safety. The haqi container runs as root, so this blocks every yolo session.
 
-**Verified working components:**
-- Claude Code CLI binary (`claude --version` returns 2.1.101)
-- OAuth token (passed to container, visible in process env)
-- Direct invocation: `docker exec -e CLAUDE_CODE_OAUTH_TOKEN=... container claude -p` returns a proper response
-- SDK metadata extraction (tools, slash commands, model name all populated)
+**Fix (`cli/src/claude/claudeRemote.ts`):**
+```typescript
+const runningAsRoot = typeof process.getuid === 'function' && process.getuid() === 0
+if (runningAsRoot && effectivePermissionMode === 'bypassPermissions') {
+    logger.debug('[claudeRemote] Running as root — downgrading bypassPermissions → acceptEdits')
+    effectivePermissionMode = 'acceptEdits'
+}
+```
 
-**Root cause:** haqi's Claude SDK integration (`claudeRemoteLauncher.ts` / `claudeRemote.ts`) throws an empty `{}` error when iterating the Claude response stream in remote mode. This is not an infrastructure issue; it's inside haqi's CLI SDK wrapper code path.
+**Ancillary fixes:**
+1. `claudeRemoteLauncher.ts` — Error serialization: extract `name`, `message`, `stack`, `code`, `cause` explicitly instead of logging the Error object (which serialized to `{}`)
+2. `cli/src/claude/sdk/query.ts` — Always capture stderr (not only under DEBUG) and include the tail in the error message when the child exits non-zero. This surfaces the real Claude CLI error.
 
-**Workaround:** For now, agent responses don't render in remote mode inside the container. The fix requires deeper debugging of the haqi CLI SDK integration in `cli/src/claude/` which is out of scope for this spec.
+**Verification:**
+End-to-end test passes:
+```
+User: "Please respond with just one word: PONG"
+Agent: "PONG"
+```
+(Screenshot: `/tmp/final-pong-chat.png`)
 
 ## Files Changed
 
