@@ -16,6 +16,7 @@ type SessionActionMenuProps = {
     onRename: () => void
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
+    onSaveCheckpoint?: () => void
     onArchive: () => void
     onDelete: () => void
     anchorPoint: { x: number; y: number }
@@ -134,6 +135,25 @@ type MenuPosition = {
     transformOrigin: string
 }
 
+function CheckpointIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z" />
+        </svg>
+    )
+}
+
 export function SessionActionMenu(props: SessionActionMenuProps) {
     const { t } = useTranslation()
     const {
@@ -143,6 +163,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onRename,
         onSpawnSameConfig,
         onDuplicate,
+        onSaveCheckpoint,
         onArchive,
         onDelete,
         anchorPoint,
@@ -174,6 +195,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         if (!onDuplicate) return
         onClose()
         onDuplicate()
+    }
+
+    const handleSaveCheckpoint = () => {
+        if (!onSaveCheckpoint) return
+        onClose()
+        onSaveCheckpoint()
     }
 
     const handleDelete = () => {
@@ -318,6 +345,18 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     >
                         <DuplicateIcon className="text-[var(--text-tertiary)]" />
                         {t('session.action.duplicate')}
+                    </button>
+                ) : null}
+
+                {onSaveCheckpoint ? (
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
+                        onClick={handleSaveCheckpoint}
+                    >
+                        <CheckpointIcon className="text-[var(--text-tertiary)]" />
+                        Save checkpoint
                     </button>
                 ) : null}
 

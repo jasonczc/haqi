@@ -103,14 +103,16 @@ export function SetupPanel(props: {
 
     return (
         <div className="flex flex-1 flex-col overflow-y-auto">
-            {/* Banner */}
-            {isSetupComplete && !checkpointId && (
+            {/* Banner — show whenever a container is running and no checkpoint yet */}
+            {containerId && !checkpointId && (
                 <div className="border-b border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-soft)] px-4 py-3">
                     <div className="text-[14px] font-semibold text-[var(--cursor-text-primary)]">
-                        Setup is ready to save
+                        {isSetupComplete ? 'Setup is ready to save' : 'Save environment anytime'}
                     </div>
                     <div className="mt-0.5 text-[12px] text-[var(--cursor-text-tertiary)]">
-                        The agent has finished preparing the environment. Save it now so future agents can reuse it.
+                        {isSetupComplete
+                            ? 'The agent has finished preparing the environment. Save it now so future agents can reuse it.'
+                            : 'Capture the current container state as a checkpoint. Future agents can spawn from this snapshot instantly.'}
                     </div>
                 </div>
             )}
@@ -140,8 +142,8 @@ export function SetupPanel(props: {
                 </div>
             </div>
 
-            {/* Save environment section */}
-            {isSetupComplete && containerId && (
+            {/* Save environment section — available whenever a container exists */}
+            {containerId && (
                 <div className="px-4 py-3">
                     <div className="text-[13px] font-semibold text-[var(--cursor-text-primary)] mb-2">
                         Save environment
@@ -221,8 +223,8 @@ export function SetupPanel(props: {
                 </div>
             )}
 
-            {/* Not a setup session */}
-            {!setupStatus && !environmentId && (
+            {/* Not a cloud session at all */}
+            {!setupStatus && !environmentId && !containerId && (
                 <div className="flex flex-1 items-center justify-center p-8 text-sm text-[var(--cursor-text-tertiary)]">
                     This session doesn't have a setup configuration.
                 </div>

@@ -197,6 +197,18 @@ export function SessionHeader(props: {
                         ) : null}
                     </div>
 
+                    {session.metadata?.containerId ? (
+                        <button
+                            type="button"
+                            onClick={() => setCheckpointDialogOpen(true)}
+                            className="flex h-8 items-center gap-1.5 rounded-[6px] px-2 text-[var(--font-size-base)] text-[var(--text-tertiary)] transition-colors hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                            title="Save checkpoint"
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg>
+                            <span className="hidden sm:inline">Save</span>
+                        </button>
+                    ) : null}
+
                     {props.onToggleWorkbench ? (
                         <button
                             type="button"
@@ -235,6 +247,7 @@ export function SessionHeader(props: {
                 onRename={() => setRenameOpen(true)}
                 onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
+                onSaveCheckpoint={session.metadata?.containerId ? () => setCheckpointDialogOpen(true) : undefined}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
