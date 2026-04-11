@@ -171,15 +171,23 @@ export default function CloudCheckpointsPage() {
                                         </div>
                                         <div className="flex shrink-0 gap-1.5">
                                             <Link
-                                                to="/sessions/new"
-                                                search={{ checkpointId: checkpoint.id }}
+                                                to="/sessions"
+                                                onClick={() => {
+                                                    try {
+                                                        sessionStorage.setItem('home-composer-preset', JSON.stringify({ checkpointId: checkpoint.id }))
+                                                    } catch { /* ignore */ }
+                                                }}
                                                 className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}
                                             >
                                                 {t('cloud.checkpoints.newSession')}
                                             </Link>
                                             <Link
-                                                to="/sessions/new"
-                                                search={{ checkpointId: checkpoint.id, sessionType: 'setup' }}
+                                                to="/sessions"
+                                                onClick={() => {
+                                                    try {
+                                                        sessionStorage.setItem('home-composer-preset', JSON.stringify({ checkpointId: checkpoint.id, sessionType: 'setup' }))
+                                                    } catch { /* ignore */ }
+                                                }}
                                                 className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}
                                             >
                                                 {t('cloud.checkpoints.derive')}

@@ -76,5 +76,31 @@ export function createContainerRoutes(getSyncEngine: () => SyncEngine | null): H
         }
     })
 
+    // Reclaim docker disk space on a worker: removes orphan haqi-checkpoint images
+    // (anything NOT referenced in the hub's checkpoint DB), plus optionally prunes
+    // build cache and unused volumes. Returns per-category byte counts.
+    app.post('/machines/:machineId/docker/cleanup', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) return c.json({ error: 'Not connected' }, 503)
+        const namespace = c.get('namespace')
+        const body = await c.req.json().catch(() => ({})) as {
+            pruneBuildCache?: unknown
+            pruneVolumes?: unknown
+        }
+        try {
+            const result = await engine.rpcDockerCleanup(
+                c.req.param('machineId'),
+                namespace,
+                {
+                    pruneBuildCache: body.pruneBuildCache === true,
+                    pruneVolumes: body.pruneVolumes === true
+                }
+            )
+            return c.json(result)
+        } catch (err) {
+            return c.json({ error: err instanceof Error ? err.message : 'Docker cleanup failed' }, 500)
+        }
+    })
+
     return app
 }

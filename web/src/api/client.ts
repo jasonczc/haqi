@@ -1053,6 +1053,31 @@ export class ApiClient {
         })
     }
 
+    async dockerCleanup(
+        machineId: string,
+        options: { pruneBuildCache?: boolean; pruneVolumes?: boolean } = {}
+    ): Promise<{
+        removedImages: Array<{ tag: string; bytes: number }>
+        freedBytesImages: number
+        freedBytesBuild: number
+        freedBytesVolumes: number
+        errors: string[]
+    }> {
+        return await this.request(`/api/machines/${machineId}/docker/cleanup`, {
+            method: 'POST',
+            body: JSON.stringify({
+                pruneBuildCache: options.pruneBuildCache === true,
+                pruneVolumes: options.pruneVolumes === true
+            })
+        }) as {
+            removedImages: Array<{ tag: string; bytes: number }>
+            freedBytesImages: number
+            freedBytesBuild: number
+            freedBytesVolumes: number
+            errors: string[]
+        }
+    }
+
     async getCloudEnvironments(): Promise<import('@/types/api').CloudEnvironmentsResponse> {
         return await this.request<import('@/types/api').CloudEnvironmentsResponse>('/api/machines/cloud/environments')
     }

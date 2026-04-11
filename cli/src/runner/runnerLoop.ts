@@ -767,7 +767,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               options,
               sessionLabel: spawnRequestId,
               existingContainerId: workspaceContainerId,
-              existingPreviewTargets: workspaceContainerPreviewTargets
+              existingPreviewTargets: workspaceContainerPreviewTargets,
+              controlPort
             })
           : startHostProcessExecutor({
               executionCwd,
@@ -924,8 +925,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           });
         }
 
-        // Daemon-session and host-process need longer to start (CLI boot + model init)
-        const webhookTimeoutMs = execution.runtimeKind === 'daemon-session' || execution.runtimeKind === 'host-process' ? 180_000 : 15_000;
+        // All runtimes need longer to start (CLI boot + model init).
+        // docker-session also runs `haqi` inside the container via `docker exec`, so it needs the same grace period.
+        const webhookTimeoutMs = 180_000;
         logger.debug(`[RUNNER RUN] Waiting for session webhook for PID ${pid} (timeout: ${webhookTimeoutMs}ms)`);
         spawnResult = await new Promise<SpawnSessionResult>((resolve) => {
           const timeout = setTimeout(() => {
@@ -1178,11 +1180,23 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       logger.debug(`[RUNNER RUN] Removing exited process PID ${pid} from tracking`);
       const tracked = pidToTrackedSession.get(pid);
       if (tracked?.containerId) {
-        void new DockerCliRuntime().remove(tracked.containerId).catch(() => undefined);
+        // Stop first — `docker rm` on a running container returns an error that we'd
+        // silently swallow, leaving the container orphaned. `stop` then `rm -f` is safe
+        // whether the container is running, exited, or already gone.
+        const runtime = new DockerCliRuntime();
+        const cid = tracked.containerId;
+        void (async () => {
+          await runtime.stop(cid).catch(() => undefined);
+          await runtime.remove(cid).catch(() => undefined);
+        })();
       }
       if (tracked?.serviceContainerIds?.length) {
+        const runtime = new DockerCliRuntime();
         for (const serviceContainerId of tracked.serviceContainerIds) {
-          void new DockerCliRuntime().remove(serviceContainerId).catch(() => undefined);
+          void (async () => {
+            await runtime.stop(serviceContainerId).catch(() => undefined);
+            await runtime.remove(serviceContainerId).catch(() => undefined);
+          })();
         }
       }
       if (tracked?.cleanupPaths?.length) {
@@ -1360,6 +1374,10 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         } catch {
           return { status: 502, headers: {}, body: 'Preview proxy failed' }
         }
+      },
+      dockerCleanup: async (params) => {
+        const { cleanupDockerStorage } = await import('@/cloud/docker/dockerStorage')
+        return await cleanupDockerStorage(params)
       }
     });
 

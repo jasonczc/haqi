@@ -39,13 +39,14 @@ export async function ensureWorkspaceContainer(params: {
             hostPort: undefined,
             protocol: 'tcp'
         })
-        // noVNC port for remote desktop
-        portSpecs.push({
-            containerPort: 6080,
-            hostPort: undefined,
-            protocol: 'tcp'
-        })
     }
+    // noVNC port for remote desktop — exposed for both daemon-session and docker-session.
+    // The daemon auto-starts the VNC stack; docker-session starts it manually after creation.
+    portSpecs.push({
+        containerPort: 6080,
+        hostPort: undefined,
+        protocol: 'tcp'
+    })
 
     const mounts = [
         `${params.workspace.repoVolumePath}:${params.workspace.repoVolumePath}`

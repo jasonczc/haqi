@@ -8,12 +8,6 @@ export function useAppGoBack(): () => void {
     const search = useLocation({ select: (location) => location.search })
 
     return useCallback(() => {
-        // Use explicit path navigation for consistent behavior across all environments
-        if (pathname === '/sessions/new') {
-            navigate({ to: '/sessions' })
-            return
-        }
-
         // Settings page always goes back to sessions
         if (pathname === '/settings') {
             navigate({ to: '/sessions' })

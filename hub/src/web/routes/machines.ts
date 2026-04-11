@@ -106,12 +106,23 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             if (parsed.data.directory?.trim()) {
                 return c.json({ error: 'Cloud sessions do not accept directory; use workspaceSource.repository' }, 400)
             }
-            // Setup sessions and host-process/daemon-session runtime can run without a checkpoint and without a repo
-            const needsDockerImage = parsed.data.runtimeKind !== 'host-process' && parsed.data.runtimeKind !== 'daemon-session'
-            if (parsed.data.sessionType !== 'setup' && needsDockerImage) {
-                if (!parsed.data.checkpointId?.trim() && !parsed.data.workspaceSource?.repository) {
-                    return c.json({ error: 'Cloud docker sessions require checkpointId or workspaceSource.repository' }, 400)
-                }
+            // A cloud session is valid if ANY of the following holds (mirrors SpawnCoordinator):
+            //   1. sessionType === 'setup'                 — bare session for env config
+            //   2. runtimeKind is host-process/daemon/docker-session — all container runtimes have a default image
+            //   3. checkpointId is set                     — checkpoint carries baked state
+            //   4. workspaceSource.repository is set       — fresh clone into a fresh container
+            //   5. environment.runtime.image is set        — custom pre-built image
+            const hasSetupType = parsed.data.sessionType === 'setup'
+            const hasFlexibleRuntime =
+                parsed.data.runtimeKind === 'host-process'
+                || parsed.data.runtimeKind === 'daemon-session'
+                || parsed.data.runtimeKind === 'docker-session'
+            const hasCheckpoint = Boolean(parsed.data.checkpointId?.trim())
+            const hasRepo = Boolean(parsed.data.workspaceSource?.repository)
+            const hasEnvImage = Boolean(parsed.data.environment?.runtime?.image)
+            const hasValidSource = hasSetupType || hasFlexibleRuntime || hasCheckpoint || hasRepo || hasEnvImage
+            if (!hasValidSource) {
+                return c.json({ error: 'Cloud session needs runtimeKind, checkpointId, workspaceSource.repository, environment.runtime.image, or sessionType=setup' }, 400)
             }
         }
 

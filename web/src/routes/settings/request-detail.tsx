@@ -127,7 +127,7 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
                     <CursorButton
                         type="button"
                         variant="outline"
-                        onClick={() => navigate({ to: '/sessions/new' })}
+                        onClick={() => navigate({ to: '/sessions' })}
                     >
                         New Session
                     </CursorButton>

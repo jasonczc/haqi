@@ -715,6 +715,49 @@ html.dark body,
     margin-left: 6px;
 }
 
+/* Wrapper group — provides relative positioning for the hover-revealed delete button */
+.history-item-group {
+    position: relative;
+}
+
+/* Hide the timestamp when the row is hovered so the delete button takes its place
+   without visual overlap. */
+.history-item-group:hover .history-stats {
+    visibility: hidden;
+}
+
+/* Delete button appears on hover, anchored to the right edge of the row.
+   Replaces the timestamp visually (timestamp is hidden on hover above). */
+.history-item-delete {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--cursor-text-tertiary);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.12s, background-color 0.12s, color 0.12s;
+    pointer-events: none;
+}
+
+.history-item-group:hover .history-item-delete {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.history-item-delete:hover {
+    background-color: var(--cursor-danger-bg, rgba(239, 68, 68, 0.12));
+    color: #ef4444;
+}
+
 .history-sub-item {
     display: flex;
     align-items: center;
@@ -2276,6 +2319,49 @@ html.dark body,
 .chip-popover-option svg {
     color: var(--cursor-success, #16a34a);
     flex-shrink: 0;
+}
+
+/* Two-line option: primary name + secondary id/host */
+.chip-popover-option-body {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    flex: 1;
+}
+
+.chip-popover-option-primary {
+    font-size: 13px;
+    color: var(--cursor-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chip-popover-option-secondary {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: 10px;
+    color: var(--cursor-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Scroll wrapper for long lists (machines/checkpoints) with a search input on top */
+.chip-popover-scrollable {
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.chip-popover-search {
+    padding: 4px 14px 6px;
+}
+
+.chip-popover-empty {
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--cursor-text-tertiary);
+    text-align: center;
 }
 
 .chip-popover-pills {

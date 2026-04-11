@@ -2768,6 +2768,22 @@ ${note.content}
         return this.rpcGateway.containerRemove(machineId, containerId)
     }
 
+    async rpcDockerCleanup(
+        machineId: string,
+        namespace: string,
+        options: { pruneBuildCache?: boolean; pruneVolumes?: boolean }
+    ): Promise<unknown> {
+        // Build the "keep" list from the checkpoint DB so we never remove an image
+        // that's still referenced by a saved checkpoint.
+        const checkpoints = this.checkpointRegistry.list(namespace)
+        const keepImages = checkpoints.map((cp) => `haqi-checkpoint:${cp.id}`)
+        return this.rpcGateway.dockerCleanup(machineId, {
+            keepImages,
+            pruneBuildCache: options.pruneBuildCache === true,
+            pruneVolumes: options.pruneVolumes === true
+        })
+    }
+
     private normalizeQueueText(value: string | undefined): string | undefined {
         if (typeof value !== 'string') {
             return undefined

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     Navigate,
@@ -10,39 +10,22 @@ import {
     useMatchRoute,
     useNavigate,
     useParams,
-    useSearch,
 } from '@tanstack/react-router'
 import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
-import type { NewSessionPreset } from '@/components/SessionList'
-import { NewSession } from '@/components/NewSession'
-import {
-    loadLastSessionConfig,
-    loadPreferredAgent,
-    loadPreferredCustomModel,
-    loadPreferredModel,
-    loadPreferredServiceTier,
-    loadPreferredThinkEffort,
-    loadPreferredYoloMode
-} from '@/components/NewSession/preferences'
-import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
+// Session creation flow lives entirely in HomeComposer on the /sessions index route.
 // MODEL_OPTIONS, getThinkEffortOptions moved to HomeComposer.tsx
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
-import { isTelegramApp } from '@/hooks/useTelegram'
 import { useMessages } from '@/hooks/queries/useMessages'
 import { useConversationTurns } from '@/hooks/queries/useConversationTurns'
-import { useMachines } from '@/hooks/queries/useMachines'
 import { useSession } from '@/hooks/queries/useSession'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { useSlashCommands } from '@/hooks/queries/useSlashCommands'
 import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
-import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
-import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
-import type { ApiClient } from '@/api/client'
 import { HomeComposer } from '@/components/HomeComposer'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
@@ -56,7 +39,6 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { Button } from '@/components/ui/button'
 import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import FilesPage from '@/routes/sessions/files'
@@ -94,26 +76,6 @@ import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
 import { ReviewLoopStatusBadge, CreateLoopModal, type CreateLoopData } from '@/components/ReviewLoop'
-import type { SpawnResponse } from '@/types/api'
-
-function BackIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
-}
 
 function PlusIcon(props: { className?: string }) {
     return (
@@ -151,28 +113,6 @@ function SettingsIcon(props: { className?: string }) {
         >
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-    )
-}
-
-function GroupsIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="8.5" cy="7" r="4" />
-            <path d="M20 8v6" />
-            <path d="M23 11h-6" />
         </svg>
     )
 }
@@ -314,13 +254,6 @@ function BillingPlaceholderPage() {
     return <SettingsBillingPage />
 }
 
-type NewSessionSearch = {
-    directory?: string
-    machineId?: string
-    checkpointId?: string
-    sessionType?: string
-}
-
 type SessionsLayoutContextValue = {
     toggleSidebarFromHeader: () => void
     showDesktopSidebar: boolean
@@ -331,19 +264,6 @@ const SessionsLayoutContext = createContext<SessionsLayoutContextValue | null>(n
 
 function useSessionsLayoutContext() {
     return useContext(SessionsLayoutContext)
-}
-
-function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
-    const directory = preset?.directory
-    const machineId = preset?.machineId
-    const next: NewSessionSearch = {}
-    if (directory) {
-        next.directory = directory
-    }
-    if (machineId) {
-        next.machineId = machineId
-    }
-    return next
 }
 
 function formatHomeTime(updatedAt: number): string {
@@ -396,13 +316,10 @@ function SessionStatusIcon(props: { state: 'draft' | 'merged' | 'open'; classNam
 function SessionsPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
-    const queryClient = useQueryClient()
     const pathname = useLocation({ select: location => location.pathname })
     const matchRoute = useMatchRoute()
     const { t } = useTranslation()
-    const { addToast } = useToast()
-    const { sessions, isLoading, error, refetch } = useSessions(api)
-    const { spawnSession, isPending: isQuickCreatingSession } = useSpawnSession(api)
+    const { sessions, isLoading, error } = useSessions(api)
     const { density } = useSessionListDensity()
     const { sidebarWidth } = useSessionSidebarWidth()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
@@ -410,43 +327,20 @@ function SessionsPage() {
     const [sessionSearchQuery] = useState('')
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
     const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
-    const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
-
-    const selectedSessionPreset = useMemo<NewSessionPreset | undefined>(() => {
-        if (!selectedSessionId) {
-            return undefined
-        }
-        const selected = sessions.find((session) => session.id === selectedSessionId)
-        if (!selected) {
-            return undefined
-        }
-
-        const directory = selected.metadata?.path?.trim()
-        const machineId = selected.metadata?.machineId?.trim()
-        if (!directory && !machineId) {
-            return undefined
-        }
-        return {
-            directory: directory || undefined,
-            machineId: machineId || undefined
-        }
-    }, [selectedSessionId, sessions])
+    const selectedSessionId = sessionMatch ? sessionMatch.sessionId : null
 
     const visibleSessions = useMemo(
         () => filterSessionsBySearch(sessions, sessionSearchQuery),
         [sessions, sessionSearchQuery]
     )
 
-    const openNewSession = useCallback((preset?: NewSessionPreset) => {
-        const resolvedPreset = preset ?? selectedSessionPreset
+    // "New Agent" lands on /sessions, where HomeComposer owns the full spawn flow.
+    const openNewSession = useCallback(() => {
         setMobileSidebarOpen(false)
-        navigate({
-            to: '/sessions/new',
-            search: toNewSessionSearch(resolvedPreset)
-        })
-    }, [navigate, selectedSessionPreset])
+        navigate({ to: '/sessions' })
+    }, [navigate])
 
-    const isSessionChatRoute = Boolean(chatRouteMatch && chatRouteMatch.sessionId !== 'new')
+    const isSessionChatRoute = Boolean(chatRouteMatch)
     const isSessionsIndex = pathname === '/sessions' || pathname === '/sessions/'
     const showDesktopSidebar = isSessionsIndex || !desktopSidebarHidden
     const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
@@ -488,6 +382,29 @@ function SessionsPage() {
             params: { sessionId },
         })
     }, [navigate])
+
+    // Inline sidebar delete — best-effort archive (kills any running worker/container)
+    // then delete from the session store. Errors are logged but don't block the UI.
+    const sidebarQueryClient = useQueryClient()
+    const deleteSessionFromSidebar = useCallback(async (sessionId: string) => {
+        if (!api) return
+        const matchedId = typeof sessionMatch === 'object' && sessionMatch ? sessionMatch.sessionId : null
+        const wasSelected = matchedId === sessionId
+        try {
+            // Kill any running agent/container first. Safe to call even if already inactive.
+            await api.archiveSession(sessionId).catch((e) => {
+                console.debug('archiveSession during delete failed (ignored):', e)
+            })
+            await api.deleteSession(sessionId)
+            await sidebarQueryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+            sidebarQueryClient.removeQueries({ queryKey: queryKeys.session(sessionId) })
+            if (wasSelected) {
+                navigate({ to: '/sessions' })
+            }
+        } catch (err) {
+            console.error('Failed to delete session from sidebar:', err)
+        }
+    }, [api, sessionMatch, sidebarQueryClient, navigate])
 
     const openSidebarOnMobile = useCallback(() => {
         setMobileSidebarOpen(true)
@@ -598,7 +515,7 @@ function SessionsPage() {
                                 ? meta.summary.text
                                 : undefined
                             return (
-                                <div key={session.id}>
+                                <div key={session.id} className="history-item-group">
                                     <button
                                         type="button"
                                         onClick={() => selectSession(session.id)}
@@ -615,6 +532,25 @@ function SessionsPage() {
                                             {additions ? `+${additions}` : formatHomeTime(session.updatedAt)}
                                             {deletions ? <span style={{ color: '#ef4444' }}> -{deletions}</span> : null}
                                         </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (window.confirm(`Delete session "${title}"? This stops the agent and removes its container.`)) {
+                                                void deleteSessionFromSidebar(session.id)
+                                            }
+                                        }}
+                                        className="history-item-delete"
+                                        title="Delete session"
+                                        aria-label="Delete session"
+                                    >
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="3 6 5 6 21 6" />
+                                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                            <path d="M10 11v6" />
+                                            <path d="M14 11v6" />
+                                        </svg>
                                     </button>
                                     {childTitle ? (
                                         <button
@@ -1013,110 +949,6 @@ function SessionDetailRoute() {
     const isChat = pathname === basePath || pathname === `${basePath}/`
 
     return isChat ? <SessionPage /> : <Outlet />
-}
-
-function NewSessionPage() {
-    const { api } = useAppContext()
-    const navigate = useNavigate()
-    const search = useSearch({ from: '/sessions/new' })
-    const goBack = useAppGoBack()
-    const queryClient = useQueryClient()
-    const { machines, isLoading: machinesLoading, error: machinesError } = useMachines(api, true)
-
-    const handleCancel = useCallback(() => {
-        navigate({ to: '/sessions' })
-    }, [navigate])
-
-    const handleSuccess = useCallback((result: SpawnResponse) => {
-        if (result.type === 'accepted') {
-            void queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequests })
-            navigate({
-                to: '/settings/requests/$requestId',
-                params: { requestId: result.requestId }
-            })
-            return
-        }
-
-        if (result.type !== 'success') {
-            return
-        }
-
-        void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
-        navigate({ to: '/sessions', replace: true })
-        requestAnimationFrame(() => {
-            navigate({
-                to: '/sessions/$sessionId',
-                params: { sessionId: result.sessionId },
-            })
-        })
-    }, [navigate, queryClient])
-    const formId = 'new-session-page-form'
-    const submitDisabled = Boolean(machinesLoading || machinesError)
-
-    return (
-        <div className="cursor-theme chat-layout flex min-h-0 flex-col bg-[var(--cursor-bg-card)]">
-            <div className="chat-header flex items-center gap-2 border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-                {!isTelegramApp() && (
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-secondary)] hover:text-[var(--cursor-text-primary)]"
-                    >
-                        <BackIcon />
-                    </button>
-                )}
-                <div className="flex-1">
-                    <div className="text-sm font-semibold text-[var(--cursor-text-primary)]">Create Session</div>
-                    <div className="text-xs text-[var(--cursor-text-secondary)]">Start a local or cloud coding session in the new Cursor-style flow.</div>
-                </div>
-                <Button
-                    type="submit"
-                    form={formId}
-                    size="sm"
-                    disabled={submitDisabled}
-                    className="hidden sm:inline-flex"
-                >
-                    Create
-                </Button>
-                <Button
-                    type="submit"
-                    form={formId}
-                    size="sm"
-                    disabled={submitDisabled}
-                    className="h-8 w-8 p-0 text-base sm:hidden"
-                    aria-label="Create"
-                    title="Create"
-                >
-                    <span aria-hidden>✅</span>
-                </Button>
-            </div>
-
-            <div className="flex-1 min-h-0 overflow-y-auto bg-[var(--cursor-bg-card)] pb-[env(safe-area-inset-bottom)]">
-                {machinesError ? (
-                    <div className="p-3 text-sm text-red-600">
-                        {machinesError}
-                    </div>
-                ) : null}
-
-                <div className="mx-auto w-full max-w-[920px] px-4 py-6">
-                    <div className="rounded-2xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] shadow-[0_20px_50px_rgba(0,0,0,0.06)]">
-                        <NewSession
-                            api={api}
-                            machines={machines}
-                            isLoading={machinesLoading}
-                            initialDirectory={search.directory}
-                            initialMachineId={search.machineId}
-                            initialCheckpointId={search.checkpointId}
-                            initialSessionType={search.sessionType}
-                            formId={formId}
-                            onCancel={handleCancel}
-                            onSuccess={handleSuccess}
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
 }
 
 function GroupListItem(props: {
@@ -2206,33 +2038,6 @@ const sessionFileRoute = createRoute({
     component: FilePage,
 })
 
-const newSessionRoute = createRoute({
-    getParentRoute: () => sessionsRoute,
-    path: 'new',
-    validateSearch: (search: Record<string, unknown>): NewSessionSearch => {
-        const directoryRaw = typeof search.directory === 'string' ? search.directory : undefined
-        const machineIdRaw = typeof search.machineId === 'string' ? search.machineId : undefined
-        const checkpointIdRaw = typeof search.checkpointId === 'string' ? search.checkpointId : undefined
-        const sessionTypeRaw = typeof search.sessionType === 'string' ? search.sessionType : undefined
-
-        const result: NewSessionSearch = {}
-        if (directoryRaw && directoryRaw.trim().length > 0) {
-            result.directory = directoryRaw
-        }
-        if (machineIdRaw && machineIdRaw.trim().length > 0) {
-            result.machineId = machineIdRaw
-        }
-        if (checkpointIdRaw && checkpointIdRaw.trim().length > 0) {
-            result.checkpointId = checkpointIdRaw
-        }
-        if (sessionTypeRaw && sessionTypeRaw.trim().length > 0) {
-            result.sessionType = sessionTypeRaw
-        }
-        return result
-    },
-    component: NewSessionPage,
-})
-
 const settingsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/settings',
@@ -2517,7 +2322,6 @@ export const routeTree = rootRoute.addChildren([
     ]),
     sessionsRoute.addChildren([
         sessionsIndexRoute,
-        newSessionRoute,
         sessionDetailRoute.addChildren([
             sessionPreviewRoute,
             sessionDesktopRoute,

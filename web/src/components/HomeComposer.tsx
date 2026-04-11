@@ -223,6 +223,9 @@ export function HomeComposer(props: {
     // ── UI state ──
     const [spawnError, setSpawnError] = useState<string | null>(null)
     const [openPopover, setOpenPopover] = useState<PopoverName>(null)
+    // Search filters for long machine / checkpoint lists inside the Cloud popover
+    const [machineSearch, setMachineSearch] = useState('')
+    const [checkpointSearch, setCheckpointSearch] = useState('')
 
     // ── Refs ──
     const modelChipRef = useRef<HTMLButtonElement>(null)
@@ -317,11 +320,41 @@ export function HomeComposer(props: {
         return thinkEffortOptions.find(o => o.value === thinkEffort)?.label ?? thinkEffort
     }, [thinkEffort, thinkEffortOptions])
 
+    // ── Apply one-shot preset from sessionStorage (set by Settings → Checkpoints links) ──
+    useEffect(() => {
+        try {
+            const raw = sessionStorage.getItem('home-composer-preset')
+            if (!raw) return
+            sessionStorage.removeItem('home-composer-preset')
+            const preset = JSON.parse(raw) as { checkpointId?: string; sessionType?: SessionType }
+            if (preset.checkpointId) {
+                setCheckpointId(preset.checkpointId)
+                setRuntimeKind('docker-session')
+            }
+            if (preset.sessionType) {
+                setSessionType(preset.sessionType)
+            }
+        } catch { /* ignore malformed preset */ }
+        // Run once on mount
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+
     // ── Auto-select machine ──
     useEffect(() => {
         if (isCloud) {
             if (runtimeKind !== 'docker-session' && runtimeKind !== 'daemon-session') {
                 setRuntimeKind('docker-session')
+            }
+            // If the chosen cloud backend has no live workers, fall back to the other one.
+            // Users don't need to understand the self-hosted vs managed distinction —
+            // we pick whichever backend actually has capacity.
+            if (selectableMachines.length === 0) {
+                const fallback: ExecutionBackend = executionBackend === 'cloud-managed' ? 'cloud-self-hosted' : 'cloud-managed'
+                const fallbackHasMachines = machines.some(m => m.metadata?.executorType === fallback)
+                if (fallbackHasMachines) {
+                    setExecutionBackend(fallback)
+                    return
+                }
             }
             if (machineId === AUTO_CLOUD_MACHINE_ID) return
             if (machineId && selectableMachines.some(m => m.id === machineId)) return
@@ -331,7 +364,7 @@ export function HomeComposer(props: {
         if (selectableMachines.length === 0) return
         if (machineId && selectableMachines.some(m => m.id === machineId)) return
         setMachineId(selectableMachines[0]?.id ?? null)
-    }, [executionBackend, isCloud, machineId, runtimeKind, selectableMachines])
+    }, [executionBackend, isCloud, machineId, runtimeKind, selectableMachines, machines])
 
     // ── Sync agent change → model/effort/serviceTier ──
     useEffect(() => {
@@ -345,7 +378,12 @@ export function HomeComposer(props: {
     const togglePopover = useCallback((name: PopoverName) => {
         setOpenPopover(prev => (prev === name ? null : name))
     }, [])
-    const closePopover = useCallback(() => setOpenPopover(null), [])
+    const closePopover = useCallback(() => {
+        setOpenPopover(null)
+        // Reset in-popover search state so reopening starts fresh
+        setMachineSearch('')
+        setCheckpointSearch('')
+    }, [])
 
     // ── Submit ──
     const handleSubmit = useCallback(async () => {
@@ -834,23 +872,57 @@ export function HomeComposer(props: {
 
                     {selectableMachines.length > 0 ? (
                         <PopoverGroup label="Machine">
-                            {isCloud ? (
-                                <PopoverOption
-                                    selected={machineId === AUTO_CLOUD_MACHINE_ID}
-                                    onClick={() => setMachineId(AUTO_CLOUD_MACHINE_ID)}
-                                >
-                                    Auto
-                                </PopoverOption>
+                            {selectableMachines.length > 4 ? (
+                                <div className="chip-popover-search">
+                                    <input
+                                        type="text"
+                                        className="chip-popover-input"
+                                        placeholder="Search machines…"
+                                        value={machineSearch}
+                                        onChange={(e) => setMachineSearch(e.target.value)}
+                                    />
+                                </div>
                             ) : null}
-                            {selectableMachines.map(m => (
-                                <PopoverOption
-                                    key={m.id}
-                                    selected={machineId === m.id}
-                                    onClick={() => setMachineId(m.id)}
-                                >
-                                    {m.metadata?.host ?? m.id}
-                                </PopoverOption>
-                            ))}
+                            <div className="chip-popover-scrollable">
+                                {isCloud && !machineSearch.trim() ? (
+                                    <PopoverOption
+                                        selected={machineId === AUTO_CLOUD_MACHINE_ID}
+                                        onClick={() => setMachineId(AUTO_CLOUD_MACHINE_ID)}
+                                    >
+                                        <span className="chip-popover-option-body">
+                                            <span className="chip-popover-option-primary">Auto</span>
+                                            <span className="chip-popover-option-secondary">Pick any available worker</span>
+                                        </span>
+                                    </PopoverOption>
+                                ) : null}
+                                {(() => {
+                                    const q = machineSearch.trim().toLowerCase()
+                                    const filtered = q
+                                        ? selectableMachines.filter(m => {
+                                            const name = (m.metadata?.host ?? '').toLowerCase()
+                                            return name.includes(q) || m.id.toLowerCase().includes(q)
+                                        })
+                                        : selectableMachines
+                                    if (filtered.length === 0) {
+                                        return <div className="chip-popover-empty">No machines match</div>
+                                    }
+                                    return filtered.map(m => {
+                                        const host = m.metadata?.host ?? null
+                                        return (
+                                            <PopoverOption
+                                                key={m.id}
+                                                selected={machineId === m.id}
+                                                onClick={() => setMachineId(m.id)}
+                                            >
+                                                <span className="chip-popover-option-body">
+                                                    <span className="chip-popover-option-primary">{host ?? m.id.slice(0, 8)}</span>
+                                                    <span className="chip-popover-option-secondary">{m.id}</span>
+                                                </span>
+                                            </PopoverOption>
+                                        )
+                                    })
+                                })()}
+                            </div>
                         </PopoverGroup>
                     ) : null}
 
@@ -864,41 +936,90 @@ export function HomeComposer(props: {
 
                     {isCloud && cloudEnvironments.length > 0 ? (
                         <PopoverGroup label="Environment">
-                            <PopoverOption
-                                selected={!environmentId.trim()}
-                                onClick={() => setEnvironmentId('')}
-                            >
-                                None
-                            </PopoverOption>
-                            {cloudEnvironments.map(env => (
+                            <div className="chip-popover-scrollable">
                                 <PopoverOption
-                                    key={env.id}
-                                    selected={environmentId === env.id}
-                                    onClick={() => setEnvironmentId(env.id)}
+                                    selected={!environmentId.trim()}
+                                    onClick={() => setEnvironmentId('')}
                                 >
-                                    {env.id}
+                                    <span className="chip-popover-option-body">
+                                        <span className="chip-popover-option-primary">None</span>
+                                        <span className="chip-popover-option-secondary">Default environment</span>
+                                    </span>
                                 </PopoverOption>
-                            ))}
+                                {cloudEnvironments.map(env => {
+                                    const envAny = env as { id: string; name?: string; description?: string }
+                                    const primary = envAny.name?.trim() || envAny.id
+                                    return (
+                                        <PopoverOption
+                                            key={envAny.id}
+                                            selected={environmentId === envAny.id}
+                                            onClick={() => setEnvironmentId(envAny.id)}
+                                        >
+                                            <span className="chip-popover-option-body">
+                                                <span className="chip-popover-option-primary">{primary}</span>
+                                                <span className="chip-popover-option-secondary">{envAny.id}</span>
+                                            </span>
+                                        </PopoverOption>
+                                    )
+                                })}
+                            </div>
                         </PopoverGroup>
                     ) : null}
 
                     {isCloud && cloudCheckpoints.length > 0 ? (
                         <PopoverGroup label="Checkpoint">
-                            <PopoverOption
-                                selected={!checkpointId.trim()}
-                                onClick={() => setCheckpointId('')}
-                            >
-                                None
-                            </PopoverOption>
-                            {cloudCheckpoints.map(cp => (
-                                <PopoverOption
-                                    key={cp.id}
-                                    selected={checkpointId === cp.id}
-                                    onClick={() => { setCheckpointId(cp.id); setRuntimeKind('docker-session') }}
-                                >
-                                    {cp.id}
-                                </PopoverOption>
-                            ))}
+                            {cloudCheckpoints.length > 4 ? (
+                                <div className="chip-popover-search">
+                                    <input
+                                        type="text"
+                                        className="chip-popover-input"
+                                        placeholder="Search checkpoints…"
+                                        value={checkpointSearch}
+                                        onChange={(e) => setCheckpointSearch(e.target.value)}
+                                    />
+                                </div>
+                            ) : null}
+                            <div className="chip-popover-scrollable">
+                                {!checkpointSearch.trim() ? (
+                                    <PopoverOption
+                                        selected={!checkpointId.trim()}
+                                        onClick={() => setCheckpointId('')}
+                                    >
+                                        <span className="chip-popover-option-body">
+                                            <span className="chip-popover-option-primary">None</span>
+                                            <span className="chip-popover-option-secondary">Start from the base image</span>
+                                        </span>
+                                    </PopoverOption>
+                                ) : null}
+                                {(() => {
+                                    const q = checkpointSearch.trim().toLowerCase()
+                                    const filtered = q
+                                        ? cloudCheckpoints.filter(cp => {
+                                            const name = (cp.name ?? '').toLowerCase()
+                                            const desc = (cp.description ?? '').toLowerCase()
+                                            return name.includes(q) || desc.includes(q) || cp.id.toLowerCase().includes(q)
+                                        })
+                                        : cloudCheckpoints
+                                    if (filtered.length === 0) {
+                                        return <div className="chip-popover-empty">No checkpoints match</div>
+                                    }
+                                    return filtered.map(cp => {
+                                        const primary = cp.name?.trim() || cp.id.slice(0, 8)
+                                        return (
+                                            <PopoverOption
+                                                key={cp.id}
+                                                selected={checkpointId === cp.id}
+                                                onClick={() => { setCheckpointId(cp.id); setRuntimeKind('docker-session') }}
+                                            >
+                                                <span className="chip-popover-option-body">
+                                                    <span className="chip-popover-option-primary">{primary}</span>
+                                                    <span className="chip-popover-option-secondary">{cp.id}</span>
+                                                </span>
+                                            </PopoverOption>
+                                        )
+                                    })
+                                })()}
+                            </div>
                         </PopoverGroup>
                     ) : null}
 

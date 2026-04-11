@@ -73,6 +73,17 @@ type MachineRpcHandlers = {
     checkpointCreate: (params: { containerId: string; checkpointId: string; name: string }) => Promise<{ dockerImage: string; success: boolean; error?: string }>
     checkpointDelete: (params: { checkpointId: string; dockerImage: string }) => Promise<{ success: boolean }>
     previewForward: (params: { sessionId: string; containerId?: string; port: number; method: string; path: string; headers: Record<string, string>; body?: string }) => Promise<{ status: number; headers: Record<string, string>; body?: string }>
+    dockerCleanup: (params: {
+        keepImages?: string[]
+        pruneBuildCache?: boolean
+        pruneVolumes?: boolean
+    }) => Promise<{
+        removedImages: Array<{ tag: string; bytes: number }>
+        freedBytesImages: number
+        freedBytesBuild: number
+        freedBytesVolumes: number
+        errors: string[]
+    }>
 }
 
 interface PathExistsRequest {
@@ -154,7 +165,7 @@ export class ApiMachineClient {
         })
     }
 
-    setRPCHandlers({ spawnSession, stopSession, requestShutdown, containerList, containerStopSession, containerStop, containerRemove, containerLogs, checkpointCreate, checkpointDelete, previewForward }: MachineRpcHandlers): void {
+    setRPCHandlers({ spawnSession, stopSession, requestShutdown, containerList, containerStopSession, containerStop, containerRemove, containerLogs, checkpointCreate, checkpointDelete, previewForward, dockerCleanup }: MachineRpcHandlers): void {
         this.rpcHandlerManager.registerHandler('spawn-happy-session', async (params: any) => {
             const {
                 directory,
@@ -292,6 +303,17 @@ export class ApiMachineClient {
 
         this.rpcHandlerManager.registerHandler('preview-forward', async (params: any) => {
             return await previewForward(params)
+        })
+
+        this.rpcHandlerManager.registerHandler('docker-cleanup', async (params: any) => {
+            const keepImages = Array.isArray(params?.keepImages)
+                ? params.keepImages.filter((s: unknown): s is string => typeof s === 'string')
+                : []
+            return await dockerCleanup({
+                keepImages,
+                pruneBuildCache: params?.pruneBuildCache === true,
+                pruneVolumes: params?.pruneVolumes === true
+            })
         })
     }
 
