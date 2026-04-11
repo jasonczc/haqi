@@ -130,11 +130,22 @@ export async function claudeRemote(opts: {
 
     // Prepare SDK options
     let mode = initial.mode;
+
+    // Claude CLI refuses --dangerously-skip-permissions (bypassPermissions mode)
+    // when running as root. In container sandboxes we commonly run as root,
+    // so downgrade to acceptEdits which provides equivalent UX for agentic use.
+    let effectivePermissionMode = initial.mode.permissionMode
+    const runningAsRoot = typeof process.getuid === 'function' && process.getuid() === 0
+    if (runningAsRoot && effectivePermissionMode === 'bypassPermissions') {
+        logger.debug('[claudeRemote] Running as root — downgrading bypassPermissions → acceptEdits')
+        effectivePermissionMode = 'acceptEdits'
+    }
+
     const sdkOptions: Options = {
         cwd: opts.path,
         resume: startFrom ?? undefined,
         mcpServers: opts.mcpServers,
-        permissionMode: initial.mode.permissionMode,
+        permissionMode: effectivePermissionMode,
         model: initial.mode.model,
         effort: initial.mode.thinkEffort,
         fallbackModel: initial.mode.fallbackModel,
