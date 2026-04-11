@@ -377,24 +377,27 @@ export class SpawnCoordinator {
 
             const request = requestParse.data
             const namespace = existing.namespace
-            const needsDockerImage = request.runtimeKind !== 'host-process' && request.runtimeKind !== 'daemon-session'
-            if (!request.workspaceSource?.repository && request.sessionType !== 'setup' && needsDockerImage) {
-                this.failRequest(namespace, requestId, {
-                    phase: 'queued',
-                    code: 'cloud_repo_required',
-                    message: 'Cloud docker sessions require workspaceSource.repository',
-                    retryable: false,
-                    at: Date.now()
-                })
-                return
-            }
             const requestedEnvironment = this.resolveEnvironment(request)
             const checkpoint = this.resolveCheckpoint(request, requestedEnvironment)
-            if (!checkpoint && request.sessionType !== 'setup' && needsDockerImage) {
+
+            // Source validation: a cloud session is valid if ANY of the following:
+            //   1. sessionType === 'setup'                 — bare session for env config
+            //   2. runtimeKind is host-process/daemon      — no Docker image needed
+            //   3. checkpoint exists                        — checkpoint has baked state (repo optional)
+            //   4. workspaceSource.repository exists        — fresh clone into a fresh container
+            //   5. environment.runtime.image is set         — custom pre-built image
+            const hasSetupType = request.sessionType === 'setup'
+            const hasFlexibleRuntime = request.runtimeKind === 'host-process' || request.runtimeKind === 'daemon-session'
+            const hasCheckpoint = Boolean(checkpoint)
+            const hasRepo = Boolean(request.workspaceSource?.repository)
+            const hasEnvImage = Boolean(requestedEnvironment?.runtime?.image)
+            const hasValidSource = hasSetupType || hasFlexibleRuntime || hasCheckpoint || hasRepo || hasEnvImage
+
+            if (!hasValidSource) {
                 this.failRequest(namespace, requestId, {
                     phase: 'queued',
-                    code: 'checkpoint_not_found',
-                    message: 'Cloud docker sessions require a valid checkpointId or environment.runtime.image',
+                    code: 'cloud_source_required',
+                    message: 'Cloud session needs a checkpoint, repository, environment image, or setup sessionType',
                     retryable: false,
                     at: Date.now()
                 })
