@@ -8,6 +8,48 @@ import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInCon
 import { DaemonClient } from './DaemonClient'
 import { buildSpawnArgs } from './HostProcessExecutor'
 
+/**
+ * Extract Claude OAuth token from macOS Keychain or ~/.claude/.credentials.json.
+ * Returns the access token string or undefined if not found.
+ */
+function extractClaudeOAuthToken(): string | undefined {
+    // First try environment variable
+    if (process.env.CLAUDE_CODE_OAUTH_TOKEN) return process.env.CLAUDE_CODE_OAUTH_TOKEN
+    if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
+
+    // Try credentials file
+    try {
+        const fs = require('node:fs') as typeof import('node:fs')
+        const path = require('node:path') as typeof import('node:path')
+        const os = require('node:os') as typeof import('node:os')
+        const credPath = path.join(os.homedir(), '.claude', '.credentials.json')
+        if (fs.existsSync(credPath)) {
+            const raw = fs.readFileSync(credPath, 'utf-8')
+            const parsed = JSON.parse(raw)
+            const token = parsed?.claudeAiOauth?.accessToken
+            if (typeof token === 'string') return token
+        }
+    } catch { /* ignore */ }
+
+    // Try macOS keychain
+    if (process.platform === 'darwin') {
+        try {
+            const { execSync } = require('node:child_process') as typeof import('node:child_process')
+            const raw = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
+                encoding: 'utf-8',
+                stdio: ['ignore', 'pipe', 'ignore']
+            }).trim()
+            if (raw) {
+                const parsed = JSON.parse(raw)
+                const token = parsed?.claudeAiOauth?.accessToken
+                if (typeof token === 'string') return token
+            }
+        } catch { /* ignore */ }
+    }
+
+    return undefined
+}
+
 const DAEMON_PORT = 9876
 
 export type DaemonSessionResult = {
@@ -77,6 +119,7 @@ export async function startDaemonSessionExecutor(params: {
 
                         // Spawn new agent in existing container
                         const spawnArgs = buildSpawnArgs(params.options)
+                        const reattachToken = extractClaudeOAuthToken()
                         const spawnResponse = await client.spawn({
                             command: ['haqi', ...spawnArgs],
                             cwd: params.workspace.workingDirectory,
@@ -88,7 +131,9 @@ export async function startDaemonSessionExecutor(params: {
                                 HAPI_CONTAINER_ID: containerId,
                                 HAPI_RUNTIME_KIND: 'daemon-session',
                                 ...(params.options.sessionType ? { HAPI_SESSION_TYPE: params.options.sessionType } : {}),
-                                ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {})
+                                ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {}),
+                                ...(reattachToken ? { CLAUDE_CODE_OAUTH_TOKEN: reattachToken } : {}),
+                                ...(process.env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } : {})
                             }
                         })
 
@@ -188,6 +233,7 @@ export async function startDaemonSessionExecutor(params: {
     const callbackUrl = params.controlPort
         ? `http://host.docker.internal:${params.controlPort}`
         : undefined
+    const claudeOAuthToken = extractClaudeOAuthToken()
     const spawnResponse = await client.spawn({
         command: ['haqi', ...spawnArgs],
         cwd: params.workspace.workingDirectory,
@@ -201,7 +247,9 @@ export async function startDaemonSessionExecutor(params: {
             ...(callbackUrl ? { HAPI_RUNNER_CALLBACK_URL: callbackUrl } : {}),
             ...(noVncPort ? { HAPI_NOVNC_PORT: String(noVncPort) } : {}),
             ...(params.options.sessionType ? { HAPI_SESSION_TYPE: params.options.sessionType } : {}),
-            ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {})
+            ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {}),
+            ...(claudeOAuthToken ? { CLAUDE_CODE_OAUTH_TOKEN: claudeOAuthToken } : {}),
+            ...(process.env.ANTHROPIC_API_KEY ? { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY } : {})
         }
     })
 

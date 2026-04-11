@@ -1060,6 +1060,29 @@ export class SyncEngine {
         if (session?.permissionMode === 'auto-approve') {
             void this.maybeAutoApprovePendingRequests(payload.sid)
         }
+
+        // Deliver any pending initial prompt now that the agent's socket is alive
+        // (session-alive ping happens AFTER the agent's socket joined the room)
+        this.deliverPendingInitialPromptIfAny(payload.sid, session ?? null)
+    }
+
+    private deliverPendingInitialPromptIfAny(sessionId: string, session: Session | null): void {
+        if (this.sentInitialPrompts.has(sessionId)) return
+
+        const meta = session?.metadata as Record<string, unknown> | undefined
+        const spawnRequestId = typeof meta?.spawnRequestId === 'string' ? meta.spawnRequestId : null
+        const pendingPrompt = spawnRequestId ? this.pendingInitialPrompts.get(spawnRequestId) : undefined
+        if (!pendingPrompt) return
+
+        this.sentInitialPrompts.add(sessionId)
+        this.pendingInitialPrompts.delete(spawnRequestId!)
+
+        void this.sendMessage(sessionId, {
+            text: pendingPrompt,
+            sentFrom: 'webapp'
+        }).catch((err) => {
+            console.warn(`[SyncEngine] Failed to send initial prompt for session ${sessionId}:`, err)
+        })
     }
 
     handleSessionEnd(payload: { sid: string; time: number }): void {
@@ -1110,27 +1133,9 @@ export class SyncEngine {
     getOrCreateSession(tag: string, metadata: unknown, agentState: unknown, namespace: string): Session {
         const session = this.sessionCache.getOrCreateSession(tag, metadata, agentState, namespace)
         this.syncCloudRegistriesFromSession(session)
-
-        // Auto-send initial prompt for setup sessions
-        // Look up pending prompt by spawnRequestId from session metadata
-        const meta = metadata as Record<string, unknown> | null
-        const spawnRequestId = typeof meta?.spawnRequestId === 'string' ? meta.spawnRequestId : ''
-
-        if (spawnRequestId && session && !this.sentInitialPrompts.has(session.id)) {
-            const pendingPrompt = this.pendingInitialPrompts.get(spawnRequestId)
-            if (pendingPrompt) {
-                this.sentInitialPrompts.add(session.id)
-                this.pendingInitialPrompts.delete(spawnRequestId)
-                // Send asynchronously — don't block session creation
-                void this.sendMessage(session.id, {
-                    text: pendingPrompt,
-                    sentFrom: 'webapp'
-                }).catch((err) => {
-                    console.warn(`[SyncEngine] Failed to send initial prompt for session ${session.id}:`, err)
-                })
-            }
-        }
-
+        // Note: initial prompt is delivered from handleSessionAlive(), not here,
+        // because at this point the agent hasn't connected its socket yet so
+        // a sendMessage() emit would go to an empty room.
         return session
     }
 
@@ -2074,20 +2079,8 @@ ${note.content}
             request = { ...request, spawnRequestId: `spawn-${Date.now()}-${Math.random().toString(16).slice(2, 8)}` }
         }
 
-        // Store initial prompt for setup sessions (will be sent when session registers)
-        const setupPrompt = request.initialPrompt?.trim() || (
-            request.sessionType === 'setup'
-                ? 'You are setting up the development environment for this project. Analyze the project structure, install all dependencies, configure the development tools, and verify the setup works (e.g., build, test, or start the dev server). Report what you did and confirm everything is working.'
-                : ''
-        )
-        let promptToSend = setupPrompt
-        const repoUrl = request.workspaceSource?.repository?.url ?? ''
-        if (repoUrl.includes('github.com') && promptToSend) {
-            promptToSend += '\n\nWhen your task is complete, create a pull request using `gh pr create --fill` and report the PR URL.'
-        }
-        if (promptToSend) {
-            this.pendingInitialPrompts.set(request.spawnRequestId!, promptToSend)
-        }
+        // Build initial prompt (will be sent when session registers)
+        const promptToSend = this.resolveInitialPrompt(request)
 
         if (request.executionBackend === 'cloud-self-hosted' || request.executionBackend === 'cloud-managed') {
             const machine = this.machineCache.getMachine(machineId)
@@ -2099,12 +2092,21 @@ ${note.content}
                 }
             }
             const accepted = this.spawnCoordinator.enqueue(machine.namespace, machineId, request)
+            // Store keyed by coordinator's requestId (coordinator overwrites request.spawnRequestId)
+            if (promptToSend) {
+                this.pendingInitialPrompts.set(accepted.id, promptToSend)
+            }
             return {
                 type: 'accepted',
                 requestId: accepted.id,
                 phase: accepted.phase,
                 selectedMachineId: accepted.selectedMachineId
             }
+        }
+
+        // Local path: prompt keyed by spawnRequestId in the request
+        if (promptToSend && request.spawnRequestId) {
+            this.pendingInitialPrompts.set(request.spawnRequestId, promptToSend)
         }
 
         const directory = request.directory ?? request.workspaceSource?.directory ?? request.workspaceSource?.repository?.url ?? ''
@@ -2163,13 +2165,37 @@ ${note.content}
             }
         }
 
+        // Build initial prompt (same logic as spawnSession)
+        const promptToSend = this.resolveInitialPrompt(request)
+
         const accepted = this.spawnCoordinator.enqueue(namespace, 'auto', request)
+
+        // Store keyed by the coordinator's requestId — the coordinator overwrites
+        // request.spawnRequestId with its own id in spawnPayload (see spawnCoordinator.ts:545)
+        if (promptToSend) {
+            this.pendingInitialPrompts.set(accepted.id, promptToSend)
+        }
+
         return {
             type: 'accepted',
             requestId: accepted.id,
             phase: accepted.phase,
             selectedMachineId: accepted.selectedMachineId
         }
+    }
+
+    private resolveInitialPrompt(request: MachineSpawnRequest): string {
+        const setupPrompt = request.initialPrompt?.trim() || (
+            request.sessionType === 'setup'
+                ? 'You are setting up the development environment for this project. Analyze the project structure, install all dependencies, configure the development tools, and verify the setup works (e.g., build, test, or start the dev server). Report what you did and confirm everything is working.'
+                : ''
+        )
+        let promptToSend = setupPrompt
+        const repoUrl = request.workspaceSource?.repository?.url ?? ''
+        if (repoUrl.includes('github.com') && promptToSend) {
+            promptToSend += '\n\nWhen your task is complete, create a pull request using `gh pr create --fill` and report the PR URL.'
+        }
+        return promptToSend
     }
 
     async spawnSessionFromExisting(
