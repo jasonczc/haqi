@@ -75,8 +75,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code CLI globally via npm
+# Install Claude Code and Codex CLI globally via npm
 RUN npm install -g @anthropic-ai/claude-code || echo "claude install skipped"
+RUN npm install -g @openai/codex || echo "codex install skipped"
 
 # Copy daemon binary
 COPY --from=builder /build/daemon/dist/haqi-daemon /usr/local/bin/haqi-daemon
