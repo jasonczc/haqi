@@ -29,6 +29,8 @@ export type SessionBootstrapOptions = {
     repoSyncStatus?: Metadata['repoSyncStatus']
     workspaceBranch?: string
     containerId?: string
+    containerUser?: string
+    containerHome?: string
     runtimeKind?: Metadata['runtimeKind']
     executionBackend?: Metadata['executionBackend']
     environmentId?: string
@@ -82,6 +84,8 @@ export function buildSessionMetadata(options: {
     repoSyncStatus?: Metadata['repoSyncStatus']
     workspaceBranch?: string
     containerId?: string
+    containerUser?: string
+    containerHome?: string
     noVncPort?: number
     runtimeKind?: Metadata['runtimeKind']
     executionBackend?: Metadata['executionBackend']
@@ -131,6 +135,8 @@ export function buildSessionMetadata(options: {
         repoSyncStatus: options.repoSyncStatus,
         workspaceBranch: options.workspaceBranch,
         containerId: options.containerId,
+        containerUser: options.containerUser,
+        containerHome: options.containerHome,
         noVncPort: options.noVncPort,
         runtimeKind: options.runtimeKind,
         executionBackend: options.executionBackend,
@@ -201,6 +207,8 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
     })()
     const workspaceBranch = options.workspaceBranch ?? process.env.HAPI_WORKSPACE_BRANCH
     const containerId = options.containerId ?? process.env.HAPI_CONTAINER_ID
+    const containerUser = options.containerUser ?? process.env.HAPI_CONTAINER_USER
+    const containerHome = options.containerHome ?? process.env.HAPI_CONTAINER_HOME
     const noVncPort = process.env.HAPI_NOVNC_PORT ? parseInt(process.env.HAPI_NOVNC_PORT, 10) : undefined
     const runtimeKind = options.runtimeKind ?? (
         process.env.HAPI_RUNTIME_KIND === 'docker-session' || process.env.HAPI_RUNTIME_KIND === 'host-process' || process.env.HAPI_RUNTIME_KIND === 'daemon-session'
@@ -364,6 +372,8 @@ export async function bootstrapSession(options: SessionBootstrapOptions): Promis
         repoSyncStatus,
         workspaceBranch,
         containerId,
+        containerUser,
+        containerHome,
         noVncPort,
         runtimeKind,
         executionBackend,

@@ -34,6 +34,7 @@ async function ensureDesktopStatePaths(params: {
     containerId: string
     workspace: PreparedWorkspace
     statePaths: string[]
+    user?: string
 }): Promise<void> {
     if (params.statePaths.length === 0) {
         return
@@ -41,6 +42,7 @@ async function ensureDesktopStatePaths(params: {
     const command = `mkdir -p ${params.statePaths.map((value) => `'${value.replace(/'/g, `'\\''`)}'`).join(' ')}`
     await params.runtime.exec({
         containerId: params.containerId,
+        user: params.user,
         workingDir: params.workspace.workingDirectory,
         command: ['sh', '-lc', command]
     })
@@ -51,11 +53,13 @@ async function runShellInContainer(params: {
     containerId: string
     cwd: string
     env?: Record<string, string>
+    user?: string
     command: string
     detach?: boolean
 }): Promise<void> {
     await params.runtime.exec({
         containerId: params.containerId,
+        user: params.user,
         workingDir: params.cwd,
         env: Object.entries(params.env ?? {}).map(([key, value]) => `${key}=${value}`),
         detach: params.detach,
@@ -68,6 +72,8 @@ export async function hydrateDesktop(params: {
     containerId: string
     workspace: PreparedWorkspace
     environment: EnvironmentTemplate | undefined
+    user?: string
+    home?: string
     launchMode?: 'interactive' | 'background'
 }): Promise<DesktopHydrationResult> {
     const desktop = normalizeDesktop(params.environment)
@@ -80,7 +86,8 @@ export async function hydrateDesktop(params: {
         runtime: params.runtime,
         containerId: params.containerId,
         workspace: params.workspace,
-        statePaths
+        statePaths,
+        user: params.user
     })
 
     const warmupState: DesktopHydrationRuntimeState[] = []
@@ -89,7 +96,12 @@ export async function hydrateDesktop(params: {
             runtime: params.runtime,
             containerId: params.containerId,
             cwd: command.cwd ?? params.workspace.workingDirectory,
-            env: command.env,
+            user: params.user,
+            env: {
+                ...command.env,
+                ...(params.home ? { HOME: params.home } : {}),
+                ...(params.user ? { USER: params.user, LOGNAME: params.user } : {})
+            },
             command: command.command
         })
         warmupState.push(stateEntry(command.name ?? command.command, 'ready', 'completed'))
@@ -101,7 +113,12 @@ export async function hydrateDesktop(params: {
             runtime: params.runtime,
             containerId: params.containerId,
             cwd: server.cwd ?? params.workspace.workingDirectory,
-            env: server.env,
+            user: params.user,
+            env: {
+                ...server.env,
+                ...(params.home ? { HOME: params.home } : {}),
+                ...(params.user ? { USER: params.user, LOGNAME: params.user } : {})
+            },
             command: server.command,
             detach: true
         })

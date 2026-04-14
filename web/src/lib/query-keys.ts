@@ -15,6 +15,7 @@ export const queryKeys = {
     cloudSecrets: ['cloud-secrets'] as const,
     cloudSecret: (secretId: string) => ['cloud-secret', secretId] as const,
     cloudWorkerEnrollmentTokens: ['cloud-worker-enrollment-tokens'] as const,
+    localRuntime: ['local-runtime'] as const,
     machineCodexCredentials: (machineId: string) => ['machine-codex-credentials', machineId] as const,
     previewUrlHistory: ['preview-url-history'] as const,
     groups: ['groups'] as const,

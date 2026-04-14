@@ -9,7 +9,7 @@
  * - CLI_API_TOKEN: Shared secret for hapi CLI authentication (auto-generated if not set)
  * - TELEGRAM_BOT_TOKEN: Telegram Bot API token from @BotFather
  * - TELEGRAM_NOTIFICATION: Enable/disable Telegram notifications (default: true)
- * - HAPI_LISTEN_HOST: Host/IP to bind the HTTP service (default: 127.0.0.1)
+ * - HAPI_LISTEN_HOST: Host/IP to bind the HTTP service (default: 0.0.0.0)
  * - HAPI_LISTEN_PORT: Port for HTTP service (default: 3006)
  * - HAPI_PUBLIC_URL: Public URL for external access (e.g., Telegram Mini App)
  * - CORS_ORIGINS: Comma-separated CORS origins

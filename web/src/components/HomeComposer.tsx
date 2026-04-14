@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { ApiClient } from '@/api/client'
 import type {
@@ -17,6 +18,7 @@ import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
 import { useCloudEnvironments } from '@/hooks/queries/useCloudEnvironments'
 import { useCloudCheckpoints } from '@/hooks/queries/useCloudCheckpoints'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
+import { queryKeys } from '@/lib/query-keys'
 import {
     ChipPopover,
     PopoverGroup,
@@ -234,15 +236,36 @@ export function HomeComposer(props: {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     // ── Hooks ──
+    const queryClient = useQueryClient()
     const { spawnSession, isPending } = useSpawnSession(props.api)
     const { machines } = useMachines(props.api, true)
     const isCloud = isCloudBackend(executionBackend)
-    const { workers: allWorkers } = useCloudWorkers(props.api, true) // always enabled for phase detection
+    const { workers: allWorkers } = useCloudWorkers(props.api, true, undefined, 3000) // always enabled for phase detection
     const { environments: cloudEnvironments } = useCloudEnvironments(props.api, isCloud)
     const { checkpoints: cloudCheckpoints } = useCloudCheckpoints(props.api, true) // always enabled for phase detection
+    const localRuntimeQuery = useQuery({
+        queryKey: queryKeys.localRuntime,
+        enabled: Boolean(props.api),
+        refetchInterval: 3000,
+        queryFn: async () => {
+            if (!props.api) {
+                throw new Error('API unavailable')
+            }
+            return await props.api.getLocalRuntimeStatus()
+        }
+    })
 
     // ── Phase detection ──
-    const hasActiveWorker = allWorkers.some(w => w.active && w.selectable)
+    const hasConnectedWorker = allWorkers.some(w => w.active)
+    const selectableWorker = allWorkers.find(w => w.active && w.selectable)
+    const hasSelectableWorker = Boolean(selectableWorker)
+    const activeWorkerFailure = allWorkers.find(w => w.active && w.selectable === false)?.runnerState?.lastWorkspaceError?.message
+        ?? allWorkers.find(w => w.active && w.selectable === false)?.runnerState?.lastSpawnError?.message
+        ?? null
+    const runtimeReady = Boolean(localRuntimeQuery.data?.ready)
+    const runtimeBuilding = Boolean(localRuntimeQuery.data?.running)
+    const runtimeLogs = localRuntimeQuery.data?.logs ?? []
+    const runtimeMessage = runtimeLogs.at(-1) ?? null
     const hasCheckpoint = cloudCheckpoints.length > 0
     const [skipOnboard, setSkipOnboard] = useState(() => localStorage.getItem('haqi-onboard-skip') === 'true')
     const [startingLocalWorker, setStartingLocalWorker] = useState(false)
@@ -250,8 +273,9 @@ export function HomeComposer(props: {
     const [setupAgent, setSetupAgent] = useState<'claude' | 'codex'>('claude')
     const [setupRepoUrl, setSetupRepoUrl] = useState('')
 
-    const onboardPhase: 'worker' | 'setup' | 'ready' =
-        !hasActiveWorker ? 'worker' :
+    const onboardPhase: 'worker' | 'runtime' | 'setup' | 'ready' =
+        !hasConnectedWorker ? 'worker' :
+        !runtimeReady ? 'runtime' :
         !hasCheckpoint && !skipOnboard ? 'setup' :
         'ready'
 
@@ -266,23 +290,27 @@ export function HomeComposer(props: {
         setLocalWorkerError(null)
         try {
             await props.api.startLocalWorker()
+            await queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkers() })
         } catch (err: any) {
             setLocalWorkerError(err?.message ?? 'Failed to start worker')
         } finally {
             setStartingLocalWorker(false)
         }
-    }, [props.api])
+    }, [props.api, queryClient])
 
     const handleStartSetup = useCallback(async () => {
-        const worker = allWorkers.find(w => w.active && w.selectable)
-        if (!worker) return
+        const worker = selectableWorker
+        if (!worker) {
+            setLocalWorkerError(activeWorkerFailure ?? 'Worker is online but not ready yet')
+            return
+        }
         try {
             const result = await spawnSession({
                 machineId: worker.machineId,
                 agent: setupAgent,
                 sessionType: 'setup',
                 executionBackend: (worker as any).executorType ?? 'cloud-self-hosted',
-                runtimeKind: 'host-process',
+                runtimeKind: 'daemon-session',
                 yolo: true,
                 workspaceSource: setupRepoUrl.trim() ? { repository: { url: setupRepoUrl.trim() } } : undefined,
             })
@@ -294,7 +322,19 @@ export function HomeComposer(props: {
         } catch (err: any) {
             setLocalWorkerError(err?.message ?? 'Failed to start setup')
         }
-    }, [allWorkers, setupAgent, setupRepoUrl, spawnSession, props, navigate])
+    }, [selectableWorker, activeWorkerFailure, setupAgent, setupRepoUrl, spawnSession, props, navigate])
+
+    const handlePrepareRuntime = useCallback(async () => {
+        if (!props.api) return
+        setLocalWorkerError(null)
+        try {
+            await props.api.prepareLocalRuntime()
+            await queryClient.invalidateQueries({ queryKey: queryKeys.localRuntime })
+            await queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkers() })
+        } catch (err: any) {
+            setLocalWorkerError(err?.message ?? 'Failed to prepare runtime')
+        }
+    }, [props.api, queryClient])
 
     // ── Derived data ──
     const selectableMachines = useMemo(() => {
@@ -595,13 +635,47 @@ export function HomeComposer(props: {
                                     <div style={{ marginTop: 8, fontSize: 12, color: 'var(--cursor-danger, #dc2626)' }}>{localWorkerError}</div>
                                 ) : null}
                                 <div style={{ marginTop: 12, fontSize: 12, color: 'var(--cursor-text-tertiary)' }}>
-                                    Waiting for worker to come online...
+                                    {startingLocalWorker ? 'Starting worker...' : 'Waiting for worker to come online...'}
                                 </div>
                             </div>
                         </div>
                     ) : null}
 
-                    {/* ── Phase 2: No checkpoint ── */}
+                    {/* ── Phase 2: Prepare runtime ── */}
+                    {onboardPhase === 'runtime' ? (
+                        <div className="prompt-container">
+                            <div className="prompt-card" style={{ padding: '24px' }}>
+                                <div style={{ fontSize: 14, color: 'var(--cursor-text-primary)', fontWeight: 600, marginBottom: 8 }}>
+                                    Prepare runtime
+                                </div>
+                                <div style={{ fontSize: 13, color: 'var(--cursor-text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                                    Build the Docker runtime image once on this worker before starting setup sessions.
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <button
+                                        type="button"
+                                        className="action-btn active"
+                                        style={{ width: 'auto', borderRadius: 8, padding: '8px 16px', height: 'auto', fontSize: 13, gap: 6 }}
+                                        onClick={handlePrepareRuntime}
+                                        disabled={runtimeBuilding}
+                                    >
+                                        {runtimeBuilding ? <SpinnerSvg /> : null}
+                                        {runtimeBuilding ? 'Preparing...' : 'Prepare Runtime'}
+                                    </button>
+                                </div>
+                                {localWorkerError ? (
+                                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--cursor-danger, #dc2626)' }}>{localWorkerError}</div>
+                                ) : null}
+                                <div style={{ marginTop: 12, fontSize: 12, color: 'var(--cursor-text-tertiary)' }}>
+                                    {runtimeBuilding
+                                        ? (runtimeMessage ?? 'Building haqi-workspace:dev...')
+                                        : 'Docker runtime image is not ready yet.'}
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {/* ── Phase 3: No checkpoint ── */}
                     {onboardPhase === 'setup' ? (
                         <div className="prompt-container">
                             <div className="prompt-card" style={{ padding: '24px' }}>
@@ -630,7 +704,7 @@ export function HomeComposer(props: {
                                         className="action-btn active"
                                         style={{ width: 'auto', borderRadius: 8, padding: '8px 16px', height: 'auto', fontSize: 13 }}
                                         onClick={handleStartSetup}
-                                        disabled={isPending}
+                                        disabled={isPending || !hasSelectableWorker}
                                     >
                                         {isPending ? <SpinnerSvg /> : null}
                                         {isPending ? 'Starting...' : 'Start Setup Session'}
@@ -643,6 +717,11 @@ export function HomeComposer(props: {
                                         Skip — use without Docker
                                     </button>
                                 </div>
+                                {!hasSelectableWorker ? (
+                                    <div style={{ marginTop: 8, fontSize: 12, color: activeWorkerFailure ? 'var(--cursor-danger, #dc2626)' : 'var(--cursor-text-tertiary)' }}>
+                                        {activeWorkerFailure ?? 'Worker connected. Waiting for it to become ready...'}
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                     ) : null}

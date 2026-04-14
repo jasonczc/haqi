@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { Store } from '../store'
 import { configuration } from '../configuration'
 import { resolveCliAuthToken } from '../cloud/resolveCliAuthToken'
+import { DEFAULT_NAMESPACE } from '../utils/accessToken'
 import { registerCliHandlers } from './handlers/cli'
 import { registerTerminalHandlers } from './handlers/terminal'
 import { RpcRegistry } from './rpcRegistry'
@@ -177,8 +178,12 @@ export function createSocketServer(deps: SocketServerDeps): {
             socket.data.machineId = resolved.machineId
         }
         if (resolved.kind === 'enrollment') {
+            const legacyAccessToken = resolved.namespace === DEFAULT_NAMESPACE
+                ? configuration.cliApiToken
+                : `${configuration.cliApiToken}:${resolved.namespace}`
             socket.data.pendingWorkerEnrollment = {
                 workerSessionToken: resolved.workerSessionToken,
+                legacyAccessToken,
                 namespace: resolved.namespace,
                 machineId: resolved.machineId
             }

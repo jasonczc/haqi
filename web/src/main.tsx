@@ -82,8 +82,9 @@ async function bootstrap() {
         await loadTelegramSdk()
     }
 
-    if (isSafariEngine()) {
-        // Hard disable SW on Safari/WebKit to avoid auto-refresh loops.
+    if (import.meta.env.DEV || isSafariEngine()) {
+        // In dev, always clear SW + caches so remote dev hosts do not get stuck on stale bundles.
+        // Safari/WebKit also gets SW disabled to avoid auto-refresh loops.
         await disableServiceWorkerForSafari()
     } else {
         const updateSW = registerSW({

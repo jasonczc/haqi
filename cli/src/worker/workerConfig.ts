@@ -5,6 +5,7 @@ import * as os from 'node:os'
 export type WorkerConfig = {
     hubUrl: string
     workerSessionToken: string
+    legacyAccessToken?: string
     machineId: string
     namespace: string
 }

@@ -38,7 +38,7 @@ export default defineConfig({
     },
     server: {
         host: true,
-        allowedHosts: ['hapidev.weishu.me'],
+        allowedHosts: ['hapidev.weishu.me', 'vive-dev-jp.mikufan.org'],
         proxy: {
             '/api': {
                 target: hubTarget,
@@ -50,7 +50,8 @@ export default defineConfig({
             },
             '/desktop': {
                 target: hubTarget,
-                changeOrigin: true
+                changeOrigin: true,
+                ws: true
             },
             '/preview': {
                 target: hubTarget,
@@ -109,7 +110,7 @@ export default defineConfig({
                 globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}']
             },
             devOptions: {
-                enabled: true,
+                enabled: false,
                 type: 'module'
             }
         })

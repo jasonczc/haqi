@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { logger } from '@/ui/logger'
 import { runDockerCommand } from '@/cloud/docker/dockerCli'
+import { DEFAULT_CONTAINER_HOME, getContainerHomeTargets } from '@/cloud/containerUser'
 
 export type HostCredentialBundle = {
     env: Record<string, string>
@@ -12,6 +13,15 @@ export type HostCredentialBundle = {
         containerPath: string
         mode: 'ro' | 'rw'
     }>
+}
+
+async function runDockerExec(containerId: string, command: string[], options?: { user?: string }): Promise<void> {
+    const args = ['exec']
+    if (options?.user) {
+        args.push('-u', options.user)
+    }
+    args.push(containerId, ...command)
+    await runDockerCommand(args)
 }
 
 /**
@@ -45,7 +55,7 @@ export function collectHostCredentials(): HostCredentialBundle {
     if (existsSync(codexAuthPath)) {
         fileMounts.push({
             hostPath: codexAuthPath,
-            containerPath: '/root/.codex/auth.json',
+            containerPath: `${DEFAULT_CONTAINER_HOME}/.codex/auth.json`,
             mode: 'ro',
         })
         logger.debug('[host-creds] Mounting Codex auth.json')
@@ -55,7 +65,7 @@ export function collectHostCredentials(): HostCredentialBundle {
     if (existsSync(codexConfigPath)) {
         fileMounts.push({
             hostPath: codexConfigPath,
-            containerPath: '/root/.codex/config.toml',
+            containerPath: `${DEFAULT_CONTAINER_HOME}/.codex/config.toml`,
             mode: 'ro',
         })
     }
@@ -136,7 +146,9 @@ function findClaudeOAuthToken(): string | undefined {
  *
  * Called after container creation and before the agent starts.
  */
-export async function injectHostCredentialsIntoContainer(containerId: string): Promise<void> {
+export async function injectHostCredentialsIntoContainer(containerId: string, user?: string): Promise<void> {
+    const homeTargets = getContainerHomeTargets(user)
+
     // Claude Code credentials
     const claudeToken = findClaudeOAuthToken()
     if (claudeToken) {
@@ -144,11 +156,13 @@ export async function injectHostCredentialsIntoContainer(containerId: string): P
             const credJson = JSON.stringify({
                 claudeAiOauth: { accessToken: claudeToken }
             })
-            await runDockerCommand(['exec', containerId, 'mkdir', '-p', '/root/.claude'])
-            await runDockerCommand([
-                'exec', containerId, 'sh', '-c',
-                `cat > /root/.claude/.credentials.json <<'HAQI_CRED_EOF'\n${credJson}\nHAQI_CRED_EOF\nchmod 600 /root/.claude/.credentials.json`
-            ])
+            for (const target of homeTargets) {
+                await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.claude`], { user: 'root' })
+                await runDockerExec(containerId, [
+                    'sh', '-c',
+                    `cat > ${target.home}/.claude/.credentials.json <<'HAQI_CRED_EOF'\n${credJson}\nHAQI_CRED_EOF\nchmod 600 ${target.home}/.claude/.credentials.json\nchown ${target.owner} ${target.home}/.claude/.credentials.json`
+                ], { user: 'root' })
+            }
             logger.debug('[host-creds] Injected Claude credentials into container')
         } catch (err) {
             logger.debug('[host-creds] Failed to inject Claude credentials:', err)
@@ -159,10 +173,12 @@ export async function injectHostCredentialsIntoContainer(containerId: string): P
     const codexAuth = join(homedir(), '.codex', 'auth.json')
     if (existsSync(codexAuth)) {
         try {
-            await runDockerCommand(['exec', containerId, 'mkdir', '-p', '/root/.codex'])
-            // Use docker cp to copy the file into the container layer
-            await runDockerCommand(['cp', codexAuth, `${containerId}:/root/.codex/auth.json`])
-            await runDockerCommand(['exec', containerId, 'chmod', '600', '/root/.codex/auth.json'])
+            for (const target of homeTargets) {
+                await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.codex`], { user: 'root' })
+                await runDockerCommand(['cp', codexAuth, `${containerId}:${target.home}/.codex/auth.json`])
+                await runDockerExec(containerId, ['chmod', '600', `${target.home}/.codex/auth.json`], { user: 'root' })
+                await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.codex/auth.json`], { user: 'root' }).catch(() => undefined)
+            }
             logger.debug('[host-creds] Injected Codex auth into container')
         } catch (err) {
             logger.debug('[host-creds] Failed to inject Codex auth:', err)
@@ -173,7 +189,11 @@ export async function injectHostCredentialsIntoContainer(containerId: string): P
     const codexConfig = join(homedir(), '.codex', 'config.toml')
     if (existsSync(codexConfig)) {
         try {
-            await runDockerCommand(['cp', codexConfig, `${containerId}:/root/.codex/config.toml`])
+            for (const target of homeTargets) {
+                await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.codex`], { user: 'root' })
+                await runDockerCommand(['cp', codexConfig, `${containerId}:${target.home}/.codex/config.toml`])
+                await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.codex/config.toml`], { user: 'root' }).catch(() => undefined)
+            }
         } catch { /* ignore */ }
     }
 
@@ -181,7 +201,11 @@ export async function injectHostCredentialsIntoContainer(containerId: string): P
     const claudeSettings = join(homedir(), '.claude', 'settings.json')
     if (existsSync(claudeSettings)) {
         try {
-            await runDockerCommand(['cp', claudeSettings, `${containerId}:/root/.claude/settings.json`])
+            for (const target of homeTargets) {
+                await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.claude`], { user: 'root' })
+                await runDockerCommand(['cp', claudeSettings, `${containerId}:${target.home}/.claude/settings.json`])
+                await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.claude/settings.json`], { user: 'root' }).catch(() => undefined)
+            }
         } catch { /* ignore */ }
     }
 
@@ -191,39 +215,44 @@ export async function injectHostCredentialsIntoContainer(containerId: string): P
     // osxkeychain silently no-op in Linux; we override them below with a
     // store-based helper + a synthesized .git-credentials file when a token
     // is available.
-    await injectGitConfig(containerId)
-    await injectGitCredentials(containerId)
-    await injectGhCli(containerId)
-    await injectSshCredentials(containerId)
+    await injectGitConfig(containerId, user)
+    await injectGitCredentials(containerId, user)
+    await injectGhCli(containerId, user)
+    await injectSshCredentials(containerId, user)
 }
 
-async function injectGitConfig(containerId: string): Promise<void> {
+async function injectGitConfig(containerId: string, user?: string): Promise<void> {
     const gitconfig = join(homedir(), '.gitconfig')
     if (!existsSync(gitconfig)) return
     try {
-        await runDockerCommand(['cp', gitconfig, `${containerId}:/root/.gitconfig`])
-        // Override credential.helper to "store" so the container reads from
-        // /root/.git-credentials instead of trying to invoke the host's
-        // credential helper binary (which doesn't exist in the container).
-        await runDockerCommand([
-            'exec', containerId, 'sh', '-c',
-            'git config --global --unset-all credential.helper 2>/dev/null; git config --global credential.helper store'
-        ]).catch(() => undefined)
+        for (const target of getContainerHomeTargets(user)) {
+            await runDockerCommand(['cp', gitconfig, `${containerId}:${target.home}/.gitconfig`])
+            await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.gitconfig`], { user: 'root' }).catch(() => undefined)
+            // Override credential.helper to "store" so the container reads from
+            // the injected .git-credentials instead of host-only helpers.
+            await runDockerExec(containerId, [
+                'sh', '-c',
+                `HOME=${target.home} git config --global --unset-all credential.helper 2>/dev/null; HOME=${target.home} git config --global credential.helper store`
+            ], { user: 'root' }).catch(() => undefined)
+        }
         logger.debug('[host-creds] Injected .gitconfig')
     } catch (err) {
         logger.debug('[host-creds] Failed to inject .gitconfig:', err)
     }
 }
 
-async function injectGitCredentials(containerId: string): Promise<void> {
+async function injectGitCredentials(containerId: string, user?: string): Promise<void> {
     // Prefer the host's .git-credentials file if present — it already has
     // whatever provider/token the user set up. Otherwise synthesize one from
     // the discovered GitHub token so HTTPS pushes/pulls work out of the box.
     const hostGitCreds = join(homedir(), '.git-credentials')
     try {
         if (existsSync(hostGitCreds)) {
-            await runDockerCommand(['cp', hostGitCreds, `${containerId}:/root/.git-credentials`])
-            await runDockerCommand(['exec', containerId, 'chmod', '600', '/root/.git-credentials'])
+            for (const target of getContainerHomeTargets(user)) {
+                await runDockerCommand(['cp', hostGitCreds, `${containerId}:${target.home}/.git-credentials`])
+                await runDockerExec(containerId, ['chmod', '600', `${target.home}/.git-credentials`], { user: 'root' })
+                await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.git-credentials`], { user: 'root' }).catch(() => undefined)
+            }
             logger.debug('[host-creds] Injected .git-credentials')
             return
         }
@@ -234,20 +263,20 @@ async function injectGitCredentials(containerId: string): Promise<void> {
     const ghToken = findGitHubToken()
     if (!ghToken) return
     try {
-        // x-access-token is GitHub's documented username for token-based
-        // HTTPS auth. Works for classic PATs, fine-grained PATs, and gh OAuth.
         const line = `https://x-access-token:${ghToken}@github.com`
-        await runDockerCommand([
-            'exec', containerId, 'sh', '-c',
-            `cat > /root/.git-credentials <<'HAQI_GIT_EOF'\n${line}\nHAQI_GIT_EOF\nchmod 600 /root/.git-credentials`
-        ])
+        for (const target of getContainerHomeTargets(user)) {
+            await runDockerExec(containerId, [
+                'sh', '-c',
+                `cat > ${target.home}/.git-credentials <<'HAQI_GIT_EOF'\n${line}\nHAQI_GIT_EOF\nchmod 600 ${target.home}/.git-credentials\nchown ${target.owner} ${target.home}/.git-credentials`
+            ], { user: 'root' })
+        }
         logger.debug('[host-creds] Synthesized .git-credentials from GitHub token')
     } catch (err) {
         logger.debug('[host-creds] Failed to synthesize .git-credentials:', err)
     }
 }
 
-async function injectGhCli(containerId: string): Promise<void> {
+async function injectGhCli(containerId: string, user?: string): Promise<void> {
     // gh CLI reads auth from ~/.config/gh/hosts.yml. Copy the whole gh
     // directory so `gh auth status`, `gh pr`, `gh issue` all work seamlessly.
     // Modern gh stores the oauth token in the OS keychain instead of
@@ -257,23 +286,21 @@ async function injectGhCli(containerId: string): Promise<void> {
     const ghDir = join(homedir(), '.config', 'gh')
     if (!existsSync(ghDir)) return
     try {
-        await runDockerCommand(['exec', containerId, 'mkdir', '-p', '/root/.config'])
-        // `docker cp` copies directories recursively by default; there is no
-        // `-r` flag (passing one fails with "unknown shorthand flag").
-        await runDockerCommand(['cp', ghDir, `${containerId}:/root/.config/gh`])
-        await runDockerCommand(['exec', containerId, 'chmod', '-R', 'go-rwx', '/root/.config/gh']).catch(() => undefined)
+        for (const target of getContainerHomeTargets(user)) {
+            await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.config`], { user: 'root' })
+            await runDockerCommand(['cp', ghDir, `${containerId}:${target.home}/.config/gh`])
+            await runDockerExec(containerId, ['chmod', '-R', 'go-rwx', `${target.home}/.config/gh`], { user: 'root' }).catch(() => undefined)
+            await runDockerExec(containerId, ['chown', '-R', target.owner, `${target.home}/.config/gh`], { user: 'root' }).catch(() => undefined)
 
-        const ghToken = findGitHubToken()
-        if (ghToken) {
-            // Append `oauth_token: …` under the first `github.com:` section
-            // when it isn't already present. sed is universally available in
-            // the base image; python/yq might not be.
-            const sedProgram = `
-if [ -f /root/.config/gh/hosts.yml ] && ! grep -q oauth_token /root/.config/gh/hosts.yml; then
-  sed -i '/^github\\.com:/a\\    oauth_token: ${ghToken}' /root/.config/gh/hosts.yml
+            const ghToken = findGitHubToken()
+            if (ghToken) {
+                const sedProgram = `
+if [ -f ${target.home}/.config/gh/hosts.yml ] && ! grep -q oauth_token ${target.home}/.config/gh/hosts.yml; then
+  sed -i '/^github\\.com:/a\\    oauth_token: ${ghToken}' ${target.home}/.config/gh/hosts.yml
 fi
 `.trim()
-            await runDockerCommand(['exec', containerId, 'sh', '-c', sedProgram]).catch(() => undefined)
+                await runDockerExec(containerId, ['sh', '-c', sedProgram], { user: 'root' }).catch(() => undefined)
+            }
         }
         logger.debug('[host-creds] Injected gh CLI config')
     } catch (err) {
@@ -281,7 +308,7 @@ fi
     }
 }
 
-async function injectSshCredentials(containerId: string): Promise<void> {
+async function injectSshCredentials(containerId: string, user?: string): Promise<void> {
     // SSH keys are sensitive. They're baked into the checkpoint image if the
     // user saves one — same risk class as the OAuth tokens we already inject,
     // so the security model is consistent. Copy only the files that are
@@ -308,15 +335,16 @@ async function injectSshCredentials(containerId: string): Promise<void> {
     if (presentFiles.length === 0) return
 
     try {
-        await runDockerCommand(['exec', containerId, 'mkdir', '-p', '/root/.ssh'])
-        await runDockerCommand(['exec', containerId, 'chmod', '700', '/root/.ssh']).catch(() => undefined)
-        for (const entry of presentFiles) {
-            await runDockerCommand(['cp', entry.hostPath, `${containerId}:/root/.ssh/${entry.name}`])
-            // Private keys must be 0600; public keys / known_hosts / config can be 0644.
-            const isPrivateKey = !entry.name.endsWith('.pub') && entry.name !== 'known_hosts' && entry.name !== 'config'
-            await runDockerCommand([
-                'exec', containerId, 'chmod', isPrivateKey ? '600' : '644', `/root/.ssh/${entry.name}`
-            ]).catch(() => undefined)
+        for (const target of getContainerHomeTargets(user)) {
+            await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.ssh`], { user: 'root' })
+            await runDockerExec(containerId, ['chmod', '700', `${target.home}/.ssh`], { user: 'root' }).catch(() => undefined)
+            await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.ssh`], { user: 'root' }).catch(() => undefined)
+            for (const entry of presentFiles) {
+                await runDockerCommand(['cp', entry.hostPath, `${containerId}:${target.home}/.ssh/${entry.name}`])
+                const isPrivateKey = !entry.name.endsWith('.pub') && entry.name !== 'known_hosts' && entry.name !== 'config'
+                await runDockerExec(containerId, ['chmod', isPrivateKey ? '600' : '644', `${target.home}/.ssh/${entry.name}`], { user: 'root' }).catch(() => undefined)
+                await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.ssh/${entry.name}`], { user: 'root' }).catch(() => undefined)
+            }
         }
         logger.debug(`[host-creds] Injected ${presentFiles.length} SSH file(s)`)
     } catch (err) {

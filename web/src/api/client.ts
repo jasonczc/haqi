@@ -12,6 +12,7 @@ import type {
     CloudWorkspaceResponse,
     CloudWorkspacesResponse,
     CloudWorkersResponse,
+    LocalRuntimeStatus,
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
     QueueResponse,
@@ -1004,6 +1005,24 @@ export class ApiClient {
     async stopLocalWorker(): Promise<{ stopped: boolean; reason?: string }> {
         return await this.request<{ stopped: boolean; reason?: string }>('/api/cloud/local-worker', {
             method: 'DELETE'
+        })
+    }
+
+    async getLocalRuntimeStatus(): Promise<LocalRuntimeStatus> {
+        return await this.request<LocalRuntimeStatus>('/api/cloud/local-runtime')
+    }
+
+    async prepareLocalRuntime(): Promise<LocalRuntimeStatus & {
+        started: boolean
+        alreadyRunning?: boolean
+        alreadyReady?: boolean
+    }> {
+        return await this.request<LocalRuntimeStatus & {
+            started: boolean
+            alreadyRunning?: boolean
+            alreadyReady?: boolean
+        }>('/api/cloud/prepare-local-runtime', {
+            method: 'POST'
         })
     }
 

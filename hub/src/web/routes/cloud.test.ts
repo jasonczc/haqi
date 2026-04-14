@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import { Hono } from 'hono'
-import { createCloudRoutes } from './cloud'
+import { buildLocalWorkerMachineId, createCloudRoutes } from './cloud'
 
 function createAuthedApp(getSyncEngine: () => unknown) {
     const app = new Hono<{ Variables: { namespace: string } }>()
@@ -13,6 +13,12 @@ function createAuthedApp(getSyncEngine: () => unknown) {
 }
 
 describe('createCloudRoutes', () => {
+    it('builds a stable local worker machine id', () => {
+        expect(buildLocalWorkerMachineId('Default Namespace', 'Worker Dev Host')).toBe(
+            'local-worker-worker-dev-host-default-namespace'
+        )
+    })
+
     it('returns worker summaries by provider', async () => {
         let calledNamespace: string | undefined
         const app = createAuthedApp(() => ({

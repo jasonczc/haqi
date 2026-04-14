@@ -8,6 +8,7 @@ export type SocketData = {
     cliAuthKind?: 'legacy' | 'worker-session' | 'enrollment'
     pendingWorkerEnrollment?: {
         workerSessionToken: string
+        legacyAccessToken: string
         namespace: string
         machineId?: string
     }

@@ -6,7 +6,8 @@ import { queryKeys } from '@/lib/query-keys'
 export function useCloudWorkers(
     api: ApiClient | null,
     enabled: boolean,
-    provider?: string
+    provider?: string,
+    refetchInterval?: number
 ): {
     workers: CloudWorkerSummary[]
     isLoading: boolean
@@ -22,6 +23,7 @@ export function useCloudWorkers(
             return await api.getCloudWorkers(provider)
         },
         enabled: Boolean(api && enabled),
+        refetchInterval,
     })
 
     return {

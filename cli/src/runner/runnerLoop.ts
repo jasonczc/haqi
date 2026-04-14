@@ -42,11 +42,13 @@ import type { WorkerLifecycle } from '@hapi/protocol/types';
 import { materializeResolvedSecrets } from '@/cloud/secrets/materializeSecrets';
 import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInContainer';
 import { hydrateDesktop } from '@/cloud/desktop/hydrateDesktop';
+import { getContainerHomeTargets, resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser';
 
 export type RunnerLoopOptions = {
     mode: 'local' | 'remote'
     machineId: string
     getAuthToken: () => string
+    getChildAuthToken?: () => string
     getApiUrl: () => string
     metadata?: Partial<MachineMetadata>
     onShutdownRequested: Promise<{ source: 'hapi-app' | 'hapi-cli' | 'os-signal' | 'exception', errorMessage?: string }>
@@ -67,6 +69,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     // Propagate auth token and API URL to process.env so spawned child processes
     // (agent sessions) inherit them and can connect back to the Hub.
     process.env.CLI_API_TOKEN = options.getAuthToken();
+    process.env.HAPI_CHILD_CLI_API_TOKEN = options.getChildAuthToken?.() ?? options.getAuthToken();
     process.env.HAPI_API_URL = options.getApiUrl();
 
     // Drop spawn log files older than a week. Fire-and-forget — failure here
@@ -242,6 +245,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       let desktopState: Metadata['desktopState'] | undefined;
       let languageServers: Metadata['languageServers'] | undefined;
       let terminalDescriptors: Metadata['terminalDescriptors'] | undefined;
+      let containerUser: string | undefined;
+      let containerHome: string | undefined;
       let setupStatusMessage = 'preparing-workspace';
       let spawnResult: SpawnSessionResult | null = null;
       let spawnFailed = false;
@@ -559,6 +564,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             checkpointId: effectiveCheckpointId,
             sessionLabel: spawnRequestId
           });
+          containerUser = resolveContainerUser(resolvedEnvironment.environment?.user);
+          containerHome = resolveContainerHome(containerUser);
           workspaceContainerId = workspaceContainer.containerId;
           workspaceContainerPreviewTargets = workspaceContainer.previewTargets;
 
@@ -570,7 +577,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           // get into a fresh docker-session container.
           if (!checkpointImage) {
             const { injectHostCredentialsIntoContainer } = await import('@/cloud/credentials/hostCredentials');
-            await injectHostCredentialsIntoContainer(workspaceContainerId).catch((err) => {
+            await injectHostCredentialsIntoContainer(workspaceContainerId, containerUser).catch((err) => {
               logger.debug('[RUNNER RUN] credential injection failed', err);
             });
           }
@@ -583,7 +590,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               workspace: preparedWorkspace,
               repository: repositorySource,
               repoSyncPolicy: options.repoSyncPolicy ?? 'fetch-reset',
-              repositoryCredential
+              repositoryCredential,
+              user: containerUser,
+              home: containerHome
             });
             repoSyncStatus = syncResult.repoStatus;
             repositoryCommit = syncResult.repositoryCommit;
@@ -723,8 +732,13 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               : [resolvedEnvironment.environment.install])) {
               await dockerRuntime.exec({
                 containerId: workspaceContainerId,
+                user: containerUser,
                 workingDir: preparedWorkspace.workingDirectory,
-                env: Object.entries(extraEnv).map(([key, value]) => `${key}=${value}`),
+                env: Object.entries({
+                  ...extraEnv,
+                  ...(containerHome ? { HOME: containerHome } : {}),
+                  ...(containerUser ? { USER: containerUser, LOGNAME: containerUser } : {})
+                }).map(([key, value]) => `${key}=${value}`),
                 command: ['sh', '-lc', command]
               });
             }
@@ -768,6 +782,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             containerId: workspaceContainerId,
             workspace: preparedWorkspace,
             environment: resolvedEnvironment.environment,
+            user: containerUser,
+            home: containerHome,
             launchMode: options.launchMode
           });
           desktopState = hydration.desktopState;
@@ -801,12 +817,18 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             // Write via base64 to avoid heredoc / shell-escape issues inside
             // docker exec. The container always has base64 (coreutils).
             const b64 = Buffer.from(envLines.join('\n') + '\n').toString('base64')
+            const profileTargets = getContainerHomeTargets(containerUser).map((target) =>
+              `mkdir -p ${target.home}` +
+              ` && echo '${b64}' | base64 -d > ${target.home}/.hapi-env && chmod 600 ${target.home}/.hapi-env` +
+              ` && chown ${target.owner} ${target.home}/.hapi-env` +
+              ` && grep -q '.hapi-env' ${target.home}/.bashrc 2>/dev/null || echo '. ${target.home}/.hapi-env' >> ${target.home}/.bashrc` +
+              ` && ([ -f ${target.home}/.zshrc ] && grep -q '.hapi-env' ${target.home}/.zshrc 2>/dev/null || echo '. ${target.home}/.hapi-env' >> ${target.home}/.zshrc)`
+            ).join(' && ')
             await dockerRuntime.exec({
               containerId: workspaceContainerId,
+              user: 'root',
               command: ['sh', '-c',
-                `echo '${b64}' | base64 -d > /root/.hapi-env && chmod 600 /root/.hapi-env` +
-                ` && grep -q '.hapi-env' /root/.bashrc 2>/dev/null || echo '. /root/.hapi-env' >> /root/.bashrc` +
-                ` && ([ -f /root/.zshrc ] && grep -q '.hapi-env' /root/.zshrc 2>/dev/null || echo '. /root/.hapi-env' >> /root/.zshrc)`
+                profileTargets
               ]
             }).catch((err) => {
               logger.debug('[RUNNER RUN] Failed to write secrets to shell profile:', err)
@@ -829,7 +851,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               sessionLabel: spawnRequestId,
               repositorySource: repositorySource ?? null,
               repositoryCredential,
-              controlPort
+              controlPort,
+              callbackToken
             })
           : resolvedEnvironment.runtimeKind === 'docker-session'
           ? await startDockerSessionExecutor({
@@ -841,14 +864,16 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               sessionLabel: spawnRequestId,
               existingContainerId: workspaceContainerId,
               existingPreviewTargets: workspaceContainerPreviewTargets,
-              controlPort
+              controlPort,
+              callbackToken
             })
           : startHostProcessExecutor({
               executionCwd,
               workingDirectory: spawnDirectory,
               env: extraEnv,
               options,
-              controlPort
+              controlPort,
+              callbackToken
             });
 
         const MAX_TAIL_CHARS = 4000;
@@ -1338,13 +1363,15 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     // Start control server — needed for session webhook registration in both modes
     let controlPort = 0;
     let stopControlServer = async () => {};
+    const callbackToken = crypto.randomUUID();
     {
       const controlServer = await startRunnerControlServer({
         getChildren: getCurrentChildren,
         stopSession,
         spawnSession,
         requestShutdown: () => requestShutdown('hapi-cli'),
-        onHappySessionWebhook
+        onHappySessionWebhook,
+        callbackToken
       });
       controlPort = controlServer.port;
       stopControlServer = controlServer.stop;
@@ -1471,21 +1498,41 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         }
 
         try {
-          const url = `http://127.0.0.1:${daemonPort}/preview/proxy`
-          const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.daemonAuthToken ?? ''}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              port: params.port,
+          const isDaemonControlRequest = Number(params.port) === 9876
+          const response = isDaemonControlRequest
+            ? await fetch(`http://127.0.0.1:${daemonPort}${params.path}`, {
               method: params.method,
-              path: params.path,
-              headers: params.headers,
-              body: params.body
+              headers: {
+                ...params.headers,
+                'Authorization': `Bearer ${session.daemonAuthToken ?? ''}`
+              },
+              body: params.method !== 'GET' && params.method !== 'HEAD' ? params.body : undefined
             })
-          })
+            : await fetch(`http://127.0.0.1:${daemonPort}/preview/proxy`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${session.daemonAuthToken ?? ''}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                port: params.port,
+                method: params.method,
+                path: params.path,
+                headers: params.headers,
+                body: params.body
+              })
+            })
+          if (isDaemonControlRequest) {
+            const responseHeaders: Record<string, string> = {}
+            response.headers.forEach((value, key) => {
+              responseHeaders[key] = value
+            })
+            return {
+              status: response.status,
+              headers: responseHeaders,
+              body: await response.text()
+            }
+          }
           return await response.json() as { status: number; headers: Record<string, string>; body?: string }
         } catch {
           return { status: 502, headers: {}, body: 'Preview proxy failed' }

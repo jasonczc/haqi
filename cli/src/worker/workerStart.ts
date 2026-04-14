@@ -43,7 +43,7 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
         console.log(chalk.blue('Enrolling worker with hub...'))
         logger.debug('[WORKER START] Starting enrollment handshake', { hubUrl })
 
-        const enrolledConfig = await new Promise<{ workerSessionToken: string; machineId: string; namespace: string }>((resolve, reject) => {
+        const enrolledConfig = await new Promise<{ workerSessionToken: string; legacyAccessToken?: string; machineId: string; namespace: string }>((resolve, reject) => {
             const socket = io(`${hubUrl}/cli`, {
                 transports: ['websocket'],
                 auth: { token: enrollmentToken },
@@ -60,12 +60,13 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
                 logger.debug('[WORKER START] Connected to hub for enrollment')
             })
 
-            socket.on('worker-enrolled', (data: { workerSessionToken: string; machineId?: string; namespace: string }) => {
+            socket.on('worker-enrolled', (data: { workerSessionToken: string; legacyAccessToken?: string; machineId?: string; namespace: string }) => {
                 clearTimeout(timeout)
                 logger.debug('[WORKER START] Received worker-enrolled event', { machineId: data.machineId, namespace: data.namespace })
                 socket.disconnect()
                 resolve({
                     workerSessionToken: data.workerSessionToken,
+                    legacyAccessToken: data.legacyAccessToken,
                     machineId: data.machineId || `worker-${os.hostname()}-${Date.now().toString(36)}`,
                     namespace: data.namespace
                 })
@@ -88,6 +89,7 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
         const newConfig = {
             hubUrl,
             workerSessionToken: enrolledConfig.workerSessionToken,
+            legacyAccessToken: enrolledConfig.legacyAccessToken,
             machineId: enrolledConfig.machineId,
             namespace: enrolledConfig.namespace
         }
@@ -168,6 +170,7 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
             mode: 'remote',
             machineId: workerConfig.machineId,
             getAuthToken: () => workerConfig.workerSessionToken,
+            getChildAuthToken: () => workerConfig.legacyAccessToken ?? workerConfig.workerSessionToken,
             getApiUrl: () => workerConfig.hubUrl,
             metadata: {
                 executorType: 'cloud-self-hosted',

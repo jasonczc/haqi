@@ -3,7 +3,8 @@ import { z } from 'zod'
 export const SpawnRequestSchema = z.object({
     command: z.array(z.string()).min(1),
     cwd: z.string().optional(),
-    env: z.record(z.string()).optional()
+    env: z.record(z.string()).optional(),
+    user: z.string().optional()
 })
 
 export type SpawnRequest = z.infer<typeof SpawnRequestSchema>

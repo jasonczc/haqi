@@ -11,18 +11,25 @@ import { Metadata } from '@/api/types';
 import { TrackedSession } from './types';
 import { SpawnSessionOptions, SpawnSessionResult } from '@/modules/common/rpcTypes';
 
+function isLoopbackAddress(ip: string | undefined): boolean {
+  if (!ip) return false;
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
 export function startRunnerControlServer({
   getChildren,
   stopSession,
   spawnSession,
   requestShutdown,
-  onHappySessionWebhook
+  onHappySessionWebhook,
+  callbackToken
 }: {
   getChildren: () => TrackedSession[];
   stopSession: (sessionId: string) => boolean;
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata) => void;
+  callbackToken?: string;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
     const app = fastify({
@@ -39,16 +46,27 @@ export function startRunnerControlServer({
       schema: {
         body: z.object({
           sessionId: z.string(),
-          metadata: z.any() // Metadata type from API
+          metadata: z.any(), // Metadata type from API
+          callbackToken: z.string().optional()
         }),
         response: {
           200: z.object({
             status: z.literal('ok')
+          }),
+          401: z.object({
+            status: z.literal('unauthorized')
           })
         }
       }
-    }, async (request) => {
-      const { sessionId, metadata } = request.body;
+    }, async (request, reply) => {
+      const { sessionId, metadata, callbackToken: requestCallbackToken } = request.body;
+
+      if (!isLoopbackAddress(request.ip) && callbackToken && requestCallbackToken !== callbackToken) {
+        reply.code(401);
+        return {
+          status: 'unauthorized'
+        } as any;
+      }
 
       logger.debug(`[CONTROL SERVER] Session started: ${sessionId}`);
       onHappySessionWebhook(sessionId, metadata);
@@ -205,7 +223,7 @@ export function startRunnerControlServer({
       return { status: 'stopping' };
     });
 
-    app.listen({ port: 0, host: '127.0.0.1' }, (err, address) => {
+    app.listen({ port: 0, host: '0.0.0.0' }, (err, address) => {
       if (err) {
         logger.debug('[CONTROL SERVER] Failed to start:', err);
         throw err;

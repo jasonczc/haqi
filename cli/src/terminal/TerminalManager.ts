@@ -128,8 +128,22 @@ export class TerminalManager {
         const dockerContainerId = (metadata?.runtimeKind === 'docker-session' || metadata?.runtimeKind === 'daemon-session')
             ? metadata.containerId?.trim()
             : undefined
+        const containerUser = metadata?.containerUser?.trim()
+        const containerHome = metadata?.containerHome?.trim()
+        const dockerExecArgs = dockerContainerId
+            ? [
+                'exec',
+                '-it',
+                ...(containerUser ? ['-u', containerUser] : []),
+                ...(containerHome ? ['-e', `HOME=${containerHome}`] : []),
+                ...(containerUser ? ['-e', `USER=${containerUser}`, '-e', `LOGNAME=${containerUser}`] : []),
+                ...(sessionPath ? ['-w', sessionPath] : []),
+                dockerContainerId,
+                shell
+            ]
+            : []
         const command = dockerContainerId
-            ? ['docker', 'exec', '-it', ...(sessionPath ? ['-w', sessionPath] : []), dockerContainerId, shell]
+            ? ['docker', ...dockerExecArgs]
             : [shell]
         const spawnCwd = dockerContainerId ? process.cwd() : sessionPath
         const spawnEnv = dockerContainerId

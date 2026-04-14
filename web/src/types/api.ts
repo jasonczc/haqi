@@ -234,6 +234,16 @@ export type CloudWorkersResponse = {
     workers: CloudWorkerSummary[]
 }
 
+export type LocalRuntimeStatus = {
+    image: string
+    ready: boolean
+    running: boolean
+    pid?: number
+    exitCode?: number | null
+    startedAt?: number
+    logs: string[]
+}
+
 export type CloudRequestsResponse = {
     requests: import('@hapi/protocol/types').CloudSpawnRequest[]
 }

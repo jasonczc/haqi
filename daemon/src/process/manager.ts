@@ -1,6 +1,34 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { EventEmitter } from 'node:events'
+import { readFileSync } from 'node:fs'
 import type { SpawnRequest, SpawnResponse, ProcessStatus, ProcessEvent } from '../types'
+
+type ResolvedProcessUser = {
+    uid: number
+    gid: number
+    home: string
+    username: string
+}
+
+function resolveProcessUser(username: string): ResolvedProcessUser | null {
+    try {
+        const passwd = readFileSync('/etc/passwd', 'utf8')
+        for (const line of passwd.split('\n')) {
+            if (!line || line.startsWith('#')) continue
+            const [name, , uidRaw, gidRaw, , home] = line.split(':')
+            if (name !== username) continue
+            const uid = Number(uidRaw)
+            const gid = Number(gidRaw)
+            if (!Number.isInteger(uid) || !Number.isInteger(gid) || !home) {
+                return null
+            }
+            return { uid, gid, home, username: name }
+        }
+    } catch {
+        return null
+    }
+    return null
+}
 
 export class ProcessManager extends EventEmitter {
     private child: ChildProcess | null = null
@@ -14,10 +42,24 @@ export class ProcessManager extends EventEmitter {
         }
 
         const [cmd, ...args] = request.command
+        const requestedUser = request.user?.trim()
+        const processUser = requestedUser ? resolveProcessUser(requestedUser) : null
+        if (requestedUser && !processUser) {
+            return { pid: 0, status: 'failed', error: `User not found in container: ${requestedUser}` }
+        }
         this.child = spawn(cmd, args, {
             cwd: request.cwd,
-            env: { ...process.env, ...(request.env ?? {}) },
-            stdio: ['ignore', 'pipe', 'pipe']
+            env: {
+                ...process.env,
+                ...(processUser ? {
+                    HOME: processUser.home,
+                    USER: processUser.username,
+                    LOGNAME: processUser.username
+                } : {}),
+                ...(request.env ?? {})
+            },
+            stdio: ['ignore', 'pipe', 'pipe'],
+            ...(processUser ? { uid: processUser.uid, gid: processUser.gid } : {})
         })
 
         this.startedAt = Date.now()

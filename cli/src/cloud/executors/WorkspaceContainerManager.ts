@@ -1,6 +1,8 @@
 import type { PreviewTarget } from '@hapi/protocol/types'
 import type { DockerCliRuntime, DockerRunSpec } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
+import { existsSync } from 'node:fs'
+import { resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
 
 function keepaliveCommand(): string[] {
     return ['-lc', 'trap "exit 0" TERM INT; while true; do sleep 3600; done']
@@ -21,6 +23,8 @@ export async function ensureWorkspaceContainer(params: {
     containerId: string
     previewTargets: PreviewTarget[]
 }> {
+    const containerUser = resolveContainerUser(params.environment?.environment?.user)
+    const containerHome = resolveContainerHome(containerUser)
     const image = params.checkpointImage
         ?? params.environment?.environment?.runtime?.image
         ?? 'haqi-workspace:dev'
@@ -51,6 +55,9 @@ export async function ensureWorkspaceContainer(params: {
     const mounts = [
         `${params.workspace.repoVolumePath}:${params.workspace.repoVolumePath}`
     ]
+    if (existsSync('/var/run/docker.sock')) {
+        mounts.push('/var/run/docker.sock:/var/run/docker.sock')
+    }
     if (params.workspace.desktopStatePath) {
         mounts.push(`${params.workspace.desktopStatePath}:${params.workspace.desktopStatePath}`)
     }
@@ -64,6 +71,10 @@ export async function ensureWorkspaceContainer(params: {
     const envVars = params.daemonMode
         ? [`HAQI_DAEMON_AUTH_TOKEN=${params.daemonMode.authToken}`]
         : []
+    envVars.push(`HOME=${containerHome}`, `USER=${containerUser}`, `LOGNAME=${containerUser}`)
+    if (existsSync('/var/run/docker.sock')) {
+        envVars.push('DOCKER_HOST=unix:///var/run/docker.sock')
+    }
 
     const spec: DockerRunSpec = {
         image,
@@ -74,8 +85,10 @@ export async function ensureWorkspaceContainer(params: {
         command: params.daemonMode
             ? ['--port', String(params.daemonMode.daemonPort), '--auth-token', params.daemonMode.authToken]
             : keepaliveCommand(),
+        user: containerUser,
         workingDir: params.workspace.workingDirectory,
         mounts,
+        extraHosts: ['host.docker.internal:host-gateway'],
         env: envVars,
         ports: portSpecs,
         labels: {

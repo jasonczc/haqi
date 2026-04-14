@@ -123,11 +123,18 @@ export async function syncRepositoryInContainer(params: {
     repository: RepositorySpec
     repoSyncPolicy?: RepoSyncPolicy
     repositoryCredential?: ResolvedSecret
+    user?: string
+    home?: string
 }): Promise<RepositorySyncResult> {
     const authenticatedUrl = applyRepositoryCredential(params.repository.url, params.repositoryCredential)
     const result = await params.runtime.exec({
         containerId: params.containerId,
+        user: params.user,
         workingDir: params.workspace.repoVolumePath,
+        env: [
+            ...(params.home ? [`HOME=${params.home}`] : []),
+            ...(params.user ? [`USER=${params.user}`, `LOGNAME=${params.user}`] : [])
+        ],
         command: [
             'sh',
             '-lc',

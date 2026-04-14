@@ -1,5 +1,8 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { promisify } from 'node:util'
+import { projectPath } from '@/projectPath'
 
 const execFileAsync = promisify(execFile)
 
@@ -44,12 +47,55 @@ export async function ensureDockerAvailable(): Promise<void> {
     await runDockerCommand(['version', '--format', '{{json .}}'])
 }
 
+async function pathExists(targetPath: string): Promise<boolean> {
+    try {
+        await fs.access(targetPath)
+        return true
+    } catch {
+        return false
+    }
+}
+
+async function resolveWorkspaceBuildContext(): Promise<string | null> {
+    const candidates = [
+        path.resolve(projectPath(), '..'),
+        path.resolve(process.cwd(), '..'),
+        process.cwd()
+    ]
+
+    for (const candidate of [...new Set(candidates)]) {
+        if (await pathExists(path.join(candidate, 'Dockerfile.workspace'))) {
+            return candidate
+        }
+    }
+
+    return null
+}
+
+async function maybeBuildDefaultWorkspaceImage(image: string): Promise<boolean> {
+    if (image !== 'haqi-workspace:dev') {
+        return false
+    }
+
+    const buildContext = await resolveWorkspaceBuildContext()
+    if (!buildContext) {
+        return false
+    }
+
+    await runDockerCommand(['build', '-t', image, '-f', 'Dockerfile.workspace', '.'], {
+        cwd: buildContext
+    })
+    return true
+}
+
 export type DockerRunSpec = {
     image: string
     name?: string
     command?: string[]
     entrypoint?: string
+    user?: string
     env?: string[]
+    extraHosts?: string[]
     workingDir?: string
     mounts?: string[]
     ports?: DockerCliPortBinding[]
@@ -60,6 +106,7 @@ export type DockerRunSpec = {
 type DockerExecSpec = {
     containerId: string
     command: string[]
+    user?: string
     workingDir?: string
     env?: string[]
     detach?: boolean
@@ -69,6 +116,7 @@ export type DockerInspectResult = {
     id: string
     status?: string
     exitCode?: number | null
+    configuredUser?: string
     portBindings: Record<number, number>
 }
 
@@ -85,6 +133,15 @@ export class DockerCliRuntime {
             try {
                 await runDockerCommand(['inspect', '--type=image', image])
             } catch {
+                try {
+                    const built = await maybeBuildDefaultWorkspaceImage(image)
+                    if (built) {
+                        return
+                    }
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error)
+                    throw new Error(`Image ${image} not found locally or in registry; automatic local build failed: ${message}`)
+                }
                 throw new Error(`Image ${image} not found locally or in registry`)
             }
         }
@@ -98,11 +155,17 @@ export class DockerCliRuntime {
         if (spec.name) {
             args.push('--name', spec.name)
         }
+        if (spec.user) {
+            args.push('--user', spec.user)
+        }
         if (spec.workingDir) {
             args.push('-w', spec.workingDir)
         }
         for (const env of spec.env ?? []) {
             args.push('-e', env)
+        }
+        for (const extraHost of spec.extraHosts ?? []) {
+            args.push('--add-host', extraHost)
         }
         for (const mount of spec.mounts ?? []) {
             args.push('-v', mount)
@@ -134,6 +197,9 @@ export class DockerCliRuntime {
         if (spec.detach) {
             args.push('-d')
         }
+        if (spec.user) {
+            args.push('-u', spec.user)
+        }
         if (spec.workingDir) {
             args.push('-w', spec.workingDir)
         }
@@ -149,6 +215,9 @@ export class DockerCliRuntime {
         detached?: boolean
     }): ChildProcess {
         const args: string[] = ['exec', '-i']
+        if (spec.user) {
+            args.push('-u', spec.user)
+        }
         if (spec.workingDir) {
             args.push('-w', spec.workingDir)
         }
@@ -181,6 +250,7 @@ export class DockerCliRuntime {
             id: entry?.Id ?? containerId,
             status: entry?.State?.Status,
             exitCode: typeof entry?.State?.ExitCode === 'number' ? entry.State.ExitCode : null,
+            configuredUser: typeof entry?.Config?.User === 'string' ? entry.Config.User : undefined,
             portBindings
         }
     }

@@ -64,7 +64,7 @@ function StepAddWorker(props: { onNext: () => void }) {
     })
 
     useEffect(() => {
-        if (!autoAdvanced.current && (workersQuery.data?.workers?.length ?? 0) > 0) {
+        if (!autoAdvanced.current && (workersQuery.data?.workers?.some((worker) => worker.active) ?? false)) {
             autoAdvanced.current = true
             props.onNext()
         }
@@ -224,6 +224,89 @@ function StepAddWorker(props: { onNext: () => void }) {
 
 // ── Step 2: Setup Environment ───────────────────────────────────────────────
 
+function StepPrepareRuntime(props: { onNext: () => void }) {
+    const { api } = useAppContext()
+    const queryClient = useQueryClient()
+    const [error, setError] = useState<string | null>(null)
+
+    const runtimeQuery = useQuery({
+        queryKey: queryKeys.localRuntime,
+        enabled: Boolean(api),
+        refetchInterval: 3000,
+        queryFn: async () => {
+            if (!api) throw new Error('API unavailable')
+            return await api.getLocalRuntimeStatus()
+        },
+    })
+
+    useEffect(() => {
+        if (runtimeQuery.data?.ready) {
+            props.onNext()
+        }
+    }, [runtimeQuery.data?.ready, props])
+
+    async function handlePrepareRuntime() {
+        if (!api) return
+        setError(null)
+        try {
+            await api.prepareLocalRuntime()
+            await queryClient.invalidateQueries({ queryKey: queryKeys.localRuntime })
+            await queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkers() })
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to prepare runtime')
+        }
+    }
+
+    const latestLog = runtimeQuery.data?.logs?.at(-1)
+
+    return (
+        <div className="flex flex-col gap-5">
+            <div>
+                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 2: Prepare Runtime</h2>
+                <p className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">
+                    Build the Docker runtime image once on this machine. Setup sessions will use this image for desktop and container features.
+                </p>
+            </div>
+
+            <CursorSettingsCard className="border-[var(--border-secondary)] bg-[var(--bg-quinary)] p-4 shadow-none">
+                <div className="text-[13px] leading-[18px] font-semibold text-[var(--text-primary)]">Runtime image</div>
+                <p className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
+                    Image: <code>haqi-workspace:dev</code>
+                </p>
+                <CursorButton
+                    type="button"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void handlePrepareRuntime()}
+                    disabled={runtimeQuery.data?.running}
+                >
+                    {runtimeQuery.data?.running ? 'Preparing...' : 'Prepare Runtime'}
+                </CursorButton>
+                {error ? (
+                    <CursorNotice tone="danger" className="mt-2">
+                        {error}
+                    </CursorNotice>
+                ) : null}
+                <div className="mt-2 text-[12px] leading-4 text-[var(--text-secondary)]">
+                    {runtimeQuery.data?.ready
+                        ? 'Runtime ready — advancing…'
+                        : runtimeQuery.data?.running
+                            ? (latestLog ?? 'Building haqi-workspace:dev…')
+                            : 'Build the Docker runtime before starting setup.'}
+                </div>
+            </CursorSettingsCard>
+
+            <div className="flex justify-end">
+                <CursorButton type="button" variant="outline" size="sm" onClick={props.onNext}>
+                    Skip
+                </CursorButton>
+            </div>
+        </div>
+    )
+}
+
+// ── Step 3: Setup Environment ───────────────────────────────────────────────
+
 function StepSetupEnvironment(props: { onNext: () => void }) {
     const { api } = useAppContext()
     const navigate = useNavigate()
@@ -243,7 +326,7 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
     })
 
     const workers = workersQuery.data?.workers ?? []
-    const firstWorker = workers[0]
+    const firstWorker = workers.find((worker) => worker.active && worker.selectable) ?? null
 
     async function handleStartSetup() {
         if (!firstWorker) {
@@ -256,6 +339,8 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
                 machineId: firstWorker.machineId,
                 agent,
                 sessionType: 'setup',
+                executionBackend: firstWorker.executorType ?? 'cloud-self-hosted',
+                runtimeKind: 'daemon-session',
                 workspaceSource: repoUrl.trim()
                     ? { repository: { url: repoUrl.trim() } }
                     : undefined,
@@ -278,7 +363,7 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 2: Setup Environment</h2>
+                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 3: Setup Environment</h2>
                 <p className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">
                     Provide a repository URL and choose an agent. The agent will clone the repo and set up your workspace.
                     You'll be taken to the session to watch the agent configure your environment.
@@ -343,13 +428,13 @@ function StepSetupEnvironment(props: { onNext: () => void }) {
     )
 }
 
-// ── Step 3: Save Checkpoint ─────────────────────────────────────────────────
+// ── Step 4: Save Checkpoint ─────────────────────────────────────────────────
 
 function StepSaveCheckpoint(props: { onNext: () => void }) {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 3: Save a Checkpoint</h2>
+                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 4: Save a Checkpoint</h2>
                 <p className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">
                     Once the setup session finishes, save a checkpoint of your configured environment.
                     Checkpoints let you spawn new agents from the same starting state instantly.
@@ -373,7 +458,7 @@ function StepSaveCheckpoint(props: { onNext: () => void }) {
     )
 }
 
-// ── Step 4: Secrets ─────────────────────────────────────────────────────────
+// ── Step 5: Secrets ─────────────────────────────────────────────────────────
 
 type ExtraSecret = { key: string; value: string }
 
@@ -440,7 +525,7 @@ function StepSecrets() {
     return (
         <div className="flex flex-col gap-5">
             <div>
-                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 4: Add Secrets</h2>
+                <h2 className="text-[16px] leading-6 font-semibold text-[var(--text-primary)]">Step 5: Add Secrets</h2>
                 <p className="mt-1 text-[13px] leading-[18px] text-[var(--text-secondary)]">
                     Add credentials that your cloud agents will use. These are stored securely on the hub.
                 </p>
@@ -529,7 +614,7 @@ function StepSecrets() {
 
 // ── Step indicator ──────────────────────────────────────────────────────────
 
-const STEP_LABELS = ['Add Worker', 'Setup Environment', 'Save Checkpoint', 'Secrets']
+const STEP_LABELS = ['Add Worker', 'Prepare Runtime', 'Setup Environment', 'Save Checkpoint', 'Secrets']
 
 function StepIndicator(props: { current: number }) {
     return (
@@ -573,7 +658,7 @@ export default function CloudOnboardPage() {
     const [step, setStep] = useState(0)
 
     function next() {
-        setStep((s) => Math.min(s + 1, 3))
+        setStep((s) => Math.min(s + 1, 4))
     }
 
     return (
@@ -591,9 +676,10 @@ export default function CloudOnboardPage() {
                 <CursorSettingsSection>
                     <CursorSettingsCard className="p-6">
                     {step === 0 ? <StepAddWorker onNext={next} /> : null}
-                    {step === 1 ? <StepSetupEnvironment onNext={next} /> : null}
-                    {step === 2 ? <StepSaveCheckpoint onNext={next} /> : null}
-                    {step === 3 ? <StepSecrets /> : null}
+                    {step === 1 ? <StepPrepareRuntime onNext={next} /> : null}
+                    {step === 2 ? <StepSetupEnvironment onNext={next} /> : null}
+                    {step === 3 ? <StepSaveCheckpoint onNext={next} /> : null}
+                    {step === 4 ? <StepSecrets /> : null}
                     </CursorSettingsCard>
                 </CursorSettingsSection>
             </div>

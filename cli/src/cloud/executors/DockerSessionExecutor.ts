@@ -7,6 +7,7 @@ import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/typ
 import { buildSpawnArgs } from '@/cloud/executors/HostProcessExecutor'
 import { collectHostCredentials, injectHostCredentialsIntoContainer } from '@/cloud/credentials/hostCredentials'
 import { ensureWorkspaceContainer } from './WorkspaceContainerManager'
+import { resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
 
 function rewriteHubUrlForContainer(url: string | undefined): string {
     if (!url) return ''
@@ -17,10 +18,16 @@ function rewriteHubUrlForContainer(url: string | undefined): string {
 // daemon-session gets this for free (haqi-daemon launches DesktopManager on boot);
 // docker-session runs sh + keepalive, so we have to start it ourselves.
 // Each process is launched with `docker exec -d` so it survives past our exec call.
-async function startVncStackInContainer(runtime: DockerCliRuntime, containerId: string): Promise<void> {
+async function startVncStackInContainer(
+    runtime: DockerCliRuntime,
+    containerId: string,
+    containerUser: string,
+    containerHome: string
+): Promise<void> {
     // Idempotent: bail if Xtigervnc is already running.
     const alreadyRunning = await runtime.exec({
         containerId,
+        user: containerUser,
         command: ['sh', '-lc', 'pgrep -x Xtigervnc >/dev/null']
     }).then(() => true).catch(() => false)
     if (alreadyRunning) return
@@ -29,6 +36,7 @@ async function startVncStackInContainer(runtime: DockerCliRuntime, containerId: 
         // 1. Xtigervnc — combined X server + VNC server on display :1
         await runtime.exec({
             containerId,
+            user: containerUser,
             detach: true,
             command: [
                 'Xtigervnc', ':1',
@@ -45,20 +53,24 @@ async function startVncStackInContainer(runtime: DockerCliRuntime, containerId: 
         // Wait for X to be ready before attaching XFCE — otherwise startxfce4 dies.
         await runtime.exec({
             containerId,
+            user: containerUser,
+            env: [`HOME=${containerHome}`, `USER=${containerUser}`, `LOGNAME=${containerUser}`],
             command: ['sh', '-lc', 'for i in $(seq 1 30); do xdpyinfo -display :1 >/dev/null 2>&1 && exit 0; sleep 0.1; done; exit 1']
         })
 
         // 2. XFCE desktop on :1
         await runtime.exec({
             containerId,
+            user: containerUser,
             detach: true,
-            env: ['DISPLAY=:1'],
+            env: ['DISPLAY=:1', `HOME=${containerHome}`, `USER=${containerUser}`, `LOGNAME=${containerUser}`],
             command: ['startxfce4']
         })
 
         // 3. websockify — bridge VNC (5901) ↔ WebSocket (6080), serve noVNC assets
         await runtime.exec({
             containerId,
+            user: containerUser,
             detach: true,
             command: ['websockify', '--web', '/usr/share/novnc', '6080', 'localhost:5901']
         })
@@ -78,6 +90,7 @@ export async function startDockerSessionExecutor(params: {
     existingContainerId?: string
     existingPreviewTargets?: PreviewTarget[]
     controlPort?: number
+    callbackToken?: string
 }): Promise<{
     childProcess: ChildProcess
     pid: number
@@ -86,6 +99,8 @@ export async function startDockerSessionExecutor(params: {
     previewTargets: PreviewTarget[]
     noVncPort?: number
 }> {
+    const containerUser = resolveContainerUser(params.environment?.environment?.user)
+    const containerHome = resolveContainerHome(containerUser)
     // Resolve checkpoint image if provided (same logic as DaemonSessionExecutor).
     let checkpointImage: string | undefined = params.options.checkpointId
         ? `haqi-checkpoint:${params.options.checkpointId}`
@@ -115,14 +130,14 @@ export async function startDockerSessionExecutor(params: {
     // Bake host credentials into the container filesystem for fresh (non-checkpoint) containers.
     // Checkpoint images already carry baked credentials from their previous save.
     if (!params.existingContainerId && !checkpointImage) {
-        await injectHostCredentialsIntoContainer(container.containerId).catch((err) => {
+        await injectHostCredentialsIntoContainer(container.containerId, containerUser).catch((err) => {
             console.warn('[DockerSessionExecutor] Credential injection failed:', err)
         })
     }
 
     // Start the VNC stack so the Desktop tab can connect, then capture the
     // dynamically-assigned host port for noVNC (6080 inside the container).
-    await startVncStackInContainer(params.runtime, container.containerId)
+    await startVncStackInContainer(params.runtime, container.containerId, containerUser, containerHome)
     const inspect = await params.runtime.inspect(container.containerId).catch(() => null)
     const noVncPort = inspect?.portBindings[6080] ?? undefined
 
@@ -134,12 +149,20 @@ export async function startDockerSessionExecutor(params: {
 
     const spawnEnv: Record<string, string> = {
         ...params.env,
-        CLI_API_TOKEN: process.env.CLI_API_TOKEN ?? '',
+        CLI_API_TOKEN: process.env.HAPI_CHILD_CLI_API_TOKEN ?? process.env.CLI_API_TOKEN ?? '',
         HAPI_API_URL: rewriteHubUrlForContainer(process.env.HAPI_API_URL),
         HAPI_WORKING_DIRECTORY: params.workspace.workingDirectory,
         HAPI_CONTAINER_ID: container.containerId,
+        HAPI_CONTAINER_USER: containerUser,
+        HAPI_CONTAINER_HOME: containerHome,
         HAPI_RUNTIME_KIND: 'docker-session',
+        HOME: containerHome,
+        USER: containerUser,
+        LOGNAME: containerUser,
+        CLAUDE_CONFIG_DIR: `${containerHome}/.claude`,
+        CODEX_HOME: `${containerHome}/.codex`,
         ...(callbackUrl ? { HAPI_RUNNER_CALLBACK_URL: callbackUrl } : {}),
+        ...(params.callbackToken ? { HAPI_RUNNER_CALLBACK_TOKEN: params.callbackToken } : {}),
         ...(noVncPort ? { HAPI_NOVNC_PORT: String(noVncPort) } : {}),
         ...(params.options.sessionType ? { HAPI_SESSION_TYPE: params.options.sessionType } : {}),
         ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {}),
@@ -148,6 +171,7 @@ export async function startDockerSessionExecutor(params: {
 
     const childProcess = params.runtime.spawnExec({
         containerId: container.containerId,
+        user: containerUser,
         workingDir: params.workspace.workingDirectory,
         env: Object.entries(spawnEnv).map(([key, value]) => `${key}=${value}`),
         command: ['haqi', ...buildSpawnArgs(params.options)]

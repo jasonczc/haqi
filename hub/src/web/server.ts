@@ -30,7 +30,7 @@ import { createContainerRoutes } from './routes/containers'
 import { createReportsRoutes } from './routes/reports'
 import { createPublicReportsRoutes } from './routes/publicReports'
 import { createPreviewRoutes } from './routes/preview'
-import { createDesktopRoutes } from './routes/desktop'
+import { createDesktopRoutes, resolveDesktopProxyTarget } from './routes/desktop'
 import type { ReportPublicBaseUrlSettings } from '../config/reportPublicBaseUrl'
 import { createSettingsRoutes } from './routes/settings'
 import { createGitHubRoutes } from './routes/github'
@@ -73,6 +73,63 @@ function isStaticAssetRequest(pathname: string): boolean {
     return /\.(?:js|css|map|json|wasm|png|jpe?g|gif|svg|webp|ico|woff2?|ttf)$/i.test(pathname)
 }
 
+type DesktopProxySocketData = {
+    kind: 'desktop-proxy'
+    upstreamUrl: string
+    upstreamSocket: WebSocket | null
+    pendingMessages: Array<string | ArrayBuffer | ArrayBufferView>
+    closed: boolean
+}
+
+function resolveDesktopSession(options: { getSyncEngine: () => SyncEngine | null }, sessionId: string): { machineId: string; containerId?: string } | null {
+    const engine = options.getSyncEngine()
+    if (!engine) return null
+    const session = engine.getSession(sessionId)
+    if (!session) return null
+    const metadata = session.metadata as any
+    if (!metadata?.machineId) return null
+    const containerId = metadata?.containerId
+    if (containerId && (metadata?.runtimeKind === 'daemon-session' || metadata?.runtimeKind === 'docker-session')) {
+        const machines = engine.getOnlineMachinesByNamespace(session.namespace)
+        const cloudWorker = machines.find(m =>
+            m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
+        )
+        if (cloudWorker) {
+            return { machineId: cloudWorker.id, containerId }
+        }
+    }
+    return { machineId: metadata.machineId, containerId }
+}
+
+function isDesktopProxyUpgrade(req: Request): boolean {
+    return req.headers.get('upgrade')?.toLowerCase() === 'websocket'
+        && new URL(req.url).pathname.startsWith('/desktop/proxy/')
+}
+
+function resolveDesktopProxyUpstream(options: { getSyncEngine: () => SyncEngine | null }, req: Request): string | null {
+    const url = new URL(req.url)
+    const parts = url.pathname.split('/')
+    const sessionId = parts[3]
+    if (!sessionId) {
+        return null
+    }
+
+    const target = resolveDesktopProxyTarget(
+        { resolveSession: (id) => resolveDesktopSession(options, id) },
+        decodeURIComponent(sessionId)
+    )
+    if (!target) {
+        return null
+    }
+
+    const path = '/' + (parts.slice(4).join('/') || '')
+    return `ws://127.0.0.1:${target.hostPort}${path}${url.search}`
+}
+
+function isDesktopProxySocketData(data: unknown): data is DesktopProxySocketData {
+    return !!data && typeof data === 'object' && (data as DesktopProxySocketData).kind === 'desktop-proxy'
+}
+
 function createWebApp(options: {
     getSyncEngine: () => SyncEngine | null
     getSseManager: () => SSEManager | null
@@ -110,26 +167,11 @@ function createWebApp(options: {
 
     app.route('/preview', createPreviewRoutes({
         resolveSession: (sessionId) => {
-            const engine = options.getSyncEngine()
-            if (!engine) return null
-            const session = engine.getSession(sessionId)
-            if (!session) return null
-            const metadata = session.metadata as any
-            if (!metadata?.machineId) return null
-            // For daemon-session, the session's machineId may be the agent's (local) machine,
-            // not the Worker that owns the container. Find the Worker by looking for a cloud
-            // machine that has the container. Fall back to the session's machineId.
-            const containerId = metadata?.containerId
-            if (containerId && (metadata?.runtimeKind === 'daemon-session' || metadata?.runtimeKind === 'docker-session')) {
-                const machines = engine.getOnlineMachinesByNamespace(session.namespace)
-                const cloudWorker = machines.find(m =>
-                    m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
-                )
-                if (cloudWorker) {
-                    return { machineId: cloudWorker.id }
-                }
+            const resolved = resolveDesktopSession(options, sessionId)
+            if (!resolved) {
+                return null
             }
-            return { machineId: metadata.machineId }
+            return { machineId: resolved.machineId, containerId: resolved.containerId }
         },
         resolvePreviewTunnel: (machineId, sessionId, port) => {
             const engine = options.getSyncEngine()
@@ -155,25 +197,7 @@ function createWebApp(options: {
     }))
 
     app.route('/desktop', createDesktopRoutes({
-        resolveSession: (sessionId) => {
-            const engine = options.getSyncEngine()
-            if (!engine) return null
-            const session = engine.getSession(sessionId)
-            if (!session) return null
-            const metadata = session.metadata as any
-            if (!metadata?.machineId) return null
-            const containerId = metadata?.containerId
-            if (containerId && (metadata?.runtimeKind === 'daemon-session' || metadata?.runtimeKind === 'docker-session')) {
-                const machines = engine.getOnlineMachinesByNamespace(session.namespace)
-                const cloudWorker = machines.find(m =>
-                    m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
-                )
-                if (cloudWorker) {
-                    return { machineId: cloudWorker.id, containerId }
-                }
-            }
-            return { machineId: metadata.machineId, containerId }
-        }
+        resolveSession: (sessionId) => resolveDesktopSession(options, sessionId)
     }))
 
     app.route('/api', createAuthRoutes(options.jwtSecret, options.store))
@@ -320,6 +344,9 @@ from GitHub Pages instead of through the relay tunnel.
         if (!c.finalized && isStaticAssetRequest(c.req.path)) {
             return c.text('Asset not found', 404)
         }
+        if (!c.finalized) {
+            await next()
+        }
         return
     })
 
@@ -371,17 +398,106 @@ export async function startWebServer(options: {
     })
 
     const socketHandler = options.socketEngine.handler()
+    const websocketHandler = {
+        open(ws: Bun.ServerWebSocket<any>) {
+            if (isDesktopProxySocketData(ws.data)) {
+                const proxyState = ws.data
+                const upstream = new WebSocket(proxyState.upstreamUrl)
+                upstream.binaryType = 'arraybuffer'
+                proxyState.upstreamSocket = upstream
+
+                upstream.addEventListener('open', () => {
+                    for (const message of proxyState.pendingMessages) {
+                        upstream.send(message as any)
+                    }
+                    proxyState.pendingMessages.length = 0
+                    if (proxyState.closed && upstream.readyState === WebSocket.OPEN) {
+                        upstream.close()
+                    }
+                })
+
+                upstream.addEventListener('message', (event) => {
+                    if (!proxyState.closed) {
+                        ws.send(event.data as any)
+                    }
+                })
+
+                upstream.addEventListener('close', (event) => {
+                    proxyState.upstreamSocket = null
+                    if (!proxyState.closed) {
+                        proxyState.closed = true
+                        ws.close(event.code, event.reason)
+                    }
+                })
+
+                upstream.addEventListener('error', () => {
+                    proxyState.upstreamSocket = null
+                    if (!proxyState.closed) {
+                        proxyState.closed = true
+                        ws.close(1011, 'Desktop proxy upstream error')
+                    }
+                })
+                return
+            }
+            socketHandler.websocket.open(ws)
+        },
+        message(ws: Bun.ServerWebSocket<any>, message: any) {
+            if (isDesktopProxySocketData(ws.data)) {
+                const proxyState = ws.data
+                const upstream = proxyState.upstreamSocket
+                if (upstream?.readyState === WebSocket.OPEN) {
+                    upstream.send(message as any)
+                } else if (!proxyState.closed) {
+                    proxyState.pendingMessages.push(message)
+                }
+                return
+            }
+            socketHandler.websocket.message(ws, message)
+        },
+        close(ws: Bun.ServerWebSocket<any>, code: number, message: string) {
+            if (isDesktopProxySocketData(ws.data)) {
+                const proxyState = ws.data
+                proxyState.closed = true
+                if (proxyState.upstreamSocket && proxyState.upstreamSocket.readyState < WebSocket.CLOSING) {
+                    proxyState.upstreamSocket.close(code, message)
+                }
+                proxyState.upstreamSocket = null
+                return
+            }
+            socketHandler.websocket.close(ws, code, message)
+        },
+        maxPayloadLength: socketHandler.websocket.maxPayloadLength
+    }
 
     const server = Bun.serve({
         hostname: configuration.listenHost,
         port: configuration.listenPort,
         idleTimeout: Math.max(30, socketHandler.idleTimeout),
         maxRequestBodySize: socketHandler.maxRequestBodySize,
-        websocket: socketHandler.websocket,
+        websocket: websocketHandler,
         fetch: (req, server) => {
             const url = new URL(req.url)
             if (url.pathname.startsWith('/socket.io/')) {
                 return socketHandler.fetch(req, server)
+            }
+            if (isDesktopProxyUpgrade(req)) {
+                const upstreamUrl = resolveDesktopProxyUpstream(options, req)
+                if (!upstreamUrl) {
+                    return new Response('Desktop proxy unavailable', { status: 502 })
+                }
+                const upgraded = (server as any).upgrade(req, {
+                    data: {
+                        kind: 'desktop-proxy',
+                        upstreamUrl,
+                        upstreamSocket: null,
+                        pendingMessages: [],
+                        closed: false
+                    } satisfies DesktopProxySocketData
+                })
+                if (upgraded) {
+                    return undefined as any
+                }
+                return new Response('Desktop proxy upgrade failed', { status: 500 })
             }
             return app.fetch(req)
         }

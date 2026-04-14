@@ -1,10 +1,15 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { resolve } from 'node:path'
+import os from 'node:os'
+import { promisify } from 'node:util'
 import { CLOUD_PROVIDER_NAMES } from '../../cloud/provider'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
+
+const execFileAsync = promisify(execFile)
+const LOCAL_RUNTIME_IMAGE = 'haqi-workspace:dev'
 
 const cloudWorkersQuerySchema = z.object({
     provider: z.enum(CLOUD_PROVIDER_NAMES).optional()
@@ -35,8 +40,42 @@ const cloudEnrollmentTokenCreateSchema = z.object({
     ttlMinutes: z.coerce.number().int().positive().optional()
 })
 
+function sanitizeMachineIdSegment(value: string): string {
+    const sanitized = value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+    return sanitized || 'default'
+}
+
+export function buildLocalWorkerMachineId(namespace: string, hostname: string = os.hostname()): string {
+    return `local-worker-${sanitizeMachineIdSegment(hostname)}-${sanitizeMachineIdSegment(namespace)}`
+}
+
 export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl?: string): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
+
+    function resolveLocalHubUrl(): string {
+        const configuredHost = process.env.HAPI_LISTEN_HOST?.trim() || '127.0.0.1'
+        const localHost = configuredHost === '0.0.0.0' || configuredHost === '::' ? '127.0.0.1' : configuredHost
+        const configuredPort = process.env.HAPI_LISTEN_PORT?.trim()
+        if (configuredPort) {
+            return `http://${localHost}:${configuredPort}`
+        }
+
+        if (hubUrl) {
+            try {
+                const parsed = new URL(hubUrl)
+                const port = parsed.port || (parsed.protocol === 'https:' ? '443' : '80')
+                return `http://${localHost}:${port}`
+            } catch {
+                // Fall through to default.
+            }
+        }
+
+        return `http://${localHost}:3006`
+    }
 
     app.get('/cloud/workers', (c) => {
         const engine = getSyncEngine()
@@ -395,22 +434,133 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         startedAt: number
     } | null = null
 
+    let localRuntimeProcess: {
+        pid: number
+        exitCode: number | null
+        logs: string[]
+        startedAt: number
+    } | null = null
+
+    async function hasLocalRuntimeImage(): Promise<boolean> {
+        try {
+            await execFileAsync('docker', ['image', 'inspect', LOCAL_RUNTIME_IMAGE])
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    async function findExternalLocalRuntimeBuildPid(): Promise<number | null> {
+        try {
+            const { stdout } = await execFileAsync('pgrep', ['-f', `${LOCAL_RUNTIME_IMAGE} -f Dockerfile.workspace`])
+            const pid = Number(stdout.trim().split('\n').find(Boolean) ?? '')
+            return Number.isFinite(pid) && pid > 0 ? pid : null
+        } catch {
+            return null
+        }
+    }
+
+    function localRuntimeBuildContext(): string {
+        return resolve(import.meta.dir, '..', '..', '..', '..')
+    }
+
+    function appendLocalRuntimeLog(line: string) {
+        if (!localRuntimeProcess) return
+        localRuntimeProcess.logs.push(line)
+        if (localRuntimeProcess.logs.length > 400) {
+            localRuntimeProcess.logs.shift()
+        }
+    }
+
+    async function buildLocalRuntimeStatus() {
+        const ready = await hasLocalRuntimeImage()
+        let running = false
+        if (localRuntimeProcess && localRuntimeProcess.exitCode === null) {
+            try {
+                process.kill(localRuntimeProcess.pid, 0)
+                running = true
+            } catch {
+                localRuntimeProcess.exitCode = -1
+                appendLocalRuntimeLog('[hub] Runtime build process no longer running')
+            }
+        }
+
+        if (!running && !ready) {
+            const externalPid = await findExternalLocalRuntimeBuildPid()
+            if (externalPid) {
+                running = true
+                if (!localRuntimeProcess || localRuntimeProcess.exitCode !== null) {
+                    localRuntimeProcess = {
+                        pid: externalPid,
+                        exitCode: null,
+                        startedAt: Date.now(),
+                        logs: ['[hub] Detected external runtime build process']
+                    }
+                }
+            }
+        }
+
+        return {
+            image: LOCAL_RUNTIME_IMAGE,
+            ready,
+            running,
+            pid: localRuntimeProcess?.pid,
+            exitCode: localRuntimeProcess?.exitCode ?? null,
+            startedAt: localRuntimeProcess?.startedAt,
+            logs: localRuntimeProcess?.logs ?? []
+        }
+    }
+
     // Start a local worker process on this machine
     app.post('/cloud/start-local-worker', async (c) => {
         const engine = getSyncEngine()
         if (!engine) return c.json({ error: 'Not connected' }, 503)
         const namespace = c.get('namespace')
+        const localWorkerMachineId = buildLocalWorkerMachineId(namespace)
+
+        function appendTrackedWorkerLog(line: string) {
+            if (!localWorkerProcess) return
+            localWorkerProcess.logs.push(line)
+            if (localWorkerProcess.logs.length > 200) {
+                localWorkerProcess.logs.shift()
+            }
+        }
+
+        function stopTrackedWorker(reason: string) {
+            if (!localWorkerProcess) return
+            appendTrackedWorkerLog(`[hub] Restarting local worker: ${reason}`)
+            try {
+                process.kill(localWorkerProcess.pid, 'SIGTERM')
+            } catch {
+                appendTrackedWorkerLog('[hub] Existing local worker process already exited')
+            }
+            localWorkerProcess.exitCode = -1
+        }
 
         // If already running, return existing info
         if (localWorkerProcess && localWorkerProcess.exitCode === null) {
             try {
                 process.kill(localWorkerProcess.pid, 0) // check if alive
-                return c.json({
-                    started: true,
-                    alreadyRunning: true,
-                    pid: localWorkerProcess.pid,
-                    startedAt: localWorkerProcess.startedAt
-                })
+                const workerSummary = engine
+                    .listCloudWorkers('auto', namespace)
+                    .find((worker) => worker.machineId === localWorkerMachineId)
+
+                const recentStartupGraceMs = 30_000
+                const startedRecently = Date.now() - localWorkerProcess.startedAt < recentStartupGraceMs
+                const shouldReuseRunningProcess = workerSummary
+                    ? workerSummary.active && workerSummary.selectable !== false
+                    : startedRecently
+
+                if (shouldReuseRunningProcess) {
+                    return c.json({
+                        started: true,
+                        alreadyRunning: true,
+                        pid: localWorkerProcess.pid,
+                        startedAt: localWorkerProcess.startedAt
+                    })
+                }
+
+                stopTrackedWorker('existing process is alive but worker is not selectable')
             } catch {
                 // process died without us knowing
                 localWorkerProcess.exitCode = -1
@@ -422,14 +572,15 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         const tokenResult = engine.createCloudWorkerEnrollmentToken({
             namespace,
             label: 'local-worker (auto)',
+            machineId: localWorkerMachineId,
             ttlMinutes: 10
         })
 
-        // Hub URL for the worker to connect to.
-        // Derive from the actual request origin to avoid stale publicUrl config.
-        const requestHost = c.req.header('host') || `localhost:${process.env.PORT || '3006'}`
-        const requestProto = c.req.header('x-forwarded-proto') || 'http'
-        const effectiveHubUrl = `${requestProto}://${requestHost}`
+        // Local worker runs on the same machine as the hub, so it should always
+        // connect to the local listener directly instead of the external origin.
+        // Using request headers here breaks behind HTTPS tunnels/proxies because
+        // the worker would try to dial e.g. https://127.0.0.1:3006.
+        const effectiveHubUrl = resolveLocalHubUrl()
 
         const cliDir = resolve(import.meta.dir, '..', '..', '..', '..', 'cli')
         const cliEntryPoint = resolve(cliDir, 'src', 'index.ts')
@@ -520,6 +671,87 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         } catch {
             return c.json({ stopped: false, reason: 'Process already exited' })
         }
+    })
+
+    app.get('/cloud/local-runtime', async (c) => {
+        return c.json(await buildLocalRuntimeStatus())
+    })
+
+    app.post('/cloud/prepare-local-runtime', async (c) => {
+        const ready = await hasLocalRuntimeImage()
+        if (ready) {
+            return c.json({
+                started: true,
+                alreadyReady: true,
+                ...(await buildLocalRuntimeStatus())
+            })
+        }
+
+        const existingStatus = await buildLocalRuntimeStatus()
+        if (existingStatus.running) {
+            return c.json({
+                started: true,
+                alreadyRunning: true,
+                ...existingStatus
+            })
+        }
+
+        if (localRuntimeProcess && localRuntimeProcess.exitCode === null) {
+            try {
+                process.kill(localRuntimeProcess.pid, 0)
+                return c.json({
+                    started: true,
+                    alreadyRunning: true,
+                    ...(await buildLocalRuntimeStatus())
+                })
+            } catch {
+                localRuntimeProcess.exitCode = -1
+                appendLocalRuntimeLog('[hub] Runtime build process no longer running')
+            }
+        }
+
+        const logs: string[] = []
+        const child = spawn(
+            'docker',
+            ['build', '-t', LOCAL_RUNTIME_IMAGE, '-f', 'Dockerfile.workspace', '.'],
+            {
+                cwd: localRuntimeBuildContext(),
+                detached: true,
+                stdio: ['ignore', 'pipe', 'pipe'],
+                env: { ...process.env }
+            }
+        )
+
+        localRuntimeProcess = {
+            pid: child.pid!,
+            exitCode: null,
+            logs,
+            startedAt: Date.now()
+        }
+        appendLocalRuntimeLog(`[hub] Building ${LOCAL_RUNTIME_IMAGE} from Dockerfile.workspace`)
+
+        child.stdout?.on('data', (data: Buffer) => {
+            for (const line of data.toString().split('\n').filter(Boolean)) {
+                appendLocalRuntimeLog(`[stdout] ${line}`)
+            }
+        })
+        child.stderr?.on('data', (data: Buffer) => {
+            for (const line of data.toString().split('\n').filter(Boolean)) {
+                appendLocalRuntimeLog(`[stderr] ${line}`)
+            }
+        })
+        child.on('exit', (code) => {
+            if (localRuntimeProcess && localRuntimeProcess.pid === child.pid) {
+                localRuntimeProcess.exitCode = code ?? -1
+                appendLocalRuntimeLog(`[hub] Runtime build exited with code ${code ?? -1}`)
+            }
+        })
+        child.unref()
+
+        return c.json({
+            started: true,
+            ...(await buildLocalRuntimeStatus())
+        })
     })
 
     return app
