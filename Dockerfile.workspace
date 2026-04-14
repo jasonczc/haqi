@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y \
     docker.io uidmap fuse-overlayfs \
     && rm -rf /var/lib/apt/lists/*
 
-# Desktop environment for Computer Use
+# Desktop environment for Computer Use (fontconfig = fc-cache; gtk-update-icon-cache for icon theme)
 RUN apt-get update && apt-get install -y \
     xvfb xfce4 xfce4-terminal dbus-x11 \
     tigervnc-standalone-server tigervnc-common \
@@ -56,6 +56,7 @@ RUN apt-get update && apt-get install -y \
     xdotool scrot imagemagick \
     ffmpeg \
     fonts-liberation fonts-noto-color-emoji \
+    fontconfig gtk-update-icon-cache \
     && rm -rf /var/lib/apt/lists/*
 
 RUN existing_group="$(getent group 1000 | cut -d: -f1 || true)" \
@@ -78,6 +79,11 @@ RUN existing_group="$(getent group 1000 | cut -d: -f1 || true)" \
 ENV DISPLAY=:1
 ENV HAQI_CONTAINER_USER=haqi
 ENV HAQI_CONTAINER_HOME=/home/haqi
+
+# Cursor-matching XFCE / WhiteSur bundle (requires haqi user, desktop packages, fontconfig, gtk-update-icon-cache)
+COPY docker/workspace-desktop /opt/haqi-workspace-desktop
+RUN chmod +x /opt/haqi-workspace-desktop/install.sh \
+    && HAQI_CONTAINER_HOME=/home/haqi /opt/haqi-workspace-desktop/install.sh
 
 # GitHub CLI
 RUN (curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
