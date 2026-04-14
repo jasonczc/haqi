@@ -497,10 +497,16 @@ export class SpawnCoordinator {
 
             let resolvedSecrets: ResolvedSecret[] = []
             try {
+                // Start with any secrets explicitly listed in the spawn request,
+                // then auto-inject ALL namespace secrets so the user never has to
+                // hand-pick them. Duplicates are deduplicated by the broker.
                 const allSecretNames = new Set<string>(request.secrets ?? [])
                 const repositorySecret = request.workspaceSource?.repository?.credentialsSecretRef?.trim()
                 if (repositorySecret) {
                     allSecretNames.add(repositorySecret)
+                }
+                for (const ns of this.secretBroker.listSecrets(namespace)) {
+                    allSecretNames.add(ns.name)
                 }
                 resolvedSecrets = this.secretBroker.resolveSecrets({
                     namespace,

@@ -782,6 +782,38 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           }
         }
 
+        // Write materialized secrets as `export KEY=VALUE` lines into a shell
+        // profile file inside the container so interactive terminals (Desktop,
+        // docker exec) see them — not just the agent's own process env.
+        if (workspaceContainerId && dockerRuntime && runtimeSecrets.length > 0) {
+          const envLines: string[] = []
+          for (const secret of runtimeSecrets) {
+            if (secret.adapter === 'codex') continue
+            const key = secret.envName
+              || (secret.adapter === 'claude' ? 'CLAUDE_CODE_OAUTH_TOKEN' : undefined)
+              || (secret.adapter === 'gemini' ? 'GEMINI_API_KEY' : undefined)
+              || secret.secretName.trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase()
+              || 'HAPI_SECRET'
+            const escaped = (secret.value ?? '').replace(/'/g, "'\\''")
+            envLines.push(`export ${key}='${escaped}'`)
+          }
+          if (envLines.length > 0) {
+            // Write via base64 to avoid heredoc / shell-escape issues inside
+            // docker exec. The container always has base64 (coreutils).
+            const b64 = Buffer.from(envLines.join('\n') + '\n').toString('base64')
+            await dockerRuntime.exec({
+              containerId: workspaceContainerId,
+              command: ['sh', '-c',
+                `echo '${b64}' | base64 -d > /root/.hapi-env && chmod 600 /root/.hapi-env` +
+                ` && grep -q '.hapi-env' /root/.bashrc 2>/dev/null || echo '. /root/.hapi-env' >> /root/.bashrc` +
+                ` && ([ -f /root/.zshrc ] && grep -q '.hapi-env' /root/.zshrc 2>/dev/null || echo '. /root/.hapi-env' >> /root/.zshrc)`
+              ]
+            }).catch((err) => {
+              logger.debug('[RUNNER RUN] Failed to write secrets to shell profile:', err)
+            })
+          }
+        }
+
         updateWorkspacePreparation('starting-session', 90, 'starting agent process');
 
         // In development mode, Bun path aliases only resolve reliably when cwd is cli project root.
