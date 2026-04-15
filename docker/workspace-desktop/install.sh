@@ -45,4 +45,8 @@ cp -a "${BUNDLE}/skel/.config/gtk-3.0/"* "${HAQI_HOME}/.config/gtk-3.0/"
 cp -a "${BUNDLE}/skel/.config/xfce4/xfconf/xfce-perchannel-xml/"* \
     "${HAQI_HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/"
 
+install -d -m 0755 -o haqi -g haqi "${HAQI_HOME}/.config/plank/dock1/launchers"
+cp -a "${BUNDLE}/skel/.config/plank/dock1/settings" "${HAQI_HOME}/.config/plank/dock1/"
+cp -a "${BUNDLE}/skel/.config/plank/dock1/launchers/"* "${HAQI_HOME}/.config/plank/dock1/launchers/"
+
 chown -R haqi:haqi "${HAQI_HOME}/.config"
