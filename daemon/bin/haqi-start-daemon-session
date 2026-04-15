@@ -1,0 +1,68 @@
+#!/bin/sh
+set -eu
+
+TARGET_USER="${HAPI_CONTAINER_USER:-haqi}"
+TARGET_HOME="${HAPI_CONTAINER_HOME:-/home/haqi}"
+TARGET_UID="${HAPI_RUNTIME_UID:-}"
+TARGET_GID="${HAPI_RUNTIME_GID:-}"
+
+ensure_group() {
+    desired_gid="$1"
+    current_gid="$(id -g "$TARGET_USER")"
+    if [ -z "$desired_gid" ] || [ "$current_gid" = "$desired_gid" ]; then
+        return 0
+    fi
+
+    existing_group="$(getent group "$desired_gid" | cut -d: -f1 || true)"
+    if [ -n "$existing_group" ] && [ "$existing_group" != "$TARGET_USER" ]; then
+        groupmod -n "${TARGET_USER}-host" "$existing_group"
+    fi
+
+    groupmod -o -g "$desired_gid" "$TARGET_USER"
+}
+
+ensure_user() {
+    desired_uid="$1"
+    desired_gid="$2"
+    current_uid="$(id -u "$TARGET_USER")"
+    if [ -z "$desired_uid" ] || [ "$current_uid" = "$desired_uid" ]; then
+        return 0
+    fi
+
+    existing_user="$(getent passwd "$desired_uid" | cut -d: -f1 || true)"
+    if [ -n "$existing_user" ] && [ "$existing_user" != "$TARGET_USER" ]; then
+        usermod -l "${TARGET_USER}-host" "$existing_user"
+    fi
+
+    usermod -o -u "$desired_uid" -g "$desired_gid" "$TARGET_USER"
+}
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "haqi-start-daemon-session must run as root" >&2
+    exit 1
+fi
+
+if ! id "$TARGET_USER" >/dev/null 2>&1; then
+    echo "User $TARGET_USER not found" >&2
+    exit 1
+fi
+
+desired_gid="${TARGET_GID:-$(id -g "$TARGET_USER")}"
+desired_uid="${TARGET_UID:-$(id -u "$TARGET_USER")}"
+
+ensure_group "$desired_gid"
+ensure_user "$desired_uid" "$desired_gid"
+
+mkdir -p "$TARGET_HOME" /workspace
+chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME"
+
+if [ -n "${HAPI_WORKING_DIRECTORY:-}" ]; then
+    mkdir -p "${HAPI_WORKING_DIRECTORY}"
+fi
+
+exec setpriv \
+    --reuid "$desired_uid" \
+    --regid "$desired_gid" \
+    --init-groups \
+    --inh-caps=-all \
+    "$@"

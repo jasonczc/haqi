@@ -1,0 +1,89 @@
+#!/bin/sh
+set -eu
+
+export HOME="${HOME:-/home/haqi}"
+export USER="${USER:-$(id -un)}"
+export LOGNAME="${LOGNAME:-$USER}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/xdg-runtime-$USER}"
+export DOCKER_HOST="${DOCKER_HOST:-unix://$XDG_RUNTIME_DIR/docker.sock}"
+export HAPI_INNER_DOCKER_STATE_DIR="${HAPI_INNER_DOCKER_STATE_DIR:-$HOME/.local/share/docker}"
+export HAPI_INNER_DOCKER_LOG="${HAPI_INNER_DOCKER_LOG:-$HOME/.local/state/haqi/inner-docker.log}"
+export HAPI_INNER_DOCKER_PID_FILE="${HAPI_INNER_DOCKER_PID_FILE:-$XDG_RUNTIME_DIR/haqi-inner-docker-launcher.pid}"
+
+DOCKER_SOCK="${DOCKER_HOST#unix://}"
+
+mkdir -p \
+    "$XDG_RUNTIME_DIR" \
+    "$HAPI_INNER_DOCKER_STATE_DIR" \
+    "$(dirname "$HAPI_INNER_DOCKER_LOG")" \
+    "$HOME/.config/docker"
+chmod 700 "$XDG_RUNTIME_DIR" 2>/dev/null || true
+
+find_rootless_dockerd() {
+    for candidate in \
+        "${HAQI_DOCKERD_ROOTLESS_BIN:-}" \
+        /usr/bin/dockerd-rootless.sh \
+        /usr/local/bin/dockerd-rootless.sh \
+        /usr/share/docker.io/contrib/dockerd-rootless.sh
+    do
+        [ -n "$candidate" ] || continue
+        [ -f "$candidate" ] || continue
+        printf '%s\n' "$candidate"
+        return 0
+    done
+
+    return 1
+}
+
+docker_ready() {
+    /usr/bin/docker version >/dev/null 2>&1
+}
+
+wait_ready() {
+    attempts="${1:-60}"
+    while [ "$attempts" -gt 0 ]; do
+        if docker_ready; then
+            return 0
+        fi
+        attempts=$((attempts - 1))
+        sleep 1
+    done
+    return 1
+}
+
+if docker_ready; then
+    exit 0
+fi
+
+if [ -f "$HAPI_INNER_DOCKER_PID_FILE" ]; then
+    existing_pid="$(cat "$HAPI_INNER_DOCKER_PID_FILE" 2>/dev/null || true)"
+    if [ -n "$existing_pid" ] && kill -0 "$existing_pid" 2>/dev/null; then
+        if wait_ready; then
+            exit 0
+        fi
+    fi
+fi
+
+DOCKERD_ROOTLESS_BIN="$(find_rootless_dockerd || true)"
+if [ -z "$DOCKERD_ROOTLESS_BIN" ]; then
+    echo "dockerd-rootless.sh not found" >&2
+    exit 1
+fi
+
+export DOCKERD_ROOTLESS_ROOTLESSKIT_NET="${DOCKERD_ROOTLESS_ROOTLESSKIT_NET:-slirp4netns}"
+export DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER="${DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER:-slirp4netns}"
+
+nohup sh "$DOCKERD_ROOTLESS_BIN" --storage-driver=fuse-overlayfs >"$HAPI_INNER_DOCKER_LOG" 2>&1 &
+daemon_pid=$!
+printf '%s\n' "$daemon_pid" >"$HAPI_INNER_DOCKER_PID_FILE"
+
+if ! wait_ready; then
+    echo "inner Docker failed to become ready" >&2
+    tail -n 200 "$HAPI_INNER_DOCKER_LOG" >&2 || true
+    exit 1
+fi
+
+if [ ! -S "$DOCKER_SOCK" ]; then
+    echo "inner Docker socket not created at $DOCKER_SOCK" >&2
+    exit 1
+fi

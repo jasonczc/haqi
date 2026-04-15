@@ -108,7 +108,7 @@ type MessageEnvelope = {
 export type CloudEnvironmentSummary = {
     id: string
     source: 'builtin' | 'repo' | 'team' | 'user'
-    runtimeKind?: 'host-process' | 'docker-session'
+    runtimeKind?: 'host-process' | 'docker-session' | 'daemon-session'
     serviceCount: number
     repositoryDependenciesCount: number
     hasPreviewPorts: boolean
@@ -125,7 +125,7 @@ type SessionMetadataShape = {
     machineId?: string
     environmentId?: string
     checkpointId?: string
-    runtimeKind?: 'host-process' | 'docker-session'
+    runtimeKind?: 'host-process' | 'docker-session' | 'daemon-session'
     previewUrls?: import('@hapi/protocol/types').PreviewTarget[]
     initialPrompt?: string
     sessionType?: string

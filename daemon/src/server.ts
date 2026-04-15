@@ -18,9 +18,42 @@ export async function startServer(options: ServerOptions) {
     const startedAt = Date.now()
     const processManager = new ProcessManager()
     const outputBuffer = new OutputBuffer()
+    const runnerCallbackUrl = process.env.HAPI_RUNNER_CALLBACK_URL
+    const runnerCallbackToken = process.env.HAPI_RUNNER_CALLBACK_TOKEN
+
+    const postRunnerCallback = async (path: string, body: Record<string, unknown>) => {
+        if (!runnerCallbackUrl) {
+            return
+        }
+        try {
+            await fetch(`${runnerCallbackUrl}${path}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ...body,
+                    ...(runnerCallbackToken ? { callbackToken: runnerCallbackToken } : {})
+                }),
+                signal: AbortSignal.timeout(5_000)
+            })
+        } catch {
+            // Best effort only. Runner cleanup should not depend on callback success.
+        }
+    }
 
     processManager.on('stdout', (data: string) => outputBuffer.push('stdout', data))
     processManager.on('stderr', (data: string) => outputBuffer.push('stderr', data))
+    processManager.on('exit', (event) => {
+        if (typeof event.pid !== 'number') {
+            return
+        }
+        void postRunnerCallback('/process-exited', {
+            pid: event.pid,
+            exitCode: event.exitCode ?? null,
+            signal: event.signal ?? null
+        })
+    })
 
     const app = new Hono()
 

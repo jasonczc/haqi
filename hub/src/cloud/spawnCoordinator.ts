@@ -91,7 +91,7 @@ function getSelectionOptions(environment: EnvironmentTemplate | undefined, reque
     const requireDockerSession = runtimeKind === 'docker-session'
     return {
         labels: request.labels,
-        requireDocker: requireDockerSession || hasServices,
+        requireDocker: runtimeKind === 'daemon-session' || requireDockerSession || hasServices,
         requireDockerSession
     }
 }

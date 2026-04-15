@@ -1,10 +1,12 @@
 import fs from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import type { ResolvedSecret } from '@hapi/protocol/types'
+import type { DockerCliRuntime } from '@/cloud/docker/dockerCli'
 
 export type MaterializedSecrets = {
     env: Record<string, string>
     cleanupPaths: string[]
+    cleanupContainerPaths?: string[]
 }
 
 function defaultEnvName(secretName: string): string {
@@ -27,6 +29,13 @@ function resolveRelativeSecretPath(rootDir: string, filePath: string | undefined
 async function writeSecretFile(filePath: string, value: string): Promise<void> {
     await fs.mkdir(dirname(filePath), { recursive: true })
     await fs.writeFile(filePath, value, { mode: 0o600 })
+}
+
+function quoteShell(value: string): string {
+    if (!value) {
+        return "''"
+    }
+    return `'${value.replace(/'/g, `'\\''`)}'`
 }
 
 export async function materializeResolvedSecrets(options: {
@@ -82,7 +91,112 @@ export async function materializeResolvedSecrets(options: {
 
     return {
         env,
-        cleanupPaths
+        cleanupPaths,
+        cleanupContainerPaths: []
+    }
+}
+
+export async function materializeResolvedSecretsInContainer(options: {
+    secrets: ResolvedSecret[]
+    runtime: DockerCliRuntime
+    containerId: string
+    workspacePath: string
+    requestId: string
+    user?: string
+    home?: string
+}): Promise<MaterializedSecrets> {
+    if (options.secrets.length === 0) {
+        return {
+            env: {},
+            cleanupPaths: [],
+            cleanupContainerPaths: []
+        }
+    }
+
+    const rootDir = join(options.workspacePath, '.haqi-cloud-secrets', options.requestId)
+    await options.runtime.exec({
+        containerId: options.containerId,
+        user: options.user,
+        env: [
+            ...(options.home ? [`HOME=${options.home}`] : []),
+            ...(options.user ? [`USER=${options.user}`, `LOGNAME=${options.user}`] : [])
+        ],
+        command: ['sh', '-lc', `mkdir -p ${quoteShell(rootDir)} && chmod 700 ${quoteShell(rootDir)}`]
+    })
+
+    const env: Record<string, string> = {}
+
+    for (const secret of options.secrets) {
+        const mountAs = secret.mountAs ?? 'env'
+
+        if (secret.adapter === 'claude') {
+            env.CLAUDE_CODE_OAUTH_TOKEN = secret.value
+            continue
+        }
+
+        if (secret.adapter === 'gemini' && mountAs === 'env') {
+            env[secret.envName || 'GEMINI_API_KEY'] = secret.value
+            continue
+        }
+
+        if (secret.adapter === 'codex') {
+            const codexHome = join(rootDir, 'codex', secret.secretName)
+            const authPath = join(codexHome, 'auth.json')
+            const payload = Buffer.from(secret.value, 'utf8').toString('base64')
+            await options.runtime.exec({
+                containerId: options.containerId,
+                user: options.user,
+                env: [
+                    ...(options.home ? [`HOME=${options.home}`] : []),
+                    ...(options.user ? [`USER=${options.user}`, `LOGNAME=${options.user}`] : [])
+                ],
+                command: [
+                    'sh',
+                    '-lc',
+                    [
+                        'umask 077',
+                        `mkdir -p ${quoteShell(codexHome)}`,
+                        `printf %s ${quoteShell(payload)} | base64 -d > ${quoteShell(authPath)}`
+                    ].join(' && ')
+                ]
+            })
+            env.CODEX_HOME = codexHome
+            continue
+        }
+
+        if (mountAs === 'file') {
+            const filePath = resolveRelativeSecretPath(rootDir, secret.filePath, secret.secretName)
+            const payload = Buffer.from(secret.value, 'utf8').toString('base64')
+            await options.runtime.exec({
+                containerId: options.containerId,
+                user: options.user,
+                env: [
+                    ...(options.home ? [`HOME=${options.home}`] : []),
+                    ...(options.user ? [`USER=${options.user}`, `LOGNAME=${options.user}`] : [])
+                ],
+                command: [
+                    'sh',
+                    '-lc',
+                    [
+                        'umask 077',
+                        `mkdir -p ${quoteShell(dirname(filePath))}`,
+                        `printf %s ${quoteShell(payload)} | base64 -d > ${quoteShell(filePath)}`
+                    ].join(' && ')
+                ]
+            })
+            if (secret.envName) {
+                env[secret.envName] = filePath
+            }
+            continue
+        }
+
+        env[secret.envName || defaultEnvName(secret.secretName)] = secret.value
+    }
+
+    return {
+        env,
+        cleanupPaths: [],
+        cleanupContainerPaths: [rootDir]
     }
 }
 

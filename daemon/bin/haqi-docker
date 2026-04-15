@@ -1,0 +1,105 @@
+#!/bin/sh
+set -eu
+
+REAL_DOCKER_BIN="${HAQI_REAL_DOCKER_BIN:-/usr/bin/docker}"
+DEFAULT_XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/xdg-runtime-${USER:-$(id -un)}}"
+DEFAULT_DOCKER_HOST="unix://${DEFAULT_XDG_RUNTIME_DIR}/docker.sock"
+
+resolve_target_container() {
+    if [ -n "${HAPI_CONTAINER_ID:-}" ]; then
+        printf '%s\n' "${HAPI_CONTAINER_ID}"
+        return 0
+    fi
+
+    hostname 2>/dev/null || true
+}
+
+default_compose_project_name() {
+    target_container="$(resolve_target_container)"
+    if [ -z "${target_container}" ]; then
+        return 1
+    fi
+
+    short_id="$(printf '%s' "${target_container}" | cut -c1-12)"
+    printf 'hapi-%s\n' "${short_id}"
+}
+
+should_set_compose_project_name() {
+    [ -z "${COMPOSE_PROJECT_NAME:-}" ] || return 1
+
+    for arg in "$@"; do
+        case "$arg" in
+            -p|--project-name|--project-name=*)
+                return 1
+                ;;
+        esac
+    done
+
+    return 0
+}
+
+should_inject_network() {
+    [ "${HAPI_DOCKER_LOCALHOST_MODE:-off}" = "container" ] || return 1
+    [ -n "$(resolve_target_container)" ] || return 1
+
+    for arg in "$@"; do
+        case "$arg" in
+            --network|--network=*|-p|--publish|--publish=*|-P|--publish-all)
+                return 1
+                ;;
+        esac
+    done
+
+    return 0
+}
+
+run_with_default_network() {
+    subcommand="$1"
+    shift
+
+    if should_inject_network "$@"; then
+        target_container="$(resolve_target_container)"
+        exec "$REAL_DOCKER_BIN" "$subcommand" "--network=container:${target_container}" "$@"
+    fi
+
+    exec "$REAL_DOCKER_BIN" "$subcommand" "$@"
+}
+
+[ -n "${XDG_RUNTIME_DIR:-}" ] || export XDG_RUNTIME_DIR="${DEFAULT_XDG_RUNTIME_DIR}"
+[ -n "${DOCKER_HOST:-}" ] || export DOCKER_HOST="${DEFAULT_DOCKER_HOST}"
+
+[ "$#" -gt 0 ] || exec "$REAL_DOCKER_BIN"
+
+case "$1" in
+    run|create)
+        command="$1"
+        shift
+        run_with_default_network "$command" "$@"
+        ;;
+    compose)
+        shift
+        if should_set_compose_project_name "$@"; then
+            project_name="$(default_compose_project_name || true)"
+            if [ -n "${project_name}" ]; then
+                export COMPOSE_PROJECT_NAME="${project_name}"
+            fi
+        fi
+        exec "$REAL_DOCKER_BIN" compose "$@"
+        ;;
+    container)
+        [ "$#" -ge 2 ] || exec "$REAL_DOCKER_BIN" "$@"
+        case "$2" in
+            run|create)
+                subcommand="$2"
+                shift 2
+                if should_inject_network "$@"; then
+                    target_container="$(resolve_target_container)"
+                    exec "$REAL_DOCKER_BIN" container "$subcommand" "--network=container:${target_container}" "$@"
+                fi
+                exec "$REAL_DOCKER_BIN" container "$subcommand" "$@"
+                ;;
+        esac
+        ;;
+esac
+
+exec "$REAL_DOCKER_BIN" "$@"

@@ -9,6 +9,10 @@ import { useCloudProviders } from '@/hooks/queries/useCloudProviders'
 import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
 import { useCloudEnvironments } from '@/hooks/queries/useCloudEnvironments'
 
+vi.mock('@tanstack/react-router', () => ({
+    Link: ({ children, ...props }: Record<string, unknown> & { children?: unknown }) => <a {...props}>{children}</a>
+}))
+
 vi.mock('@/hooks/queries/useCloudProviders', () => ({
     useCloudProviders: vi.fn()
 }))
@@ -329,8 +333,7 @@ describe('NewSession initial directory preset', () => {
                     executorType: 'cloud-self-hosted',
                     capabilities: {
                         docker: true,
-                        serviceContainers: true,
-                        dockerSession: true
+                        serviceContainers: true
                     }
                 },
                 metadataVersion: 1,
@@ -349,7 +352,6 @@ describe('NewSession initial directory preset', () => {
         )
 
         fireEvent.click(screen.getByRole('radio', { name: 'Self-hosted cloud worker' }))
-        fireEvent.click(screen.getByRole('radio', { name: 'Docker session' }))
         fireEvent.change(screen.getByPlaceholderText('ghcr.io/org/dev:latest'), { target: { value: 'ghcr.io/acme/dev:node' } })
         fireEvent.change(screen.getByPlaceholderText('default-node18'), { target: { value: 'node-dev' } })
         fireEvent.change(screen.getByPlaceholderText('https://github.com/org/repo.git'), { target: { value: 'https://github.com/acme/demo.git' } })
@@ -370,7 +372,7 @@ describe('NewSession initial directory preset', () => {
         const [, request] = spawnSession.mock.calls[0]
         expect(request).toEqual(expect.objectContaining({
             executionBackend: 'cloud-self-hosted',
-            runtimeKind: 'docker-session',
+            runtimeKind: 'daemon-session',
             checkpointId: 'ghcr.io/acme/dev:node',
             launchMode: 'interactive',
             repoSyncPolicy: 'fetch-reset',
@@ -398,7 +400,7 @@ describe('NewSession initial directory preset', () => {
         const savedRaw = localStorage.getItem('hapi:newSession:lastConfig')
         expect(savedRaw).not.toBeNull()
         const saved = JSON.parse(savedRaw ?? '{}')
-        expect(saved.runtimeKind).toBe('docker-session')
+        expect(saved.runtimeKind).toBe('daemon-session')
         expect(saved.checkpointId).toBe('ghcr.io/acme/dev:node')
         expect(saved.environmentId).toBe('node-dev')
         expect(saved.repositoryUrl).toBe('https://github.com/acme/demo.git')
@@ -560,7 +562,7 @@ describe('NewSession initial directory preset', () => {
         expect(screen.getByLabelText('TTL minutes')).toBeInTheDocument()
     })
 
-    it('renders cloud inventory summary and docker capability warnings', async () => {
+    it('renders cloud inventory summary and daemon runtime defaults', async () => {
         mockedUseCloudProviders.mockReturnValue({
             providers: [
                 { id: 'auto', type: 'self-hosted', count: 2 },
@@ -578,8 +580,7 @@ describe('NewSession initial directory preset', () => {
                     active: true,
                     executorType: 'cloud-self-hosted',
                     capabilities: {
-                        docker: true,
-                        dockerSession: false
+                        docker: true
                     },
                     updatedAt: Date.now()
                 }
@@ -636,8 +637,7 @@ describe('NewSession initial directory preset', () => {
         expect(screen.getByText('1 providers available')).toBeInTheDocument()
         expect(screen.getByText('1 workers visible')).toBeInTheDocument()
         expect(screen.queryByText('No selected cloud workers advertise Docker support.')).not.toBeInTheDocument()
-
-        fireEvent.click(screen.getByRole('radio', { name: 'Docker session' }))
+        expect(screen.getByText('daemon-session')).toBeInTheDocument()
     })
 
     it('renders suggested cloud environments and lets users apply one', async () => {
@@ -654,7 +654,7 @@ describe('NewSession initial directory preset', () => {
                     provider: 'docker',
                     active: true,
                     executorType: 'cloud-self-hosted',
-                    capabilities: { docker: true, dockerSession: true },
+                    capabilities: { docker: true },
                     updatedAt: Date.now()
                 }
             ],
@@ -667,18 +667,10 @@ describe('NewSession initial directory preset', () => {
                 {
                     id: 'node-dev',
                     source: 'team',
-                    runtimeKind: 'docker-session',
+                    runtimeKind: 'daemon-session',
                     serviceCount: 2,
                     repositoryDependenciesCount: 1,
                     hasPreviewPorts: true
-                },
-                {
-                    id: 'py-dev',
-                    source: 'user',
-                    runtimeKind: 'host-process',
-                    serviceCount: 0,
-                    repositoryDependenciesCount: 0,
-                    hasPreviewPorts: false
                 }
             ],
             isLoading: false,

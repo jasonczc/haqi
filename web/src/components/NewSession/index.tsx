@@ -214,13 +214,17 @@ export function NewSession(props: {
 
     useEffect(() => {
         if (executionBackend !== 'local') {
-            if (runtimeKind !== 'docker-session' && runtimeKind !== 'daemon-session') {
-                setRuntimeKind('docker-session')
+            if (runtimeKind !== 'daemon-session') {
+                setRuntimeKind('daemon-session')
             }
             if (machineId === AUTO_CLOUD_MACHINE_ID) return
             if (machineId && selectableMachines.find((machine) => machine.id === machineId)) return
             setMachineId(AUTO_CLOUD_MACHINE_ID)
             return
+        }
+
+        if (runtimeKind !== 'host-process') {
+            setRuntimeKind('host-process')
         }
 
         if (selectableMachines.length === 0) return

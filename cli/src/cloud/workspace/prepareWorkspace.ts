@@ -7,6 +7,7 @@ import type {
     CloudWorkspaceLeaseBinding,
     RepositorySpec,
     ResolvedSecret,
+    RuntimeKind,
     WorkspaceSource,
     WorkspaceSpec
 } from '@hapi/protocol/types'
@@ -15,6 +16,9 @@ import { loadWorkspaceEnvironmentTemplate } from '@/cloud/environment/workspaceE
 import { applyRepositoryCredential } from '@/cloud/secrets/materializeSecrets'
 
 const execFileAsync = promisify(execFile)
+const DAEMON_WORKSPACE_ROOT = '/workspace'
+const DAEMON_DESKTOP_STATE_DIR = '/home/haqi/.haqi-desktop'
+const DAEMON_INNER_DOCKER_STATE_DIR = '/home/haqi/.local/share/docker'
 
 async function runGit(args: string[], cwd?: string): Promise<void> {
     await execFileAsync('git', args, cwd ? { cwd } : undefined)
@@ -26,6 +30,14 @@ function buildWorkspaceId(prefix: string): string {
 
 async function ensureDir(path: string): Promise<void> {
     await fs.mkdir(path, { recursive: true })
+}
+
+function sanitizeVolumeComponent(value: string): string {
+    return value.replace(/[^a-zA-Z0-9_.-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ws'
+}
+
+function workspaceVolumeName(workspaceId: string, suffix: string): string {
+    return `haqi-ws-${sanitizeVolumeComponent(workspaceId)}-${suffix}`
 }
 
 async function hasGitRepository(path: string): Promise<boolean> {
@@ -79,9 +91,43 @@ async function prepareRepositoryWorkspace(
     repository: RepositorySpec,
     workspace: WorkspaceSpec | undefined,
     workspaceLease: CloudWorkspaceLeaseBinding | undefined,
-    repositoryCredential: ResolvedSecret | undefined
+    repositoryCredential: ResolvedSecret | undefined,
+    runtimeKind: RuntimeKind | undefined
 ): Promise<PreparedWorkspace> {
     const workspaceId = workspaceLease?.workspaceId ?? buildWorkspaceId('repo')
+    const workspaceMode = workspaceLease?.mode ?? workspace?.mode
+    if (runtimeKind === 'daemon-session') {
+        const repoVolumeName = workspaceVolumeName(workspaceId, 'repo')
+        const innerDockerVolumeName = workspaceVolumeName(workspaceId, 'inner-docker')
+        const workingDirectory = repository.subdirectory
+            ? join(DAEMON_WORKSPACE_ROOT, repository.subdirectory)
+            : DAEMON_WORKSPACE_ROOT
+        const persistentWorkspace = workspaceMode === 'persistent'
+
+        return {
+            workspaceId,
+            workspacePath: DAEMON_WORKSPACE_ROOT,
+            repoVolumePath: DAEMON_WORKSPACE_ROOT,
+            repoMountSource: persistentWorkspace ? repoVolumeName : undefined,
+            desktopStatePath: DAEMON_DESKTOP_STATE_DIR,
+            innerDockerStatePath: DAEMON_INNER_DOCKER_STATE_DIR,
+            innerDockerStateMountSource: innerDockerVolumeName,
+            workingDirectory,
+            workspaceBranch: workspaceLease?.workspaceBranch,
+            checkpointId: workspaceLease?.checkpointId,
+            source: {
+                type: 'repo',
+                repository
+            },
+            mode: workspaceMode,
+            spec: workspace,
+            cleanupPaths: [],
+            cleanupVolumeNames: workspaceMode === 'persistent'
+                ? []
+                : [innerDockerVolumeName]
+        }
+    }
+
     const workspaceRoot = workspaceLease?.repoVolumePath
         ? resolve(workspaceLease.repoVolumePath)
         : resolveWorkspaceRoot({
@@ -92,10 +138,12 @@ async function prepareRepositoryWorkspace(
     const desktopStatePath = workspaceLease?.desktopStateVolumePath
         ? resolve(workspaceLease.desktopStateVolumePath)
         : join(dirname(workspaceRoot), '.haqi-desktop')
+    const innerDockerStatePath = join(dirname(workspaceRoot), '.haqi-inner-docker', workspaceId)
     const checkpointId = workspaceLease?.checkpointId
     const workspaceBranch = workspaceLease?.workspaceBranch
     await ensureDir(dirname(workspaceRoot))
     await ensureDir(desktopStatePath)
+    await ensureDir(innerDockerStatePath)
 
     if (workspaceLease?.repoVolumePath) {
         await ensureDir(workspaceRoot)
@@ -109,6 +157,7 @@ async function prepareRepositoryWorkspace(
             workspacePath: workspaceRoot,
             repoVolumePath: workspaceRoot,
             desktopStatePath,
+            innerDockerStatePath,
             workingDirectory,
             workspaceBranch,
             checkpointId,
@@ -116,10 +165,11 @@ async function prepareRepositoryWorkspace(
                 type: 'repo',
                 repository
             },
-            mode: workspaceLease?.mode ?? workspace?.mode,
+            mode: workspaceMode,
             spec: workspace,
             environment: environment ?? undefined,
-            cleanupPaths: (workspaceLease?.mode ?? workspace?.mode) === 'persistent' ? [] : [workspaceRoot, desktopStatePath]
+            cleanupPaths: workspaceMode === 'persistent' ? [] : [workspaceRoot, desktopStatePath, innerDockerStatePath],
+            cleanupVolumeNames: []
         }
     }
 
@@ -193,6 +243,7 @@ async function prepareRepositoryWorkspace(
         workspacePath: resolvedWorkspaceRoot,
         repoVolumePath: resolvedWorkspaceRoot,
         desktopStatePath,
+        innerDockerStatePath,
         workingDirectory,
         workspaceBranch,
         checkpointId,
@@ -200,10 +251,11 @@ async function prepareRepositoryWorkspace(
             type: 'repo',
             repository
         },
-        mode: workspaceLease?.mode ?? workspace?.mode,
+        mode: workspaceMode,
         spec: workspace,
         environment: environment ?? undefined,
-        cleanupPaths: (workspaceLease?.mode ?? workspace?.mode) === 'persistent' ? [] : [resolvedWorkspaceRoot, desktopStatePath]
+        cleanupPaths: workspaceMode === 'persistent' ? [] : [resolvedWorkspaceRoot, desktopStatePath, innerDockerStatePath],
+        cleanupVolumeNames: []
     }
 }
 
@@ -213,6 +265,7 @@ export async function prepareWorkspace(options: {
     workspace?: WorkspaceSpec
     workspaceLease?: CloudWorkspaceLeaseBinding
     repositoryCredential?: ResolvedSecret
+    runtimeKind?: RuntimeKind
 }): Promise<PreparedWorkspace> {
     const workspaceSource = options.workspaceSource
 
@@ -221,7 +274,8 @@ export async function prepareWorkspace(options: {
             workspaceSource.repository,
             options.workspace,
             options.workspaceLease,
-            options.repositoryCredential
+            options.repositoryCredential,
+            options.runtimeKind
         )
     }
 
@@ -230,18 +284,27 @@ export async function prepareWorkspace(options: {
         throw new Error('Workspace directory is required')
     }
 
+    const workspaceId = options.workspaceLease?.workspaceId ?? buildWorkspaceId('dir')
     const resolvedDirectory = resolve(directory)
     await ensureDir(resolvedDirectory)
+    const innerDockerStatePath = join(
+        process.platform === 'darwin' ? '/tmp' : os.tmpdir(),
+        'haqi-cloud-workspaces',
+        `${workspaceId}-inner-docker`
+    )
+    await ensureDir(innerDockerStatePath)
     const environment = await loadWorkspaceEnvironmentTemplate([resolvedDirectory])
+    const cleanupPaths = [innerDockerStatePath]
 
     return {
-        workspaceId: options.workspaceLease?.workspaceId ?? buildWorkspaceId('dir'),
+        workspaceId,
         workspacePath: resolvedDirectory,
         repoVolumePath: resolvedDirectory,
         workingDirectory: resolvedDirectory,
         desktopStatePath: options.workspaceLease?.desktopStateVolumePath
             ? resolve(options.workspaceLease.desktopStateVolumePath)
             : undefined,
+        innerDockerStatePath,
         workspaceBranch: options.workspaceLease?.workspaceBranch,
         checkpointId: options.workspaceLease?.checkpointId,
         source: workspaceSource ?? {
@@ -251,6 +314,7 @@ export async function prepareWorkspace(options: {
         mode: options.workspaceLease?.mode ?? options.workspace?.mode,
         spec: options.workspace,
         environment: environment ?? undefined,
-        cleanupPaths: []
+        cleanupPaths: (options.workspaceLease?.mode ?? options.workspace?.mode) === 'persistent' ? [] : cleanupPaths,
+        cleanupVolumeNames: []
     }
 }

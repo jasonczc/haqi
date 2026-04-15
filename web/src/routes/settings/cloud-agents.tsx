@@ -76,11 +76,11 @@ export default function SettingsCloudAgentsPage() {
                             <CursorExpandableRow
                                 key={environment.id}
                                 title={environment.id.replace(/^repo:/, '')}
-                                description={environment.runtimeKind === 'docker-session' ? 'Personal environment active' : 'Host process environment'}
+                                description={environment.runtimeKind === 'host-process' ? 'Host process environment' : 'Daemon session environment'}
                             >
                                 <div className="flex flex-col gap-3">
                                     <div className="text-[12px] leading-4 text-[var(--text-secondary)]">Configured Runtime</div>
-                                    <CursorTextField readOnly mono value={environment.runtimeKind ?? 'docker-session'} />
+                                    <CursorTextField readOnly mono value={environment.runtimeKind ?? 'daemon-session'} />
                                     <div className="flex gap-2">
                                         <CursorButton variant="outline" size="sm" type="button">Edit</CursorButton>
                                         <CursorButton variant="danger" size="sm" type="button">Remove</CursorButton>

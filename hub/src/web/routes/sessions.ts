@@ -584,7 +584,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireSessionFromParam(c, engine, { requireActive: true })
+        const sessionResult = requireSessionFromParam(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
@@ -650,12 +650,33 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const sessionResult = requireSessionFromParam(c, engine, { requireActive: true })
+        const sessionResult = requireSessionFromParam(c, engine)
         if (sessionResult instanceof Response) {
             return sessionResult
         }
 
-        await engine.abortSession(sessionResult.sessionId)
+        const metadata = sessionResult.session.metadata
+        const shouldKillCloudSetupSession =
+            metadata?.executionBackend === 'cloud-self-hosted'
+            && metadata?.runtimeKind === 'daemon-session'
+            && metadata?.sessionType === 'setup'
+
+        if (shouldKillCloudSetupSession) {
+            const spawnRequest = typeof metadata?.spawnRequestId === 'string'
+                ? engine.getCloudRequestByNamespace(metadata.spawnRequestId, c.get('namespace'))
+                : null
+            const selectedMachineId = spawnRequest?.selectedMachineId
+            if (selectedMachineId && metadata?.containerId) {
+                await engine.rpcContainerStopSession(selectedMachineId, metadata.containerId)
+                engine.handleSessionEnd({ sid: sessionResult.sessionId, time: Date.now() })
+            } else {
+                await engine.archiveSession(sessionResult.sessionId)
+            }
+        } else if (!sessionResult.session.active) {
+            return c.json({ error: 'Session is inactive' }, 409)
+        } else {
+            await engine.abortSession(sessionResult.sessionId)
+        }
         return c.json({ ok: true })
     })
 

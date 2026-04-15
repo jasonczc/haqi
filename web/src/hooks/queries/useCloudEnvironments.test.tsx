@@ -24,7 +24,7 @@ describe('useCloudEnvironments', () => {
                     {
                         id: 'node-dev',
                         source: 'team',
-                        runtimeKind: 'docker-session',
+                        runtimeKind: 'daemon-session',
                         serviceCount: 2,
                         repositoryDependenciesCount: 1,
                         hasPreviewPorts: true

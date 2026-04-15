@@ -1,8 +1,18 @@
 import type { PreviewTarget } from '@hapi/protocol/types'
 import type { DockerCliRuntime, DockerRunSpec } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
+
+const INNER_DOCKER_RUNTIME_DIR = '/tmp/xdg-runtime-haqi'
+
+function innerDockerSocketPath(): string {
+    return `${INNER_DOCKER_RUNTIME_DIR}/docker.sock`
+}
+
+function daemonSessionNeedsBootstrapWrapper(workspace: PreparedWorkspace): boolean {
+    return workspace.source?.type === 'path' && !workspace.repoMountSource
+}
 
 function keepaliveCommand(): string[] {
     return ['-lc', 'trap "exit 0" TERM INT; while true; do sleep 3600; done']
@@ -47,6 +57,19 @@ function browserRuntimeOptions(): Pick<DockerRunSpec, 'init' | 'ipc' | 'shmSize'
     }
 }
 
+function resolveDockerSocketGroupAdd(): string[] | undefined {
+    const dockerSocketPath = '/var/run/docker.sock'
+    if (!existsSync(dockerSocketPath)) {
+        return undefined
+    }
+
+    try {
+        return [String(statSync(dockerSocketPath).gid)]
+    } catch {
+        return undefined
+    }
+}
+
 export async function ensureWorkspaceContainer(params: {
     runtime: DockerCliRuntime
     workspace: PreparedWorkspace
@@ -70,11 +93,16 @@ export async function ensureWorkspaceContainer(params: {
 
     await params.runtime.pull(image)
 
-    const portSpecs = (params.environment?.environment?.ports ?? []).map((port) => ({
-        containerPort: port.containerPort,
-        hostPort: port.hostPort,
-        protocol: port.protocol
-    }))
+    // daemon-session can proxy arbitrary localhost ports through haqi-daemon,
+    // so app previews stay container-local instead of consuming host ports.
+    const publishWorkspacePorts = !params.daemonMode
+    const portSpecs = publishWorkspacePorts
+        ? (params.environment?.environment?.ports ?? []).map((port) => ({
+            containerPort: port.containerPort,
+            hostPort: port.hostPort,
+            protocol: port.protocol
+        }))
+        : []
 
     if (params.daemonMode) {
         portSpecs.push({
@@ -91,14 +119,26 @@ export async function ensureWorkspaceContainer(params: {
         protocol: 'tcp'
     })
 
-    const mounts = [
-        `${params.workspace.repoVolumePath}:${params.workspace.repoVolumePath}`
-    ]
-    if (existsSync('/var/run/docker.sock')) {
+    const useBootstrapWrapper = !!params.daemonMode && daemonSessionNeedsBootstrapWrapper(params.workspace)
+    const mounts: string[] = []
+    if (params.daemonMode && params.workspace.repoMountSource) {
+        mounts.push(`${params.workspace.repoMountSource}:${params.workspace.repoVolumePath}`)
+    } else if (!params.daemonMode || params.workspace.source?.type === 'path') {
+        mounts.push(`${params.workspace.repoVolumePath}:${params.workspace.repoVolumePath}`)
+    }
+    const dockerSocketGroupAdd = !params.daemonMode ? resolveDockerSocketGroupAdd() : undefined
+    if (!params.daemonMode && existsSync('/var/run/docker.sock')) {
         mounts.push('/var/run/docker.sock:/var/run/docker.sock')
     }
-    if (params.workspace.desktopStatePath) {
+    if (params.daemonMode && params.workspace.desktopStatePath && params.workspace.desktopStateMountSource) {
+        mounts.push(`${params.workspace.desktopStateMountSource}:${params.workspace.desktopStatePath}`)
+    } else if (!params.daemonMode && params.workspace.desktopStatePath) {
         mounts.push(`${params.workspace.desktopStatePath}:${params.workspace.desktopStatePath}`)
+    }
+    if (params.daemonMode && params.workspace.innerDockerStatePath && params.workspace.innerDockerStateMountSource) {
+        mounts.push(`${params.workspace.innerDockerStateMountSource}:${params.workspace.innerDockerStatePath}`)
+    } else if (params.daemonMode && params.workspace.innerDockerStatePath && params.workspace.source?.type === 'path') {
+        mounts.push(`${params.workspace.innerDockerStatePath}:${params.workspace.innerDockerStatePath}`)
     }
 
     // NOTE: we intentionally do NOT mount ~/.claude or ~/.codex here.
@@ -111,7 +151,23 @@ export async function ensureWorkspaceContainer(params: {
         ? [`HAQI_DAEMON_AUTH_TOKEN=${params.daemonMode.authToken}`]
         : []
     envVars.push(`HOME=${containerHome}`, `USER=${containerUser}`, `LOGNAME=${containerUser}`)
-    if (existsSync('/var/run/docker.sock')) {
+    if (params.daemonMode) {
+        envVars.push(
+            `HAPI_CONTAINER_USER=${containerUser}`,
+            `HAPI_CONTAINER_HOME=${containerHome}`,
+            `XDG_RUNTIME_DIR=${INNER_DOCKER_RUNTIME_DIR}`,
+            `DOCKER_HOST=unix://${innerDockerSocketPath()}`,
+            `HAPI_INNER_DOCKER_RUNTIME_DIR=${INNER_DOCKER_RUNTIME_DIR}`,
+            `HAPI_INNER_DOCKER_SOCKET=${innerDockerSocketPath()}`,
+            `HAPI_INNER_DOCKER_STATE_DIR=${containerHome}/.local/share/docker`
+        )
+        if (useBootstrapWrapper) {
+            envVars.push(
+                `HAPI_RUNTIME_UID=${process.getuid?.() ?? 1000}`,
+                `HAPI_RUNTIME_GID=${process.getgid?.() ?? 1000}`
+            )
+        }
+    } else if (existsSync('/var/run/docker.sock')) {
         envVars.push('DOCKER_HOST=unix:///var/run/docker.sock')
     }
 
@@ -120,14 +176,23 @@ export async function ensureWorkspaceContainer(params: {
         name: `haqi-workspace-${params.sessionLabel}`,
         // Override entrypoint: image default is haqi-daemon which needs auth args.
         // In keepalive mode we just need a shell; in daemon mode we launch haqi-daemon explicitly.
-        entrypoint: params.daemonMode ? 'haqi-daemon' : 'sh',
+        entrypoint: params.daemonMode
+            ? (useBootstrapWrapper ? 'haqi-start-daemon-session' : 'haqi-daemon')
+            : 'sh',
         command: params.daemonMode
-            ? ['--port', String(params.daemonMode.daemonPort), '--auth-token', params.daemonMode.authToken]
+            ? (useBootstrapWrapper
+                ? ['haqi-daemon', '--port', String(params.daemonMode.daemonPort), '--auth-token', params.daemonMode.authToken]
+                : ['--port', String(params.daemonMode.daemonPort), '--auth-token', params.daemonMode.authToken])
             : keepaliveCommand(),
-        user: containerUser,
+        user: params.daemonMode && useBootstrapWrapper ? 'root' : containerUser,
+        // Rootless Docker inside the workspace needs nested user namespaces,
+        // mount setup, and fuse-overlayfs. In practice that requires the outer
+        // daemon-session container to run privileged.
+        privileged: !!params.daemonMode,
         workingDir: params.workspace.workingDirectory,
         mounts,
         extraHosts: ['host.docker.internal:host-gateway'],
+        groupAdd: dockerSocketGroupAdd,
         env: envVars,
         ports: portSpecs,
         ...browserRuntimeOptions(),
@@ -140,21 +205,34 @@ export async function ensureWorkspaceContainer(params: {
     }
 
     const containerId = await params.runtime.run(spec)
-    const inspect = await params.runtime.inspect(containerId)
     const previewTargets: PreviewTarget[] = []
+    const inspect = publishWorkspacePorts
+        ? await params.runtime.inspect(containerId)
+        : null
+
     for (const port of params.environment?.environment?.ports ?? []) {
         if (!port.expose && !port.public) {
             continue
         }
-        const hostPort = inspect.portBindings[port.containerPort]
-        if (!hostPort) {
+        if (publishWorkspacePorts) {
+            const hostPort = inspect?.portBindings[port.containerPort]
+            if (!hostPort) {
+                continue
+            }
+            previewTargets.push({
+                id: `${containerId.slice(0, 12)}-${port.containerPort}`,
+                name: port.name ?? `preview:${port.containerPort}`,
+                port: hostPort,
+                url: `http://127.0.0.1:${hostPort}`,
+                visibility: port.public ? 'public' : 'private'
+            })
             continue
         }
         previewTargets.push({
             id: `${containerId.slice(0, 12)}-${port.containerPort}`,
             name: port.name ?? `preview:${port.containerPort}`,
-            port: hostPort,
-            url: `http://127.0.0.1:${hostPort}`,
+            port: port.containerPort,
+            url: `http://127.0.0.1:${port.containerPort}`,
             visibility: port.public ? 'public' : 'private'
         })
     }

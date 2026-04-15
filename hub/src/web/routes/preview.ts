@@ -108,7 +108,7 @@ export function createPreviewRoutes(deps: PreviewDeps): Hono {
         try {
             const response = await tunnel.forward({
                 method: c.req.method,
-                path,
+                path: `${path}${search}`,
                 headers,
                 body
             })

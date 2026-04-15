@@ -22,6 +22,7 @@ export function startRunnerControlServer({
   spawnSession,
   requestShutdown,
   onHappySessionWebhook,
+  onDaemonProcessExited,
   callbackToken
 }: {
   getChildren: () => TrackedSession[];
@@ -29,6 +30,7 @@ export function startRunnerControlServer({
   spawnSession: (options: SpawnSessionOptions) => Promise<SpawnSessionResult>;
   requestShutdown: () => void;
   onHappySessionWebhook: (sessionId: string, metadata: Metadata) => void;
+  onDaemonProcessExited: (pid: number, exitCode?: number | null, signal?: string | null) => void;
   callbackToken?: string;
 }): Promise<{ port: number; stop: () => Promise<void> }> {
   return new Promise((resolve) => {
@@ -71,6 +73,43 @@ export function startRunnerControlServer({
       logger.debug(`[CONTROL SERVER] Session started: ${sessionId}`);
       onHappySessionWebhook(sessionId, metadata);
 
+      return { status: 'ok' as const };
+    });
+
+    typed.post('/process-exited', {
+      schema: {
+        body: z.object({
+          pid: z.number(),
+          exitCode: z.number().nullable().optional(),
+          signal: z.string().nullable().optional(),
+          callbackToken: z.string().optional()
+        }),
+        response: {
+          200: z.object({
+            status: z.literal('ok')
+          }),
+          401: z.object({
+            status: z.literal('unauthorized')
+          })
+        }
+      }
+    }, async (request, reply) => {
+      const {
+        pid,
+        exitCode,
+        signal,
+        callbackToken: requestCallbackToken
+      } = request.body;
+
+      if (!isLoopbackAddress(request.ip) && callbackToken && requestCallbackToken !== callbackToken) {
+        reply.code(401);
+        return {
+          status: 'unauthorized'
+        } as const;
+      }
+
+      logger.debug(`[CONTROL SERVER] Daemon process exited: pid=${pid}, exitCode=${exitCode ?? 'null'}, signal=${signal ?? 'null'}`);
+      onDaemonProcessExited(pid, exitCode ?? null, signal ?? null);
       return { status: 'ok' as const };
     });
 

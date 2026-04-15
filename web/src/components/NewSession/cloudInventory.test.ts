@@ -45,21 +45,20 @@ describe('cloudInventory helpers', () => {
         })
     })
 
-    it('returns warning when docker session is unsupported by selected worker', () => {
+    it('returns warning when daemon session is unsupported by selected worker', () => {
         expect(getCloudRuntimeWarning({
-            runtimeKind: 'docker-session',
+            runtimeKind: 'daemon-session',
             selectedWorker: {
                 machineId: 'worker-1',
                 provider: 'docker',
                 active: true,
                 executorType: 'cloud-self-hosted',
                 capabilities: {
-                    docker: true,
-                    dockerSession: false
+                    docker: false
                 },
                 updatedAt: 1
             }
-        })).toBe('dockerSessionUnavailable')
+        })).toBe('dockerUnavailable')
     })
 
     it('returns warning when host process mode lacks docker support', () => {
@@ -80,15 +79,14 @@ describe('cloudInventory helpers', () => {
 
     it('returns no warning when capabilities satisfy runtime', () => {
         expect(getCloudRuntimeWarning({
-            runtimeKind: 'docker-session',
+            runtimeKind: 'daemon-session',
             selectedWorker: {
                 machineId: 'worker-1',
                 provider: 'docker',
                 active: true,
                 executorType: 'cloud-self-hosted',
                 capabilities: {
-                    docker: true,
-                    dockerSession: true
+                    docker: true
                 },
                 updatedAt: 1
             }

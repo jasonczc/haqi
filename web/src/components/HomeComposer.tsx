@@ -101,7 +101,6 @@ const BACKEND_OPTIONS: { value: string; label: string }[] = [
 
 const RUNTIME_OPTIONS: { value: string; label: string }[] = [
     { value: 'host-process', label: 'Host' },
-    { value: 'docker-session', label: 'Docker' },
     { value: 'daemon-session', label: 'Daemon' },
 ]
 
@@ -369,7 +368,7 @@ export function HomeComposer(props: {
             const preset = JSON.parse(raw) as { checkpointId?: string; sessionType?: SessionType }
             if (preset.checkpointId) {
                 setCheckpointId(preset.checkpointId)
-                setRuntimeKind('docker-session')
+                setRuntimeKind('daemon-session')
             }
             if (preset.sessionType) {
                 setSessionType(preset.sessionType)
@@ -382,8 +381,8 @@ export function HomeComposer(props: {
     // ── Auto-select machine ──
     useEffect(() => {
         if (isCloud) {
-            if (runtimeKind !== 'docker-session' && runtimeKind !== 'daemon-session') {
-                setRuntimeKind('docker-session')
+            if (runtimeKind !== 'daemon-session') {
+                setRuntimeKind('daemon-session')
             }
             // If the chosen cloud backend has no live workers, fall back to the other one.
             // Users don't need to understand the self-hosted vs managed distinction —
@@ -400,6 +399,9 @@ export function HomeComposer(props: {
             if (machineId && selectableMachines.some(m => m.id === machineId)) return
             setMachineId(AUTO_CLOUD_MACHINE_ID)
             return
+        }
+        if (runtimeKind !== 'host-process') {
+            setRuntimeKind('host-process')
         }
         if (selectableMachines.length === 0) return
         if (machineId && selectableMachines.some(m => m.id === machineId)) return
@@ -1007,7 +1009,7 @@ export function HomeComposer(props: {
 
                     <PopoverGroup label="Runtime">
                         <PopoverPillRow
-                            options={RUNTIME_OPTIONS}
+                            options={RUNTIME_OPTIONS.filter((option) => isCloud ? option.value === 'daemon-session' : option.value === 'host-process')}
                             value={runtimeKind}
                             onChange={v => setRuntimeKind(v as RuntimeKind)}
                         />
@@ -1088,7 +1090,7 @@ export function HomeComposer(props: {
                                             <PopoverOption
                                                 key={cp.id}
                                                 selected={checkpointId === cp.id}
-                                                onClick={() => { setCheckpointId(cp.id); setRuntimeKind('docker-session') }}
+                                                onClick={() => { setCheckpointId(cp.id); setRuntimeKind('daemon-session') }}
                                             >
                                                 <span className="chip-popover-option-body">
                                                     <span className="chip-popover-option-primary">{primary}</span>

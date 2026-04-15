@@ -178,7 +178,7 @@ export type CloudProviderSummaryResponse = {
 export type CloudEnvironmentSummary = {
     id: string
     source?: 'builtin' | 'repo' | 'team' | 'user'
-    runtimeKind?: 'host-process' | 'docker-session'
+    runtimeKind?: 'host-process' | 'docker-session' | 'daemon-session'
     serviceCount: number
     repositoryDependenciesCount: number
     hasPreviewPorts: boolean

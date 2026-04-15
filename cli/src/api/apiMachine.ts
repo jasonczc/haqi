@@ -416,11 +416,11 @@ export class ApiMachineClient {
             this.updateRunnerState((state) => ({
                 ...(state ?? {}),
                 status: 'running',
-                lifecycle: state?.lifecycle ?? 'idle',
+                lifecycle: 'idle',
                 pid: process.pid,
                 httpPort: this.machine.runnerState?.httpPort,
                 startedAt: state?.startedAt ?? Date.now(),
-                currentSessionId: state?.currentSessionId ?? null,
+                currentSessionId: null,
                 capacity: state?.capacity ?? { total: 1, used: 0 },
                 lastHeartbeatAt: Date.now()
             })).catch((error) => {

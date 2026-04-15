@@ -21,6 +21,8 @@ export interface TrackedSession {
   serviceContainerIds?: string[];
   containerId?: string;
   cleanupPaths?: string[];
+  cleanupContainerPaths?: string[];
+  cleanupVolumeNames?: string[];
   childProcess?: ChildProcess;
   daemonAuthToken?: string;
   noVncPort?: number;

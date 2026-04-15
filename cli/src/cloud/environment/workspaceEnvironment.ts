@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { isAbsolute, resolve, join } from 'node:path'
 import type { EnvironmentTemplate } from '@hapi/protocol/types'
 import { EnvironmentTemplateSchema } from '@hapi/protocol/schemas'
+import type { DockerCliRuntime } from '@/cloud/docker/dockerCli'
 
 const ENVIRONMENT_RELATIVE_PATHS = [
     join('.haqi', 'environment.json'),
@@ -134,6 +135,60 @@ async function readEnvironmentTemplate(filePath: string): Promise<EnvironmentTem
         }
         throw error
     }
+}
+
+async function parseEnvironmentTemplateContent(raw: string, filePath: string): Promise<EnvironmentTemplate | null> {
+    try {
+        const parsed = JSON.parse(raw)
+        const result = EnvironmentTemplateSchema.safeParse(parsed)
+        if (!result.success) {
+            throw new Error(`Invalid environment template at ${filePath}`)
+        }
+        return result.data
+    } catch (error) {
+        if (error instanceof Error && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
+            return null
+        }
+        throw error
+    }
+}
+
+export async function loadWorkspaceEnvironmentTemplateInContainer(params: {
+    runtime: DockerCliRuntime
+    containerId: string
+    searchRoots: string[]
+    user?: string
+    home?: string
+}): Promise<EnvironmentTemplate | null> {
+    for (const root of params.searchRoots) {
+        for (const relativePath of ENVIRONMENT_RELATIVE_PATHS) {
+            const candidate = resolve(root, relativePath)
+            const result = await params.runtime.exec({
+                containerId: params.containerId,
+                user: params.user,
+                env: [
+                    ...(params.home ? [`HOME=${params.home}`] : []),
+                    ...(params.user ? [`USER=${params.user}`, `LOGNAME=${params.user}`] : [])
+                ],
+                command: ['sh', '-lc', `if [ -f ${JSON.stringify(candidate)} ]; then cat ${JSON.stringify(candidate)}; fi`]
+            }).catch(() => null)
+            const raw = result?.stdout?.trim()
+            if (!raw) {
+                continue
+            }
+            const template = await parseEnvironmentTemplateContent(raw, candidate)
+            if (!template) {
+                continue
+            }
+            const normalized = normalizeEnvironmentTemplatePaths(template, root)
+            return {
+                ...normalized,
+                desktop: mergeDesktopSpec(normalized),
+                source: normalized.source ?? 'repo'
+            }
+        }
+    }
+    return null
 }
 
 export async function loadWorkspaceEnvironmentTemplate(

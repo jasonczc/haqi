@@ -309,7 +309,7 @@ export function loadLastSessionConfig(): LastSessionConfig | null {
         if (parsed.executionBackend === 'local' || parsed.executionBackend === 'cloud-self-hosted' || parsed.executionBackend === 'cloud-managed') {
             config.executionBackend = parsed.executionBackend
         }
-        if (parsed.runtimeKind === 'host-process' || parsed.runtimeKind === 'docker-session') {
+        if (parsed.runtimeKind === 'host-process' || parsed.runtimeKind === 'docker-session' || parsed.runtimeKind === 'daemon-session') {
             config.runtimeKind = parsed.runtimeKind
         }
         if (parsed.workspaceMode === 'ephemeral' || parsed.workspaceMode === 'persistent' || parsed.workspaceMode === 'snapshot-derived') {

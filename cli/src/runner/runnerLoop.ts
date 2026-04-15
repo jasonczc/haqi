@@ -24,7 +24,10 @@ import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
 import { prepareWorkspace } from '@/cloud/workspace/prepareWorkspace';
 import { resolveEnvironmentTemplate } from '@/cloud/environment/resolveEnvironment';
-import { loadWorkspaceEnvironmentTemplate } from '@/cloud/environment/workspaceEnvironment';
+import {
+  loadWorkspaceEnvironmentTemplate,
+  loadWorkspaceEnvironmentTemplateInContainer
+} from '@/cloud/environment/workspaceEnvironment';
 import { DockerCliRuntime } from '@/cloud/docker/dockerCli';
 import { listHaqiContainers, stopSessionInContainer } from '@/cloud/docker/containerManager';
 import { DockerServiceOrchestrator } from '@/cloud/docker/serviceOrchestrator';
@@ -39,7 +42,10 @@ import type { PreparedWorkspace, PreparedWorkspaceCleanup, ResolvedEnvironmentTe
 import { runEnvironmentCommands } from '@/cloud/environment/runEnvironmentCommands';
 import { buildCloudRunnerStateSnapshot } from './cloudRunnerState';
 import type { WorkerLifecycle } from '@hapi/protocol/types';
-import { materializeResolvedSecrets } from '@/cloud/secrets/materializeSecrets';
+import {
+  materializeResolvedSecrets,
+  materializeResolvedSecretsInContainer
+} from '@/cloud/secrets/materializeSecrets';
 import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInContainer';
 import { hydrateDesktop } from '@/cloud/desktop/hydrateDesktop';
 import { getContainerHomeTargets, resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser';
@@ -215,6 +221,21 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       }
     };
 
+    const onDaemonProcessExited = (pid: number, exitCode?: number | null, signal?: string | null) => {
+      logger.debug(`[RUNNER RUN] Daemon reported process exit for PID ${pid} (exitCode=${exitCode ?? 'null'}, signal=${signal ?? 'null'})`);
+      const errorAwaiter = pidToErrorAwaiter.get(pid);
+      if (errorAwaiter) {
+        pidToErrorAwaiter.delete(pid);
+        pidToAwaiter.delete(pid);
+        errorAwaiter(
+          `Session process exited before webhook for PID ${pid}`
+          + (typeof exitCode === 'number' ? ` (exit code ${exitCode})` : '')
+          + (!exitCode && signal ? ` (signal ${signal})` : '')
+        );
+      }
+      onChildExited(pid);
+    };
+
     // Spawn a new session (sessionId reserved for future --resume functionality)
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
       logger.debugLargeJson('[RUNNER RUN] Spawning session', options);
@@ -239,6 +260,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       let workspaceContainerPreviewTargets: Metadata['previewUrls'] | undefined;
       let extraEnv: Record<string, string> = {};
       let secretCleanupPaths: string[] = [];
+      let secretCleanupContainerPaths: string[] = [];
       let serviceEndpoints: ReturnType<DockerServiceOrchestrator['collectServiceEndpoints']> = [];
       let repoSyncStatus: Metadata['repoSyncStatus'] | undefined;
       let repositoryCommit: string | undefined;
@@ -329,6 +351,19 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       };
 
       const cleanupPreparedWorkspace = async () => {
+        if (workspaceContainerId && dockerRuntime && secretCleanupContainerPaths.length > 0) {
+          for (const cleanupPath of secretCleanupContainerPaths) {
+            await dockerRuntime.exec({
+              containerId: workspaceContainerId,
+              user: containerUser,
+              env: [
+                ...(containerHome ? [`HOME=${containerHome}`] : []),
+                ...(containerUser ? [`USER=${containerUser}`, `LOGNAME=${containerUser}`] : [])
+              ],
+              command: ['sh', '-lc', `rm -rf ${JSON.stringify(cleanupPath)}`]
+            }).catch(() => undefined);
+          }
+        }
         // Stop and remove any Docker container before cleaning up bind-mounted paths
         if (workspaceContainerId && dockerRuntime) {
           await dockerRuntime.stop(workspaceContainerId).catch(() => undefined);
@@ -341,6 +376,13 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         ];
         for (const cleanupPath of cleanupPaths) {
           await fs.rm(cleanupPath, { recursive: true, force: true }).catch(() => undefined);
+        }
+        const cleanupVolumeNames = preparedWorkspaceCleanup?.cleanupVolumeNames ?? preparedWorkspace?.cleanupVolumeNames ?? [];
+        if (cleanupVolumeNames.length > 0) {
+          const runtime = dockerRuntime ?? new DockerCliRuntime();
+          for (const volumeName of cleanupVolumeNames) {
+            await runtime.removeVolume(volumeName).catch(() => undefined);
+          }
         }
       };
 
@@ -356,6 +398,12 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         trackedSession.workspaceId = preparedWorkspace?.workspaceId;
         trackedSession.runtimeKind = resolvedEnvironment?.runtimeKind ?? trackedSession.runtimeKind;
         trackedSession.executionBackend = options.executionBackend ?? trackedSession.executionBackend;
+        trackedSession.cleanupContainerPaths = [
+          ...secretCleanupContainerPaths
+        ];
+        trackedSession.cleanupVolumeNames = [
+          ...(preparedWorkspace?.cleanupVolumeNames ?? [])
+        ];
       };
 
       const setSetupStatus = (phase: string, message?: string) => {
@@ -508,7 +556,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           workspaceSource: options.workspaceSource,
           workspace: options.workspace,
           workspaceLease: options.workspaceLease,
-          repositoryCredential
+          repositoryCredential,
+          runtimeKind: options.runtimeKind
         });
         preparedWorkspaceCleanup = {
           cleanupPaths: preparedWorkspace.cleanupPaths
@@ -597,10 +646,21 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             repoSyncStatus = syncResult.repoStatus;
             repositoryCommit = syncResult.repositoryCommit;
 
-            const workspaceEnvironment = await loadWorkspaceEnvironmentTemplate([
-              preparedWorkspace.workingDirectory,
-              preparedWorkspace.repoVolumePath
-            ]);
+            const workspaceEnvironment = options.runtimeKind === 'daemon-session'
+              ? await loadWorkspaceEnvironmentTemplateInContainer({
+                runtime: dockerRuntime,
+                containerId: workspaceContainer.containerId,
+                searchRoots: [
+                  preparedWorkspace.workingDirectory,
+                  preparedWorkspace.repoVolumePath
+                ],
+                user: containerUser,
+                home: containerHome
+              })
+              : await loadWorkspaceEnvironmentTemplate([
+                preparedWorkspace.workingDirectory,
+                preparedWorkspace.repoVolumePath
+              ]);
             preparedWorkspace.environment = workspaceEnvironment ?? undefined;
             resolvedEnvironment = resolveEnvironmentTemplate({
               runtimeKind: options.runtimeKind,
@@ -616,7 +676,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
 
         updateWorkspacePreparation('environment-ready', 45);
 
-        if (resolvedEnvironment.services.length > 0) {
+        if (resolvedEnvironment.services.length > 0 && resolvedEnvironment.runtimeKind !== 'daemon-session') {
           updateWorkspacePreparation('starting-services', 55);
           dockerServiceOrchestrator = new DockerServiceOrchestrator(new (await import('@/cloud/docker/dockerCli')).DockerCliRuntime());
           startedServices = await dockerServiceOrchestrator.startServices({
@@ -640,16 +700,27 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           return secret.secretName !== repositoryCredentialSecretName;
         });
         if (runtimeSecrets.length > 0) {
-          const materializedSecrets = await materializeResolvedSecrets({
-            secrets: runtimeSecrets,
-            workspacePath: preparedWorkspace.repoVolumePath,
-            requestId: spawnRequestId
-          });
+          const materializedSecrets = options.runtimeKind === 'daemon-session' && dockerRuntime && workspaceContainerId
+            ? await materializeResolvedSecretsInContainer({
+              secrets: runtimeSecrets,
+              runtime: dockerRuntime,
+              containerId: workspaceContainerId,
+              workspacePath: preparedWorkspace.repoVolumePath,
+              requestId: spawnRequestId,
+              user: containerUser,
+              home: containerHome
+            })
+            : await materializeResolvedSecrets({
+              secrets: runtimeSecrets,
+              workspacePath: preparedWorkspace.repoVolumePath,
+              requestId: spawnRequestId
+            });
           extraEnv = {
             ...extraEnv,
             ...materializedSecrets.env
           };
           secretCleanupPaths = materializedSecrets.cleanupPaths;
+          secretCleanupContainerPaths = materializedSecrets.cleanupContainerPaths ?? [];
         }
 
         extraEnv.HAPI_SPAWN_REQUEST_ID = spawnRequestId;
@@ -875,6 +946,10 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               controlPort,
               callbackToken
             });
+
+        if ('containerId' in execution && execution.containerId) {
+          workspaceContainerId = execution.containerId;
+        }
 
         const MAX_TAIL_CHARS = 4000;
         let stderrTail = '';
@@ -1159,6 +1234,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               'previewTargets' in execution ? execution.previewTargets : undefined
             )
           );
+          const mergedServiceEndpoints = serviceEndpoints.length > 0
+            ? serviceEndpoints
+            : ('serviceEndpoints' in execution ? execution.serviceEndpoints : undefined);
           const repositorySource = preparedWorkspace.source?.repository;
           if (previewTargets || repositorySource || resolvedEnvironment.environmentId) {
             const metadata = trackedSession.happySessionMetadataFromLocalWebhook ?? {
@@ -1180,7 +1258,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               environmentId: resolvedEnvironment.environmentId,
               environmentVersion: resolvedEnvironment.environment?.version ?? metadata.environmentVersion,
               workspaceMode: workspaceMode ?? metadata.workspaceMode,
-              serviceEndpoints: serviceEndpoints.length > 0 ? serviceEndpoints : metadata.serviceEndpoints,
+              serviceEndpoints: mergedServiceEndpoints ?? metadata.serviceEndpoints,
               desktopState: desktopState ?? metadata.desktopState,
               languageServers: languageServers ?? metadata.languageServers,
               terminalDescriptors: terminalDescriptors ?? metadata.terminalDescriptors,
@@ -1273,7 +1351,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             } catch (error) {
               logger.debug(`[RUNNER RUN] Failed to kill session ${sessionId}:`, error);
             }
-          } else {
+          } else if (session.runtimeKind !== 'daemon-session') {
             // For externally started sessions, try to kill by PID
             try {
               void killProcess(pid);
@@ -1283,20 +1361,48 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             }
           }
 
-          if (session.containerId) {
-            void new DockerCliRuntime().remove(session.containerId).catch((error) => {
-              logger.debug(`[RUNNER RUN] Failed to remove docker session container ${session.containerId}:`, error);
-            });
-          }
-
           if (session.serviceContainerIds?.length) {
             for (const serviceContainerId of session.serviceContainerIds) {
               void new DockerCliRuntime().remove(serviceContainerId).catch(() => undefined);
             }
           }
+          if (session.containerId) {
+            const runtime = new DockerCliRuntime();
+            void (async () => {
+              if (session.cleanupContainerPaths?.length) {
+                for (const cleanupPath of session.cleanupContainerPaths) {
+                  await runtime.exec({
+                    containerId: session.containerId!,
+                    command: ['sh', '-lc', `rm -rf ${JSON.stringify(cleanupPath)}`],
+                    user: session.happySessionMetadataFromLocalWebhook?.containerUser,
+                    env: [
+                      ...(session.happySessionMetadataFromLocalWebhook?.containerHome
+                        ? [`HOME=${session.happySessionMetadataFromLocalWebhook.containerHome}`]
+                        : []),
+                      ...(session.happySessionMetadataFromLocalWebhook?.containerUser
+                        ? [
+                          `USER=${session.happySessionMetadataFromLocalWebhook.containerUser}`,
+                          `LOGNAME=${session.happySessionMetadataFromLocalWebhook.containerUser}`
+                        ]
+                        : [])
+                    ]
+                  }).catch(() => undefined);
+                }
+              }
+              await runtime.remove(session.containerId!).catch((error) => {
+                logger.debug(`[RUNNER RUN] Failed to remove docker session container ${session.containerId}:`, error);
+              });
+            })();
+          }
           if (session.cleanupPaths?.length) {
             for (const cleanupPath of session.cleanupPaths) {
               void fs.rm(cleanupPath, { recursive: true, force: true }).catch(() => undefined);
+            }
+          }
+          if (session.cleanupVolumeNames?.length) {
+            const runtime = new DockerCliRuntime();
+            for (const volumeName of session.cleanupVolumeNames) {
+              void runtime.removeVolume(volumeName).catch(() => undefined);
             }
           }
 
@@ -1327,6 +1433,26 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         const runtime = new DockerCliRuntime();
         const cid = tracked.containerId;
         void (async () => {
+          if (tracked.cleanupContainerPaths?.length) {
+            for (const cleanupPath of tracked.cleanupContainerPaths) {
+              await runtime.exec({
+                containerId: cid,
+                command: ['sh', '-lc', `rm -rf ${JSON.stringify(cleanupPath)}`],
+                user: tracked.happySessionMetadataFromLocalWebhook?.containerUser,
+                env: [
+                  ...(tracked.happySessionMetadataFromLocalWebhook?.containerHome
+                    ? [`HOME=${tracked.happySessionMetadataFromLocalWebhook.containerHome}`]
+                    : []),
+                  ...(tracked.happySessionMetadataFromLocalWebhook?.containerUser
+                    ? [
+                      `USER=${tracked.happySessionMetadataFromLocalWebhook.containerUser}`,
+                      `LOGNAME=${tracked.happySessionMetadataFromLocalWebhook.containerUser}`
+                    ]
+                    : [])
+                ]
+              }).catch(() => undefined);
+            }
+          }
           await runtime.stop(cid).catch(() => undefined);
           await runtime.remove(cid).catch(() => undefined);
         })();
@@ -1343,6 +1469,12 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       if (tracked?.cleanupPaths?.length) {
         for (const cleanupPath of tracked.cleanupPaths) {
           void fs.rm(cleanupPath, { recursive: true, force: true }).catch(() => undefined);
+        }
+      }
+      if (tracked?.cleanupVolumeNames?.length) {
+        const runtime = new DockerCliRuntime();
+        for (const volumeName of tracked.cleanupVolumeNames) {
+          void runtime.removeVolume(volumeName).catch(() => undefined);
         }
       }
       if (tracked?.spawnRequestId) {
@@ -1371,6 +1503,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         spawnSession,
         requestShutdown: () => requestShutdown('hapi-cli'),
         onHappySessionWebhook,
+        onDaemonProcessExited,
         callbackToken
       });
       controlPort = controlServer.port;
@@ -1441,13 +1574,34 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
 
+    const stopTrackedSessionByContainerId = async (containerId: string): Promise<void> => {
+      const tracked = Array.from(pidToTrackedSession.values()).find((session) => session.containerId === containerId)
+      if (tracked?.happySessionId) {
+        const stopped = stopSession(tracked.happySessionId)
+        if (!stopped) {
+          throw new Error(`Tracked session ${tracked.happySessionId} could not be stopped`)
+        }
+        return
+      }
+
+      if (tracked?.spawnRequestId) {
+        const stopped = stopSession(tracked.spawnRequestId)
+        if (!stopped) {
+          throw new Error(`Tracked spawn request ${tracked.spawnRequestId} could not be stopped`)
+        }
+        return
+      }
+
+      await stopSessionInContainer(containerId)
+    }
+
     // Set RPC handlers
     apiMachine.setRPCHandlers({
       spawnSession,
       stopSession,
       requestShutdown: () => requestShutdown('hapi-app'),
       containerList: () => listHaqiContainers(),
-      containerStopSession: (containerId) => stopSessionInContainer(containerId),
+      containerStopSession: (containerId) => stopTrackedSessionByContainerId(containerId),
       containerStop: async (containerId) => { await new DockerCliRuntime().stop(containerId) },
       containerRemove: async (containerId) => {
         const rt = new DockerCliRuntime()
@@ -1569,7 +1723,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         : (detectedCapacity && detectedCapacity > 0 ? detectedCapacity : 1)
     );
     let activeSpawnCount = 0;
-    let cloudRunnerCurrentSessionId: string | null | undefined = undefined;
+    let cloudRunnerCurrentSessionId: string | null | undefined = null;
     let cloudRunnerWorkspacePreparation: RunnerState['workspacePreparation'] | null | undefined = undefined;
     let cloudRunnerLastWorkspaceError: RunnerState['lastWorkspaceError'] | null | undefined = undefined;
     let cloudRunnerLastSpawnError: RunnerState['lastSpawnError'] | null | undefined = undefined;
@@ -1577,7 +1731,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     let cloudRunnerStatus: string | undefined = undefined;
 
     const getCurrentTrackedSessionId = (): string | null | undefined => {
-      if (cloudRunnerCurrentSessionId !== undefined && cloudRunnerCurrentSessionId !== null) {
+      if (cloudRunnerCurrentSessionId !== undefined) {
         return cloudRunnerCurrentSessionId
       }
 

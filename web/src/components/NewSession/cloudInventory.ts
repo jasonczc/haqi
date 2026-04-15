@@ -15,7 +15,7 @@ export type CloudInventorySummary = {
     selectedEnvironment: CloudEnvironmentSummary | null
 }
 
-export type CloudRuntimeWarning = 'dockerUnavailable' | 'dockerSessionUnavailable'
+export type CloudRuntimeWarning = 'dockerUnavailable'
 
 export function getCloudInventorySummary(options: {
     backend: ExecutionBackend
@@ -39,12 +39,10 @@ export function getCloudInventorySummary(options: {
     const environments = options.environments ?? []
     const matchingEnvironments = environments.filter((environment) => {
         const runtimeKind = environment.runtimeKind
-        const workerSupportsRuntime = options.workers.some((worker) => {
-            if (runtimeKind === 'docker-session') {
-                return worker.capabilities?.dockerSession === true
-            }
-            return true
-        })
+        if (options.backend !== 'local' && runtimeKind && runtimeKind !== 'daemon-session') {
+            return false
+        }
+        const workerSupportsRuntime = options.workers.some((worker) => worker.capabilities?.docker === true)
         return workerSupportsRuntime
     })
 
@@ -74,8 +72,8 @@ export function getCloudRuntimeWarning(options: {
         return null
     }
 
-    if (runtimeKind === 'docker-session' && selectedWorker.capabilities?.dockerSession !== true) {
-        return 'dockerSessionUnavailable'
+    if (runtimeKind === 'daemon-session' && selectedWorker.capabilities?.docker !== true) {
+        return 'dockerUnavailable'
     }
 
     if (

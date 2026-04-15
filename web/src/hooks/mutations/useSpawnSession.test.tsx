@@ -40,14 +40,14 @@ describe('useSpawnSession', () => {
             machineId: 'machine-1',
             directory: '/tmp/project',
             executionBackend: 'cloud-self-hosted',
-            runtimeKind: 'docker-session',
+            runtimeKind: 'daemon-session',
             environmentId: 'node-dev'
         })
 
         expect(api.spawnSession).toHaveBeenCalledWith('machine-1', expect.objectContaining({
             directory: '/tmp/project',
             executionBackend: 'cloud-self-hosted',
-            runtimeKind: 'docker-session',
+            runtimeKind: 'daemon-session',
             environmentId: 'node-dev'
         }))
     })

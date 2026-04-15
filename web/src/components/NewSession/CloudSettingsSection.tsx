@@ -73,8 +73,8 @@ export function CloudSettingsSection(props: {
         && !props.cloudEnvironmentsError
 
     const environmentRuntimeLabel = (environment: CloudEnvironmentSummary) => {
-        if (environment.runtimeKind === 'docker-session') {
-            return t('newSession.cloudEnvironment.runtime.dockerSession')
+        if (environment.runtimeKind === 'daemon-session') {
+            return t('newSession.cloudEnvironment.runtime.daemonSession')
         }
         if (environment.runtimeKind === 'host-process' || !environment.runtimeKind) {
             return t('newSession.cloudEnvironment.runtime.hostProcess')
@@ -189,28 +189,14 @@ export function CloudSettingsSection(props: {
 
                     <div className="flex flex-col gap-1.5">
                         <CursorFieldLabel>{t('newSession.runtimeKind')}</CursorFieldLabel>
-                        <div className="flex flex-col gap-2">
-                            <CursorChoiceRow
-                                name="runtimeKind"
-                                value="docker-session"
-                                checked={props.runtimeKind === 'docker-session'}
-                                onChange={() => props.onRuntimeKindChange('docker-session')}
-                                disabled={props.isDisabled}
-                                label={t('newSession.runtimeKind.dockerSession')}
-                            />
-                            <CursorChoiceRow
-                                name="runtimeKind"
-                                value="daemon-session"
-                                checked={props.runtimeKind === 'daemon-session'}
-                                onChange={() => props.onRuntimeKindChange('daemon-session')}
-                                disabled={props.isDisabled}
-                                label="Daemon Session"
-                            />
-                        </div>
+                        <CursorSettingsCard className="border-[var(--border-secondary)] bg-[var(--bg-quinary)] px-3 py-3 shadow-none">
+                            <div className="text-[12px] leading-4 font-medium text-[var(--text-primary)]">{t('newSession.cloudEnvironment.runtime.daemonSession')}</div>
+                            <div className="mt-1 text-[12px] leading-4 text-[var(--text-secondary)]">
+                                {t('newSession.cloudRuntimeDescription.daemonSession')}
+                            </div>
+                        </CursorSettingsCard>
                         <CursorFieldHint>
-                            {props.runtimeKind === 'daemon-session'
-                                ? 'Long-running daemon container on the cloud worker.'
-                                : 'Cloud runtime is container-backed and checkpoint-based.'}
+                            {t('newSession.cloudRuntimeHint.daemonSession')}
                         </CursorFieldHint>
                     </div>
 

@@ -20,7 +20,11 @@ export type PreparedWorkspace = {
     workspaceId: string
     workspacePath: string
     repoVolumePath: string
+    repoMountSource?: string
     desktopStatePath?: string
+    desktopStateMountSource?: string
+    innerDockerStatePath?: string
+    innerDockerStateMountSource?: string
     workingDirectory: string
     workspaceBranch?: string
     checkpointId?: string
@@ -29,10 +33,12 @@ export type PreparedWorkspace = {
     spec?: WorkspaceSpec
     environment?: EnvironmentTemplate
     cleanupPaths: string[]
+    cleanupVolumeNames?: string[]
 }
 
 export type PreparedWorkspaceCleanup = {
     cleanupPaths: string[]
+    cleanupVolumeNames?: string[]
 }
 
 export type MaterializedSecret = {

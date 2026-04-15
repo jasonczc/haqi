@@ -94,12 +94,14 @@ export type DockerRunSpec = {
     command?: string[]
     entrypoint?: string
     user?: string
+    privileged?: boolean
     init?: boolean
     ipc?: string
     shmSize?: string
     securityOpt?: string[]
     capAdd?: string[]
     devices?: string[]
+    groupAdd?: string[]
     env?: string[]
     extraHosts?: string[]
     workingDir?: string
@@ -164,6 +166,9 @@ export class DockerCliRuntime {
         if (spec.user) {
             args.push('--user', spec.user)
         }
+        if (spec.privileged) {
+            args.push('--privileged')
+        }
         if (spec.init) {
             args.push('--init')
         }
@@ -181,6 +186,9 @@ export class DockerCliRuntime {
         }
         for (const device of spec.devices ?? []) {
             args.push('--device', device)
+        }
+        for (const group of spec.groupAdd ?? []) {
+            args.push('--group-add', group)
         }
         if (spec.workingDir) {
             args.push('-w', spec.workingDir)
@@ -302,5 +310,9 @@ export class DockerCliRuntime {
 
     async remove(containerId: string): Promise<void> {
         await runDockerCommand(['rm', '-f', containerId])
+    }
+
+    async removeVolume(volumeName: string): Promise<void> {
+        await runDockerCommand(['volume', 'rm', '-f', volumeName])
     }
 }

@@ -27,6 +27,7 @@ type TerminalManagerOptions = {
 
 const DEFAULT_IDLE_TIMEOUT_MS = 15 * 60_000
 const DEFAULT_MAX_TERMINALS = 4
+const DEFAULT_CONTAINER_RUNTIME_DIR = '/tmp/xdg-runtime-haqi'
 const SENSITIVE_ENV_KEYS = new Set([
     'CLI_API_TOKEN',
     'HAPI_API_URL',
@@ -130,6 +131,8 @@ export class TerminalManager {
             : undefined
         const containerUser = metadata?.containerUser?.trim()
         const containerHome = metadata?.containerHome?.trim()
+        const containerRuntimeDir = containerUser ? DEFAULT_CONTAINER_RUNTIME_DIR : undefined
+        const containerDockerHost = containerRuntimeDir ? `unix://${containerRuntimeDir}/docker.sock` : undefined
         const dockerExecArgs = dockerContainerId
             ? [
                 'exec',
@@ -137,6 +140,8 @@ export class TerminalManager {
                 ...(containerUser ? ['-u', containerUser] : []),
                 ...(containerHome ? ['-e', `HOME=${containerHome}`] : []),
                 ...(containerUser ? ['-e', `USER=${containerUser}`, '-e', `LOGNAME=${containerUser}`] : []),
+                ...(containerRuntimeDir ? ['-e', `XDG_RUNTIME_DIR=${containerRuntimeDir}`] : []),
+                ...(containerDockerHost ? ['-e', `DOCKER_HOST=${containerDockerHost}`] : []),
                 ...(sessionPath ? ['-w', sessionPath] : []),
                 dockerContainerId,
                 shell
