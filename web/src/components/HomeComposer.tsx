@@ -26,6 +26,7 @@ import {
     PopoverOption,
     PopoverPillRow,
 } from '@/components/ChipPopover'
+import { CursorTextField } from '@/components/settings/CursorSettingsPrimitives'
 import {
 
     CODEX_SERVICE_TIER_OPTIONS,
@@ -898,9 +899,8 @@ export function HomeComposer(props: {
                                                 <span className="chip-popover-row-label">Branch prefix</span>
                                             </div>
                                             <div className="chip-popover-row-right">
-                                                <input
-                                                    type="text"
-                                                    className="chip-popover-input"
+                                                <CursorTextField
+                                                    compact
                                                     placeholder="haqi/"
                                                     value={repoBranchPrefix}
                                                     onChange={e => setRepoBranchPrefix(e.target.value)}
@@ -912,9 +912,8 @@ export function HomeComposer(props: {
                                                 <span className="chip-popover-row-label">Branch name</span>
                                             </div>
                                             <div className="chip-popover-row-right">
-                                                <input
-                                                    type="text"
-                                                    className="chip-popover-input"
+                                                <CursorTextField
+                                                    compact
                                                     placeholder="auto from prompt"
                                                     value={repoBranchName}
                                                     onChange={e => setRepoBranchName(e.target.value)}
@@ -928,9 +927,8 @@ export function HomeComposer(props: {
                                         <span className="chip-popover-row-label">Git name</span>
                                     </div>
                                     <div className="chip-popover-row-right">
-                                        <input
-                                            type="text"
-                                            className="chip-popover-input"
+                                        <CursorTextField
+                                            compact
                                             placeholder="Jane Doe"
                                             value={gitName}
                                             onChange={e => setGitName(e.target.value)}
@@ -942,9 +940,9 @@ export function HomeComposer(props: {
                                         <span className="chip-popover-row-label">Git email</span>
                                     </div>
                                     <div className="chip-popover-row-right">
-                                        <input
+                                        <CursorTextField
+                                            compact
                                             type="email"
-                                            className="chip-popover-input"
                                             placeholder="jane@example.com"
                                             value={gitEmail}
                                             onChange={e => setGitEmail(e.target.value)}

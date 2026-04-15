@@ -143,13 +143,13 @@ function SummaryCard(props: {
     description: string
 }) {
     return (
-        <div className="rounded-lg border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] px-4 py-3">
+        <CursorSettingsCard className="px-4 py-3">
             <div className="flex items-center justify-between gap-3">
                 <span className="text-[12px] font-medium text-[var(--cursor-text-secondary)]">{props.label}</span>
                 <CursorSettingsBadge tone={props.tone}>{props.value}</CursorSettingsBadge>
             </div>
             <div className="mt-2 text-[11px] leading-4 text-[var(--cursor-text-secondary)]">{props.description}</div>
-        </div>
+        </CursorSettingsCard>
     )
 }
 
@@ -225,7 +225,7 @@ function CheckpointTreeCard(props: {
                 </>
             ) : null}
 
-            <div className="rounded-lg border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] px-4 py-4 shadow-[0_8px_24px_var(--shadow-primary)]">
+            <CursorSettingsCard className="px-4 py-4 shadow-[0_8px_24px_var(--shadow-primary)]">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -297,7 +297,7 @@ function CheckpointTreeCard(props: {
                         deleteLabel={t('cloud.checkpoints.delete')}
                     />
                 </div>
-            </div>
+            </CursorSettingsCard>
 
             {node.children.length > 0 ? (
                 <div className="ml-2 mt-3 space-y-3 border-l border-[var(--cursor-stroke-tertiary)] pl-4">

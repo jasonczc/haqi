@@ -167,7 +167,7 @@ export function CloudSettingsSection(props: {
                         <CursorNotice>
                             <div className="font-medium">{t('cloud.workers.noWorkersOnline')}</div>
                             <Link
-                                to="/agents"
+                                to="/settings/cloud-agents"
                                 className="mt-1 block text-[var(--accent)] hover:underline"
                             >
                                 {t('cloud.workers.goToManagement')}
@@ -410,7 +410,7 @@ export function CloudSettingsSection(props: {
                             htmlFor="new-session-secrets"
                             action={(
                                 <a
-                                    href="/agents"
+                                    href="/settings/cloud-agents"
                                     className="text-[11px] text-[var(--accent)] hover:underline"
                                 >
                                     Manage secrets

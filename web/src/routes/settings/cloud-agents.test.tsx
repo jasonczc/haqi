@@ -168,7 +168,7 @@ describe('SettingsCloudAgentsPage', () => {
 
         await waitFor(() => {
             expect(navigateMock).toHaveBeenCalledWith({
-                to: '/agents/requests/$requestId',
+                to: '/settings/cloud-agents/requests/$requestId',
                 params: { requestId: 'request-1' }
             })
         })
