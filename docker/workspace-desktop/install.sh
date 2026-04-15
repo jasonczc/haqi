@@ -5,7 +5,11 @@ set -euo pipefail
 BUNDLE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 install -d -m 0755 /usr/share/themes
-cp -a "${BUNDLE}/usr-share/themes/WhiteSur-Light" /usr/share/themes/
+HAS_WHITESUR_THEME=0
+if [ -d "${BUNDLE}/usr-share/themes/WhiteSur-Light" ]; then
+    cp -a "${BUNDLE}/usr-share/themes/WhiteSur-Light" /usr/share/themes/
+    HAS_WHITESUR_THEME=1
+fi
 
 install -d -m 0755 /usr/share/icons
 cp -a "${BUNDLE}/usr-share/icons/WhiteSur" \
@@ -40,5 +44,11 @@ install -d -m 0755 -o haqi -g haqi "${HAQI_HOME}/.config/xfce4/xfconf/xfce-perch
 cp -a "${BUNDLE}/skel/.config/gtk-3.0/"* "${HAQI_HOME}/.config/gtk-3.0/"
 cp -a "${BUNDLE}/skel/.config/xfce4/xfconf/xfce-perchannel-xml/"* \
     "${HAQI_HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/"
+
+if [ "$HAS_WHITESUR_THEME" -ne 1 ]; then
+    sed -i 's/WhiteSur-Light/Adwaita/g' "${HAQI_HOME}/.config/gtk-3.0/settings.ini"
+    sed -i 's/WhiteSur-Light/Adwaita/g' "${HAQI_HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
+    sed -i 's/WhiteSur-Light/Default/g' "${HAQI_HOME}/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
+fi
 
 chown -R haqi:haqi "${HAQI_HOME}/.config"

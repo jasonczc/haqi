@@ -1,4 +1,5 @@
 import { resolveDesktopBrowserExecutable } from './browserExecutable'
+import { getDesktopEnv } from './desktopEnv'
 
 let browserInstance: any = null
 let pageInstance: any = null
@@ -20,7 +21,8 @@ async function ensureBrowser(): Promise<{ browser: any; page: any }> {
         browserInstance = await chromium.launch({
             headless: false, // Use the desktop's display
             executablePath,
-            args: ['--disable-gpu']
+            args: ['--disable-gpu'],
+            env: getDesktopEnv()
         })
         pageInstance = await browserInstance.newPage()
         return { browser: browserInstance, page: pageInstance }
