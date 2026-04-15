@@ -5,6 +5,7 @@ TARGET_USER="${HAPI_CONTAINER_USER:-haqi}"
 TARGET_HOME="${HAPI_CONTAINER_HOME:-/home/haqi}"
 TARGET_UID="${HAPI_RUNTIME_UID:-}"
 TARGET_GID="${HAPI_RUNTIME_GID:-}"
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/xdg-runtime-$TARGET_USER}"
 
 ensure_group() {
     desired_gid="$1"
@@ -59,6 +60,13 @@ chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME"
 if [ -n "${HAPI_WORKING_DIRECTORY:-}" ]; then
     mkdir -p "${HAPI_WORKING_DIRECTORY}"
 fi
+
+# XDG runtime state is ephemeral. Recreate it on every boot so restored
+# checkpoint images do not carry stale sockets/pid files or mismatched owners.
+rm -rf "$RUNTIME_DIR"
+mkdir -p "$RUNTIME_DIR"
+chown "$TARGET_USER:$TARGET_USER" "$RUNTIME_DIR"
+chmod 700 "$RUNTIME_DIR"
 
 exec setpriv \
     --reuid "$desired_uid" \

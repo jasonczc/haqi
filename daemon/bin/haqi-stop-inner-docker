@@ -1,0 +1,34 @@
+#!/bin/sh
+set -eu
+
+export HOME="${HOME:-/home/haqi}"
+export USER="${USER:-$(id -un)}"
+export LOGNAME="${LOGNAME:-$USER}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/xdg-runtime-$USER}"
+export DOCKER_HOST="${DOCKER_HOST:-unix://$XDG_RUNTIME_DIR/docker.sock}"
+export HAPI_INNER_DOCKER_PID_FILE="${HAPI_INNER_DOCKER_PID_FILE:-$XDG_RUNTIME_DIR/haqi-inner-docker-launcher.pid}"
+export HAPI_INNER_DOCKER_DOCKERD_PID_FILE="${HAPI_INNER_DOCKER_DOCKERD_PID_FILE:-$XDG_RUNTIME_DIR/docker.pid}"
+
+DOCKER_SOCK="${DOCKER_HOST#unix://}"
+
+if [ -f "$HAPI_INNER_DOCKER_PID_FILE" ]; then
+    existing_pid="$(cat "$HAPI_INNER_DOCKER_PID_FILE" 2>/dev/null || true)"
+    if [ -n "$existing_pid" ] && kill -0 "$existing_pid" 2>/dev/null; then
+        kill "$existing_pid" 2>/dev/null || true
+        attempts=30
+        while [ "$attempts" -gt 0 ]; do
+            if ! kill -0 "$existing_pid" 2>/dev/null; then
+                break
+            fi
+            attempts=$((attempts - 1))
+            sleep 1
+        done
+        if kill -0 "$existing_pid" 2>/dev/null; then
+            kill -9 "$existing_pid" 2>/dev/null || true
+        fi
+    fi
+    rm -f "$HAPI_INNER_DOCKER_PID_FILE"
+fi
+
+rm -f "$DOCKER_SOCK"
+rm -f "$HAPI_INNER_DOCKER_DOCKERD_PID_FILE"

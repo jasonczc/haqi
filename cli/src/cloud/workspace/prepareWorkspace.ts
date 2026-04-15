@@ -97,21 +97,16 @@ async function prepareRepositoryWorkspace(
     const workspaceId = workspaceLease?.workspaceId ?? buildWorkspaceId('repo')
     const workspaceMode = workspaceLease?.mode ?? workspace?.mode
     if (runtimeKind === 'daemon-session') {
-        const repoVolumeName = workspaceVolumeName(workspaceId, 'repo')
-        const innerDockerVolumeName = workspaceVolumeName(workspaceId, 'inner-docker')
         const workingDirectory = repository.subdirectory
             ? join(DAEMON_WORKSPACE_ROOT, repository.subdirectory)
             : DAEMON_WORKSPACE_ROOT
-        const persistentWorkspace = workspaceMode === 'persistent'
 
         return {
             workspaceId,
             workspacePath: DAEMON_WORKSPACE_ROOT,
             repoVolumePath: DAEMON_WORKSPACE_ROOT,
-            repoMountSource: persistentWorkspace ? repoVolumeName : undefined,
             desktopStatePath: DAEMON_DESKTOP_STATE_DIR,
             innerDockerStatePath: DAEMON_INNER_DOCKER_STATE_DIR,
-            innerDockerStateMountSource: innerDockerVolumeName,
             workingDirectory,
             workspaceBranch: workspaceLease?.workspaceBranch,
             checkpointId: workspaceLease?.checkpointId,
@@ -122,9 +117,7 @@ async function prepareRepositoryWorkspace(
             mode: workspaceMode,
             spec: workspace,
             cleanupPaths: [],
-            cleanupVolumeNames: workspaceMode === 'persistent'
-                ? []
-                : [innerDockerVolumeName]
+            cleanupVolumeNames: []
         }
     }
 
@@ -287,6 +280,32 @@ export async function prepareWorkspace(options: {
     const workspaceId = options.workspaceLease?.workspaceId ?? buildWorkspaceId('dir')
     const resolvedDirectory = resolve(directory)
     await ensureDir(resolvedDirectory)
+    if (options.runtimeKind === 'daemon-session') {
+        const environment = await loadWorkspaceEnvironmentTemplate([resolvedDirectory])
+
+        return {
+            workspaceId,
+            workspacePath: DAEMON_WORKSPACE_ROOT,
+            repoVolumePath: DAEMON_WORKSPACE_ROOT,
+            workingDirectory: DAEMON_WORKSPACE_ROOT,
+            desktopStatePath: options.workspaceLease?.desktopStateVolumePath
+                ? resolve(options.workspaceLease.desktopStateVolumePath)
+                : undefined,
+            innerDockerStatePath: DAEMON_INNER_DOCKER_STATE_DIR,
+            workspaceBranch: options.workspaceLease?.workspaceBranch,
+            checkpointId: options.workspaceLease?.checkpointId,
+            source: workspaceSource ?? {
+                type: 'path',
+                directory: resolvedDirectory
+            },
+            mode: options.workspaceLease?.mode ?? options.workspace?.mode,
+            spec: options.workspace,
+            environment: environment ?? undefined,
+            cleanupPaths: [],
+            cleanupVolumeNames: []
+        }
+    }
+
     const innerDockerStatePath = join(
         process.platform === 'darwin' ? '/tmp' : os.tmpdir(),
         'haqi-cloud-workspaces',

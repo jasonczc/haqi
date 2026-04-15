@@ -1595,6 +1595,117 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       await stopSessionInContainer(containerId)
     }
 
+    const resolveInnerDockerExecContext = async (containerId: string): Promise<{
+      runtimeKind: string
+      user: string
+      home: string
+      runtimeDir: string
+      dockerHost: string
+      stateDir: string
+    }> => {
+      const runtime = new DockerCliRuntime()
+      const result = await runtime.exec({
+        containerId,
+        command: [
+          'sh',
+          '-lc',
+          [
+            'printf "%s\\n" "${HAPI_RUNTIME_KIND:-}"',
+            'printf "%s\\n" "${HAPI_CONTAINER_USER:-}"',
+            'printf "%s\\n" "${HAPI_CONTAINER_HOME:-}"',
+            'printf "%s\\n" "${HAPI_INNER_DOCKER_RUNTIME_DIR:-${XDG_RUNTIME_DIR:-}}"',
+            'printf "%s\\n" "${HAPI_INNER_DOCKER_SOCKET:-${DOCKER_HOST#unix://}}"',
+            'printf "%s\\n" "${HAPI_INNER_DOCKER_STATE_DIR:-}"'
+          ].join('; ')
+        ]
+      })
+      const lines = result.stdout.split('\n')
+      const explicitRuntimeKind = lines[0]?.trim() || ''
+      const user = lines[1]?.trim() || resolveContainerUser(undefined)
+      const home = lines[2]?.trim() || resolveContainerHome(user)
+      const runtimeDir = lines[3]?.trim() || `/tmp/xdg-runtime-${user}`
+      const socketPath = lines[4]?.trim() || `${runtimeDir}/docker.sock`
+      const stateDir = lines[5]?.trim() || `${home}/.local/share/docker`
+      const runtimeKind = explicitRuntimeKind
+        || ((lines[4]?.trim() || lines[5]?.trim()) ? 'daemon-session' : '')
+      return {
+        runtimeKind,
+        user,
+        home,
+        runtimeDir,
+        dockerHost: `unix://${socketPath}`,
+        stateDir
+      }
+    }
+
+    const restartInnerDockerAroundCheckpoint = async (containerId: string, runCommit: () => Promise<void>): Promise<void> => {
+      const runtime = new DockerCliRuntime()
+      const context = await resolveInnerDockerExecContext(containerId)
+      if (context.runtimeKind !== 'daemon-session') {
+        await runCommit()
+        return
+      }
+
+      const execEnv = [
+        `HOME=${context.home}`,
+        `USER=${context.user}`,
+        `LOGNAME=${context.user}`,
+        `XDG_RUNTIME_DIR=${context.runtimeDir}`,
+        `DOCKER_HOST=${context.dockerHost}`,
+        `HAPI_INNER_DOCKER_RUNTIME_DIR=${context.runtimeDir}`,
+        `HAPI_INNER_DOCKER_SOCKET=${context.dockerHost.replace(/^unix:\/\//, '')}`,
+        `HAPI_INNER_DOCKER_STATE_DIR=${context.stateDir}`,
+        `HAPI_INNER_DOCKER_RESUME_FILE=${context.home}/.local/state/haqi/inner-docker-running-containers`
+      ]
+
+      await runtime.exec({
+        containerId,
+        user: context.user,
+        env: execEnv,
+        command: [
+          'sh',
+          '-lc',
+          [
+            'mkdir -p "$(dirname \"$HAPI_INNER_DOCKER_RESUME_FILE\")"',
+            'docker ps --format "{{.Names}}" > "$HAPI_INNER_DOCKER_RESUME_FILE"',
+            'if [ -s "$HAPI_INNER_DOCKER_RESUME_FILE" ]; then',
+            '  xargs -r docker stop -t 10 < "$HAPI_INNER_DOCKER_RESUME_FILE" >/dev/null 2>&1 || true',
+            'fi'
+          ].join('\n')
+        ]
+      }).catch((error) => {
+        throw new Error(`Failed to prepare running inner Docker containers before checkpoint: ${error instanceof Error ? error.message : String(error)}`)
+      })
+
+      await runtime.exec({
+        containerId,
+        user: context.user,
+        env: execEnv,
+        command: ['haqi-stop-inner-docker']
+      }).catch((error) => {
+        throw new Error(`Failed to stop inner Docker before checkpoint: ${error instanceof Error ? error.message : String(error)}`)
+      })
+
+      let commitSucceeded = false
+      try {
+        await runCommit()
+        commitSucceeded = true
+      } finally {
+        await runtime.exec({
+          containerId,
+          user: context.user,
+          env: execEnv,
+          command: ['haqi-start-inner-docker']
+        }).catch((error) => {
+          const message = error instanceof Error ? error.message : String(error)
+          if (commitSucceeded) {
+            throw new Error(`Checkpoint saved but inner Docker failed to restart: ${message}`)
+          }
+          throw new Error(`Failed to restart inner Docker after checkpoint attempt: ${message}`)
+        })
+      }
+    }
+
     // Set RPC handlers
     apiMachine.setRPCHandlers({
       spawnSession,
@@ -1618,7 +1729,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           // Credentials were already baked into the container layer at spawn
           // time (see injectHostCredentialsIntoContainer), so docker commit
           // captures them automatically.
-          await runDockerCommand(['commit', params.containerId, dockerImage])
+          await restartInnerDockerAroundCheckpoint(params.containerId, async () => {
+            await runDockerCommand(['commit', params.containerId, dockerImage])
+          })
           return { dockerImage, success: true }
         } catch (err) {
           return { dockerImage: '', success: false, error: err instanceof Error ? err.message : String(err) }

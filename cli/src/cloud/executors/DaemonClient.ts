@@ -1,7 +1,46 @@
-import type {
-    SpawnRequest, SpawnResponse, ProcessStatus,
-    HealthResponse, PortInfo, PrepareRequest, PrepareResponse
-} from '@hapi/daemon/types'
+type SpawnRequest = {
+    command: string[]
+    cwd?: string
+    env?: Record<string, string>
+    user?: string
+}
+
+type SpawnResponse = {
+    pid: number
+    status: 'running' | 'failed'
+    error?: string
+}
+
+type ProcessStatus = {
+    pid: number | null
+    running: boolean
+    exitCode: number | null
+    signal: string | null
+    uptimeMs: number | null
+}
+
+type HealthResponse = {
+    status: 'ok'
+    pid: number
+    uptimeMs: number
+}
+
+type PortInfo = {
+    port: number
+    pid?: number
+    process?: string
+}
+
+type PrepareRequest = {
+    commands: string[]
+    cwd: string
+    env?: Record<string, string>
+}
+
+type PrepareResponse = {
+    success: boolean
+    error?: string
+}
 
 export class DaemonClient {
     constructor(

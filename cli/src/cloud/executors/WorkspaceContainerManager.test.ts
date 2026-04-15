@@ -6,12 +6,16 @@ describe('ensureWorkspaceContainer', () => {
         workspaceId: 'ws-1',
         workspacePath: '/workspace',
         repoVolumePath: '/workspace',
-        repoMountSource: 'haqi-ws-ws-1-repo',
         desktopStatePath: '/home/haqi/.haqi-desktop',
         desktopStateMountSource: 'haqi-ws-ws-1-desktop',
         innerDockerStatePath: '/home/haqi/.local/share/docker',
-        innerDockerStateMountSource: 'haqi-ws-ws-1-inner-docker',
         workingDirectory: '/workspace',
+        source: {
+            type: 'repo',
+            repository: {
+                url: 'https://github.com/acme/demo.git'
+            }
+        },
         cleanupPaths: []
     }
 
@@ -63,9 +67,10 @@ describe('ensureWorkspaceContainer', () => {
             { containerPort: 9876, hostPort: undefined, protocol: 'tcp' },
             { containerPort: 6080, hostPort: undefined, protocol: 'tcp' }
         ])
-        expect(capturedSpec.mounts).toContain('haqi-ws-ws-1-repo:/workspace')
+        expect(capturedSpec.mounts.some((mount: string) => mount.endsWith(':/workspace'))).toBe(false)
         expect(capturedSpec.mounts).toContain('haqi-ws-ws-1-desktop:/home/haqi/.haqi-desktop')
-        expect(capturedSpec.mounts).toContain('haqi-ws-ws-1-inner-docker:/home/haqi/.local/share/docker')
+        expect(capturedSpec.mounts).not.toContain('/home/haqi/.local/share/docker:/home/haqi/.local/share/docker')
+        expect(capturedSpec.mounts.some((mount: string) => mount.endsWith(':/home/haqi/.local/share/docker'))).toBe(false)
         expect(capturedSpec.privileged).toBe(true)
         expect(capturedSpec.env).toEqual(expect.arrayContaining([
             'DOCKER_HOST=unix:///tmp/xdg-runtime-haqi/docker.sock',

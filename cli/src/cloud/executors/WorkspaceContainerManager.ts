@@ -137,8 +137,6 @@ export async function ensureWorkspaceContainer(params: {
     }
     if (params.daemonMode && params.workspace.innerDockerStatePath && params.workspace.innerDockerStateMountSource) {
         mounts.push(`${params.workspace.innerDockerStateMountSource}:${params.workspace.innerDockerStatePath}`)
-    } else if (params.daemonMode && params.workspace.innerDockerStatePath && params.workspace.source?.type === 'path') {
-        mounts.push(`${params.workspace.innerDockerStatePath}:${params.workspace.innerDockerStatePath}`)
     }
 
     // NOTE: we intentionally do NOT mount ~/.claude or ~/.codex here.

@@ -44,6 +44,9 @@ RUN apt-get update && apt-get install -y \
     bash-completion ca-certificates curl git gnupg iproute2 jq less lsof nano procps rsync sudo unzip vim zsh \
     dnsutils iputils-ping net-tools \
     build-essential make pkg-config python3 python3-pip \
+    ripgrep fd-find fzf tmux tree htop btop bat eza git-delta yq direnv zoxide just httpie ncdu neovim pipx \
+    && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
+    && ln -sf /usr/bin/batcat /usr/local/bin/bat \
     && rm -rf /var/lib/apt/lists/*
 
 RUN install -m 0755 -d /etc/apt/keyrings \
@@ -142,6 +145,9 @@ RUN chmod +x /usr/local/bin/haqi-start-desktop-session
 
 COPY daemon/bin/haqi-start-inner-docker /usr/local/bin/haqi-start-inner-docker
 RUN chmod +x /usr/local/bin/haqi-start-inner-docker
+
+COPY daemon/bin/haqi-stop-inner-docker /usr/local/bin/haqi-stop-inner-docker
+RUN chmod +x /usr/local/bin/haqi-stop-inner-docker
 
 COPY daemon/bin/haqi-start-daemon-session /usr/local/bin/haqi-start-daemon-session
 RUN chmod +x /usr/local/bin/haqi-start-daemon-session

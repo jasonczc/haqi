@@ -605,7 +605,7 @@ export class RpcGateway {
     }
 
     async checkpointCreate(machineId: string, params: { containerId: string; checkpointId: string; name: string }): Promise<unknown> {
-        return this.machineRpc(machineId, 'checkpoint-create', params)
+        return this.machineRpc(machineId, 'checkpoint-create', params, 10 * 60_000)
     }
 
     async checkpointDelete(machineId: string, params: { checkpointId: string; dockerImage: string }): Promise<unknown> {

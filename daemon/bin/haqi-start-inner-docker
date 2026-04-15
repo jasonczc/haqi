@@ -9,6 +9,8 @@ export DOCKER_HOST="${DOCKER_HOST:-unix://$XDG_RUNTIME_DIR/docker.sock}"
 export HAPI_INNER_DOCKER_STATE_DIR="${HAPI_INNER_DOCKER_STATE_DIR:-$HOME/.local/share/docker}"
 export HAPI_INNER_DOCKER_LOG="${HAPI_INNER_DOCKER_LOG:-$HOME/.local/state/haqi/inner-docker.log}"
 export HAPI_INNER_DOCKER_PID_FILE="${HAPI_INNER_DOCKER_PID_FILE:-$XDG_RUNTIME_DIR/haqi-inner-docker-launcher.pid}"
+export HAPI_INNER_DOCKER_DOCKERD_PID_FILE="${HAPI_INNER_DOCKER_DOCKERD_PID_FILE:-$XDG_RUNTIME_DIR/docker.pid}"
+export HAPI_INNER_DOCKER_RESUME_FILE="${HAPI_INNER_DOCKER_RESUME_FILE:-$HOME/.local/state/haqi/inner-docker-running-containers}"
 
 DOCKER_SOCK="${DOCKER_HOST#unix://}"
 
@@ -51,9 +53,47 @@ wait_ready() {
     return 1
 }
 
+resume_running_containers() {
+    [ -f "$HAPI_INNER_DOCKER_RESUME_FILE" ] || return 0
+
+    resume_file="$HAPI_INNER_DOCKER_RESUME_FILE"
+    nohup sh -eu -c '
+        sleep 10
+        while IFS= read -r container_name || [ -n "$container_name" ]; do
+            [ -n "$container_name" ] || continue
+            attempts=6
+            while [ "$attempts" -gt 0 ]; do
+                /usr/bin/docker start "$container_name" >/dev/null 2>&1 || true
+                sleep 5
+                if [ "$(/usr/bin/docker inspect --format "{{.State.Running}}" "$container_name" 2>/dev/null || true)" = "true" ]; then
+                    break
+                fi
+                attempts=$((attempts - 1))
+            done
+        done < "$1"
+        rm -f "$1"
+    ' sh "$resume_file" >/dev/null 2>&1 &
+}
+
+cleanup_stale_runtime_files() {
+    for pid_file in "$HAPI_INNER_DOCKER_PID_FILE" "$HAPI_INNER_DOCKER_DOCKERD_PID_FILE"; do
+        [ -f "$pid_file" ] || continue
+        existing_pid="$(cat "$pid_file" 2>/dev/null || true)"
+        if [ -z "$existing_pid" ] || ! kill -0 "$existing_pid" 2>/dev/null; then
+            rm -f "$pid_file"
+        fi
+    done
+
+    if [ -S "$DOCKER_SOCK" ] && [ ! -f "$HAPI_INNER_DOCKER_DOCKERD_PID_FILE" ]; then
+        rm -f "$DOCKER_SOCK"
+    fi
+}
+
 if docker_ready; then
     exit 0
 fi
+
+cleanup_stale_runtime_files
 
 if [ -f "$HAPI_INNER_DOCKER_PID_FILE" ]; then
     existing_pid="$(cat "$HAPI_INNER_DOCKER_PID_FILE" 2>/dev/null || true)"
@@ -87,3 +127,5 @@ if [ ! -S "$DOCKER_SOCK" ]; then
     echo "inner Docker socket not created at $DOCKER_SOCK" >&2
     exit 1
 fi
+
+resume_running_containers

@@ -5,12 +5,14 @@ import type { SpawnSessionOptions } from '@/modules/common/rpcTypes'
 import type { PreviewTarget, ResolvedSecret } from '@hapi/protocol/types'
 import { ensureWorkspaceContainer } from './WorkspaceContainerManager'
 import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInContainer'
+import { syncPathWorkspaceInContainer } from '@/cloud/workspace/syncPathWorkspaceInContainer'
 import { DaemonClient } from './DaemonClient'
 import { buildSpawnArgs } from './HostProcessExecutor'
 import { collectHostCredentials } from '@/cloud/credentials/hostCredentials'
 import { resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
 import { mergePreviewTargets } from '@/cloud/preview/previewReporter'
 import { InnerDockerServiceOrchestrator } from '@/cloud/docker/innerServiceOrchestrator'
+import { loadWorkspaceEnvironmentTemplateInContainer } from '@/cloud/environment/workspaceEnvironment'
 
 const DAEMON_PORT = 9876
 
@@ -96,6 +98,9 @@ export async function startDaemonSessionExecutor(params: {
     const callbackUrl = params.controlPort
         ? `http://host.docker.internal:${params.controlPort}`
         : undefined
+    let checkpointImage: string | undefined = params.options.checkpointId
+        ? `haqi-checkpoint:${params.options.checkpointId}`
+        : undefined
 
     // Try to find an existing running container for this workspace
     const workspaceId = params.workspace.workspaceId
@@ -130,6 +135,35 @@ export async function startDaemonSessionExecutor(params: {
                     const client = new DaemonClient(`http://127.0.0.1:${mappedPort}`, authToken)
                     try {
                         await client.waitReady(5_000)
+                        const pathSource = params.workspace.source?.type === 'path'
+                            ? params.workspace.source
+                            : null
+                        if (pathSource && !checkpointImage) {
+                            if (!pathSource.directory) {
+                                throw new Error('Path workspace source is missing directory')
+                            }
+                            await syncPathWorkspaceInContainer({
+                                runtime: params.runtime,
+                                containerId,
+                                workspace: params.workspace,
+                                sourceDirectory: pathSource.directory,
+                                user: containerUser,
+                                home: containerHome
+                            })
+                            const workspaceEnvironment = await loadWorkspaceEnvironmentTemplateInContainer({
+                                runtime: params.runtime,
+                                containerId,
+                                searchRoots: [
+                                    params.workspace.workingDirectory,
+                                    params.workspace.repoVolumePath
+                                ],
+                                user: containerUser,
+                                home: containerHome
+                            })
+                            if (workspaceEnvironment) {
+                                params.workspace.environment = workspaceEnvironment
+                            }
+                        }
                         const innerServiceOrchestrator = new InnerDockerServiceOrchestrator(params.runtime, containerId, containerUser, containerHome)
                         const startedServices = await innerServiceOrchestrator.startServices({
                             services: params.environment?.services ?? [],
@@ -206,10 +240,6 @@ export async function startDaemonSessionExecutor(params: {
     authToken = crypto.randomUUID()
 
     // Resolve checkpoint image if a checkpointId is provided
-    let checkpointImage: string | undefined = params.options.checkpointId
-        ? `haqi-checkpoint:${params.options.checkpointId}`
-        : undefined
-
     // Verify the checkpoint image exists locally; fall back to base image if not found
     if (checkpointImage) {
         try {
@@ -252,7 +282,11 @@ export async function startDaemonSessionExecutor(params: {
             })
         }
 
-        if (params.repositorySource) {
+        const pathSource = params.workspace.source?.type === 'path'
+            ? params.workspace.source
+            : null
+
+        if (!checkpointImage && params.repositorySource) {
             await syncRepositoryInContainer({
                 runtime: params.runtime,
                 containerId,
@@ -263,6 +297,31 @@ export async function startDaemonSessionExecutor(params: {
                 user: containerUser,
                 home: containerHome
             })
+        } else if (!checkpointImage && pathSource) {
+            if (!pathSource.directory) {
+                throw new Error('Path workspace source is missing directory')
+            }
+            await syncPathWorkspaceInContainer({
+                runtime: params.runtime,
+                containerId,
+                workspace: params.workspace,
+                sourceDirectory: pathSource.directory,
+                user: containerUser,
+                home: containerHome
+            })
+            const workspaceEnvironment = await loadWorkspaceEnvironmentTemplateInContainer({
+                runtime: params.runtime,
+                containerId,
+                searchRoots: [
+                    params.workspace.workingDirectory,
+                    params.workspace.repoVolumePath
+                ],
+                user: containerUser,
+                home: containerHome
+            })
+            if (workspaceEnvironment) {
+                params.workspace.environment = workspaceEnvironment
+            }
         }
 
         const innerServiceOrchestrator = new InnerDockerServiceOrchestrator(params.runtime, containerId, containerUser, containerHome)

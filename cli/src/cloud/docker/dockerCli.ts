@@ -242,6 +242,10 @@ export class DockerCliRuntime {
         return await runDockerCommand(args)
     }
 
+    async copyToContainer(sourcePath: string, containerId: string, destinationPath: string): Promise<void> {
+        await runDockerCommand(['cp', `${sourcePath}${sourcePath.endsWith(path.sep) ? '.' : `${path.sep}.`}`, `${containerId}:${destinationPath}`])
+    }
+
     spawnExec(spec: DockerExecSpec, options?: {
         stdio?: ('pipe' | 'ignore' | 'inherit')[] | ['pipe', 'pipe', 'pipe'] | ['ignore', 'pipe', 'pipe']
         detached?: boolean
