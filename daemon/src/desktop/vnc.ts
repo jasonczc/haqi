@@ -54,7 +54,7 @@ export class DesktopManager {
         await new Promise(r => setTimeout(r, 1500))
 
         // Start XFCE desktop
-        this.xfce = spawn('startxfce4', [], {
+        this.xfce = spawn('haqi-start-desktop-session', [], {
             stdio: 'ignore',
             env: { ...process.env, DISPLAY: display }
         })

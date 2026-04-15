@@ -64,7 +64,7 @@ async function startVncStackInContainer(
             user: containerUser,
             detach: true,
             env: ['DISPLAY=:1', `HOME=${containerHome}`, `USER=${containerUser}`, `LOGNAME=${containerUser}`],
-            command: ['startxfce4']
+            command: ['haqi-start-desktop-session']
         })
 
         // 3. websockify — bridge VNC (5901) ↔ WebSocket (6080), serve noVNC assets

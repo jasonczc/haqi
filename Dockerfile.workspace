@@ -47,15 +47,21 @@ RUN apt-get update && apt-get install -y \
     docker.io uidmap fuse-overlayfs \
     && rm -rf /var/lib/apt/lists/*
 
+RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+    | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+    > /etc/apt/sources.list.d/google-chrome.list
+
 # Desktop environment for Computer Use
 RUN apt-get update && apt-get install -y \
     xvfb xfce4 xfce4-terminal dbus-x11 \
     tigervnc-standalone-server tigervnc-common \
     novnc websockify \
-    chromium-browser \
+    google-chrome-stable \
     xdotool scrot imagemagick \
     ffmpeg \
     fonts-liberation fonts-noto-color-emoji \
+    && update-alternatives --set x-www-browser /usr/bin/google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
 RUN existing_group="$(getent group 1000 | cut -d: -f1 || true)" \
@@ -110,6 +116,9 @@ RUN npm install -g @openai/codex || echo "codex install skipped"
 # Copy daemon binary
 COPY --from=builder /build/daemon/dist/haqi-daemon /usr/local/bin/haqi-daemon
 RUN chmod +x /usr/local/bin/haqi-daemon
+
+COPY daemon/bin/haqi-start-desktop-session /usr/local/bin/haqi-start-desktop-session
+RUN chmod +x /usr/local/bin/haqi-start-desktop-session
 
 # Copy CLI with deps
 COPY --from=cli-builder /opt/haqi/ /opt/haqi/

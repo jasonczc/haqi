@@ -24,6 +24,19 @@ async function runDockerExec(containerId: string, command: string[], options?: {
     await runDockerCommand(args)
 }
 
+async function ensureContainerDirOwned(
+    containerId: string,
+    dirPath: string,
+    owner: string,
+    mode?: string
+): Promise<void> {
+    await runDockerExec(containerId, ['mkdir', '-p', dirPath], { user: 'root' })
+    if (mode) {
+        await runDockerExec(containerId, ['chmod', mode, dirPath], { user: 'root' }).catch(() => undefined)
+    }
+    await runDockerExec(containerId, ['chown', owner, dirPath], { user: 'root' }).catch(() => undefined)
+}
+
 /**
  * Collect credentials from the host that should be passed to a container session.
  * This is a best-effort scan — missing credentials are silently skipped.
@@ -157,7 +170,7 @@ export async function injectHostCredentialsIntoContainer(containerId: string, us
                 claudeAiOauth: { accessToken: claudeToken }
             })
             for (const target of homeTargets) {
-                await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.claude`], { user: 'root' })
+                await ensureContainerDirOwned(containerId, `${target.home}/.claude`, target.owner)
                 await runDockerExec(containerId, [
                     'sh', '-c',
                     `cat > ${target.home}/.claude/.credentials.json <<'HAQI_CRED_EOF'\n${credJson}\nHAQI_CRED_EOF\nchmod 600 ${target.home}/.claude/.credentials.json\nchown ${target.owner} ${target.home}/.claude/.credentials.json`
@@ -174,7 +187,7 @@ export async function injectHostCredentialsIntoContainer(containerId: string, us
     if (existsSync(codexAuth)) {
         try {
             for (const target of homeTargets) {
-                await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.codex`], { user: 'root' })
+                await ensureContainerDirOwned(containerId, `${target.home}/.codex`, target.owner)
                 await runDockerCommand(['cp', codexAuth, `${containerId}:${target.home}/.codex/auth.json`])
                 await runDockerExec(containerId, ['chmod', '600', `${target.home}/.codex/auth.json`], { user: 'root' })
                 await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.codex/auth.json`], { user: 'root' }).catch(() => undefined)
@@ -190,7 +203,7 @@ export async function injectHostCredentialsIntoContainer(containerId: string, us
     if (existsSync(codexConfig)) {
         try {
             for (const target of homeTargets) {
-                await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.codex`], { user: 'root' })
+                await ensureContainerDirOwned(containerId, `${target.home}/.codex`, target.owner)
                 await runDockerCommand(['cp', codexConfig, `${containerId}:${target.home}/.codex/config.toml`])
                 await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.codex/config.toml`], { user: 'root' }).catch(() => undefined)
             }
@@ -202,7 +215,7 @@ export async function injectHostCredentialsIntoContainer(containerId: string, us
     if (existsSync(claudeSettings)) {
         try {
             for (const target of homeTargets) {
-                await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.claude`], { user: 'root' })
+                await ensureContainerDirOwned(containerId, `${target.home}/.claude`, target.owner)
                 await runDockerCommand(['cp', claudeSettings, `${containerId}:${target.home}/.claude/settings.json`])
                 await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.claude/settings.json`], { user: 'root' }).catch(() => undefined)
             }
@@ -287,7 +300,7 @@ async function injectGhCli(containerId: string, user?: string): Promise<void> {
     if (!existsSync(ghDir)) return
     try {
         for (const target of getContainerHomeTargets(user)) {
-            await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.config`], { user: 'root' })
+            await ensureContainerDirOwned(containerId, `${target.home}/.config`, target.owner)
             await runDockerCommand(['cp', ghDir, `${containerId}:${target.home}/.config/gh`])
             await runDockerExec(containerId, ['chmod', '-R', 'go-rwx', `${target.home}/.config/gh`], { user: 'root' }).catch(() => undefined)
             await runDockerExec(containerId, ['chown', '-R', target.owner, `${target.home}/.config/gh`], { user: 'root' }).catch(() => undefined)
@@ -336,9 +349,7 @@ async function injectSshCredentials(containerId: string, user?: string): Promise
 
     try {
         for (const target of getContainerHomeTargets(user)) {
-            await runDockerExec(containerId, ['mkdir', '-p', `${target.home}/.ssh`], { user: 'root' })
-            await runDockerExec(containerId, ['chmod', '700', `${target.home}/.ssh`], { user: 'root' }).catch(() => undefined)
-            await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.ssh`], { user: 'root' }).catch(() => undefined)
+            await ensureContainerDirOwned(containerId, `${target.home}/.ssh`, target.owner, '700')
             for (const entry of presentFiles) {
                 await runDockerCommand(['cp', entry.hostPath, `${containerId}:${target.home}/.ssh/${entry.name}`])
                 const isPrivateKey = !entry.name.endsWith('.pub') && entry.name !== 'known_hosts' && entry.name !== 'config'

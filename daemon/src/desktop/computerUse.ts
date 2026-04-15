@@ -2,6 +2,7 @@ import { exec, spawn } from 'node:child_process'
 import { promisify } from 'node:util'
 import { readFile } from 'node:fs/promises'
 import type { ScreenshotResponse, ClickRequest, TypeRequest, KeyRequest, ScrollRequest } from '../types'
+import { resolveDesktopBrowserExecutable } from './browserExecutable'
 
 const execAsync = promisify(exec)
 
@@ -51,7 +52,12 @@ export async function getCursorPosition(): Promise<{ x: number; y: number }> {
 }
 
 export function openBrowser(url: string): void {
-    spawn('chromium-browser', ['--no-sandbox', '--disable-gpu', url], {
+    const executable = resolveDesktopBrowserExecutable()
+    if (!executable) {
+        throw new Error('No supported desktop browser executable found')
+    }
+
+    spawn(executable, ['--disable-gpu', url], {
         stdio: 'ignore',
         detached: true,
         env: ENV

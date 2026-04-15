@@ -94,6 +94,12 @@ export type DockerRunSpec = {
     command?: string[]
     entrypoint?: string
     user?: string
+    init?: boolean
+    ipc?: string
+    shmSize?: string
+    securityOpt?: string[]
+    capAdd?: string[]
+    devices?: string[]
     env?: string[]
     extraHosts?: string[]
     workingDir?: string
@@ -157,6 +163,24 @@ export class DockerCliRuntime {
         }
         if (spec.user) {
             args.push('--user', spec.user)
+        }
+        if (spec.init) {
+            args.push('--init')
+        }
+        if (spec.ipc) {
+            args.push('--ipc', spec.ipc)
+        }
+        if (spec.shmSize) {
+            args.push('--shm-size', spec.shmSize)
+        }
+        for (const securityOpt of spec.securityOpt ?? []) {
+            args.push('--security-opt', securityOpt)
+        }
+        for (const capability of spec.capAdd ?? []) {
+            args.push('--cap-add', capability)
+        }
+        for (const device of spec.devices ?? []) {
+            args.push('--device', device)
         }
         if (spec.workingDir) {
             args.push('-w', spec.workingDir)

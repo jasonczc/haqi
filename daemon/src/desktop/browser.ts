@@ -1,3 +1,5 @@
+import { resolveDesktopBrowserExecutable } from './browserExecutable'
+
 let browserInstance: any = null
 let pageInstance: any = null
 
@@ -7,12 +9,18 @@ async function ensureBrowser(): Promise<{ browser: any; page: any }> {
     }
 
     try {
+        const executablePath = resolveDesktopBrowserExecutable()
+        if (!executablePath) {
+            throw new Error('No supported desktop browser executable found')
+        }
+
         // Dynamic import with Function constructor to bypass TS module resolution
         // playwright may not be installed in all environments
         const { chromium } = await (new Function('m', 'return import(m)'))('playwright') as any
         browserInstance = await chromium.launch({
             headless: false, // Use the desktop's display
-            args: ['--no-sandbox', '--disable-gpu']
+            executablePath,
+            args: ['--disable-gpu']
         })
         pageInstance = await browserInstance.newPage()
         return { browser: browserInstance, page: pageInstance }
