@@ -511,12 +511,45 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         }
     }
 
+    function ensureTrackedLocalWorkerFromSummary(engine: SyncEngine, namespace: string, machineId: string) {
+        const workerSummary = engine
+            .listCloudWorkers('auto', namespace)
+            .find((worker) => worker.machineId === machineId)
+
+        const summaryPid = workerSummary?.runnerState?.pid
+        if (!summaryPid || !Number.isFinite(summaryPid) || summaryPid <= 0) {
+            return workerSummary ?? null
+        }
+
+        try {
+            process.kill(summaryPid, 0)
+        } catch {
+            return workerSummary ?? null
+        }
+
+        const isAlreadyTracked = localWorkerProcess
+            && localWorkerProcess.exitCode === null
+            && localWorkerProcess.pid === summaryPid
+
+        if (!isAlreadyTracked) {
+            localWorkerProcess = {
+                pid: summaryPid,
+                exitCode: null,
+                startedAt: workerSummary?.runnerState?.startedAt ?? Date.now(),
+                logs: ['[hub] Attached to existing local worker process from machine summary']
+            }
+        }
+
+        return workerSummary ?? null
+    }
+
     // Start a local worker process on this machine
     app.post('/cloud/start-local-worker', async (c) => {
         const engine = getSyncEngine()
         if (!engine) return c.json({ error: 'Not connected' }, 503)
         const namespace = c.get('namespace')
         const localWorkerMachineId = buildLocalWorkerMachineId(namespace)
+        const trackedWorkerSummary = ensureTrackedLocalWorkerFromSummary(engine, namespace, localWorkerMachineId)
 
         function appendTrackedWorkerLog(line: string) {
             if (!localWorkerProcess) return
@@ -541,9 +574,7 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         if (localWorkerProcess && localWorkerProcess.exitCode === null) {
             try {
                 process.kill(localWorkerProcess.pid, 0) // check if alive
-                const workerSummary = engine
-                    .listCloudWorkers('auto', namespace)
-                    .find((worker) => worker.machineId === localWorkerMachineId)
+                const workerSummary = trackedWorkerSummary ?? ensureTrackedLocalWorkerFromSummary(engine, namespace, localWorkerMachineId)
 
                 const recentStartupGraceMs = 30_000
                 const startedRecently = Date.now() - localWorkerProcess.startedAt < recentStartupGraceMs
@@ -642,6 +673,11 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
 
     // Get local worker status and logs
     app.get('/cloud/local-worker', (c) => {
+        const engine = getSyncEngine()
+        if (engine) {
+            ensureTrackedLocalWorkerFromSummary(engine, c.get('namespace'), buildLocalWorkerMachineId(c.get('namespace')))
+        }
+
         if (!localWorkerProcess) {
             return c.json({ running: false, logs: [] })
         }
@@ -662,6 +698,11 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
 
     // Stop local worker
     app.delete('/cloud/local-worker', (c) => {
+        const engine = getSyncEngine()
+        if (engine) {
+            ensureTrackedLocalWorkerFromSummary(engine, c.get('namespace'), buildLocalWorkerMachineId(c.get('namespace')))
+        }
+
         if (!localWorkerProcess) {
             return c.json({ stopped: false, reason: 'No local worker running' })
         }

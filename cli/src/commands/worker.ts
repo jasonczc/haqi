@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { configuration } from '@/configuration'
 import { startWorker } from '@/worker/workerStart'
 import { readWorkerConfig, clearWorkerConfig } from '@/worker/workerConfig'
 import type { CommandDefinition } from './types'
@@ -72,7 +73,7 @@ ${chalk.bold('Usage:')}
 ${chalk.bold('Notes:')}
   - The worker runs in the ${chalk.yellow('foreground')} (not detached).
   - On first run, provide ${chalk.cyan('--token')} and ${chalk.cyan('--hub-url')} to enroll.
-  - Subsequent runs reuse the saved config from ${chalk.dim('~/.haqi-worker/config.json')}.
+  - Subsequent runs reuse the saved config from ${chalk.dim(`${configuration.happyHomeDir}/worker/config.json`)}.
 `)
     }
 }

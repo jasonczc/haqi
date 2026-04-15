@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { io } from 'socket.io-client'
 import { logger } from '@/ui/logger'
 import { isWindows } from '@/utils/process'
+import { configuration } from '@/configuration'
 import { readWorkerConfig, writeWorkerConfig } from './workerConfig'
 import { detectWorkerCapabilities } from './detectCapabilities'
 import { runRunnerLoop } from '@/runner/runnerLoop'
@@ -151,7 +152,7 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
     })
 
     // 5. Acquire worker lock (separate from runner lock — they can coexist)
-    const workerLockFile = join(os.homedir(), '.hapi', 'worker.lock')
+    const workerLockFile = join(configuration.happyHomeDir, 'worker.lock')
     const lockHandle = await acquireWorkerLock(workerLockFile)
     if (!lockHandle) {
         console.error(chalk.red('Another worker is already running'))

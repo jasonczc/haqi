@@ -66,6 +66,7 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
 # Desktop environment for Computer Use (fontconfig = fc-cache; gtk-update-icon-cache for icon theme)
 RUN apt-get update && apt-get install -y \
     xvfb xfce4 xfce4-terminal dbus-x11 \
+    plank \
     tigervnc-standalone-server tigervnc-common \
     novnc websockify \
     google-chrome-stable \

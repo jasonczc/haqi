@@ -33,6 +33,12 @@ export SSH_AUTH_SOCK="${SSH_AUTH_SOCK:-}"
 export XDG_CURRENT_DESKTOP="${XDG_CURRENT_DESKTOP:-XFCE}"
 export DESKTOP_SESSION="${DESKTOP_SESSION:-xfce}"
 
+if command -v plank >/dev/null 2>&1; then
+    if ! pgrep -x plank >/dev/null 2>&1; then
+        plank >/tmp/haqi-plank.log 2>&1 &
+    fi
+fi
+
 cat >"$HAQI_DESKTOP_ENV_FILE" <<EOF
 DISPLAY=$DISPLAY
 HOME=$HOME

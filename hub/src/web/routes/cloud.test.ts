@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, mock } from 'bun:test'
 import { Hono } from 'hono'
 import { buildLocalWorkerMachineId, createCloudRoutes } from './cloud'
 
@@ -11,6 +11,12 @@ function createAuthedApp(getSyncEngine: () => unknown) {
     app.route('/api', createCloudRoutes(getSyncEngine as never))
     return app
 }
+
+const originalKill = process.kill.bind(process)
+
+afterEach(() => {
+    process.kill = originalKill
+})
 
 describe('createCloudRoutes', () => {
     it('builds a stable local worker machine id', () => {
@@ -238,5 +244,41 @@ describe('createCloudRoutes', () => {
         const app = createAuthedApp(() => null)
         const response = await app.request('http://localhost/api/cloud/workers')
         expect(response.status).toBe(503)
+    })
+
+    it('reports an attached local worker from machine summary', async () => {
+        process.kill = mock(((pid: number, signal?: number | NodeJS.Signals) => {
+            if (signal === 0 || signal === undefined) {
+                return true as never
+            }
+            return true as never
+        }) as typeof process.kill)
+
+        const app = createAuthedApp(() => ({
+            listCloudWorkers: () => [{
+                machineId: buildLocalWorkerMachineId('default'),
+                provider: 'manual',
+                active: true,
+                selectable: true,
+                executorType: 'cloud-self-hosted',
+                lifecycle: 'idle',
+                runnerState: {
+                    pid: 43210,
+                    startedAt: 123,
+                    lifecycle: 'idle'
+                },
+                updatedAt: 1
+            }]
+        }))
+
+        const response = await app.request('http://localhost/api/cloud/local-worker')
+        expect(response.status).toBe(200)
+        expect(await response.json()).toEqual({
+            running: true,
+            pid: 43210,
+            exitCode: null,
+            startedAt: 123,
+            logs: ['[hub] Attached to existing local worker process from machine summary']
+        })
     })
 })

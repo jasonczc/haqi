@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import * as os from 'node:os'
+import { configuration } from '@/configuration'
 
 export type WorkerConfig = {
     hubUrl: string
@@ -10,7 +10,7 @@ export type WorkerConfig = {
     namespace: string
 }
 
-const DEFAULT_CONFIG_DIR = path.join(os.homedir(), '.haqi-worker')
+const DEFAULT_CONFIG_DIR = path.join(configuration.happyHomeDir, 'worker')
 
 function configFilePath(configDir: string): string {
     return path.join(configDir, 'config.json')

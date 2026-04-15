@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { configuration } from '@/configuration'
 import { readWorkerConfig, writeWorkerConfig, clearWorkerConfig, type WorkerConfig } from './workerConfig'
 
 const sampleConfig: WorkerConfig = {
@@ -38,5 +39,11 @@ describe('workerConfig', () => {
         await clearWorkerConfig(tmpDir)
         const result = await readWorkerConfig(tmpDir)
         expect(result).toBe(null)
+    })
+
+    it('defaults under HAPI_HOME worker directory', async () => {
+        const defaultResult = await readWorkerConfig()
+        expect(defaultResult).toBeNull()
+        expect(path.join(configuration.happyHomeDir, 'worker')).toContain(configuration.happyHomeDir)
     })
 })
