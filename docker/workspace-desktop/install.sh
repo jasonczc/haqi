@@ -22,7 +22,11 @@ install -d -m 0755 /usr/share/fonts/truetype
 cp -a "${BUNDLE}/usr-share/fonts/truetype/macos" /usr/share/fonts/truetype/
 
 install -d -m 0755 /usr/share/backgrounds
-cp -a "${BUNDLE}/usr-share/backgrounds/desktop-background-1.png" /usr/share/backgrounds/
+cp -a "${BUNDLE}/usr-share/backgrounds/desktop-background-1.png" \
+    "${BUNDLE}/usr-share/backgrounds/desktop-background-2.png" \
+    "${BUNDLE}/usr-share/backgrounds/desktop-background-3.png" \
+    "${BUNDLE}/usr-share/backgrounds/macos-wallpaper.png" \
+    /usr/share/backgrounds/
 
 install -d -m 0755 /usr/share/backgrounds/xfce
 cp -a "${BUNDLE}/usr-share/backgrounds/xfce/xfce-shapes.svg" /usr/share/backgrounds/xfce/
