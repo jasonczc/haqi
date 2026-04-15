@@ -3,6 +3,7 @@ import type {
     CloudWorkspaceLeaseBinding,
     EnvironmentTemplate,
     ExecutionBackend,
+    GitIdentity,
     NetworkMode,
     ResolvedSecret,
     RuntimeKind,
@@ -45,6 +46,7 @@ export interface SpawnSessionOptions {
         preferredPort?: number
     }
     initialPrompt?: string
+    gitIdentity?: GitIdentity
     spawnRequestId?: string
     resolvedEnvironment?: EnvironmentTemplate
     workspaceLease?: CloudWorkspaceLeaseBinding

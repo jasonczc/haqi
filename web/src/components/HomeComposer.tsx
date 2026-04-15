@@ -179,6 +179,11 @@ export function HomeComposer(props: {
     const [prompt, setPrompt] = useState('')
     const [repoUrl, setRepoUrl] = useState(() => lastConfig?.repositoryUrl ?? '')
     const [repoBranch, setRepoBranch] = useState(() => lastConfig?.repositoryBranch ?? '')
+    const [repoBranchMode, setRepoBranchMode] = useState<'create' | 'reuse' | 'detached'>(() => lastConfig?.repositoryBranchMode ?? 'create')
+    const [repoBranchPrefix, setRepoBranchPrefix] = useState(() => lastConfig?.repositoryBranchPrefix ?? 'haqi/')
+    const [repoBranchName, setRepoBranchName] = useState(() => lastConfig?.repositoryBranchName ?? '')
+    const [gitName, setGitName] = useState(() => lastConfig?.gitName ?? '')
+    const [gitEmail, setGitEmail] = useState(() => lastConfig?.gitEmail ?? '')
     const [showRepoPanel, setShowRepoPanel] = useState(false)
     const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => lastConfig?.workspaceMode ?? 'ephemeral')
     const [directory] = useState('')
@@ -242,6 +247,14 @@ export function HomeComposer(props: {
     const { workers: allWorkers } = useCloudWorkers(props.api, true, undefined, 3000) // always enabled for phase detection
     const { environments: cloudEnvironments } = useCloudEnvironments(props.api, isCloud)
     const { checkpoints: cloudCheckpoints } = useCloudCheckpoints(props.api, true) // always enabled for phase detection
+    const cloudAgentSettingsQuery = useQuery({
+        queryKey: queryKeys.cloudAgentSettings,
+        enabled: Boolean(props.api),
+        queryFn: async () => {
+            if (!props.api) throw new Error('API unavailable')
+            return await props.api.getCloudAgentSettings()
+        }
+    })
     const localRuntimeQuery = useQuery({
         queryKey: queryKeys.localRuntime,
         enabled: Boolean(props.api),
@@ -253,6 +266,38 @@ export function HomeComposer(props: {
             return await props.api.getLocalRuntimeStatus()
         }
     })
+
+    useEffect(() => {
+        const settings = cloudAgentSettingsQuery.data?.settings
+        if (!settings) return
+        if (!lastConfig?.repositoryUrl && !repoUrl.trim() && settings.defaultRepositoryUrl) {
+            setRepoUrl(settings.defaultRepositoryUrl)
+        }
+        if (!lastConfig?.repositoryBranch && !repoBranch.trim() && settings.baseBranch) {
+            setRepoBranch(settings.baseBranch)
+        }
+        if (!lastConfig?.repositoryBranchPrefix && !repoBranchPrefix.trim() && settings.branchPrefix) {
+            setRepoBranchPrefix(settings.branchPrefix)
+        }
+        if (!lastConfig?.gitName && !gitName.trim() && settings.gitName) {
+            setGitName(settings.gitName)
+        }
+        if (!lastConfig?.gitEmail && !gitEmail.trim() && settings.gitEmail) {
+            setGitEmail(settings.gitEmail)
+        }
+    }, [
+        cloudAgentSettingsQuery.data?.settings,
+        gitEmail,
+        gitName,
+        lastConfig?.gitEmail,
+        lastConfig?.gitName,
+        lastConfig?.repositoryBranch,
+        lastConfig?.repositoryBranchPrefix,
+        lastConfig?.repositoryUrl,
+        repoBranch,
+        repoBranchPrefix,
+        repoUrl
+    ])
 
     // ── Phase detection ──
     const hasConnectedWorker = allWorkers.some(w => w.active)
@@ -461,6 +506,12 @@ export function HomeComposer(props: {
                     repository: {
                         url: trimmedRepoUrl,
                         ref: repoBranch.trim() ? { branch: repoBranch.trim() } : undefined,
+                        branchStrategy: {
+                            mode: repoBranchMode,
+                            ...(repoBranch.trim() ? { baseBranch: repoBranch.trim() } : {}),
+                            ...(repoBranchMode === 'create' && repoBranchPrefix.trim() ? { prefix: repoBranchPrefix.trim() } : {}),
+                            ...(repoBranchMode === 'create' && repoBranchName.trim() ? { name: repoBranchName.trim() } : {})
+                        }
                     },
                 }
                 : undefined
@@ -508,6 +559,13 @@ export function HomeComposer(props: {
                 repoSyncPolicy: isCloud ? 'fetch-reset' : undefined,
                 workspaceSource,
                 workspace,
+                gitIdentity: {
+                    ...(gitName.trim() ? { name: gitName.trim() } : {}),
+                    ...(gitEmail.trim() ? { email: gitEmail.trim() } : {}),
+                    ...(cloudAgentSettingsQuery.data?.settings.githubUsername?.trim()
+                        ? { githubUsername: cloudAgentSettingsQuery.data.settings.githubUsername.trim() }
+                        : {}),
+                },
                 networkPolicy: parsedNetworkPolicy,
                 ttlMinutes: typeof ttlValue === 'number' && Number.isFinite(ttlValue) && ttlValue > 0 ? ttlValue : undefined,
                 persistentWorkspace: workspaceMode === 'persistent',
@@ -549,6 +607,11 @@ export function HomeComposer(props: {
                     checkpointId: trimmedCheckpointId,
                     repositoryUrl: trimmedRepoUrl,
                     repositoryBranch: repoBranch.trim(),
+                    repositoryBranchMode: repoBranchMode,
+                    repositoryBranchPrefix: repoBranchPrefix.trim(),
+                    repositoryBranchName: repoBranchName.trim(),
+                    gitName: gitName.trim(),
+                    gitEmail: gitEmail.trim(),
                     workspaceMode,
                     networkPolicy,
                     ttlMinutes: ttlMinutes.trim(),
@@ -563,9 +626,46 @@ export function HomeComposer(props: {
 
             if (result.type === 'accepted') {
                 // Save preferences on accepted too
+                const customModelValue = customModel.trim()
                 savePreferredAgent(agent)
+                savePreferredModel(agent, model)
+                savePreferredCustomModel(agent, customModelValue)
+                savePreferredThinkEffort(agent, thinkEffort)
+                savePreferredServiceTier(agent, serviceTier)
+                savePreferredYoloMode(yolo)
+                savePreferredSessionType(sessionType)
                 savePreferredExecutionBackend(executionBackend)
                 savePreferredRuntimeKind(runtimeKind)
+                saveLastSessionConfig({
+                    agent,
+                    model,
+                    customModel: customModelValue,
+                    thinkEffort,
+                    serviceTier,
+                    yoloMode: yolo,
+                    sessionType,
+                    worktreeName: worktreeName.trim(),
+                    previewUrl: previewUrl.trim(),
+                    executionBackend,
+                    runtimeKind,
+                    launchMode,
+                    environmentId: environmentId.trim(),
+                    checkpointId: trimmedCheckpointId,
+                    repositoryUrl: trimmedRepoUrl,
+                    repositoryBranch: repoBranch.trim(),
+                    repositoryBranchMode: repoBranchMode,
+                    repositoryBranchPrefix: repoBranchPrefix.trim(),
+                    repositoryBranchName: repoBranchName.trim(),
+                    gitName: gitName.trim(),
+                    gitEmail: gitEmail.trim(),
+                    workspaceMode,
+                    networkPolicy,
+                    ttlMinutes: ttlMinutes.trim(),
+                    labels: labels.trim(),
+                    secrets: secrets.trim(),
+                    previewAutoDetect,
+                    previewPreferredPort: previewPreferredPort.trim(),
+                })
                 void navigate({ to: '/settings/requests/$requestId', params: { requestId: result.requestId } })
                 return
             }
@@ -584,9 +684,9 @@ export function HomeComposer(props: {
     }, [
         prompt, isPending, isCloud, machineId, selectableMachines, agent, model, customModel,
         thinkEffort, serviceTier, networkPolicy, labels, secrets, previewPreferredPort,
-        sessionType, worktreeName, previewUrl, repoUrl, repoBranch, checkpointId,
+        sessionType, worktreeName, previewUrl, repoUrl, repoBranch, repoBranchMode, repoBranchPrefix, repoBranchName, gitName, gitEmail, checkpointId,
         workspaceMode, directory, ttlMinutes, environmentId, runtimeKind, yolo,
-        executionBackend, launchMode, previewAutoDetect, spawnSession, props, navigate,
+        executionBackend, launchMode, previewAutoDetect, spawnSession, props, navigate, cloudAgentSettingsQuery.data?.settings.githubUsername,
     ])
 
     // ── Keyboard handler for textarea ──
@@ -772,6 +872,82 @@ export function HomeComposer(props: {
                                             options={WORKSPACE_MODE_OPTIONS}
                                             value={workspaceMode}
                                             onChange={v => setWorkspaceMode(v as WorkspaceMode)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="chip-popover-row">
+                                    <div className="chip-popover-row-left">
+                                        <span className="chip-popover-row-label">Branch mode</span>
+                                    </div>
+                                    <div className="chip-popover-row-right">
+                                        <PopoverPillRow
+                                            options={[
+                                                { value: 'create', label: 'Create' },
+                                                { value: 'reuse', label: 'Reuse' },
+                                                { value: 'detached', label: 'Detached' },
+                                            ]}
+                                            value={repoBranchMode}
+                                            onChange={v => setRepoBranchMode(v as 'create' | 'reuse' | 'detached')}
+                                        />
+                                    </div>
+                                </div>
+                                {repoBranchMode === 'create' ? (
+                                    <>
+                                        <div className="chip-popover-row">
+                                            <div className="chip-popover-row-left">
+                                                <span className="chip-popover-row-label">Branch prefix</span>
+                                            </div>
+                                            <div className="chip-popover-row-right">
+                                                <input
+                                                    type="text"
+                                                    className="chip-popover-input"
+                                                    placeholder="haqi/"
+                                                    value={repoBranchPrefix}
+                                                    onChange={e => setRepoBranchPrefix(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="chip-popover-row">
+                                            <div className="chip-popover-row-left">
+                                                <span className="chip-popover-row-label">Branch name</span>
+                                            </div>
+                                            <div className="chip-popover-row-right">
+                                                <input
+                                                    type="text"
+                                                    className="chip-popover-input"
+                                                    placeholder="auto from prompt"
+                                                    value={repoBranchName}
+                                                    onChange={e => setRepoBranchName(e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : null}
+                                <div className="chip-popover-row">
+                                    <div className="chip-popover-row-left">
+                                        <span className="chip-popover-row-label">Git name</span>
+                                    </div>
+                                    <div className="chip-popover-row-right">
+                                        <input
+                                            type="text"
+                                            className="chip-popover-input"
+                                            placeholder="Jane Doe"
+                                            value={gitName}
+                                            onChange={e => setGitName(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="chip-popover-row">
+                                    <div className="chip-popover-row-left">
+                                        <span className="chip-popover-row-label">Git email</span>
+                                    </div>
+                                    <div className="chip-popover-row-right">
+                                        <input
+                                            type="email"
+                                            className="chip-popover-input"
+                                            placeholder="jane@example.com"
+                                            value={gitEmail}
+                                            onChange={e => setGitEmail(e.target.value)}
                                         />
                                     </div>
                                 </div>

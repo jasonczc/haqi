@@ -9,10 +9,13 @@ import { syncPathWorkspaceInContainer } from '@/cloud/workspace/syncPathWorkspac
 import { DaemonClient } from './DaemonClient'
 import { buildSpawnArgs } from './HostProcessExecutor'
 import { collectHostCredentials } from '@/cloud/credentials/hostCredentials'
-import { resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
+import { getContainerHomeTargets, resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
 import { mergePreviewTargets } from '@/cloud/preview/previewReporter'
 import { InnerDockerServiceOrchestrator } from '@/cloud/docker/innerServiceOrchestrator'
 import { loadWorkspaceEnvironmentTemplateInContainer } from '@/cloud/environment/workspaceEnvironment'
+import { loadBootstrapEnvironmentFilesInContainer } from '@/cloud/environment/bootstrapEnvironment'
+import { resolveEnvironmentTemplate } from '@/cloud/environment/resolveEnvironment'
+import type { GitIdentity } from '@hapi/protocol/types'
 
 const DAEMON_PORT = 9876
 
@@ -81,6 +84,93 @@ function buildDaemonSessionEnv(params: {
     }
 }
 
+async function loadContainerBootstrapEnv(params: {
+    runtime: DockerCliRuntime
+    containerId: string
+    workspace: PreparedWorkspace
+    environment: ResolvedEnvironmentTemplate | null
+    user: string
+    home: string
+}): Promise<Record<string, string>> {
+    return loadBootstrapEnvironmentFilesInContainer({
+        envConfig: params.environment?.environment?.env,
+        runtime: params.runtime,
+        containerId: params.containerId,
+        basePath: params.workspace.workingDirectory,
+        user: params.user,
+        home: params.home
+    })
+}
+
+async function runPrepareCommands(params: {
+    client: DaemonClient
+    commands: string | string[] | undefined
+    cwd: string
+    env: Record<string, string>
+}): Promise<void> {
+    if (!params.commands) {
+        return
+    }
+    const commands = Array.isArray(params.commands) ? params.commands : [params.commands]
+    await params.client.prepare({
+        commands,
+        cwd: params.cwd,
+        env: params.env
+    })
+}
+
+async function configureGitIdentity(params: {
+    client: DaemonClient
+    cwd: string
+    env: Record<string, string>
+    identity?: GitIdentity
+}): Promise<void> {
+    const name = params.identity?.name?.trim()
+    const email = params.identity?.email?.trim()
+    if (!name && !email) {
+        return
+    }
+    const commands = [
+        'if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then',
+        ...(name ? [`  git config user.name ${JSON.stringify(name)}`] : []),
+        ...(email ? [`  git config user.email ${JSON.stringify(email)}`] : []),
+        'fi'
+    ]
+    await params.client.prepare({
+        commands: [commands.join('\n')],
+        cwd: params.cwd,
+        env: params.env
+    })
+}
+
+async function writeShellProfileEnv(params: {
+    runtime: DockerCliRuntime
+    containerId: string
+    containerUser: string
+    env: Record<string, string>
+}): Promise<void> {
+    if (Object.keys(params.env).length === 0) {
+        return
+    }
+    const envLines = Object.entries(params.env).map(([key, value]) => {
+        const escaped = String(value ?? '').replace(/'/g, "'\\''")
+        return `export ${key}='${escaped}'`
+    })
+    const b64 = Buffer.from(envLines.join('\n') + '\n').toString('base64')
+    const profileTargets = getContainerHomeTargets(params.containerUser).map((target) =>
+        `mkdir -p ${target.home}` +
+        ` && echo '${b64}' | base64 -d > ${target.home}/.hapi-env && chmod 600 ${target.home}/.hapi-env` +
+        ` && chown ${target.owner} ${target.home}/.hapi-env` +
+        ` && grep -q '.hapi-env' ${target.home}/.bashrc 2>/dev/null || echo '. ${target.home}/.hapi-env' >> ${target.home}/.bashrc` +
+        ` && ([ -f ${target.home}/.zshrc ] && grep -q '.hapi-env' ${target.home}/.zshrc 2>/dev/null || echo '. ${target.home}/.hapi-env' >> ${target.home}/.zshrc)`
+    ).join(' && ')
+    await params.runtime.exec({
+        containerId: params.containerId,
+        user: 'root',
+        command: ['sh', '-c', profileTargets]
+    }).catch(() => undefined)
+}
+
 export async function startDaemonSessionExecutor(params: {
     runtime: DockerCliRuntime
     workspace: PreparedWorkspace
@@ -92,6 +182,7 @@ export async function startDaemonSessionExecutor(params: {
     repositoryCredential?: ResolvedSecret
     controlPort?: number
     callbackToken?: string
+    onLifecyclePhase?: (phase: string, progress?: number, status?: string) => void
 }): Promise<DaemonSessionResult> {
     const containerUser = resolveContainerUser(params.environment?.environment?.user)
     const containerHome = resolveContainerHome(containerUser)
@@ -138,10 +229,23 @@ export async function startDaemonSessionExecutor(params: {
                         const pathSource = params.workspace.source?.type === 'path'
                             ? params.workspace.source
                             : null
-                        if (pathSource && !checkpointImage) {
+                        if (!checkpointImage && params.repositorySource) {
+                            params.onLifecyclePhase?.('cloning-repo', 30)
+                            await syncRepositoryInContainer({
+                                runtime: params.runtime,
+                                containerId,
+                                workspace: params.workspace,
+                                repository: params.repositorySource as any,
+                                repoSyncPolicy: params.options.repoSyncPolicy ?? 'fetch-reset',
+                                repositoryCredential: params.repositoryCredential,
+                                user: containerUser,
+                                home: containerHome
+                            })
+                        } else if (pathSource && !checkpointImage) {
                             if (!pathSource.directory) {
                                 throw new Error('Path workspace source is missing directory')
                             }
+                            params.onLifecyclePhase?.('syncing-path-workspace', 30)
                             await syncPathWorkspaceInContainer({
                                 runtime: params.runtime,
                                 containerId,
@@ -150,6 +254,8 @@ export async function startDaemonSessionExecutor(params: {
                                 user: containerUser,
                                 home: containerHome
                             })
+                        }
+                        if (!checkpointImage) {
                             const workspaceEnvironment = await loadWorkspaceEnvironmentTemplateInContainer({
                                 runtime: params.runtime,
                                 containerId,
@@ -162,8 +268,31 @@ export async function startDaemonSessionExecutor(params: {
                             })
                             if (workspaceEnvironment) {
                                 params.workspace.environment = workspaceEnvironment
+                                params.environment = resolveEnvironmentTemplate({
+                                    runtimeKind: params.environment?.runtimeKind ?? 'daemon-session',
+                                    environmentId: params.options.environmentId,
+                                    environment: params.options.environment,
+                                    resolvedEnvironment: params.options.resolvedEnvironment,
+                                    workspaceEnvironment,
+                                    workspaceSource: params.workspace.source,
+                                    workspacePath: params.workspace.workingDirectory
+                                })
                             }
                         }
+                        const bootstrapEnv = await loadContainerBootstrapEnv({
+                            runtime: params.runtime,
+                            containerId,
+                            workspace: params.workspace,
+                            environment: params.environment,
+                            user: containerUser,
+                            home: containerHome
+                        })
+                        await writeShellProfileEnv({
+                            runtime: params.runtime,
+                            containerId,
+                            containerUser,
+                            env: bootstrapEnv
+                        })
                         const innerServiceOrchestrator = new InnerDockerServiceOrchestrator(params.runtime, containerId, containerUser, containerHome)
                         const startedServices = await innerServiceOrchestrator.startServices({
                             services: params.environment?.services ?? [],
@@ -179,10 +308,32 @@ export async function startDaemonSessionExecutor(params: {
                         )
                         const executionEnv = {
                             ...params.env,
+                            ...bootstrapEnv,
                             ...Object.assign({}, ...startedServices.map((service) => service.env)),
                             ...(serviceEndpoints.length > 0 ? { HAPI_SERVICE_ENDPOINTS_JSON: JSON.stringify(serviceEndpoints) } : {}),
                             ...(previewTargets ? { HAPI_PREVIEW_TARGETS_JSON: JSON.stringify(previewTargets) } : {})
                         }
+                        params.onLifecyclePhase?.('configuring-git-identity', 60)
+                        await configureGitIdentity({
+                            client,
+                            cwd: params.workspace.workingDirectory,
+                            env: executionEnv,
+                            identity: params.options.gitIdentity
+                        })
+                        params.onLifecyclePhase?.('running-install', 65)
+                        await runPrepareCommands({
+                            client,
+                            commands: params.environment?.environment?.install,
+                            cwd: params.workspace.workingDirectory,
+                            env: executionEnv
+                        })
+                        params.onLifecyclePhase?.('running-start', 75)
+                        await runPrepareCommands({
+                            client,
+                            commands: params.environment?.environment?.start,
+                            cwd: params.workspace.workingDirectory,
+                            env: executionEnv
+                        })
                         // Daemon is alive — kill any existing process and spawn fresh
                         const status = await client.status()
                         if (status.running) {
@@ -287,6 +438,7 @@ export async function startDaemonSessionExecutor(params: {
             : null
 
         if (!checkpointImage && params.repositorySource) {
+            params.onLifecyclePhase?.('cloning-repo', 30)
             await syncRepositoryInContainer({
                 runtime: params.runtime,
                 containerId,
@@ -301,6 +453,7 @@ export async function startDaemonSessionExecutor(params: {
             if (!pathSource.directory) {
                 throw new Error('Path workspace source is missing directory')
             }
+            params.onLifecyclePhase?.('syncing-path-workspace', 30)
             await syncPathWorkspaceInContainer({
                 runtime: params.runtime,
                 containerId,
@@ -309,6 +462,8 @@ export async function startDaemonSessionExecutor(params: {
                 user: containerUser,
                 home: containerHome
             })
+        }
+        if (!checkpointImage) {
             const workspaceEnvironment = await loadWorkspaceEnvironmentTemplateInContainer({
                 runtime: params.runtime,
                 containerId,
@@ -321,9 +476,32 @@ export async function startDaemonSessionExecutor(params: {
             })
             if (workspaceEnvironment) {
                 params.workspace.environment = workspaceEnvironment
+                params.environment = resolveEnvironmentTemplate({
+                    runtimeKind: params.environment?.runtimeKind ?? 'daemon-session',
+                    environmentId: params.options.environmentId,
+                    environment: params.options.environment,
+                    resolvedEnvironment: params.options.resolvedEnvironment,
+                    workspaceEnvironment,
+                    workspaceSource: params.workspace.source,
+                    workspacePath: params.workspace.workingDirectory
+                })
             }
         }
 
+        const bootstrapEnv = await loadContainerBootstrapEnv({
+            runtime: params.runtime,
+            containerId,
+            workspace: params.workspace,
+            environment: params.environment,
+            user: containerUser,
+            home: containerHome
+        })
+        await writeShellProfileEnv({
+            runtime: params.runtime,
+            containerId,
+            containerUser,
+            env: bootstrapEnv
+        })
         const innerServiceOrchestrator = new InnerDockerServiceOrchestrator(params.runtime, containerId, containerUser, containerHome)
         const startedServices = await innerServiceOrchestrator.startServices({
             services: params.environment?.services ?? [],
@@ -339,22 +517,33 @@ export async function startDaemonSessionExecutor(params: {
         )
         const executionEnv = {
             ...params.env,
+            ...bootstrapEnv,
             ...serviceEnv,
             ...(serviceEndpoints.length > 0 ? { HAPI_SERVICE_ENDPOINTS_JSON: JSON.stringify(serviceEndpoints) } : {}),
             ...(previewTargets ? { HAPI_PREVIEW_TARGETS_JSON: JSON.stringify(previewTargets) } : {})
         }
 
-        if (!checkpointImage) {
-            const installCmds = params.environment?.environment?.install
-            if (installCmds) {
-                const commands = Array.isArray(installCmds) ? installCmds : [installCmds]
-                await client.prepare({
-                    commands,
-                    cwd: params.workspace.workingDirectory,
-                    env: executionEnv
-                })
-            }
-        }
+        params.onLifecyclePhase?.('configuring-git-identity', 60)
+        await configureGitIdentity({
+            client,
+            cwd: params.workspace.workingDirectory,
+            env: executionEnv,
+            identity: params.options.gitIdentity
+        })
+        params.onLifecyclePhase?.('running-install', 65)
+        await runPrepareCommands({
+            client,
+            commands: params.environment?.environment?.install,
+            cwd: params.workspace.workingDirectory,
+            env: executionEnv
+        })
+        params.onLifecyclePhase?.('running-start', 75)
+        await runPrepareCommands({
+            client,
+            commands: params.environment?.environment?.start,
+            cwd: params.workspace.workingDirectory,
+            env: executionEnv
+        })
 
         const spawnArgs = buildSpawnArgs(params.options)
         const hostCreds = collectHostCredentials()

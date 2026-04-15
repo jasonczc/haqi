@@ -40,12 +40,31 @@ describe('workspaceEnvironment', () => {
         const merged = mergeEnvironmentTemplates(
             {
                 id: 'repo-env',
+                repository: {
+                    url: 'https://github.com/acme/base.git',
+                    ref: { branch: 'main' },
+                    branchStrategy: { mode: 'create', prefix: 'haqi/' }
+                },
+                env: {
+                    vars: {
+                        API_BASE_URL: 'https://base.example.com'
+                    }
+                },
                 runtime: { kind: 'host-process' },
                 install: ['bun install'],
                 features: { bun: true, node: true }
             },
             {
                 id: 'override-env',
+                repository: {
+                    url: 'https://github.com/acme/override.git'
+                },
+                env: {
+                    files: ['.env.local'],
+                    vars: {
+                        API_BASE_URL: 'https://override.example.com'
+                    }
+                },
                 runtime: { kind: 'docker-session', image: 'ghcr.io/acme/dev:latest' },
                 start: ['bun dev'],
                 features: { bun: false, python: true }
@@ -56,6 +75,17 @@ describe('workspaceEnvironment', () => {
             id: 'override-env',
             install: ['bun install'],
             start: ['bun dev'],
+            repository: {
+                url: 'https://github.com/acme/override.git',
+                ref: { branch: 'main' },
+                branchStrategy: { mode: 'create', prefix: 'haqi/' }
+            },
+            env: {
+                files: ['.env.local'],
+                vars: {
+                    API_BASE_URL: 'https://override.example.com'
+                }
+            },
             runtime: {
                 kind: 'docker-session',
                 image: 'ghcr.io/acme/dev:latest'

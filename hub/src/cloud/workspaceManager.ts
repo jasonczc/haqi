@@ -9,6 +9,10 @@ import type {
     WorkspaceMode,
     WorkspaceSource
 } from '@hapi/protocol/types'
+import {
+    resolveManagedWorkspaceBranch,
+    resolveWorkspaceSourceWithEnvironment
+} from '@hapi/protocol'
 import { CloudWorkspaceLeaseSchema, CloudWorkspaceSchema } from '@hapi/protocol/schemas'
 import type { Store } from '../store'
 
@@ -24,17 +28,20 @@ function normalizeWorkspaceMode(request: MachineSpawnRequest): WorkspaceMode {
     return 'ephemeral'
 }
 
-function normalizeWorkspaceSource(request: MachineSpawnRequest): WorkspaceSource | undefined {
-    if (request.workspaceSource) {
-        return request.workspaceSource
-    }
+function normalizeWorkspaceSource(
+    request: MachineSpawnRequest,
+    environment?: EnvironmentTemplate
+): WorkspaceSource | undefined {
     if (request.directory) {
         return {
             type: 'path',
             directory: request.directory
         }
     }
-    return undefined
+    return resolveWorkspaceSourceWithEnvironment({
+        workspaceSource: request.workspaceSource,
+        environment
+    })
 }
 
 function normalizeRefKey(request: MachineSpawnRequest): Record<string, string | undefined> {
@@ -50,14 +57,15 @@ function normalizeRefKey(request: MachineSpawnRequest): Record<string, string | 
 function buildWorkspaceReuseKey(
     namespace: string,
     request: MachineSpawnRequest,
-    environmentId: string | undefined
+    environmentId: string | undefined,
+    environment?: EnvironmentTemplate
 ): string | null {
     const mode = normalizeWorkspaceMode(request)
     if (mode !== 'persistent') {
         return null
     }
 
-    const source = normalizeWorkspaceSource(request)
+    const source = normalizeWorkspaceSource(request, environment)
     if (!source) {
         return null
     }
@@ -96,8 +104,14 @@ function buildDesktopStateVolumePath(request: MachineSpawnRequest, workspaceId: 
     return join(buildWorkspaceRoot(request, workspaceId, workspaceKey), '.haqi-desktop')
 }
 
-function buildWorkspaceBranch(workspaceId: string): string {
-    return `haqi/${workspaceId}`
+function buildWorkspaceBranch(request: MachineSpawnRequest, environment: EnvironmentTemplate | undefined, workspaceId: string): string | undefined {
+    const source = normalizeWorkspaceSource(request, environment)
+    return resolveManagedWorkspaceBranch({
+        requestId: workspaceId,
+        repository: source?.repository,
+        worktreeName: request.worktreeName,
+        initialPrompt: request.initialPrompt
+    })
 }
 
 function toCloudWorkspace(value: ReturnType<Store['cloud']['getWorkspace']> extends infer T ? NonNullable<T> : never): CloudWorkspace {
@@ -159,9 +173,10 @@ export class WorkspaceManager {
     getPinnedWorkspace(
         namespace: string,
         request: MachineSpawnRequest,
-        environmentId?: string
+        environmentId?: string,
+        environment?: EnvironmentTemplate
     ): CloudWorkspace | null {
-        const key = buildWorkspaceReuseKey(namespace, request, environmentId)
+        const key = buildWorkspaceReuseKey(namespace, request, environmentId, environment)
         if (!key) {
             return null
         }
@@ -188,8 +203,8 @@ export class WorkspaceManager {
         const mode = normalizeWorkspaceMode(options.request)
         const environmentId = options.environment?.id ?? options.request.environmentId
         const environmentVersion = options.environment?.version
-        const source = normalizeWorkspaceSource(options.request)
-        const workspaceKey = buildWorkspaceReuseKey(options.namespace, options.request, environmentId)
+        const source = normalizeWorkspaceSource(options.request, options.environment)
+        const workspaceKey = buildWorkspaceReuseKey(options.namespace, options.request, environmentId, options.environment)
         const checkpointId = options.request.checkpointId?.trim()
             || options.environment?.runtime?.checkpointId?.trim()
             || options.environment?.runtime?.image?.trim()
@@ -250,7 +265,7 @@ export class WorkspaceManager {
             environmentVersion,
             environment: options.environment,
             checkpointId,
-            workspaceBranch: buildWorkspaceBranch(options.requestId),
+            workspaceBranch: buildWorkspaceBranch(options.request, options.environment, options.requestId),
             repoStatus: 'clean',
             reused: false
         })

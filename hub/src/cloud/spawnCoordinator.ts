@@ -428,7 +428,7 @@ export class SpawnCoordinator {
                 return
             }
 
-            const pinnedWorkspace = this.workspaceManager.getPinnedWorkspace(namespace, request, environment?.id)
+            const pinnedWorkspace = this.workspaceManager.getPinnedWorkspace(namespace, request, environment?.id, environment)
             if (pinnedWorkspace?.machineId && pinnedWorkspace.machineId !== selectedMachineId) {
                 this.failRequest(namespace, requestId, {
                     phase: 'selecting-worker',
@@ -771,7 +771,7 @@ export class SpawnCoordinator {
             // (works for self-hosted where all workers share the same Docker images)
         }
 
-        const pinnedWorkspace = this.workspaceManager.getPinnedWorkspace(namespace, request, environment?.id)
+        const pinnedWorkspace = this.workspaceManager.getPinnedWorkspace(namespace, request, environment?.id, environment)
         if (pinnedWorkspace?.machineId) {
             const pinned = this.machineCache.getMachineByNamespace(pinnedWorkspace.machineId, namespace)
             if (pinned?.active) {

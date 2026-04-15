@@ -6,6 +6,7 @@ import { MachineStore } from './machineStore'
 import { MessageStore } from './messageStore'
 import { TurnStore } from './turnStore'
 import { ProjectPreferenceStore } from './projectPreferenceStore'
+import { CloudAgentPreferenceStore } from './cloudAgentPreferenceStore'
 import { PushStore } from './pushStore'
 import { SessionStore } from './sessionStore'
 import { UserStore } from './userStore'
@@ -53,6 +54,7 @@ export { MachineStore } from './machineStore'
 export { MessageStore } from './messageStore'
 export { TurnStore } from './turnStore'
 export { ProjectPreferenceStore } from './projectPreferenceStore'
+export { CloudAgentPreferenceStore } from './cloudAgentPreferenceStore'
 export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
@@ -63,7 +65,7 @@ export { CloudStore } from './cloudStore'
 export { CheckpointStore } from './checkpointStore'
 export type { StoredCheckpoint, CreateCheckpointParams, DeleteCheckpointResult } from './checkpointStore'
 
-const SCHEMA_VERSION: number = 15
+const SCHEMA_VERSION: number = 16
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -73,6 +75,7 @@ const REQUIRED_TABLES = [
     'push_subscriptions',
     'preview_url_history',
     'project_offline_preferences',
+    'cloud_agent_preferences',
     'groups',
     'group_members',
     'group_messages',
@@ -105,6 +108,7 @@ export class Store {
     readonly users: UserStore
     readonly push: PushStore
     readonly projectPreferences: ProjectPreferenceStore
+    readonly cloudAgentPreferences: CloudAgentPreferenceStore
     readonly groups: GroupStore
     readonly reports: ReportStore
     readonly reviewLoops: ReviewLoopStore
@@ -153,6 +157,7 @@ export class Store {
         this.users = new UserStore(this.db)
         this.push = new PushStore(this.db)
         this.projectPreferences = new ProjectPreferenceStore(this.db)
+        this.cloudAgentPreferences = new CloudAgentPreferenceStore(this.db)
         this.groups = new GroupStore(this.db)
         this.reports = new ReportStore(this.db)
         this.reviewLoops = new ReviewLoopStore(this.db)
@@ -273,6 +278,13 @@ export class Store {
         if (currentVersion === 14 && SCHEMA_VERSION >= 15) {
             this.migrateFromV14ToV15()
             this.setUserVersion(15)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 15 && SCHEMA_VERSION >= 16) {
+            this.migrateFromV15ToV16()
+            this.setUserVersion(16)
             this.initSchema()
             return
         }
@@ -412,6 +424,23 @@ export class Store {
             );
             CREATE INDEX IF NOT EXISTS idx_project_offline_preferences_namespace_user
                 ON project_offline_preferences(namespace, user_id, updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS cloud_agent_preferences (
+                namespace TEXT NOT NULL DEFAULT 'default',
+                user_id INTEGER NOT NULL,
+                git_name TEXT,
+                git_email TEXT,
+                github_username TEXT,
+                branch_prefix TEXT,
+                base_branch TEXT,
+                default_repository_url TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY (namespace, user_id),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_cloud_agent_preferences_namespace_user
+                ON cloud_agent_preferences(namespace, user_id, updated_at DESC);
 
             CREATE TABLE IF NOT EXISTS groups (
                 id TEXT PRIMARY KEY,
@@ -1130,6 +1159,35 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v14->v15 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV15ToV16(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(`
+                CREATE TABLE IF NOT EXISTS cloud_agent_preferences (
+                    namespace TEXT NOT NULL DEFAULT 'default',
+                    user_id INTEGER NOT NULL,
+                    git_name TEXT,
+                    git_email TEXT,
+                    github_username TEXT,
+                    branch_prefix TEXT,
+                    base_branch TEXT,
+                    default_repository_url TEXT,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY (namespace, user_id),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_cloud_agent_preferences_namespace_user
+                    ON cloud_agent_preferences(namespace, user_id, updated_at DESC);
+            `)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v15->v16 failed: ${message}`)
         }
     }
 

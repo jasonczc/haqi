@@ -13,6 +13,8 @@ export const queryKeys = {
     cloudWorkspaces: ['cloud-workspaces'] as const,
     cloudWorkspace: (workspaceId: string) => ['cloud-workspace', workspaceId] as const,
     cloudSecrets: ['cloud-secrets'] as const,
+    cloudAgentSettings: ['cloud-agent-settings'] as const,
+    cloudAgentGitHubRepos: ['cloud-agent-github-repos'] as const,
     cloudSecret: (secretId: string) => ['cloud-secret', secretId] as const,
     cloudWorkerEnrollmentTokens: ['cloud-worker-enrollment-tokens'] as const,
     localRuntime: ['local-runtime'] as const,

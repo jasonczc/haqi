@@ -11,6 +11,7 @@ import type {
     WorkspaceSource,
     WorkspaceSpec
 } from '@hapi/protocol/types'
+import { resolveRepositoryBaseBranch } from '@hapi/protocol'
 import type { PreparedWorkspace } from '@/cloud/types'
 import { loadWorkspaceEnvironmentTemplate } from '@/cloud/environment/workspaceEnvironment'
 import { applyRepositoryCredential } from '@/cloud/secrets/materializeSecrets'
@@ -200,9 +201,17 @@ async function prepareRepositoryWorkspace(
         await syncRemoteUrl(resolvedWorkspaceRoot, repositoryUrl, authenticatedUrl)
     }
 
-    if (repository.ref?.branch) {
-        await runGit(['checkout', repository.ref.branch], resolvedWorkspaceRoot)
-        await runGit(['pull', '--ff-only', 'origin', repository.ref.branch], resolvedWorkspaceRoot).catch(() => undefined)
+    const baseBranch = resolveRepositoryBaseBranch(repository)
+    if (baseBranch) {
+        const checkoutBranch = workspaceBranch && workspaceBranch !== baseBranch
+            ? workspaceBranch
+            : baseBranch
+        if (workspaceBranch && workspaceBranch !== baseBranch) {
+            await runGit(['checkout', '-B', checkoutBranch, `origin/${baseBranch}`], resolvedWorkspaceRoot)
+        } else {
+            await runGit(['checkout', baseBranch], resolvedWorkspaceRoot)
+            await runGit(['pull', '--ff-only', 'origin', baseBranch], resolvedWorkspaceRoot).catch(() => undefined)
+        }
     } else if (repository.ref?.tag) {
         await runGit(['checkout', `tags/${repository.ref.tag}`], resolvedWorkspaceRoot)
     } else if (repository.ref?.commit) {
@@ -215,6 +224,10 @@ async function prepareRepositoryWorkspace(
             await runGit(['fetch', 'origin', `pull/${repository.ref.pr}/head:haqi-pr-${repository.ref.pr}`], resolvedWorkspaceRoot)
         }
         await runGit(['checkout', `haqi-pr-${repository.ref.pr}`], resolvedWorkspaceRoot)
+    } else if (workspaceBranch) {
+        await runGit(['checkout', '-B', workspaceBranch, 'HEAD'], resolvedWorkspaceRoot)
+    } else if (!workspaceBranch) {
+        await runGit(['checkout', '--detach', 'HEAD'], resolvedWorkspaceRoot)
     }
 
     if (repository.withSubmodules) {

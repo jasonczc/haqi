@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { I18nProvider } from '@/lib/i18n-context'
 import type { ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
@@ -10,7 +11,7 @@ import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
 import { useCloudEnvironments } from '@/hooks/queries/useCloudEnvironments'
 
 vi.mock('@tanstack/react-router', () => ({
-    Link: ({ children, ...props }: Record<string, unknown> & { children?: unknown }) => <a {...props}>{children}</a>
+    Link: ({ children, ...props }: Record<string, unknown> & { children?: ReactNode }) => <a {...props}>{children}</a>
 }))
 
 vi.mock('@/hooks/queries/useCloudProviders', () => ({
@@ -25,9 +26,24 @@ vi.mock('@/hooks/queries/useCloudEnvironments', () => ({
     useCloudEnvironments: vi.fn()
 }))
 
-const mockedUseCloudProviders = vi.mocked(useCloudProviders)
-const mockedUseCloudWorkers = vi.mocked(useCloudWorkers)
-const mockedUseCloudEnvironments = vi.mocked(useCloudEnvironments)
+const mockedUseCloudProviders = useCloudProviders as unknown as ReturnType<typeof vi.fn>
+const mockedUseCloudWorkers = useCloudWorkers as unknown as ReturnType<typeof vi.fn>
+const mockedUseCloudEnvironments = useCloudEnvironments as unknown as ReturnType<typeof vi.fn>
+const defaultCloudAgentSettingsResponse = {
+    settings: {
+        gitName: '',
+        gitEmail: '',
+        githubUsername: '',
+        branchPrefix: 'haqi/',
+        baseBranch: '',
+        defaultRepositoryUrl: '',
+    },
+    github: {
+        connected: false,
+        profile: null,
+        envName: null,
+    }
+}
 
 function renderWithProviders(ui: React.ReactElement) {
     const queryClient = new QueryClient({
@@ -104,6 +120,7 @@ describe('NewSession initial directory preset', () => {
             getSessions,
             checkMachinePathsExists,
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            getCloudAgentSettings: vi.fn(async () => defaultCloudAgentSettingsResponse),
             spawnSession: vi.fn()
         } as unknown as ApiClient
 
@@ -164,6 +181,7 @@ describe('NewSession initial directory preset', () => {
             checkMachinePathsExists,
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             getCloudCheckpoints: vi.fn(async () => ({ checkpoints: [] })),
+            getCloudAgentSettings: vi.fn(async () => defaultCloudAgentSettingsResponse),
             spawnSession
         } as unknown as ApiClient
 
@@ -233,6 +251,7 @@ describe('NewSession initial directory preset', () => {
             getSessions,
             checkMachinePathsExists,
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            getCloudAgentSettings: vi.fn(async () => defaultCloudAgentSettingsResponse),
             spawnSession
         } as unknown as ApiClient
 
@@ -312,6 +331,7 @@ describe('NewSession initial directory preset', () => {
             getSessions,
             checkMachinePathsExists,
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            getCloudAgentSettings: vi.fn(async () => defaultCloudAgentSettingsResponse),
             spawnSession
         } as unknown as ApiClient
 
@@ -356,6 +376,8 @@ describe('NewSession initial directory preset', () => {
         fireEvent.change(screen.getByPlaceholderText('default-node18'), { target: { value: 'node-dev' } })
         fireEvent.change(screen.getByPlaceholderText('https://github.com/org/repo.git'), { target: { value: 'https://github.com/acme/demo.git' } })
         fireEvent.change(screen.getByPlaceholderText('main'), { target: { value: 'feature/cloud' } })
+        fireEvent.change(screen.getByPlaceholderText('Jane Doe'), { target: { value: 'Cloud User' } })
+        fireEvent.change(screen.getByPlaceholderText('jane@example.com'), { target: { value: 'cloud@example.com' } })
         fireEvent.change(screen.getByLabelText('Network policy'), { target: { value: 'restricted' } })
         fireEvent.change(screen.getByLabelText('Labels'), { target: { value: 'cloud, docker' } })
         fireEvent.change(screen.getByLabelText('Secrets'), { target: { value: 'github-app, claude-main' } })
@@ -387,6 +409,10 @@ describe('NewSession initial directory preset', () => {
             workspace: expect.objectContaining({
                 mode: 'persistent'
             }),
+            gitIdentity: expect.objectContaining({
+                name: 'Cloud User',
+                email: 'cloud@example.com'
+            }),
             networkPolicy: 'restricted',
             ttlMinutes: 120,
             labels: ['cloud', 'docker'],
@@ -405,6 +431,8 @@ describe('NewSession initial directory preset', () => {
         expect(saved.environmentId).toBe('node-dev')
         expect(saved.repositoryUrl).toBe('https://github.com/acme/demo.git')
         expect(saved.repositoryBranch).toBe('feature/cloud')
+        expect(saved.gitName).toBe('Cloud User')
+        expect(saved.gitEmail).toBe('cloud@example.com')
         expect(saved.workspaceMode).toBe('persistent')
         expect(saved.networkPolicy).toBe('restricted')
         expect(saved.ttlMinutes).toBe('120')
@@ -430,6 +458,7 @@ describe('NewSession initial directory preset', () => {
             checkMachinePathsExists,
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
             getCloudCheckpoints: vi.fn(async () => ({ checkpoints: [] })),
+            getCloudAgentSettings: vi.fn(async () => defaultCloudAgentSettingsResponse),
             spawnSession
         } as unknown as ApiClient
 
@@ -511,6 +540,7 @@ describe('NewSession initial directory preset', () => {
             getSessions,
             checkMachinePathsExists,
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            getCloudAgentSettings: vi.fn(async () => defaultCloudAgentSettingsResponse),
             spawnSession: vi.fn()
         } as unknown as ApiClient
 
@@ -596,6 +626,7 @@ describe('NewSession initial directory preset', () => {
                 exists: Object.fromEntries(paths.map((path) => [path, true]))
             })),
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            getCloudAgentSettings: vi.fn(async () => defaultCloudAgentSettingsResponse),
             spawnSession: vi.fn()
         } as unknown as ApiClient
 
@@ -684,6 +715,7 @@ describe('NewSession initial directory preset', () => {
                 exists: Object.fromEntries(paths.map((path) => [path, true]))
             })),
             getPreviewUrlHistory: vi.fn(async () => ({ urls: [] })),
+            getCloudAgentSettings: vi.fn(async () => defaultCloudAgentSettingsResponse),
             spawnSession: vi.fn()
         } as unknown as ApiClient
 

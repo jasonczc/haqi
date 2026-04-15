@@ -2687,13 +2687,16 @@ ${note.content}
         const checkpointId = randomUUID()
         const dockerImage = `haqi-checkpoint:${checkpointId}`
         const machineId = cloudWorker.id
+        const resolvedParentCheckpointId = parentCheckpointId?.trim()
+            || metadata.checkpointId?.trim()
+            || null
 
         this.store.checkpoints.create({
             id: checkpointId,
             namespace,
             name,
             repoUrl: metadata.repositoryUrl ?? null,
-            parentCheckpointId: parentCheckpointId ?? null,
+            parentCheckpointId: resolvedParentCheckpointId,
             baseImage: metadata.checkpointId ? `haqi-checkpoint:${metadata.checkpointId}` : 'haqi-workspace:dev',
             dockerImage,
             machineId,

@@ -1,4 +1,5 @@
 import type { RepositorySpec, RepoSyncPolicy, ResolvedSecret } from '@hapi/protocol/types'
+import { resolveRepositoryBaseBranch } from '@hapi/protocol'
 import type { DockerCliRuntime } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, RepositorySyncResult } from '@/cloud/types'
 import { applyRepositoryCredential } from '@/cloud/secrets/materializeSecrets'
@@ -17,13 +18,6 @@ function resolveTargetExpression(repository: RepositorySpec): {
     target: string
     preFetch?: string
 } {
-    if (repository.ref?.branch?.trim()) {
-        const branch = repository.ref.branch.trim()
-        return {
-            preFetch: `git -C "$REPO_ROOT" fetch origin ${quoteShell(branch)}`,
-            target: `origin/${branch}`
-        }
-    }
     if (repository.ref?.tag?.trim()) {
         const tag = repository.ref.tag.trim()
         return {
@@ -45,6 +39,13 @@ function resolveTargetExpression(repository: RepositorySpec): {
             target: `refs/remotes/origin/haqi-pr-${pr}`
         }
     }
+    const baseBranch = resolveRepositoryBaseBranch(repository)
+    if (baseBranch) {
+        return {
+            preFetch: `git -C "$REPO_ROOT" fetch origin ${quoteShell(baseBranch)}`,
+            target: `origin/${baseBranch}`
+        }
+    }
     return {
         target: 'HEAD'
     }
@@ -57,12 +58,12 @@ function buildRepositorySyncScript(params: {
     repoSyncPolicy: RepoSyncPolicy
 }): string {
     const repoRoot = params.workspace.repoVolumePath
-    const workspaceBranch = params.workspace.workspaceBranch ?? `haqi/${params.workspace.workspaceId}`
+    const workspaceBranch = params.workspace.workspaceBranch
     const { target, preFetch } = resolveTargetExpression(params.repository)
     const script: string[] = [
         'set -eu',
         `REPO_ROOT=${quoteShell(repoRoot)}`,
-        `WORKSPACE_BRANCH=${quoteShell(workspaceBranch)}`,
+        `WORKSPACE_BRANCH=${quoteShell(workspaceBranch ?? '')}`,
         `REMOTE_URL=${quoteShell(params.repository.url)}`,
         `AUTH_REMOTE_URL=${quoteShell(params.authenticatedUrl)}`,
         'mkdir -p "$REPO_ROOT"',
@@ -86,13 +87,22 @@ function buildRepositorySyncScript(params: {
         script.push(preFetch)
     }
 
-    if (params.repoSyncPolicy === 'fetch-reset') {
+    if (workspaceBranch) {
+        if (params.repoSyncPolicy === 'fetch-reset') {
+            script.push(
+                `git -C "$REPO_ROOT" checkout -B "$WORKSPACE_BRANCH" ${quoteShell(target)}`,
+                `git -C "$REPO_ROOT" reset --hard ${quoteShell(target)}`
+            )
+        } else {
+            script.push(`git -C "$REPO_ROOT" checkout -B "$WORKSPACE_BRANCH" ${quoteShell(target)}`)
+        }
+    } else if (params.repoSyncPolicy === 'fetch-reset') {
         script.push(
-            `git -C "$REPO_ROOT" checkout -B "$WORKSPACE_BRANCH" ${quoteShell(target)}`,
+            `git -C "$REPO_ROOT" checkout --detach ${quoteShell(target)}`,
             `git -C "$REPO_ROOT" reset --hard ${quoteShell(target)}`
         )
     } else {
-        script.push(`git -C "$REPO_ROOT" checkout -B "$WORKSPACE_BRANCH" ${quoteShell(target)}`)
+        script.push(`git -C "$REPO_ROOT" checkout --detach ${quoteShell(target)}`)
     }
 
     if (params.repository.withSubmodules) {
@@ -163,6 +173,6 @@ export async function syncRepositoryInContainer(params: {
     return {
         repoStatus: 'clean',
         repositoryCommit: repositoryCommit || undefined,
-        branch: params.workspace.workspaceBranch
+        branch: params.workspace.workspaceBranch ?? resolveRepositoryBaseBranch(params.repository)
     }
 }

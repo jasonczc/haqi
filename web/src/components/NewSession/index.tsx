@@ -157,6 +157,11 @@ export function NewSession(props: {
     const [checkpointId, setCheckpointId] = useState(() => props.initialCheckpointId ?? lastSessionConfig?.checkpointId ?? '')
     const [repositoryUrl, setRepositoryUrl] = useState(() => lastSessionConfig?.repositoryUrl ?? '')
     const [repositoryBranch, setRepositoryBranch] = useState(() => lastSessionConfig?.repositoryBranch ?? '')
+    const [repositoryBranchMode, setRepositoryBranchMode] = useState<'create' | 'reuse' | 'detached'>(() => lastSessionConfig?.repositoryBranchMode ?? 'create')
+    const [repositoryBranchPrefix, setRepositoryBranchPrefix] = useState(() => lastSessionConfig?.repositoryBranchPrefix ?? 'haqi/')
+    const [repositoryBranchName, setRepositoryBranchName] = useState(() => lastSessionConfig?.repositoryBranchName ?? '')
+    const [gitName, setGitName] = useState(() => lastSessionConfig?.gitName ?? '')
+    const [gitEmail, setGitEmail] = useState(() => lastSessionConfig?.gitEmail ?? '')
     const [workspaceMode, setWorkspaceMode] = useState<'ephemeral' | 'persistent' | 'snapshot-derived'>(() => lastSessionConfig?.workspaceMode ?? 'ephemeral')
     const persistentWorkspace = workspaceMode === 'persistent'
     const setPersistentWorkspace = useCallback((value: boolean) => {
@@ -306,6 +311,43 @@ export function NewSession(props: {
         isLoading: cloudEnvironmentsLoading,
         error: cloudEnvironmentsError
     } = useCloudEnvironments(props.api, executionBackend !== 'local')
+    const cloudAgentSettingsQuery = useQuery({
+        queryKey: queryKeys.cloudAgentSettings,
+        enabled: Boolean(props.api),
+        queryFn: async () => await props.api.getCloudAgentSettings()
+    })
+
+    useEffect(() => {
+        const settings = cloudAgentSettingsQuery.data?.settings
+        if (!settings) return
+        if (!lastSessionConfig?.repositoryUrl && !repositoryUrl.trim() && settings.defaultRepositoryUrl) {
+            setRepositoryUrl(settings.defaultRepositoryUrl)
+        }
+        if (!lastSessionConfig?.repositoryBranch && !repositoryBranch.trim() && settings.baseBranch) {
+            setRepositoryBranch(settings.baseBranch)
+        }
+        if (!lastSessionConfig?.repositoryBranchPrefix && !repositoryBranchPrefix.trim() && settings.branchPrefix) {
+            setRepositoryBranchPrefix(settings.branchPrefix)
+        }
+        if (!lastSessionConfig?.gitName && !gitName.trim() && settings.gitName) {
+            setGitName(settings.gitName)
+        }
+        if (!lastSessionConfig?.gitEmail && !gitEmail.trim() && settings.gitEmail) {
+            setGitEmail(settings.gitEmail)
+        }
+    }, [
+        cloudAgentSettingsQuery.data?.settings,
+        gitEmail,
+        gitName,
+        lastSessionConfig?.gitEmail,
+        lastSessionConfig?.gitName,
+        lastSessionConfig?.repositoryBranch,
+        lastSessionConfig?.repositoryBranchPrefix,
+        lastSessionConfig?.repositoryUrl,
+        repositoryBranch,
+        repositoryBranchPrefix,
+        repositoryUrl
+    ])
 
     const allPaths = useDirectorySuggestions(machineIdForPathQueries, sessions, recentPaths)
 
@@ -479,7 +521,7 @@ export function NewSession(props: {
 
         if (!machineId) return
         if (executionBackend === 'local' && !trimmedDirectory) return
-        if (executionBackend !== 'local' && !trimmedRepositoryUrl && !trimmedCheckpointId) return
+        if (executionBackend !== 'local' && !trimmedRepositoryUrl && !trimmedCheckpointId && !environmentId.trim()) return
 
         setError(null)
         try {
@@ -502,13 +544,19 @@ export function NewSession(props: {
                 worktreeName,
                 normalizedPreviewUrl.value ?? ''
             )
-            const workspaceSource: WorkspaceSource | undefined = executionBackend === 'local'
+            const workspaceSource: WorkspaceSource | undefined = executionBackend === 'local' || !trimmedRepositoryUrl
                 ? undefined
                 : {
                     type: 'repo',
                     repository: {
                         url: trimmedRepositoryUrl,
-                        ref: repositoryBranch.trim() ? { branch: repositoryBranch.trim() } : undefined
+                        ref: repositoryBranch.trim() ? { branch: repositoryBranch.trim() } : undefined,
+                        branchStrategy: {
+                            mode: repositoryBranchMode,
+                            ...(repositoryBranch.trim() ? { baseBranch: repositoryBranch.trim() } : {}),
+                            ...(repositoryBranchMode === 'create' && repositoryBranchPrefix.trim() ? { prefix: repositoryBranchPrefix.trim() } : {}),
+                            ...(repositoryBranchMode === 'create' && repositoryBranchName.trim() ? { name: repositoryBranchName.trim() } : {})
+                        }
                     }
                 }
             const workspace: WorkspaceSpec | undefined = executionBackend === 'local'
@@ -554,6 +602,13 @@ export function NewSession(props: {
                 repoSyncPolicy: executionBackend === 'local' ? undefined : 'fetch-reset',
                 workspaceSource,
                 workspace,
+                gitIdentity: {
+                    ...(gitName.trim() ? { name: gitName.trim() } : {}),
+                    ...(gitEmail.trim() ? { email: gitEmail.trim() } : {}),
+                    ...(cloudAgentSettingsQuery.data?.settings.githubUsername?.trim()
+                        ? { githubUsername: cloudAgentSettingsQuery.data.settings.githubUsername.trim() }
+                        : {})
+                },
                 networkPolicy: parsedNetworkPolicy,
                 ttlMinutes: typeof ttlValue === 'number' && Number.isFinite(ttlValue) && ttlValue > 0 ? ttlValue : undefined,
                 persistentWorkspace,
@@ -599,6 +654,11 @@ export function NewSession(props: {
                     checkpointId: trimmedCheckpointId,
                     repositoryUrl: trimmedRepositoryUrl,
                     repositoryBranch: repositoryBranch.trim(),
+                    repositoryBranchMode,
+                    repositoryBranchPrefix: repositoryBranchPrefix.trim(),
+                    repositoryBranchName: repositoryBranchName.trim(),
+                    gitName: gitName.trim(),
+                    gitEmail: gitEmail.trim(),
                     workspaceMode,
                     networkPolicy,
                     ttlMinutes: ttlMinutes.trim(),
@@ -626,7 +686,7 @@ export function NewSession(props: {
         && !isFormDisabled
         && (
             (executionBackend === 'local' && directory.trim())
-            || (executionBackend !== 'local' && (repositoryUrl.trim() || checkpointId.trim()))
+            || (executionBackend !== 'local' && (repositoryUrl.trim() || checkpointId.trim() || environmentId.trim()))
         )
     )
 
@@ -691,6 +751,11 @@ export function NewSession(props: {
                 checkpointId={checkpointId}
                 repositoryUrl={repositoryUrl}
                 repositoryBranch={repositoryBranch}
+                repositoryBranchMode={repositoryBranchMode}
+                repositoryBranchPrefix={repositoryBranchPrefix}
+                repositoryBranchName={repositoryBranchName}
+                gitName={gitName}
+                gitEmail={gitEmail}
                 workspaceMode={workspaceMode}
                 persistentWorkspace={persistentWorkspace}
                 networkPolicy={networkPolicy}
@@ -721,6 +786,11 @@ export function NewSession(props: {
                 onCheckpointIdChange={setCheckpointId}
                 onRepositoryUrlChange={setRepositoryUrl}
                 onRepositoryBranchChange={setRepositoryBranch}
+                onRepositoryBranchModeChange={setRepositoryBranchMode}
+                onRepositoryBranchPrefixChange={setRepositoryBranchPrefix}
+                onRepositoryBranchNameChange={setRepositoryBranchName}
+                onGitNameChange={setGitName}
+                onGitEmailChange={setGitEmail}
                 onWorkspaceModeChange={setWorkspaceMode}
                 onPersistentWorkspaceChange={setPersistentWorkspace}
                 onNetworkPolicyChange={setNetworkPolicy}

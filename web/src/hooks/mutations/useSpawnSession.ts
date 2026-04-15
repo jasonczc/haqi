@@ -6,6 +6,7 @@ import type {
     AgentFlavor,
     EnvironmentTemplate,
     ExecutionBackend,
+    GitIdentity,
     RuntimeKind,
     WorkerResources,
     WorkspaceSource,
@@ -44,6 +45,7 @@ type SpawnInput = {
         preferredPort?: number
     }
     initialPrompt?: string
+    gitIdentity?: GitIdentity
 }
 
 export function useSpawnSession(api: ApiClient | null): {
@@ -84,7 +86,8 @@ export function useSpawnSession(api: ApiClient | null): {
                 secrets: input.secrets,
                 labels: input.labels,
                 preview: input.preview,
-                initialPrompt: input.initialPrompt
+                initialPrompt: input.initialPrompt,
+                gitIdentity: input.gitIdentity
             })
         },
         onSuccess: (result) => {

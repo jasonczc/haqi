@@ -34,6 +34,11 @@ export type LastSessionConfig = {
     networkPolicy?: NetworkMode
     repositoryUrl?: string
     repositoryBranch?: string
+    repositoryBranchMode?: 'create' | 'reuse' | 'detached'
+    repositoryBranchPrefix?: string
+    repositoryBranchName?: string
+    gitName?: string
+    gitEmail?: string
     environmentId?: string
     checkpointId?: string
     ttlMinutes?: string
@@ -323,6 +328,15 @@ export function loadLastSessionConfig(): LastSessionConfig | null {
         }
         if (typeof parsed.repositoryBranch === 'string') {
             config.repositoryBranch = parsed.repositoryBranch
+        }
+        if (parsed.repositoryBranchMode === 'create' || parsed.repositoryBranchMode === 'reuse' || parsed.repositoryBranchMode === 'detached') {
+            config.repositoryBranchMode = parsed.repositoryBranchMode
+        }
+        if (typeof parsed.repositoryBranchPrefix === 'string') {
+            config.repositoryBranchPrefix = parsed.repositoryBranchPrefix
+        }
+        if (typeof parsed.repositoryBranchName === 'string') {
+            config.repositoryBranchName = parsed.repositoryBranchName
         }
         if (typeof parsed.environmentId === 'string') {
             config.environmentId = parsed.environmentId

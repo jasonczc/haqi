@@ -28,6 +28,10 @@ import {
   loadWorkspaceEnvironmentTemplate,
   loadWorkspaceEnvironmentTemplateInContainer
 } from '@/cloud/environment/workspaceEnvironment';
+import {
+  loadBootstrapEnvironmentFiles,
+  loadBootstrapEnvironmentFilesInContainer
+} from '@/cloud/environment/bootstrapEnvironment';
 import { DockerCliRuntime } from '@/cloud/docker/dockerCli';
 import { listHaqiContainers, stopSessionInContainer } from '@/cloud/docker/containerManager';
 import { DockerServiceOrchestrator } from '@/cloud/docker/serviceOrchestrator';
@@ -49,6 +53,7 @@ import {
 import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInContainer';
 import { hydrateDesktop } from '@/cloud/desktop/hydrateDesktop';
 import { getContainerHomeTargets, resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser';
+import { resolveWorkspaceSourceWithEnvironment } from '@hapi/protocol';
 
 export type RunnerLoopOptions = {
     mode: 'local' | 'remote'
@@ -244,10 +249,15 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       const spawnRequestId = options.spawnRequestId ?? options.resumeSessionId ?? options.sessionId ?? `spawn-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
       const sessionType = options.sessionType ?? 'simple';
       const worktreeName = options.worktreeName;
-      const repository = options.workspaceSource?.repository;
+      const initialEnvironment = options.resolvedEnvironment ?? options.environment;
+      const effectiveWorkspaceSource = resolveWorkspaceSourceWithEnvironment({
+        workspaceSource: options.workspaceSource,
+        environment: initialEnvironment
+      });
+      const repository = effectiveWorkspaceSource?.repository;
       const workspacePreparationStartedAt = Date.now();
       let directoryCreated = false;
-      let spawnDirectory = directory ?? options.workspaceSource?.directory;
+      let spawnDirectory = directory ?? effectiveWorkspaceSource?.directory;
       let worktreeInfo: WorktreeInfo | null = null;
       let happyProcess: ReturnType<typeof spawnHappyCLI> | null = null;
       let preparedWorkspace: PreparedWorkspace | null = null;
@@ -259,6 +269,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       let workspaceContainerId: string | undefined;
       let workspaceContainerPreviewTargets: Metadata['previewUrls'] | undefined;
       let extraEnv: Record<string, string> = {};
+      let shellProfileEnv: Record<string, string> = {};
       let secretCleanupPaths: string[] = [];
       let secretCleanupContainerPaths: string[] = [];
       let serviceEndpoints: ReturnType<DockerServiceOrchestrator['collectServiceEndpoints']> = [];
@@ -547,13 +558,13 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         }
 
         updateWorkspacePreparation('preparing-workspace', 10);
-        const repositoryCredentialSecretName = options.workspaceSource?.repository?.credentialsSecretRef?.trim();
+        const repositoryCredentialSecretName = repository?.credentialsSecretRef?.trim();
         const repositoryCredential = repositoryCredentialSecretName
           ? options.resolvedSecrets?.find((secret) => secret.secretName === repositoryCredentialSecretName)
           : undefined;
         preparedWorkspace = await prepareWorkspace({
           directory: spawnDirectory,
-          workspaceSource: options.workspaceSource,
+          workspaceSource: effectiveWorkspaceSource,
           workspace: options.workspace,
           workspaceLease: options.workspaceLease,
           repositoryCredential,
@@ -565,7 +576,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         spawnDirectory = preparedWorkspace.workingDirectory;
         updateWorkspacePreparation('workspace-ready', 30);
 
-        const repositorySource = preparedWorkspace.source?.repository ?? options.workspaceSource?.repository;
+        const repositorySource = preparedWorkspace.source?.repository ?? effectiveWorkspaceSource?.repository;
         const isCloudDockerSession = options.executionBackend !== 'local'
           && (options.runtimeKind === 'docker-session' || options.runtimeKind === 'daemon-session');
         dockerRuntime = isCloudDockerSession ? new DockerCliRuntime() : null;
@@ -576,7 +587,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           environment: options.environment,
           resolvedEnvironment: options.resolvedEnvironment,
           workspaceEnvironment: isCloudDockerSession ? null : (preparedWorkspace.environment ?? null),
-          workspaceSource: options.workspaceSource,
+          workspaceSource: effectiveWorkspaceSource,
           workspacePath: preparedWorkspace.workingDirectory
         });
 
@@ -632,7 +643,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           }
 
           if (repositorySource) {
-            updateWorkspacePreparation('syncing-repo', 30);
+            updateWorkspacePreparation('cloning-repo', 30);
             const syncResult = await syncRepositoryInContainer({
               runtime: dockerRuntime,
               containerId: workspaceContainer.containerId,
@@ -645,22 +656,14 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             });
             repoSyncStatus = syncResult.repoStatus;
             repositoryCommit = syncResult.repositoryCommit;
+            if (syncResult.branch && syncResult.branch !== repositorySource.ref?.branch) {
+              updateWorkspacePreparation('creating-branch', 38);
+            }
 
-            const workspaceEnvironment = options.runtimeKind === 'daemon-session'
-              ? await loadWorkspaceEnvironmentTemplateInContainer({
-                runtime: dockerRuntime,
-                containerId: workspaceContainer.containerId,
-                searchRoots: [
-                  preparedWorkspace.workingDirectory,
-                  preparedWorkspace.repoVolumePath
-                ],
-                user: containerUser,
-                home: containerHome
-              })
-              : await loadWorkspaceEnvironmentTemplate([
-                preparedWorkspace.workingDirectory,
-                preparedWorkspace.repoVolumePath
-              ]);
+            const workspaceEnvironment = await loadWorkspaceEnvironmentTemplate([
+              preparedWorkspace.workingDirectory,
+              preparedWorkspace.repoVolumePath
+            ]);
             preparedWorkspace.environment = workspaceEnvironment ?? undefined;
             resolvedEnvironment = resolveEnvironmentTemplate({
               runtimeKind: options.runtimeKind,
@@ -668,7 +671,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               environment: options.environment,
               resolvedEnvironment: options.resolvedEnvironment,
               workspaceEnvironment,
-              workspaceSource: options.workspaceSource,
+              workspaceSource: effectiveWorkspaceSource,
               workspacePath: preparedWorkspace.workingDirectory
             });
           }
@@ -692,6 +695,31 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           worktreeInfo,
           serviceEnv
         });
+
+        if (resolvedEnvironment.environment?.env) {
+          updateWorkspacePreparation('injecting-env', 52);
+          const bootstrapEnv = workspaceContainerId && dockerRuntime
+            ? await loadBootstrapEnvironmentFilesInContainer({
+              envConfig: resolvedEnvironment.environment.env,
+              runtime: dockerRuntime,
+              containerId: workspaceContainerId,
+              basePath: preparedWorkspace.workingDirectory,
+              user: containerUser,
+              home: containerHome
+            })
+            : await loadBootstrapEnvironmentFiles({
+              envConfig: resolvedEnvironment.environment.env,
+              basePath: preparedWorkspace.workingDirectory
+            });
+          extraEnv = {
+            ...extraEnv,
+            ...bootstrapEnv
+          };
+          shellProfileEnv = {
+            ...shellProfileEnv,
+            ...bootstrapEnv
+          };
+        }
 
         const runtimeSecrets = (options.resolvedSecrets ?? []).filter((secret) => {
           if (!repositoryCredentialSecretName) {
@@ -717,6 +745,10 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
             });
           extraEnv = {
             ...extraEnv,
+            ...materializedSecrets.env
+          };
+          shellProfileEnv = {
+            ...shellProfileEnv,
             ...materializedSecrets.env
           };
           secretCleanupPaths = materializedSecrets.cleanupPaths;
@@ -795,8 +827,26 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
           extraEnv.HAPI_PREVIEW_TARGETS_JSON = JSON.stringify(allPreviewTargets);
         }
 
+        const gitIdentityName = options.gitIdentity?.name?.trim();
+        const gitIdentityEmail = options.gitIdentity?.email?.trim();
+        if ((gitIdentityName || gitIdentityEmail) && resolvedEnvironment.runtimeKind === 'host-process') {
+          updateWorkspacePreparation('configuring-git-identity', 60);
+          const gitIdentityCommands = [
+            'if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then',
+            ...(gitIdentityName ? [`  git config user.name ${JSON.stringify(gitIdentityName)}`] : []),
+            ...(gitIdentityEmail ? [`  git config user.email ${JSON.stringify(gitIdentityEmail)}`] : []),
+            'fi'
+          ].join('\n');
+          await runEnvironmentCommands({
+            commands: [gitIdentityCommands],
+            cwd: preparedWorkspace.workingDirectory,
+            env: extraEnv,
+            label: 'git identity'
+          });
+        }
+
         if (resolvedEnvironment.environment?.install) {
-          updateWorkspacePreparation('running-install-hooks', 65);
+          updateWorkspacePreparation('running-install', 65);
           if (resolvedEnvironment.runtimeKind === 'docker-session' && dockerRuntime && workspaceContainerId) {
             for (const command of (Array.isArray(resolvedEnvironment.environment.install)
               ? resolvedEnvironment.environment.install
@@ -813,7 +863,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
                 command: ['sh', '-lc', command]
               });
             }
-          } else if (resolvedEnvironment.runtimeKind !== 'docker-session') {
+          } else if (resolvedEnvironment.runtimeKind === 'host-process') {
             await runEnvironmentCommands({
               commands: resolvedEnvironment.environment.install,
               cwd: preparedWorkspace.workingDirectory,
@@ -824,7 +874,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         }
 
         if (resolvedEnvironment.environment?.start) {
-          updateWorkspacePreparation('running-start-hooks', 75);
+          updateWorkspacePreparation('running-start', 75);
           if (resolvedEnvironment.runtimeKind === 'docker-session' && dockerRuntime && workspaceContainerId) {
             for (const command of (Array.isArray(resolvedEnvironment.environment.start)
               ? resolvedEnvironment.environment.start
@@ -836,7 +886,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
                 command: ['sh', '-lc', command]
               });
             }
-          } else if (resolvedEnvironment.runtimeKind !== 'docker-session') {
+          } else if (resolvedEnvironment.runtimeKind === 'host-process') {
             await runEnvironmentCommands({
               commands: resolvedEnvironment.environment.start,
               cwd: preparedWorkspace.workingDirectory,
@@ -872,18 +922,11 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         // Write materialized secrets as `export KEY=VALUE` lines into a shell
         // profile file inside the container so interactive terminals (Desktop,
         // docker exec) see them — not just the agent's own process env.
-        if (workspaceContainerId && dockerRuntime && runtimeSecrets.length > 0) {
-          const envLines: string[] = []
-          for (const secret of runtimeSecrets) {
-            if (secret.adapter === 'codex') continue
-            const key = secret.envName
-              || (secret.adapter === 'claude' ? 'CLAUDE_CODE_OAUTH_TOKEN' : undefined)
-              || (secret.adapter === 'gemini' ? 'GEMINI_API_KEY' : undefined)
-              || secret.secretName.trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').toUpperCase()
-              || 'HAPI_SECRET'
-            const escaped = (secret.value ?? '').replace(/'/g, "'\\''")
-            envLines.push(`export ${key}='${escaped}'`)
-          }
+        if (workspaceContainerId && dockerRuntime && Object.keys(shellProfileEnv).length > 0) {
+          const envLines = Object.entries(shellProfileEnv).map(([key, value]) => {
+            const escaped = String(value ?? '').replace(/'/g, "'\\''")
+            return `export ${key}='${escaped}'`
+          })
           if (envLines.length > 0) {
             // Write via base64 to avoid heredoc / shell-escape issues inside
             // docker exec. The container always has base64 (coreutils).
@@ -923,7 +966,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               repositorySource: repositorySource ?? null,
               repositoryCredential,
               controlPort,
-              callbackToken
+              callbackToken,
+              onLifecyclePhase: updateWorkspacePreparation
             })
           : resolvedEnvironment.runtimeKind === 'docker-session'
           ? await startDockerSessionExecutor({
@@ -1263,7 +1307,8 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
               languageServers: languageServers ?? metadata.languageServers,
               terminalDescriptors: terminalDescriptors ?? metadata.terminalDescriptors,
               setupStatus: {
-                phase: setupStatusMessage,
+                phase: 'complete',
+                message: setupStatusMessage,
                 updatedAt: Date.now()
               },
               previewUrls: previewTargets ? mergePreviewTargets(metadata.previewUrls, previewTargets) : metadata.previewUrls,

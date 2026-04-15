@@ -441,6 +441,41 @@ export class ApiClient {
         })
     }
 
+    async getCloudAgentSettings(): Promise<import('@/types/api').CloudAgentSettingsResponse> {
+        return await this.request<import('@/types/api').CloudAgentSettingsResponse>('/api/settings/cloud-agents')
+    }
+
+    async updateCloudAgentSettings(payload: {
+        gitName?: string | null
+        gitEmail?: string | null
+        githubUsername?: string | null
+        branchPrefix?: string | null
+        baseBranch?: string | null
+        defaultRepositoryUrl?: string | null
+    }): Promise<import('@/types/api').CloudAgentSettingsResponse> {
+        return await this.request<import('@/types/api').CloudAgentSettingsResponse>('/api/settings/cloud-agents', {
+            method: 'PATCH',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async connectGitHubForCloudAgents(payload: { token: string }): Promise<import('@/types/api').CloudAgentSettingsResponse> {
+        return await this.request<import('@/types/api').CloudAgentSettingsResponse>('/api/settings/cloud-agents/github', {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        })
+    }
+
+    async disconnectGitHubForCloudAgents(): Promise<import('@/types/api').CloudAgentSettingsResponse> {
+        return await this.request<import('@/types/api').CloudAgentSettingsResponse>('/api/settings/cloud-agents/github', {
+            method: 'DELETE'
+        })
+    }
+
+    async getCloudAgentGitHubRepos(): Promise<import('@/types/api').CloudAgentGitHubReposResponse> {
+        return await this.request<import('@/types/api').CloudAgentGitHubReposResponse>('/api/settings/cloud-agents/github/repos')
+    }
+
     async getPushVapidPublicKey(): Promise<PushVapidPublicKeyResponse> {
         return await this.request<PushVapidPublicKeyResponse>('/api/push/vapid-public-key')
     }
@@ -871,7 +906,13 @@ export class ApiClient {
     }
 
     async getCloudCheckpoints(): Promise<CloudCheckpointsResponse> {
-        return await this.request<CloudCheckpointsResponse>('/api/cloud/checkpoints')
+        const response = await this.request<CloudCheckpointsResponse>('/api/cloud/checkpoints')
+        return {
+            checkpoints: response.checkpoints.map((checkpoint) => ({
+                ...checkpoint,
+                image: checkpoint.image || checkpoint.dockerImage || checkpoint.baseImage || checkpoint.id,
+            })),
+        }
     }
 
     async saveCheckpoint(sessionId: string, name: string, parentCheckpointId?: string): Promise<{ checkpointId: string }> {

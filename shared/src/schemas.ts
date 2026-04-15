@@ -119,10 +119,28 @@ export const RepositoryRefSchema = z.object({
 
 export type RepositoryRef = z.infer<typeof RepositoryRefSchema>
 
+export const RepositoryBranchStrategySchema = z.object({
+    mode: z.enum(['create', 'reuse', 'detached']).optional(),
+    baseBranch: z.string().optional(),
+    prefix: z.string().optional(),
+    name: z.string().optional()
+})
+
+export type RepositoryBranchStrategy = z.infer<typeof RepositoryBranchStrategySchema>
+
+export const GitIdentitySchema = z.object({
+    name: z.string().optional(),
+    email: z.string().optional(),
+    githubUsername: z.string().optional()
+})
+
+export type GitIdentity = z.infer<typeof GitIdentitySchema>
+
 export const RepositorySpecSchema = z.object({
     url: z.string().min(1),
     provider: z.enum(['github', 'gitlab', 'bitbucket', 'generic']).optional(),
     ref: RepositoryRefSchema.optional(),
+    branchStrategy: RepositoryBranchStrategySchema.optional(),
     subdirectory: z.string().optional(),
     cloneDepth: z.number().int().positive().optional(),
     withSubmodules: z.boolean().optional(),
@@ -238,6 +256,23 @@ export const EnvironmentCacheMountSchema = z.object({
 
 export type EnvironmentCacheMount = z.infer<typeof EnvironmentCacheMountSchema>
 
+export const EnvironmentEnvFileSchema = z.union([
+    z.string().min(1),
+    z.object({
+        path: z.string().min(1),
+        required: z.boolean().optional()
+    })
+])
+
+export type EnvironmentEnvFile = z.infer<typeof EnvironmentEnvFileSchema>
+
+export const EnvironmentEnvSchema = z.object({
+    files: z.array(EnvironmentEnvFileSchema).optional(),
+    vars: z.record(z.string(), z.string()).optional()
+})
+
+export type EnvironmentEnv = z.infer<typeof EnvironmentEnvSchema>
+
 export const EnvironmentRuntimeSchema = z.object({
     kind: RuntimeKindSchema.optional(),
     image: z.string().optional(),
@@ -332,6 +367,8 @@ export const EnvironmentTemplateSchema = z.object({
     description: z.string().optional(),
     source: z.enum(['builtin', 'repo', 'team', 'user']).optional(),
     runtime: EnvironmentRuntimeSchema.optional(),
+    repository: RepositorySpecSchema.optional(),
+    env: EnvironmentEnvSchema.optional(),
     install: z.union([z.string(), z.array(z.string())]).optional(),
     start: z.union([z.string(), z.array(z.string())]).optional(),
     terminals: z.array(EnvironmentTerminalSchema).optional(),
@@ -368,6 +405,7 @@ export const CloudSpawnPhaseSchema = z.enum([
     'hydrating-desktop',
     'preparing-workspace',
     'materializing-secrets',
+    'configuring-git-identity',
     'starting-session',
     'succeeded',
     'failed',
@@ -887,6 +925,7 @@ export const MachineSpawnRequestSchema = z.object({
         preferredPort: z.number().int().positive().optional()
     }).optional(),
     initialPrompt: z.string().optional(),
+    gitIdentity: GitIdentitySchema.optional(),
     spawnRequestId: z.string().optional(),
     resolvedEnvironment: EnvironmentTemplateSchema.optional(),
     workspaceLease: CloudWorkspaceLeaseBindingSchema.optional(),

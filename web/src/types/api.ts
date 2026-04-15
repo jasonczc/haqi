@@ -222,8 +222,29 @@ export type CloudEnvironmentsResponse = {
     environments: CloudEnvironmentSummary[]
 }
 
+export type StoredCloudCheckpoint = {
+    id: string
+    image: string
+    namespace: string
+    name: string
+    description?: string
+    labels?: string[]
+    capabilities?: import('@hapi/protocol/types').WorkerCapabilities
+    repoUrl: string | null
+    parentCheckpointId: string | null
+    baseImage: string
+    dockerImage: string
+    machineId: string
+    workspacePath: string | null
+    environmentJson: string | null
+    createdBySession: string | null
+    status: 'creating' | 'ready' | 'failed'
+    createdAt: number
+    updatedAt: number
+}
+
 export type CloudCheckpointsResponse = {
-    checkpoints: import('@hapi/protocol/types').CloudCheckpoint[]
+    checkpoints: StoredCloudCheckpoint[]
 }
 
 export type CloudPreviewsResponse = {
@@ -590,6 +611,49 @@ export type ReportDomainResponse = {
 
 export type ProjectOfflineSettingsResponse = {
     directories: string[]
+}
+
+export type CloudAgentSettings = {
+    gitName: string
+    gitEmail: string
+    githubUsername: string
+    branchPrefix: string
+    baseBranch: string
+    defaultRepositoryUrl: string
+}
+
+export type GitHubConnectionProfile = {
+    login: string
+    name: string | null
+    avatarUrl: string | null
+}
+
+export type GitHubConnectionState = {
+    connected: boolean
+    profile: GitHubConnectionProfile | null
+    secretId?: string | null
+    envName?: string | null
+    error?: string
+}
+
+export type CloudAgentSettingsResponse = {
+    settings: CloudAgentSettings
+    github?: GitHubConnectionState
+}
+
+export type GitHubRepoSummary = {
+    fullName: string
+    name: string
+    owner: string
+    private: boolean
+    url: string
+    cloneUrl: string
+    defaultBranch: string
+    updatedAt: string
+}
+
+export type CloudAgentGitHubReposResponse = {
+    repos: GitHubRepoSummary[]
 }
 
 export type UsageTotals = {

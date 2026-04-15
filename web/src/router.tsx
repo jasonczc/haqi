@@ -58,12 +58,8 @@ import SettingsUsagePage from '@/routes/settings/usage'
 import SettingsSpendingPage from '@/routes/settings/spending'
 import SettingsBillingPage from '@/routes/settings/billing'
 import SettingsAdvancedPage from '@/routes/settings/advanced'
-import { CloudRequestDetailContent } from '@/routes/settings/request-detail'
-import { CloudWorkspaceDetailContent } from '@/routes/settings/workspace-detail'
 import CloudContainersPage from '@/routes/settings/containers'
 import CloudCheckpointsPage from '@/routes/settings/checkpoints'
-import CloudRequestsPage from '@/routes/settings/requests'
-import CloudWorkspacesPage from '@/routes/settings/workspaces'
 import CloudOnboardPage from '@/routes/settings/onboard'
 import CloudAutomationsPage from '@/routes/settings/automations'
 import DebugDiffPage from '@/routes/debug/diff'
@@ -179,7 +175,7 @@ function CloseIcon(props: { className?: string }) {
 }
 
 function CloudIndexPage() {
-    return <Navigate to="/settings/cloud-agents" replace />
+    return <Navigate to="/agents" replace />
 }
 
 function CloudDashboardRedirectPage() {
@@ -187,11 +183,11 @@ function CloudDashboardRedirectPage() {
 }
 
 function CloudWorkersRedirectPage() {
-    return <Navigate to="/settings/cloud-agents" replace />
+    return <Navigate to="/agents" replace />
 }
 
 function CloudSecretsRedirectPage() {
-    return <Navigate to="/settings/cloud-agents" replace />
+    return <Navigate to="/agents" replace />
 }
 
 function CloudContainersRedirectPage() {
@@ -224,6 +220,20 @@ function CloudOnboardRedirectPage() {
 
 function SettingsIndexPage() {
     return <Navigate to="/settings/overview" replace />
+}
+
+function AgentsIndexPage() {
+    return <SettingsCloudAgentsPage />
+}
+
+function AgentsRequestDetailPage() {
+    const { requestId } = useParams({ from: '/agents/requests/$requestId' })
+    return <SettingsCloudAgentsPage selectedRequestId={requestId} />
+}
+
+function AgentsWorkspaceDetailPage() {
+    const { workspaceId } = useParams({ from: '/agents/workspaces/$workspaceId' })
+    return <SettingsCloudAgentsPage selectedWorkspaceId={workspaceId} />
 }
 
 function BugbotPlaceholderPage() {
@@ -1243,7 +1253,7 @@ function GroupsLayout() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { onClose?.(); navigate({ to: '/settings/cloud-agents' }) }}
+                                onClick={() => { onClose?.(); navigate({ to: '/agents' }) }}
                                 className="rounded-md px-2.5 py-1.5 text-xs text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-soft)] transition-colors"
                             >
                                 Cloud
@@ -1756,7 +1766,7 @@ function ReviewLoopsLayout() {
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { onClose?.(); navigate({ to: '/settings/cloud-agents' }) }}
+                                onClick={() => { onClose?.(); navigate({ to: '/agents' }) }}
                                 className="border border-[var(--cursor-stroke-secondary)] rounded-sm px-2 py-1 text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-soft)] transition-colors"
                             >
                                 Cloud
@@ -2065,7 +2075,7 @@ const settingsGeneralRoute = createRoute({
 const settingsCloudAgentsRoute = createRoute({
     getParentRoute: () => settingsRoute,
     path: 'cloud-agents',
-    component: SettingsCloudAgentsPage,
+    component: () => <Navigate to="/agents" replace />,
 })
 
 const settingsBugbotRoute = createRoute({
@@ -2131,7 +2141,7 @@ const settingsCheckpointsRoute = createRoute({
 const settingsRequestsRoute = createRoute({
     getParentRoute: () => settingsRoute,
     path: 'requests',
-    component: CloudRequestsPage,
+    component: () => <Navigate to="/agents" replace />,
 })
 
 const settingsRequestDetailRoute = createRoute({
@@ -2139,14 +2149,14 @@ const settingsRequestDetailRoute = createRoute({
     path: 'requests/$requestId',
     component: () => {
         const { requestId } = useParams({ from: '/settings/requests/$requestId' })
-        return <CloudRequestDetailContent requestId={requestId} />
+        return <Navigate to="/agents/requests/$requestId" params={{ requestId }} replace />
     },
 })
 
 const settingsWorkspacesRoute = createRoute({
     getParentRoute: () => settingsRoute,
     path: 'workspaces',
-    component: CloudWorkspacesPage,
+    component: () => <Navigate to="/agents" replace />,
 })
 
 const settingsWorkspaceDetailRoute = createRoute({
@@ -2154,7 +2164,7 @@ const settingsWorkspaceDetailRoute = createRoute({
     path: 'workspaces/$workspaceId',
     component: () => {
         const { workspaceId } = useParams({ from: '/settings/workspaces/$workspaceId' })
-        return <CloudWorkspaceDetailContent workspaceId={workspaceId} />
+        return <Navigate to="/agents/workspaces/$workspaceId" params={{ workspaceId }} replace />
     },
 })
 
@@ -2290,6 +2300,24 @@ const reviewLoopsRoute = createRoute({
     component: ReviewLoopsLayout,
 })
 
+const agentsRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/agents',
+    component: AgentsIndexPage,
+})
+
+const agentsRequestDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/agents/requests/$requestId',
+    component: AgentsRequestDetailPage,
+})
+
+const agentsWorkspaceDetailRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/agents/workspaces/$workspaceId',
+    component: AgentsWorkspaceDetailPage,
+})
+
 const reviewLoopsIndexRoute = createRoute({
     getParentRoute: () => reviewLoopsRoute,
     path: '/',
@@ -2305,6 +2333,9 @@ const reviewLoopDetailRoute = createRoute({
 export const routeTree = rootRoute.addChildren([
     indexRoute,
     debugDiffRoute,
+    agentsRoute,
+    agentsRequestDetailRoute,
+    agentsWorkspaceDetailRoute,
     cloudRoute.addChildren([
         cloudIndexRoute,
         cloudWorkersRoute,

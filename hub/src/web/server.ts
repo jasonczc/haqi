@@ -220,7 +220,7 @@ function createWebApp(options: {
     app.route('/api', createMemoryRoutes())
     app.route('/api', createCloudRoutes(options.getSyncEngine, options.fallbackPublicUrl))
     app.route('/api', createContainerRoutes(options.getSyncEngine))
-    app.route('/api', createSettingsRoutes(options.store))
+    app.route('/api', createSettingsRoutes(options.store, options.getSyncEngine))
     app.route('/api', createGitHubRoutes(options.getSyncEngine))
     const reportPublicBaseUrlState: { value: ReportPublicBaseUrlSettings } = {
         value: options.reportPublicBaseUrl

@@ -23,6 +23,11 @@ export function CloudSettingsSection(props: {
     checkpointId: string
     repositoryUrl: string
     repositoryBranch: string
+    repositoryBranchMode: 'create' | 'reuse' | 'detached'
+    repositoryBranchPrefix: string
+    repositoryBranchName: string
+    gitName: string
+    gitEmail: string
     workspaceMode: 'ephemeral' | 'persistent' | 'snapshot-derived'
     persistentWorkspace: boolean
     networkPolicy: 'default' | 'restricted' | 'off'
@@ -53,6 +58,11 @@ export function CloudSettingsSection(props: {
     onCheckpointIdChange: (value: string) => void
     onRepositoryUrlChange: (value: string) => void
     onRepositoryBranchChange: (value: string) => void
+    onRepositoryBranchModeChange: (value: 'create' | 'reuse' | 'detached') => void
+    onRepositoryBranchPrefixChange: (value: string) => void
+    onRepositoryBranchNameChange: (value: string) => void
+    onGitNameChange: (value: string) => void
+    onGitEmailChange: (value: string) => void
     onWorkspaceModeChange: (value: 'ephemeral' | 'persistent' | 'snapshot-derived') => void
     onPersistentWorkspaceChange: (value: boolean) => void
     onNetworkPolicyChange: (value: 'default' | 'restricted' | 'off') => void
@@ -157,7 +167,7 @@ export function CloudSettingsSection(props: {
                         <CursorNotice>
                             <div className="font-medium">{t('cloud.workers.noWorkersOnline')}</div>
                             <Link
-                                to="/settings/cloud-agents"
+                                to="/agents"
                                 className="mt-1 block text-[var(--accent)] hover:underline"
                             >
                                 {t('cloud.workers.goToManagement')}
@@ -301,6 +311,73 @@ export function CloudSettingsSection(props: {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
+                        <CursorFieldLabel htmlFor="new-session-repository-branch-mode">Branch strategy</CursorFieldLabel>
+                        <CursorSelect
+                            id="new-session-repository-branch-mode"
+                            value={props.repositoryBranchMode}
+                            onChange={(event) => props.onRepositoryBranchModeChange(event.target.value as 'create' | 'reuse' | 'detached')}
+                            disabled={props.isDisabled}
+                            className="min-w-0"
+                        >
+                            <option value="create">Create branch</option>
+                            <option value="reuse">Reuse base branch</option>
+                            <option value="detached">Detached HEAD</option>
+                        </CursorSelect>
+                    </div>
+
+                    {props.repositoryBranchMode === 'create' ? (
+                        <>
+                            <div className="flex flex-col gap-1.5">
+                                <CursorFieldLabel htmlFor="new-session-repository-branch-prefix">Branch prefix</CursorFieldLabel>
+                                <CursorTextField
+                                    id="new-session-repository-branch-prefix"
+                                    type="text"
+                                    placeholder="haqi/"
+                                    value={props.repositoryBranchPrefix}
+                                    onChange={(event) => props.onRepositoryBranchPrefixChange(event.target.value)}
+                                    disabled={props.isDisabled}
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <CursorFieldLabel htmlFor="new-session-repository-branch-name">Branch name</CursorFieldLabel>
+                                <CursorTextField
+                                    id="new-session-repository-branch-name"
+                                    type="text"
+                                    placeholder="auto from prompt"
+                                    value={props.repositoryBranchName}
+                                    onChange={(event) => props.onRepositoryBranchNameChange(event.target.value)}
+                                    disabled={props.isDisabled}
+                                />
+                            </div>
+                        </>
+                    ) : null}
+
+                    <div className="flex flex-col gap-1.5">
+                        <CursorFieldLabel htmlFor="new-session-git-name">Git author name</CursorFieldLabel>
+                        <CursorTextField
+                            id="new-session-git-name"
+                            type="text"
+                            placeholder="Jane Doe"
+                            value={props.gitName}
+                            onChange={(event) => props.onGitNameChange(event.target.value)}
+                            disabled={props.isDisabled}
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <CursorFieldLabel htmlFor="new-session-git-email">Git author email</CursorFieldLabel>
+                        <CursorTextField
+                            id="new-session-git-email"
+                            type="email"
+                            placeholder="jane@example.com"
+                            value={props.gitEmail}
+                            onChange={(event) => props.onGitEmailChange(event.target.value)}
+                            disabled={props.isDisabled}
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
                         <CursorFieldLabel htmlFor="new-session-network-policy">{t('newSession.networkPolicy')}</CursorFieldLabel>
                         <CursorSelect
                             id="new-session-network-policy"
@@ -333,7 +410,7 @@ export function CloudSettingsSection(props: {
                             htmlFor="new-session-secrets"
                             action={(
                                 <a
-                                    href="/settings/cloud-agents"
+                                    href="/agents"
                                     className="text-[11px] text-[var(--accent)] hover:underline"
                                 >
                                     Manage secrets

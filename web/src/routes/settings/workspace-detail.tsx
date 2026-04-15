@@ -8,7 +8,10 @@ import {
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 
-export function CloudWorkspaceDetailContent(props: { workspaceId: string }) {
+export function CloudWorkspaceDetailContent(props: {
+    workspaceId: string
+    embedded?: boolean
+}) {
     const { api } = useAppContext()
     const workspaceId = props.workspaceId
 
@@ -45,7 +48,7 @@ export function CloudWorkspaceDetailContent(props: { workspaceId: string }) {
         : workspace.source?.directory
 
     return (
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
+        <div className={`${props.embedded ? 'flex flex-col gap-4 p-4' : 'mx-auto flex w-full max-w-3xl flex-col gap-4 p-4'}`}>
             <CursorSettingsHeader title={workspace.id} description="Workspace" />
 
             <CursorDetailGrid>

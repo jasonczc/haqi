@@ -35,11 +35,17 @@ function formatRef(request: {
     return 'default'
 }
 
-export function CloudRequestDetailContent(props: { requestId: string }) {
+export function CloudRequestDetailContent(props: {
+    requestId: string
+    routeScope?: 'settings' | 'agents'
+    embedded?: boolean
+}) {
     const { api } = useAppContext()
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const requestId = props.requestId
+    const routeScope = props.routeScope ?? 'settings'
+    const embedded = props.embedded ?? false
 
     const requestQuery = useQuery({
         queryKey: queryKeys.cloudRequest(requestId),
@@ -79,10 +85,17 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
         onSuccess: async (result) => {
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequests })
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequest(result.request.id) })
-            navigate({
-                to: '/settings/requests/$requestId',
-                params: { requestId: result.request.id }
-            })
+            if (routeScope === 'agents') {
+                navigate({
+                    to: '/agents/requests/$requestId',
+                    params: { requestId: result.request.id }
+                })
+            } else {
+                navigate({
+                    to: '/settings/requests/$requestId',
+                    params: { requestId: result.request.id }
+                })
+            }
         }
     })
 
@@ -119,7 +132,7 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
     const canRetry = request.phase === 'failed' || request.phase === 'canceled'
 
     return (
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
+        <div className={`${embedded ? 'flex flex-col gap-4 p-4' : 'mx-auto flex w-full max-w-3xl flex-col gap-4 p-4'}`}>
             <div className="flex items-center justify-between gap-3">
                 <CursorSettingsHeader title={request.id} description="Cloud Request" />
                 <div className="flex gap-2">
@@ -162,10 +175,19 @@ export function CloudRequestDetailContent(props: { requestId: string }) {
                             <button
                                 type="button"
                                 className="text-[var(--accent)] hover:underline"
-                                onClick={() => navigate({
-                                    to: '/settings/workspaces/$workspaceId',
-                                    params: { workspaceId: request.workspaceId! }
-                                })}
+                                onClick={() => {
+                                    if (routeScope === 'agents') {
+                                        navigate({
+                                            to: '/agents/workspaces/$workspaceId',
+                                            params: { workspaceId: request.workspaceId! }
+                                        })
+                                        return
+                                    }
+                                    navigate({
+                                        to: '/settings/workspaces/$workspaceId',
+                                        params: { workspaceId: request.workspaceId! }
+                                    })
+                                }}
                             >
                                 {request.workspaceId}
                             </button>

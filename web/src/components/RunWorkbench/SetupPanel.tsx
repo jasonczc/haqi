@@ -57,6 +57,7 @@ export function SetupPanel(props: {
 
     const isSetupComplete = setupStatus?.phase === 'complete' || setupStatus?.phase === 'done'
     const isSetupRunning = setupStatus?.phase === 'running' || setupStatus?.phase === 'active'
+    const setupSummary = setupStatus?.message ?? setupStatus?.phase
 
     // Derive steps from metadata
     const steps: SetupStep[] = [
@@ -66,14 +67,14 @@ export function SetupPanel(props: {
             description: 'Notifications are enabled for this session.'
         },
         {
-            label: 'Setting up environment',
+            label: 'Bootstrap workspace',
             status: isSetupComplete ? 'done' : isSetupRunning ? 'active' : 'pending',
-            description: setupStatus?.message
+            description: setupSummary
         },
         {
             label: 'Save environment',
             status: isSetupComplete && checkpointId ? 'done' : isSetupComplete ? 'active' : 'pending',
-            description: 'The environment consists of a machine snapshot and an update script for refreshing dependencies.'
+            description: 'Checkpoint now captures the workspace filesystem, injected env, and inner Docker state.'
         }
     ]
 

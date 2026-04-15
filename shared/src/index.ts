@@ -1,4 +1,5 @@
 export * from './messages'
+export * from './bootstrap'
 export * from './modes'
 export * from './socket'
 export * from './sessionSummary'

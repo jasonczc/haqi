@@ -157,7 +157,7 @@ export default function SettingsOverviewPage() {
                         title="Cloud Agents"
                         description="Manage environments, workers, secrets, defaults, and API keys."
                         control={(
-                            <Link to="/settings/cloud-agents" className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}>
+                            <Link to="/agents" className={cursorButtonClassName({ variant: 'outline', size: 'sm' })}>
                                 Open Cloud Agents
                             </Link>
                         )}

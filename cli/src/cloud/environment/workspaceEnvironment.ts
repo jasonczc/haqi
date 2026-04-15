@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import { isAbsolute, resolve, join } from 'node:path'
 import type { EnvironmentTemplate } from '@hapi/protocol/types'
 import { EnvironmentTemplateSchema } from '@hapi/protocol/schemas'
+import { mergeRepositorySpec } from '@hapi/protocol'
 import type { DockerCliRuntime } from '@/cloud/docker/dockerCli'
 
 const ENVIRONMENT_RELATIVE_PATHS = [
@@ -77,6 +78,14 @@ export function mergeEnvironmentTemplates(
     return {
         ...base,
         ...override,
+        repository: mergeRepositorySpec(base.repository, override.repository),
+        env: base.env || override.env
+            ? {
+                ...(base.env ?? {}),
+                ...(override.env ?? {}),
+                files: override.env?.files ?? base.env?.files
+            }
+            : undefined,
         runtime: base.runtime || override.runtime
             ? {
                 ...(base.runtime ?? {}),

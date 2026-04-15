@@ -514,7 +514,7 @@ function StepSecrets() {
             }
 
             localStorage.setItem('haqi-onboard-complete', 'true')
-            void navigate({ to: '/settings/cloud-agents' })
+            void navigate({ to: '/agents' })
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to save secrets')
         } finally {
