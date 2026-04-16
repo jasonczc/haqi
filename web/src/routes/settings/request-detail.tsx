@@ -87,7 +87,7 @@ export function CloudRequestDetailContent(props: {
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudRequest(result.request.id) })
             if (routeScope === 'agents') {
                 navigate({
-                    to: '/agents/requests/$requestId',
+                    to: '/settings/cloud-agents/requests/$requestId',
                     params: { requestId: result.request.id }
                 })
             } else {
@@ -178,7 +178,7 @@ export function CloudRequestDetailContent(props: {
                                 onClick={() => {
                                     if (routeScope === 'agents') {
                                         navigate({
-                                            to: '/agents/workspaces/$workspaceId',
+                                            to: '/settings/cloud-agents/workspaces/$workspaceId',
                                             params: { workspaceId: request.workspaceId! }
                                         })
                                         return

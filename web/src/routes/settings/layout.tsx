@@ -32,7 +32,7 @@ function SettingsNavIcon(props: { name: string }) {
 const primaryItems: SettingsNavItem[] = [
     { label: 'Overview', path: '/settings/overview', icon: <SettingsNavIcon name="home" /> },
     { label: 'Settings', path: '/settings/general', icon: <SettingsNavIcon name="settings" /> },
-    { label: 'Cloud Agents', path: '/agents', icon: <SettingsNavIcon name="cloud" /> },
+    { label: 'Cloud Agents', path: '/settings/cloud-agents', icon: <SettingsNavIcon name="cloud" /> },
     { label: 'Bugbot', path: '/settings/bugbot', icon: <SettingsNavIcon name="bug" /> },
 ]
 

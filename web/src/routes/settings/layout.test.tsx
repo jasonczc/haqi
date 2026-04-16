@@ -17,6 +17,6 @@ describe('SettingsLayout', () => {
     it('links Cloud Agents nav to the standalone route', () => {
         render(<SettingsLayout />)
         const cloudAgentsLink = screen.getByRole('link', { name: /Cloud Agents/i })
-        expect(cloudAgentsLink).toHaveAttribute('href', '/agents')
+        expect(cloudAgentsLink).toHaveAttribute('href', '/settings/cloud-agents')
     })
 })

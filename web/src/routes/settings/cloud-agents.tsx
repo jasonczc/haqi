@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { CloudSpawnRequest, CloudWorkspace } from '@hapi/protocol/types'
@@ -12,6 +12,8 @@ import { CloudRequestDetailContent } from '@/routes/settings/request-detail'
 import { CloudWorkspaceDetailContent } from '@/routes/settings/workspace-detail'
 import {
     CursorButton,
+    CursorDetailGrid,
+    CursorDetailItem,
     CursorDialogBody,
     CursorDialogFooter,
     CursorDialogHeader,
@@ -26,6 +28,7 @@ import {
     CursorSettingsCard,
     CursorSettingsHeader,
     CursorSettingsSection,
+    CursorSummaryMetric,
     CursorTextArea,
     CursorTextField,
 } from '@/components/settings/CursorSettingsPrimitives'
@@ -110,17 +113,39 @@ function WorkspaceStatusBadge(props: { status: string }) {
     )
 }
 
-function SummaryMetric(props: {
-    label: string
-    value: string
-    hint?: string
+type ActivityLinkKind = 'request' | 'workspace'
+
+const activityRowClass = 'flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-4 py-4 transition-colors hover:bg-[var(--cursor-bg-hover)] last:border-b-0'
+const sidebarRowClass = 'block rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-2 transition-colors hover:bg-[var(--cursor-bg-hover)]'
+
+function ActivityRowBody(props: {
+    kind: ActivityLinkKind
+    statusBadge: ReactNode
+    title: ReactNode
+    secondary?: ReactNode
+    tertiary?: ReactNode
+    error?: ReactNode
+    showKindBadge?: boolean
 }) {
+    const kindLabel = props.kind === 'request' ? 'Request' : 'Workspace'
+    const kindTone: 'default' | 'accent' = props.kind === 'request' ? 'default' : 'accent'
     return (
-        <div className="rounded-xl border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] p-4">
-            <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">{props.label}</div>
-            <div className="mt-2 text-[24px] font-semibold leading-8 text-[var(--cursor-text-primary)]">{props.value}</div>
-            {props.hint ? (
-                <div className="mt-1 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">{props.hint}</div>
+        <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+                {props.statusBadge}
+                {props.showKindBadge ? (
+                    <CursorSettingsBadge tone={kindTone}>{kindLabel}</CursorSettingsBadge>
+                ) : null}
+                <span className="truncate font-mono text-[12px] text-[var(--cursor-text-primary)]">{props.title}</span>
+            </div>
+            {props.secondary ? (
+                <div className="mt-1 truncate text-[13px] text-[var(--cursor-text-secondary)]">{props.secondary}</div>
+            ) : null}
+            {props.tertiary ? (
+                <div className="mt-1 text-[12px] text-[var(--cursor-text-tertiary)]">{props.tertiary}</div>
+            ) : null}
+            {props.error ? (
+                <div className="mt-2 text-[12px] text-[var(--danger)]">{props.error}</div>
             ) : null}
         </div>
     )
@@ -443,7 +468,7 @@ export default function SettingsCloudAgentsPage(props: {
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkspaces })
             if (result.type === 'accepted') {
                 navigate({
-                    to: '/agents/requests/$requestId',
+                    to: '/settings/cloud-agents/requests/$requestId',
                     params: { requestId: result.requestId }
                 })
                 return
@@ -505,44 +530,14 @@ export default function SettingsCloudAgentsPage(props: {
                             </div>
 
                             <div className="border-t border-[var(--cursor-stroke-tertiary)] pt-4">
-                                <div className="mb-2 text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Activity views</div>
-                                <div className="grid gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setActivityFilter('all')}
-                                        className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors ${activityFilter === 'all' ? 'border-[var(--accent)] bg-[var(--bg-accent-tertiary)] text-[var(--cursor-text-primary)]' : 'border-[var(--cursor-stroke-tertiary)] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-hover)]'}`}
-                                    >
-                                        <span className="text-[13px] font-medium">All activity</span>
-                                        <CursorSettingsBadge tone="default">{activityItems.length}</CursorSettingsBadge>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setActivityFilter('requests')}
-                                        className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors ${activityFilter === 'requests' ? 'border-[var(--accent)] bg-[var(--bg-accent-tertiary)] text-[var(--cursor-text-primary)]' : 'border-[var(--cursor-stroke-tertiary)] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-hover)]'}`}
-                                    >
-                                        <span className="text-[13px] font-medium">Requests</span>
-                                        <CursorSettingsBadge tone="default">{requests.length}</CursorSettingsBadge>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setActivityFilter('workspaces')}
-                                        className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors ${activityFilter === 'workspaces' ? 'border-[var(--accent)] bg-[var(--bg-accent-tertiary)] text-[var(--cursor-text-primary)]' : 'border-[var(--cursor-stroke-tertiary)] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-hover)]'}`}
-                                    >
-                                        <span className="text-[13px] font-medium">Workspaces</span>
-                                        <CursorSettingsBadge tone="default">{workspaces.length}</CursorSettingsBadge>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="border-t border-[var(--cursor-stroke-tertiary)] pt-4">
                                 <div className="mb-2 text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Recent</div>
                                 <div className="grid gap-2">
                                     {activityItems.slice(0, 6).map((item) => item.kind === 'request' ? (
                                         <Link
                                             key={`sidebar-request:${item.id}`}
-                                            to="/agents/requests/$requestId"
+                                            to="/settings/cloud-agents/requests/$requestId"
                                             params={{ requestId: item.id }}
-                                            className="rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-2 hover:bg-[var(--cursor-bg-hover)]"
+                                            className={sidebarRowClass}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <RequestPhaseBadge phase={item.request.phase} />
@@ -555,9 +550,9 @@ export default function SettingsCloudAgentsPage(props: {
                                     ) : (
                                         <Link
                                             key={`sidebar-workspace:${item.id}`}
-                                            to="/agents/workspaces/$workspaceId"
+                                            to="/settings/cloud-agents/workspaces/$workspaceId"
                                             params={{ workspaceId: item.id }}
-                                            className="rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-2 hover:bg-[var(--cursor-bg-hover)]"
+                                            className={sidebarRowClass}
                                         >
                                             <div className="flex items-center gap-2">
                                                 <WorkspaceStatusBadge status={item.workspace.status} />
@@ -595,10 +590,11 @@ export default function SettingsCloudAgentsPage(props: {
                                         </div>
                                     </div>
                                     {githubConnection?.connected && githubRepos.length > 0 ? (
-                                        <div className="rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-2 text-right">
-                                            <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Repos visible</div>
-                                            <div className="text-[18px] font-semibold text-[var(--cursor-text-primary)]">{githubRepos.length}</div>
-                                        </div>
+                                        <CursorSummaryMetric
+                                            label="Repos visible"
+                                            value={githubRepos.length}
+                                            className="min-w-[140px] text-right"
+                                        />
                                     ) : null}
                                 </div>
 
@@ -665,26 +661,34 @@ export default function SettingsCloudAgentsPage(props: {
                                         New Agent
                                     </CursorButton>
                                 </div>
-                                <div className="grid gap-3 md:grid-cols-3">
-                                    <div className="rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-3">
-                                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Default repo</div>
-                                        <div className="mt-2 truncate text-[13px] font-medium text-[var(--cursor-text-primary)]">{defaultRepo}</div>
-                                    </div>
-                                    <div className="rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-3">
-                                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Git identity</div>
-                                        <div className="mt-2 truncate text-[13px] font-medium text-[var(--cursor-text-primary)]">
-                                            {cloudAgentSettingsQuery.data?.settings.gitName || 'Not set'}
-                                        </div>
-                                        <div className="mt-1 truncate text-[12px] text-[var(--cursor-text-secondary)]">
-                                            {cloudAgentSettingsQuery.data?.settings.gitEmail || 'Set defaults on the right'}
-                                        </div>
-                                    </div>
-                                    <div className="rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-3">
-                                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Branch policy</div>
-                                        <div className="mt-2 text-[13px] font-medium text-[var(--cursor-text-primary)]">Create from {baseBranchDraft || DEFAULT_BASE_BRANCH}</div>
-                                        <div className="mt-1 text-[12px] text-[var(--cursor-text-secondary)]">{branchPrefixDraft || DEFAULT_BRANCH_PREFIX}*</div>
-                                    </div>
-                                </div>
+                                <CursorDetailGrid className="md:grid-cols-3">
+                                    <CursorDetailItem
+                                        label="Default repo"
+                                        value={<span className="block truncate">{defaultRepo}</span>}
+                                    />
+                                    <CursorDetailItem
+                                        label="Git identity"
+                                        value={(
+                                            <>
+                                                <div className="truncate">{cloudAgentSettingsQuery.data?.settings.gitName || 'Not set'}</div>
+                                                <div className="mt-1 truncate text-[12px] font-normal text-[var(--cursor-text-secondary)]">
+                                                    {cloudAgentSettingsQuery.data?.settings.gitEmail || 'Set defaults on the right'}
+                                                </div>
+                                            </>
+                                        )}
+                                    />
+                                    <CursorDetailItem
+                                        label="Branch policy"
+                                        value={(
+                                            <>
+                                                <div>Create from {baseBranchDraft || DEFAULT_BASE_BRANCH}</div>
+                                                <div className="mt-1 text-[12px] font-normal text-[var(--cursor-text-secondary)]">
+                                                    {branchPrefixDraft || DEFAULT_BRANCH_PREFIX}*
+                                                </div>
+                                            </>
+                                        )}
+                                    />
+                                </CursorDetailGrid>
                             </div>
                         </CursorSettingsCard>
                     </CursorSettingsSection>
@@ -719,43 +723,35 @@ export default function SettingsCloudAgentsPage(props: {
                                 filteredActivityItems.slice(0, 14).map((item) => item.kind === 'request' ? (
                                     <Link
                                         key={`request:${item.id}`}
-                                        to="/agents/requests/$requestId"
+                                        to="/settings/cloud-agents/requests/$requestId"
                                         params={{ requestId: item.id }}
-                                        className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-4 py-4 transition-colors hover:bg-[var(--cursor-bg-hover)] last:border-b-0"
+                                        className={activityRowClass}
                                     >
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <RequestPhaseBadge phase={item.request.phase} />
-                                                <CursorSettingsBadge tone="default">Request</CursorSettingsBadge>
-                                                <span className="font-mono text-[12px] text-[var(--cursor-text-primary)]">{item.request.id}</span>
-                                            </div>
-                                            <div className="mt-1 truncate text-[13px] text-[var(--cursor-text-secondary)]">
-                                                {item.request.request.workspaceSource?.repository?.url ?? 'No repo'} · {item.request.request.agent ?? 'agent'}
-                                            </div>
-                                            <div className="mt-1 text-[12px] text-[var(--cursor-text-tertiary)]">{formatRelativeTime(item.request.updatedAt)}</div>
-                                            {item.request.error ? (
-                                                <div className="mt-2 text-[12px] text-[var(--danger)]">{item.request.error.message ?? item.request.error.code}</div>
-                                            ) : null}
-                                        </div>
+                                        <ActivityRowBody
+                                            kind="request"
+                                            showKindBadge
+                                            statusBadge={<RequestPhaseBadge phase={item.request.phase} />}
+                                            title={item.request.id}
+                                            secondary={`${item.request.request.workspaceSource?.repository?.url ?? 'No repo'} · ${item.request.request.agent ?? 'agent'}`}
+                                            tertiary={formatRelativeTime(item.request.updatedAt)}
+                                            error={item.request.error ? (item.request.error.message ?? item.request.error.code) : undefined}
+                                        />
                                     </Link>
                                 ) : (
                                     <Link
                                         key={`workspace:${item.id}`}
-                                        to="/agents/workspaces/$workspaceId"
+                                        to="/settings/cloud-agents/workspaces/$workspaceId"
                                         params={{ workspaceId: item.id }}
-                                        className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-4 py-4 transition-colors hover:bg-[var(--cursor-bg-hover)] last:border-b-0"
+                                        className={activityRowClass}
                                     >
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <WorkspaceStatusBadge status={item.workspace.status} />
-                                                <CursorSettingsBadge tone="accent">Workspace</CursorSettingsBadge>
-                                                <span className="font-mono text-[12px] text-[var(--cursor-text-primary)]">{item.workspace.id}</span>
-                                            </div>
-                                            <div className="mt-1 truncate text-[13px] text-[var(--cursor-text-secondary)]">
-                                                {item.workspace.machineId ?? 'pending worker'} · {item.workspace.mode ?? 'ephemeral'} · {item.workspace.path ?? 'workspace path pending'}
-                                            </div>
-                                            <div className="mt-1 text-[12px] text-[var(--cursor-text-tertiary)]">{formatRelativeTime(item.workspace.updatedAt)}</div>
-                                        </div>
+                                        <ActivityRowBody
+                                            kind="workspace"
+                                            showKindBadge
+                                            statusBadge={<WorkspaceStatusBadge status={item.workspace.status} />}
+                                            title={item.workspace.id}
+                                            secondary={`${item.workspace.machineId ?? 'pending worker'} · ${item.workspace.mode ?? 'ephemeral'} · ${item.workspace.path ?? 'workspace path pending'}`}
+                                            tertiary={formatRelativeTime(item.workspace.updatedAt)}
+                                        />
                                     </Link>
                                 ))
                             )}
@@ -766,19 +762,19 @@ export default function SettingsCloudAgentsPage(props: {
                 <div className="flex min-w-0 flex-col gap-6">
                     <CursorSettingsSection title="Overview" subtitle="Queue, workers, and daemon workspaces at a glance.">
                         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-                            <SummaryMetric
+                            <CursorSummaryMetric
                                 label="Active workers"
-                                value={`${activeWorkers.length}`}
+                                value={activeWorkers.length}
                                 hint={`${workers.length} total connected`}
                             />
-                            <SummaryMetric
+                            <CursorSummaryMetric
                                 label="Queued or running"
-                                value={`${requests.filter((request) => !['failed', 'canceled', 'succeeded'].includes(request.phase)).length}`}
+                                value={requests.filter((request) => !['failed', 'canceled', 'succeeded'].includes(request.phase)).length}
                                 hint={`${requests.length} recent requests`}
                             />
-                            <SummaryMetric
+                            <CursorSummaryMetric
                                 label="Tracked workspaces"
-                                value={`${workspaces.length}`}
+                                value={workspaces.length}
                                 hint={`${workspaces.filter((workspace) => workspace.status === 'ready' || workspace.status === 'leased').length} usable`}
                             />
                         </div>
@@ -803,22 +799,19 @@ export default function SettingsCloudAgentsPage(props: {
                                 workspaces.map((workspace) => (
                                     <Link
                                         key={workspace.id}
-                                        to="/agents/workspaces/$workspaceId"
+                                        to="/settings/cloud-agents/workspaces/$workspaceId"
                                         params={{ workspaceId: workspace.id }}
-                                        className="flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-4 py-4 transition-colors hover:bg-[var(--cursor-bg-hover)] last:border-b-0"
+                                        className={activityRowClass}
                                     >
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <WorkspaceStatusBadge status={workspace.status} />
-                                                <span className="font-mono text-[12px] text-[var(--cursor-text-primary)]">{workspace.id}</span>
-                                            </div>
-                                            <div className="mt-1 text-[13px] text-[var(--cursor-text-secondary)]">
-                                                {workspace.machineId ?? 'pending worker'} · {workspace.mode ?? 'ephemeral'} · {formatRelativeTime(workspace.updatedAt)}
-                                            </div>
-                                            {workspace.path ? (
-                                                <div className="mt-1 truncate font-mono text-[12px] text-[var(--cursor-text-tertiary)]">{workspace.path}</div>
-                                            ) : null}
-                                        </div>
+                                        <ActivityRowBody
+                                            kind="workspace"
+                                            statusBadge={<WorkspaceStatusBadge status={workspace.status} />}
+                                            title={workspace.id}
+                                            secondary={`${workspace.machineId ?? 'pending worker'} · ${workspace.mode ?? 'ephemeral'} · ${formatRelativeTime(workspace.updatedAt)}`}
+                                            tertiary={workspace.path ? (
+                                                <span className="truncate font-mono">{workspace.path}</span>
+                                            ) : undefined}
+                                        />
                                     </Link>
                                 ))
                             )}
@@ -919,17 +912,14 @@ export default function SettingsCloudAgentsPage(props: {
                                 ) : (
                                     <div className="grid gap-3">
                                         {environments.map((environment) => (
-                                            <div
-                                                key={environment.id}
-                                                className="rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-3"
-                                            >
+                                            <CursorSettingsCard key={environment.id} className="px-3 py-3">
                                                 <div className="text-[13px] font-semibold text-[var(--cursor-text-primary)]">
                                                     {environment.id.replace(/^repo:/, '')}
                                                 </div>
                                                 <div className="mt-1 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
                                                     {environment.runtimeKind ?? 'daemon-session'} · {environment.serviceCount} services · {environment.repositoryDependenciesCount} bootstrap deps
                                                 </div>
-                                            </div>
+                                            </CursorSettingsCard>
                                         ))}
                                     </div>
                                 )}
@@ -1042,9 +1032,9 @@ export default function SettingsCloudAgentsPage(props: {
                                                     ))}
                                                 </CursorSelect>
                                             </div>
-                                            <div className="rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-3 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
+                                            <CursorSettingsCard className="px-3 py-3 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
                                                 Runtime fixed to <span className="font-medium text-[var(--cursor-text-primary)]">daemon-session</span> and launch fixed to <span className="font-medium text-[var(--cursor-text-primary)]">background</span>.
-                                            </div>
+                                            </CursorSettingsCard>
                                         </div>
                                     </div>
 
@@ -1164,7 +1154,7 @@ export default function SettingsCloudAgentsPage(props: {
                                         </div>
                                     </div>
 
-                                    <div className="rounded-lg border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)] px-4 py-4">
+                                    <CursorSettingsCard className="px-4 py-4">
                                         <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Bootstrap summary</div>
                                         <div className="mt-2 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">
                                             Repo sync policy: <span className="font-medium text-[var(--cursor-text-primary)]">fetch-reset</span>
@@ -1175,7 +1165,7 @@ export default function SettingsCloudAgentsPage(props: {
                                         <div className="mt-1 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">
                                             GitHub identity: <span className="font-medium text-[var(--cursor-text-primary)]">{cloudAgentSettingsQuery.data?.settings.githubUsername || 'not inferred'}</span>
                                         </div>
-                                    </div>
+                                    </CursorSettingsCard>
                                 </div>
                             </div>
 
@@ -1215,7 +1205,7 @@ export default function SettingsCloudAgentsPage(props: {
                 open={detailOpen}
                 onOpenChange={(open) => {
                     if (!open) {
-                        navigate({ to: '/agents' })
+                        navigate({ to: '/settings/cloud-agents' })
                     }
                 }}
             >
@@ -1234,7 +1224,7 @@ export default function SettingsCloudAgentsPage(props: {
                                     Stay in the agent workspace while inspecting background state.
                                 </div>
                             </div>
-                            <CursorButton type="button" variant="outline" size="sm" onClick={() => navigate({ to: '/agents' })}>
+                            <CursorButton type="button" variant="outline" size="sm" onClick={() => navigate({ to: '/settings/cloud-agents' })}>
                                 Close
                             </CursorButton>
                         </div>

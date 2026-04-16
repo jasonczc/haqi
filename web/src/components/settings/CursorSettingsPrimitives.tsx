@@ -732,3 +732,56 @@ export function CursorDetailItem(props: {
         </div>
     )
 }
+
+type SummaryTone = 'default' | 'accent' | 'success' | 'danger'
+
+function summaryValueToneClass(tone: SummaryTone | undefined): string {
+    switch (tone) {
+        case 'success':
+            return 'text-[var(--success)]'
+        case 'danger':
+            return 'text-[var(--danger)]'
+        case 'accent':
+            return 'text-[var(--accent)]'
+        default:
+            return 'text-[var(--cursor-text-primary)]'
+    }
+}
+
+export function CursorSummaryMetric(props: {
+    label: React.ReactNode
+    value: React.ReactNode
+    hint?: React.ReactNode
+    tone?: SummaryTone
+    className?: string
+}) {
+    return (
+        <CursorSettingsCard className={cn('p-4', props.className)}>
+            <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">{props.label}</div>
+            <div className={cn('mt-2 text-[24px] font-semibold leading-8', summaryValueToneClass(props.tone))}>
+                {props.value}
+            </div>
+            {props.hint ? (
+                <div className="mt-1 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">{props.hint}</div>
+            ) : null}
+        </CursorSettingsCard>
+    )
+}
+
+export function CursorSummaryCard(props: {
+    label: React.ReactNode
+    value: React.ReactNode
+    description?: React.ReactNode
+    tone?: SummaryTone
+    className?: string
+}) {
+    return (
+        <CursorSummaryMetric
+            label={props.label}
+            value={props.value}
+            hint={props.description}
+            tone={props.tone}
+            className={props.className}
+        />
+    )
+}
