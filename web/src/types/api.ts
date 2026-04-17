@@ -617,9 +617,6 @@ export type CloudAgentSettings = {
     gitName: string
     gitEmail: string
     githubUsername: string
-    branchPrefix: string
-    baseBranch: string
-    defaultRepositoryUrl: string
 }
 
 export type GitHubConnectionProfile = {
@@ -654,6 +651,15 @@ export type GitHubRepoSummary = {
 
 export type CloudAgentGitHubReposResponse = {
     repos: GitHubRepoSummary[]
+}
+
+export type GitHubBranchSummary = {
+    name: string
+    protected: boolean
+}
+
+export type CloudAgentGitHubBranchesResponse = {
+    branches: GitHubBranchSummary[]
 }
 
 export type UsageTotals = {

@@ -1,6 +1,7 @@
 import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
 import { useTranslation } from '@/lib/use-translation'
+import { ComposerIconButton } from '@/components/AssistantChat/ComposerIconButton'
 
 function VoiceAssistantIcon() {
     return (
@@ -392,111 +393,96 @@ export function ComposerButtons(props: {
                 </ComposerPrimitive.AddAttachment>
 
                 {props.showSettingsButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.settings')}
-                        title={t('composer.settings')}
-                        className="settings-button composer-icon-btn composer-settings-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--cursor-text-primary)]"
+                    <ComposerIconButton
+                        icon={<SettingsIcon />}
                         onClick={props.onSettingsToggle}
                         disabled={props.controlsDisabled}
-                    >
-                        <SettingsIcon />
-                    </button>
+                        title={t('composer.settings')}
+                        aria-label={t('composer.settings')}
+                        className="settings-button composer-settings-btn"
+                    />
                 ) : null}
 
                 {props.showTerminalButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.terminal')}
-                        title={t('composer.terminal')}
-                        className="composer-icon-btn composer-terminal-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--success)] disabled:cursor-not-allowed disabled:opacity-50"
+                    <ComposerIconButton
+                        icon={<TerminalIcon />}
+                        tone="success"
                         onClick={props.onTerminal}
                         disabled={props.terminalDisabled}
-                    >
-                        <TerminalIcon />
-                    </button>
+                        title={t('composer.terminal')}
+                        aria-label={t('composer.terminal')}
+                        className="composer-terminal-btn"
+                    />
                 ) : null}
 
                 {props.showStatusButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.status')}
-                        title={t('composer.status')}
-                        className="composer-icon-btn composer-status-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                    <ComposerIconButton
+                        icon={<StatusIcon />}
+                        tone="accent"
                         onClick={props.onStatus}
                         disabled={props.statusDisabled}
-                    >
-                        <StatusIcon />
-                    </button>
+                        title={t('composer.status')}
+                        aria-label={t('composer.status')}
+                        className="composer-status-btn"
+                    />
                 ) : null}
 
                 {props.showQueueButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.queue')}
-                        title={t('composer.queue')}
-                        className={`composer-icon-btn composer-queue-btn relative flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                            props.queueActive
-                                ? 'bg-[var(--accent)]/10 text-[var(--accent)]'
-                                : 'text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-card)] hover:text-[var(--accent)]'
-                        }`}
+                    <ComposerIconButton
+                        icon={<QueueIcon />}
+                        tone="accent"
+                        active={props.queueActive}
                         onClick={props.onQueue}
                         disabled={props.queueDisabled}
-                    >
-                        <QueueIcon />
-                        {props.queuePendingCount > 0 ? (
+                        title={t('composer.queue')}
+                        aria-label={t('composer.queue')}
+                        className="composer-queue-btn"
+                        badge={props.queuePendingCount > 0 ? (
                             <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold leading-4 text-white">
                                 {props.queuePendingCount > 99 ? '99+' : props.queuePendingCount}
                             </span>
                         ) : null}
-                    </button>
+                    />
                 ) : null}
 
                 {props.showAbortButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.abort')}
-                        title={t('composer.abort')}
-                        disabled={props.abortDisabled}
-                        className="composer-icon-btn composer-abort-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--danger)] disabled:cursor-not-allowed disabled:opacity-50"
+                    <ComposerIconButton
+                        icon={<AbortIcon spinning={props.isAborting} />}
+                        tone="danger"
                         onClick={props.onAbort}
-                    >
-                        <AbortIcon spinning={props.isAborting} />
-                    </button>
+                        disabled={props.abortDisabled}
+                        title={t('composer.abort')}
+                        aria-label={t('composer.abort')}
+                        className="composer-abort-btn"
+                    />
                 ) : null}
 
                 {props.showSwitchButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.switchRemote')}
-                        title={t('composer.switchRemote')}
-                        disabled={props.switchDisabled}
-                        className="composer-icon-btn composer-switch-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+                    <ComposerIconButton
+                        icon={<SwitchToRemoteIcon />}
+                        tone="accent"
                         onClick={props.onSwitch}
-                    >
-                        <SwitchToRemoteIcon />
-                    </button>
+                        disabled={props.switchDisabled}
+                        title={t('composer.switchRemote')}
+                        aria-label={t('composer.switchRemote')}
+                        className="composer-switch-btn"
+                    />
                 ) : null}
 
                 {isVoiceConnected && props.onVoiceMicToggle ? (
-                    <button
-                        type="button"
-                        aria-label={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
-                        title={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
-                        className={`composer-icon-btn composer-voice-btn flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                            props.voiceMicMuted
-                                ? 'bg-[var(--cursor-bg-quaternary)] text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-elevated)]'
-                                : 'text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-card)] hover:text-[var(--cursor-text-primary)]'
-                        }`}
+                    <ComposerIconButton
+                        icon={<SpeakerIcon muted={props.voiceMicMuted} />}
+                        active={props.voiceMicMuted}
                         onClick={props.onVoiceMicToggle}
-                    >
-                        <SpeakerIcon muted={props.voiceMicMuted} />
-                    </button>
+                        title={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
+                        aria-label={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
+                        className="composer-voice-btn"
+                    />
                 ) : null}
             </div>
 
             <div
-                className="chat-input-actions flex items-center gap-2"
+                className="chat-input-actions flex items-center gap-1.5"
                 title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
             >
                 {props.showPlanModeToggle ? (
@@ -504,13 +490,11 @@ export function ComposerButtons(props: {
                         type="button"
                         onClick={props.onPlanModeToggle}
                         disabled={props.planModeDisabled}
-                        className={`composer-pill-btn composer-plan-btn rounded-full border px-2 py-1 text-[10px] font-medium transition-colors ${
-                            props.planModeEnabled
-                                ? 'border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]'
-                                : 'border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]'
-                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                        data-active={props.planModeEnabled ? '' : undefined}
+                        className="mode-chip"
                         title={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
                         aria-label={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
+                        aria-pressed={props.planModeEnabled}
                     >
                         {t('queue.mode.plan')}
                     </button>
@@ -521,11 +505,8 @@ export function ComposerButtons(props: {
                         type="button"
                         onClick={() => props.onSendModeChange(props.sendMode === 'queue' ? 'direct' : 'queue')}
                         disabled={props.sendModeDisabled}
-                        className={`composer-pill-btn composer-send-mode-btn rounded-full border px-2 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                            props.sendMode === 'queue'
-                                ? 'border-[var(--accent)]/40 bg-[var(--accent)]/10 text-[var(--accent)]'
-                                : 'border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]'
-                        }`}
+                        data-active={props.sendMode === 'queue' ? '' : undefined}
+                        className="mode-chip"
                         title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
                         aria-label={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
                     >

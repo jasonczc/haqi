@@ -121,7 +121,7 @@ export function AskUserQuestionView(props: ToolViewProps) {
                 return (
                     <div key={q.id} className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] p-3">
                         {q.header ? (
-                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--cursor-text-secondary)]">
+                            <div className="mb-2 text-xs font-medium text-[var(--cursor-text-secondary)]">
                                 {q.header}
                             </div>
                         ) : null}

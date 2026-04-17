@@ -2,11 +2,28 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { execFile, spawn } from 'node:child_process'
 import { resolve } from 'node:path'
+import { readFileSync } from 'node:fs'
 import os from 'node:os'
 import { promisify } from 'node:util'
 import { CLOUD_PROVIDER_NAMES } from '../../cloud/provider'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
+
+// `process.kill(pid, 0)` returns success for zombie (Z) and dying (X) processes
+// because their pid entry still exists. Read /proc/<pid>/status and treat
+// anything other than R/S/D/T as dead. Returns false on non-Linux too.
+function isPidAlive(pid: number): boolean {
+    if (!Number.isFinite(pid) || pid <= 0) return false
+    try {
+        const status = readFileSync(`/proc/${pid}/status`, 'utf8')
+        const match = status.match(/^State:\s+([A-Z])/m)
+        if (!match) return false
+        const state = match[1]
+        return state === 'R' || state === 'S' || state === 'D' || state === 'T'
+    } catch {
+        return false
+    }
+}
 
 const execFileAsync = promisify(execFile)
 const LOCAL_RUNTIME_IMAGE = 'haqi-workspace:dev'
@@ -92,6 +109,53 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         return c.json({
             workers: engine.listCloudWorkers(parsed.data.provider, namespace)
         })
+    })
+
+    app.delete('/cloud/workers/:machineId', (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+        const namespace = c.get('namespace')
+        const machineId = c.req.param('machineId')
+        if (!machineId) {
+            return c.json({ error: 'Missing machineId' }, 400)
+        }
+
+        const machine = engine.getMachineByNamespace(machineId, namespace)
+        if (!machine) {
+            return c.json({ error: 'Machine not found' }, 404)
+        }
+        if (machine.active) {
+            return c.json({
+                error: 'Machine is active. Stop the worker before removing it.'
+            }, 409)
+        }
+
+        // If this machine is the locally-tracked worker, stop the process
+        // first — the worker's still holding its lock file even though hub
+        // marked it inactive after a heartbeat timeout. Without this the user
+        // ends up with an orphan process blocking every future start attempt.
+        const machinePid = (machine.runnerState as { pid?: number } | null)?.pid
+        if (
+            localWorkerProcess
+            && localWorkerProcess.exitCode === null
+            && typeof machinePid === 'number'
+            && localWorkerProcess.pid === machinePid
+            && isPidAlive(localWorkerProcess.pid)
+        ) {
+            try {
+                process.kill(localWorkerProcess.pid, 'SIGTERM')
+            } catch { /* process may be gone already */ }
+            localWorkerProcess.exitCode = -1
+            localWorkerProcess.logs.push('[hub] Worker process stopped as part of machine removal')
+        }
+
+        const removed = engine.removeMachineByNamespace(machineId, namespace)
+        if (!removed) {
+            return c.json({ error: 'Failed to remove machine' }, 500)
+        }
+        return c.json({ removed: true, machineId })
     })
 
     app.get('/cloud/providers', (c) => {
@@ -476,10 +540,9 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         const ready = await hasLocalRuntimeImage()
         let running = false
         if (localRuntimeProcess && localRuntimeProcess.exitCode === null) {
-            try {
-                process.kill(localRuntimeProcess.pid, 0)
+            if (isPidAlive(localRuntimeProcess.pid)) {
                 running = true
-            } catch {
+            } else {
                 localRuntimeProcess.exitCode = -1
                 appendLocalRuntimeLog('[hub] Runtime build process no longer running')
             }
@@ -517,13 +580,14 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
             .find((worker) => worker.machineId === machineId)
 
         const summaryPid = workerSummary?.runnerState?.pid
-        if (!summaryPid || !Number.isFinite(summaryPid) || summaryPid <= 0) {
-            return workerSummary ?? null
-        }
-
-        try {
-            process.kill(summaryPid, 0)
-        } catch {
+        if (!summaryPid || !isPidAlive(summaryPid)) {
+            // Summary pid is stale (zombie, gone, or never existed). If we were
+            // previously tracking that same pid, clear the tracker so the next
+            // start request spawns a fresh worker instead of pretending one is
+            // still running.
+            if (localWorkerProcess && summaryPid && localWorkerProcess.pid === summaryPid) {
+                localWorkerProcess.exitCode = localWorkerProcess.exitCode ?? -1
+            }
             return workerSummary ?? null
         }
 
@@ -572,8 +636,7 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
 
         // If already running, return existing info
         if (localWorkerProcess && localWorkerProcess.exitCode === null) {
-            try {
-                process.kill(localWorkerProcess.pid, 0) // check if alive
+            if (isPidAlive(localWorkerProcess.pid)) {
                 const workerSummary = trackedWorkerSummary ?? ensureTrackedLocalWorkerFromSummary(engine, namespace, localWorkerMachineId)
 
                 const recentStartupGraceMs = 30_000
@@ -592,8 +655,8 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
                 }
 
                 stopTrackedWorker('existing process is alive but worker is not selectable')
-            } catch {
-                // process died without us knowing
+            } else {
+                // process died without us knowing (crash, kill, or zombie)
                 localWorkerProcess.exitCode = -1
                 localWorkerProcess.logs.push('[hub] Worker process no longer running')
             }
@@ -682,9 +745,9 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
             return c.json({ running: false, logs: [] })
         }
 
-        let alive = localWorkerProcess.exitCode === null
-        if (alive) {
-            try { process.kill(localWorkerProcess.pid, 0) } catch { alive = false }
+        const alive = localWorkerProcess.exitCode === null && isPidAlive(localWorkerProcess.pid)
+        if (!alive && localWorkerProcess.exitCode === null) {
+            localWorkerProcess.exitCode = -1
         }
 
         return c.json({
@@ -738,14 +801,13 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         }
 
         if (localRuntimeProcess && localRuntimeProcess.exitCode === null) {
-            try {
-                process.kill(localRuntimeProcess.pid, 0)
+            if (isPidAlive(localRuntimeProcess.pid)) {
                 return c.json({
                     started: true,
                     alreadyRunning: true,
                     ...(await buildLocalRuntimeStatus())
                 })
-            } catch {
+            } else {
                 localRuntimeProcess.exitCode = -1
                 appendLocalRuntimeLog('[hub] Runtime build process no longer running')
             }

@@ -380,7 +380,7 @@ export const CursorTextField = React.forwardRef<HTMLInputElement, React.InputHTM
             <input
                 ref={ref}
                 className={cn(
-                    'w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[13px] leading-[18px] text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50',
+                    'w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[13px] leading-[18px] text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] transition-[border-color,box-shadow,background-color] duration-150 ease-out hover:border-[var(--cursor-stroke-primary)] focus:outline-none focus:border-[var(--cursor-stroke-primary)] focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50',
                     compact ? 'h-8 px-3 py-1.5' : 'h-9 px-3 py-2',
                     mono ? 'font-[var(--font-mono)]' : '',
                     className
@@ -398,7 +398,7 @@ export function CursorTextArea(
     return (
         <textarea
             className={cn(
-                'w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-[13px] leading-[18px] text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50',
+                'w-full rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-[13px] leading-[18px] text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] transition-[border-color,box-shadow,background-color] duration-150 ease-out hover:border-[var(--cursor-stroke-primary)] focus:outline-none focus:border-[var(--cursor-stroke-primary)] focus:ring-2 focus:ring-[var(--accent)] disabled:opacity-50',
                 className
             )}
             {...rest}
@@ -412,7 +412,7 @@ export function CursorSelect(
     const { className, children, ...rest } = props
     return (
         <div className={cn(
-            'relative min-w-[200px] rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[13px] leading-[18px] text-[var(--cursor-text-primary)] transition-colors focus-within:ring-2 focus-within:ring-[var(--accent)]',
+            'relative min-w-[200px] rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[13px] leading-[18px] text-[var(--cursor-text-primary)] transition-[border-color,box-shadow,background-color] duration-150 ease-out hover:border-[var(--cursor-stroke-primary)] focus-within:border-[var(--cursor-stroke-primary)] focus-within:ring-2 focus-within:ring-[var(--accent)]',
             className
         )}
         >
@@ -727,8 +727,8 @@ export function CursorDetailItem(props: {
 }) {
     return (
         <div className={props.className}>
-            <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-secondary)]">{props.label}</div>
-            <div className="mt-1 font-medium">{props.value}</div>
+            <div className="text-[12px] font-medium text-[var(--cursor-text-tertiary)]">{props.label}</div>
+            <div className="mt-1 font-medium text-[var(--cursor-text-primary)]">{props.value}</div>
         </div>
     )
 }
@@ -757,8 +757,8 @@ export function CursorSummaryMetric(props: {
 }) {
     return (
         <CursorSettingsCard className={cn('p-4', props.className)}>
-            <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">{props.label}</div>
-            <div className={cn('mt-2 text-[24px] font-semibold leading-8', summaryValueToneClass(props.tone))}>
+            <div className="text-[12px] font-medium text-[var(--cursor-text-tertiary)]">{props.label}</div>
+            <div className={cn('mt-2 text-[24px] font-semibold leading-8 tracking-[-0.02em]', summaryValueToneClass(props.tone))}>
                 {props.value}
             </div>
             {props.hint ? (

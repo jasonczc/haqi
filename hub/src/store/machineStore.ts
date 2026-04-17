@@ -2,11 +2,13 @@ import type { Database } from 'bun:sqlite'
 
 import type { StoredMachine, VersionedUpdateResult } from './types'
 import {
+    deleteMachineByNamespace,
     getMachine,
     getMachineByNamespace,
     getMachines,
     getMachinesByNamespace,
     getOrCreateMachine,
+    updateMachineActivity,
     updateMachineRunnerState,
     updateMachineMetadata
 } from './machines'
@@ -54,5 +56,13 @@ export class MachineStore {
 
     getMachinesByNamespace(namespace: string): StoredMachine[] {
         return getMachinesByNamespace(this.db, namespace)
+    }
+
+    deleteMachineByNamespace(id: string, namespace: string): boolean {
+        return deleteMachineByNamespace(this.db, id, namespace)
+    }
+
+    updateMachineActivity(id: string, namespace: string, active: boolean, activeAt: number): boolean {
+        return updateMachineActivity(this.db, id, namespace, active, activeAt)
     }
 }

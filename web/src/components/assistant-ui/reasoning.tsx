@@ -27,9 +27,13 @@ function ChevronIcon(props: { className?: string; open?: boolean }) {
     )
 }
 
-function ShimmerDot() {
+function ShimmerDots() {
     return (
-        <span className="inline-block w-1.5 h-1.5 bg-current rounded-full animate-pulse" />
+        <span className="reasoning-shimmer inline-flex items-center gap-0.5" aria-label="thinking">
+            <span className="reasoning-shimmer-dot" />
+            <span className="reasoning-shimmer-dot" />
+            <span className="reasoning-shimmer-dot" />
+        </span>
     )
 }
 
@@ -79,10 +83,10 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                 )}
             >
                 <ChevronIcon open={isOpen} />
-                <span>Reasoning</span>
+                <span>{isStreaming ? 'Thinking' : 'Reasoning'}</span>
                 {isStreaming && (
-                    <span className="flex items-center gap-1 ml-1 text-[var(--cursor-text-secondary)]">
-                        <ShimmerDot />
+                    <span className="ml-0.5">
+                        <ShimmerDots />
                     </span>
                 )}
             </button>

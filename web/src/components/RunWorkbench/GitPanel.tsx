@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { Session } from '@/types/api'
 import type { GitSubTab, PrInfo, PrState, CiCheck, CommitInfo, FileChange, BranchStatus } from './types'
+import { Button } from '@/components/ui/button'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -225,13 +226,9 @@ function ReviewTab(props: { checks: CiCheck[]; branchStatus: BranchStatus | null
                             This branch is {props.branchStatus.behind} commit{props.branchStatus.behind > 1 ? 's' : ''} behind {props.prInfo?.baseBranch ?? 'main'}
                         </span>
                         {props.onUpdateBranch && (
-                            <button
-                                type="button"
-                                onClick={props.onUpdateBranch}
-                                className="rounded-md border border-[var(--cursor-stroke-primary)] px-3 py-1.5 text-[12px] font-medium text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-soft)] transition-colors"
-                            >
+                            <Button variant="secondary" size="sm" onClick={props.onUpdateBranch}>
                                 Update branch
-                            </button>
+                            </Button>
                         )}
                     </div>
                 </div>
@@ -251,18 +248,14 @@ function ReviewTab(props: { checks: CiCheck[]; branchStatus: BranchStatus | null
                                 </div>
                             )}
                         </div>
-                        <button
-                            type="button"
+                        <Button
+                            variant={mergeBlocked ? 'secondary' : 'success'}
+                            size="sm"
                             onClick={props.onMerge}
                             disabled={Boolean(mergeBlocked)}
-                            className={`rounded-md px-4 py-1.5 text-[12px] font-semibold transition-colors ${
-                                mergeBlocked
-                                    ? 'border border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-tertiary)] cursor-not-allowed'
-                                    : 'bg-[var(--cursor-success)] text-[var(--cursor-button-text)] hover:opacity-90'
-                            }`}
                         >
                             Merge
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

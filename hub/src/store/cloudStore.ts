@@ -1007,21 +1007,40 @@ export class CloudStore {
         return row ? toStoredCloudWorkerSessionToken(row) : null
     }
 
-    touchWorkerSession(id: string, usedAt: number = Date.now()): StoredCloudWorkerSessionToken | null {
+    touchWorkerSession(
+        id: string,
+        usedAt: number = Date.now(),
+        extendExpiresAtTo?: number
+    ): StoredCloudWorkerSessionToken | null {
         const existing = this.getWorkerSession(id)
         if (!existing) {
             return null
         }
-        this.db.prepare(`
-            UPDATE cloud_worker_sessions
-            SET last_used_at = @last_used_at,
-                updated_at = @updated_at
-            WHERE id = @id
-        `).run({
-            id,
-            last_used_at: usedAt,
-            updated_at: usedAt
-        })
+        if (typeof extendExpiresAtTo === 'number' && Number.isFinite(extendExpiresAtTo)) {
+            this.db.prepare(`
+                UPDATE cloud_worker_sessions
+                SET last_used_at = @last_used_at,
+                    updated_at = @updated_at,
+                    expires_at = @expires_at
+                WHERE id = @id
+            `).run({
+                id,
+                last_used_at: usedAt,
+                updated_at: usedAt,
+                expires_at: extendExpiresAtTo
+            })
+        } else {
+            this.db.prepare(`
+                UPDATE cloud_worker_sessions
+                SET last_used_at = @last_used_at,
+                    updated_at = @updated_at
+                WHERE id = @id
+            `).run({
+                id,
+                last_used_at: usedAt,
+                updated_at: usedAt
+            })
+        }
         return this.getWorkerSession(id)
     }
 

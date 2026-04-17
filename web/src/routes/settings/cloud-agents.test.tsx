@@ -93,10 +93,7 @@ describe('SettingsCloudAgentsPage', () => {
                 settings: {
                     gitName: 'Jane Doe',
                     gitEmail: 'jane@example.com',
-                    githubUsername: 'octocat',
-                    branchPrefix: 'haqi/',
-                    baseBranch: 'main',
-                    defaultRepositoryUrl: 'https://github.com/acme/demo.git'
+                    githubUsername: 'octocat'
                 },
                 github: {
                     connected: true,
@@ -134,6 +131,7 @@ describe('SettingsCloudAgentsPage', () => {
         fireEvent.change(screen.getByLabelText('Prompt'), {
             target: { value: 'Fix the failing tests and open a branch' }
         })
+        fireEvent.click(await screen.findByText('acme/demo'))
         fireEvent.click(screen.getAllByRole('button', { name: 'Start Agent' }).at(-1)!)
 
         await waitFor(() => {
@@ -184,10 +182,7 @@ describe('SettingsCloudAgentsPage', () => {
                 settings: {
                     gitName: '',
                     gitEmail: '',
-                    githubUsername: '',
-                    branchPrefix: 'haqi/',
-                    baseBranch: '',
-                    defaultRepositoryUrl: ''
+                    githubUsername: ''
                 },
                 github: {
                     connected: false,

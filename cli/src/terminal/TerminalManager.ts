@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { logger } from '@/ui/logger'
 import type {
     TerminalErrorPayload,
@@ -7,6 +8,22 @@ import type {
 } from '@hapi/protocol'
 import type { Metadata } from '@/api/types'
 import type { TerminalSession } from './types'
+
+/**
+ * True when this process is running *inside* a container. On Linux Docker
+ * writes `/.dockerenv`; other runtimes (nerdctl, containerd, podman) set it
+ * too. Apps running in daemon-session mode have their agent process launched
+ * INSIDE the workspace container itself, so a terminal request should spawn a
+ * shell in-place rather than try to `docker exec` back into a container that
+ * the inner (dind) daemon doesn't know about.
+ */
+function runningInsideContainer(): boolean {
+    try {
+        return existsSync('/.dockerenv')
+    } catch {
+        return false
+    }
+}
 
 type TerminalRuntime = TerminalSession & {
     proc: Bun.Subprocess
@@ -126,7 +143,17 @@ export class TerminalManager {
         const sessionPath = metadata?.path ?? process.cwd()
         const shell = resolveShell()
         const decoder = new TextDecoder()
-        const dockerContainerId = (metadata?.runtimeKind === 'docker-session' || metadata?.runtimeKind === 'daemon-session')
+        // Only do `docker exec` when the agent host actually has access to
+        // the outer docker daemon that owns the container. Inside a
+        // daemon-session container the agent runs alongside its own
+        // nested (rootless) docker daemon, which can't see the outer
+        // container id — so any `docker exec <outerId>` comes back as
+        // "No such container" with exit 1. In that case spawn the shell
+        // in-place; we're already in the workspace environment the user
+        // wants a terminal into.
+        const insideContainer = runningInsideContainer()
+        const dockerContainerId = !insideContainer
+            && (metadata?.runtimeKind === 'docker-session' || metadata?.runtimeKind === 'daemon-session')
             ? metadata.containerId?.trim()
             : undefined
         const containerUser = metadata?.containerUser?.trim()

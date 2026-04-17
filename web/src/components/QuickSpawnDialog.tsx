@@ -245,7 +245,7 @@ export function QuickSpawnDialog(props: {
                                         type="text"
                                         value={model}
                                         onChange={(e) => setModel(e.target.value)}
-                                        placeholder="e.g. claude-opus-4-5 (leave blank for default)"
+                                        placeholder="e.g. claude-opus-4-7 (leave blank for default)"
                                         disabled={isSpawning}
                                     />
                                 </div>

@@ -44,6 +44,10 @@ export function createAuthRoutes(jwtSecret: Uint8Array, store: Store): Hono<WebA
             userId = await getOrCreateOwnerId()
             firstName = 'Web User'
             namespace = parsedToken.namespace
+            // Access-token auth resolves userId from owner-id.json, not from
+            // the users table. Tables with FK → users(id) (e.g.
+            // cloud_agent_preferences) would reject writes otherwise.
+            store.users.ensureOwnerUser(userId, namespace)
         } else {
             if (!configuration.telegramEnabled || !configuration.telegramBotToken) {
                 return c.json({ error: 'Telegram authentication is disabled. Configure TELEGRAM_BOT_TOKEN.' }, 503)

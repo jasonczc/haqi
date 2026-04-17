@@ -821,6 +821,10 @@ export class SyncEngine {
         return this.machineCache.getMachineByNamespace(machineId, namespace)
     }
 
+    removeMachineByNamespace(machineId: string, namespace: string): boolean {
+        return this.machineCache.removeMachineByNamespace(machineId, namespace)
+    }
+
     getOnlineMachines(): Machine[] {
         return this.machineCache.getOnlineMachines()
     }
@@ -1254,6 +1258,49 @@ export class SyncEngine {
         await this.sessionCache.deleteSession(sessionId)
     }
 
+    /**
+     * Best-effort cleanup of a daemon-session's container before session row
+     * deletion. Safe to call for any session: no-op when there's no
+     * containerId, or no online cloud worker to talk to. Failures are
+     * captured in the result but never thrown — deletion must still proceed.
+     */
+    async cleanupSessionContainer(
+        sessionId: string,
+        namespace: string
+    ): Promise<{ cleaned: boolean; skipped?: string; error?: string }> {
+        const session = this.sessionCache.getSessionByNamespace(sessionId, namespace)
+        if (!session) {
+            return { cleaned: false, skipped: 'session-not-found' }
+        }
+        const metadata = session.metadata as { containerId?: string } | undefined
+        const containerId = metadata?.containerId
+        if (!containerId) {
+            return { cleaned: false, skipped: 'no-container' }
+        }
+
+        const machines = this.getOnlineMachinesByNamespace(namespace)
+        const cloudWorker = machines.find((m) =>
+            m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed'
+        )
+        if (!cloudWorker) {
+            return { cleaned: false, skipped: 'no-online-worker' }
+        }
+
+        try {
+            // Stop first (best-effort — container may already be stopped),
+            // then remove so it disappears from docker ps and Settings →
+            // Containers.
+            await this.rpcGateway.containerStop(cloudWorker.id, containerId).catch(() => undefined)
+            await this.rpcGateway.containerRemove(cloudWorker.id, containerId)
+            return { cleaned: true }
+        } catch (error) {
+            return {
+                cleaned: false,
+                error: error instanceof Error ? error.message : String(error)
+            }
+        }
+    }
+
     async recordSessionCrash(sessionId: string, detail: ArchiveDetail): Promise<void> {
         await this.sessionCache.recordSessionCrash(sessionId, detail)
     }
@@ -1435,9 +1482,6 @@ export class SyncEngine {
             return undefined
         }
         if (normalized !== 'low' && normalized !== 'medium' && normalized !== 'high' && normalized !== 'max' && normalized !== 'xhigh') {
-            return undefined
-        }
-        if (flavor === 'claude' && normalized === 'xhigh') {
             return undefined
         }
         if (flavor !== 'claude' && flavor !== 'codex') {
@@ -2252,10 +2296,7 @@ ${note.content}
             const value = typeof metadata.thinkEffort === 'string'
                 ? metadata.thinkEffort.trim().toLowerCase()
                 : ''
-            if (value !== 'auto' && value !== 'low' && value !== 'medium' && value !== 'high' && value !== 'xhigh') {
-                return undefined
-            }
-            if (flavor === 'claude' && value === 'xhigh') {
+            if (value !== 'auto' && value !== 'low' && value !== 'medium' && value !== 'high' && value !== 'max' && value !== 'xhigh') {
                 return undefined
             }
             return value

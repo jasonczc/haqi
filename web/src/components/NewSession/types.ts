@@ -8,6 +8,7 @@ export type CodexThinkEffort = ThinkEffort
 export type ServiceTier = 'auto' | 'fast' | 'flex'
 
 export const CLAUDE_THINK_EFFORT_OPTIONS: { value: ThinkEffort; label: string }[] = [
+    { value: 'xhigh', label: 'XHigh' },
     { value: 'max', label: 'Max' },
     { value: 'high', label: 'High' },
     { value: 'auto', label: 'Auto' },
@@ -45,6 +46,7 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
         { value: 'sonnet', label: 'Sonnet (latest)' },
         { value: 'opus', label: 'Opus (latest)' },
         { value: 'haiku', label: 'Haiku (latest)' },
+        { value: 'claude-opus-4-7', label: 'Opus 4.7' },
         { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
         { value: 'claude-opus-4-6', label: 'Opus 4.6' },
         { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },

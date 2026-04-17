@@ -164,3 +164,29 @@ export function getMachinesByNamespace(db: Database, namespace: string): StoredM
     ).all(namespace) as DbMachineRow[]
     return rows.map(toStoredMachine)
 }
+
+export function deleteMachineByNamespace(db: Database, id: string, namespace: string): boolean {
+    const result = db.prepare('DELETE FROM machines WHERE id = ? AND namespace = ?').run(id, namespace)
+    return result.changes > 0
+}
+
+export function updateMachineActivity(
+    db: Database,
+    id: string,
+    namespace: string,
+    active: boolean,
+    activeAt: number
+): boolean {
+    const result = db.prepare(`
+        UPDATE machines
+        SET active = @active, active_at = @active_at, updated_at = @updated_at
+        WHERE id = @id AND namespace = @namespace
+    `).run({
+        id,
+        namespace,
+        active: active ? 1 : 0,
+        active_at: activeAt,
+        updated_at: Date.now()
+    })
+    return result.changes > 0
+}

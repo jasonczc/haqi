@@ -72,3 +72,94 @@ describe('session abort route', () => {
         expect(await res.json()).toEqual({ error: 'Session is inactive' })
     })
 })
+
+describe('session delete route', () => {
+    it('runs container cleanup before dropping the session row', async () => {
+        const cleanupSessionContainer = mock(async () => ({ cleaned: true }))
+        const deleteSession = mock(async () => {})
+        const order: string[] = []
+
+        cleanupSessionContainer.mockImplementation(async () => {
+            order.push('cleanup')
+            return { cleaned: true }
+        })
+        deleteSession.mockImplementation(async () => {
+            order.push('delete')
+        })
+
+        const session = {
+            id: 's1',
+            namespace: 'default',
+            active: false,
+            metadata: { containerId: 'ctr-1' }
+        }
+
+        const app = createAuthedApp(() => ({
+            resolveSessionAccess: () => ({ ok: true, sessionId: 's1', session }),
+            cleanupSessionContainer,
+            deleteSession
+        }))
+
+        const res = await app.request('http://localhost/api/sessions/s1', {
+            method: 'DELETE'
+        })
+
+        expect(res.status).toBe(200)
+        expect(await res.json()).toEqual({ ok: true, containerCleanup: { cleaned: true } })
+        expect(cleanupSessionContainer).toHaveBeenCalledWith('s1', 'default')
+        expect(deleteSession).toHaveBeenCalledWith('s1')
+        expect(order).toEqual(['cleanup', 'delete'])
+    })
+
+    it('still deletes the session when container cleanup fails', async () => {
+        const cleanupSessionContainer = mock(async () => ({ cleaned: false, error: 'worker offline' }))
+        const deleteSession = mock(async () => {})
+
+        const session = {
+            id: 's1',
+            namespace: 'default',
+            active: false,
+            metadata: { containerId: 'ctr-1' }
+        }
+
+        const app = createAuthedApp(() => ({
+            resolveSessionAccess: () => ({ ok: true, sessionId: 's1', session }),
+            cleanupSessionContainer,
+            deleteSession
+        }))
+
+        const res = await app.request('http://localhost/api/sessions/s1', {
+            method: 'DELETE'
+        })
+
+        expect(res.status).toBe(200)
+        expect(await res.json()).toEqual({
+            ok: true,
+            containerCleanup: { cleaned: false, error: 'worker offline' }
+        })
+        expect(deleteSession).toHaveBeenCalledWith('s1')
+    })
+
+    it('refuses to delete active sessions', async () => {
+        const cleanupSessionContainer = mock(async () => ({ cleaned: false }))
+        const deleteSession = mock(async () => {})
+
+        const app = createAuthedApp(() => ({
+            resolveSessionAccess: () => ({
+                ok: true,
+                sessionId: 's1',
+                session: { id: 's1', namespace: 'default', active: true, metadata: null }
+            }),
+            cleanupSessionContainer,
+            deleteSession
+        }))
+
+        const res = await app.request('http://localhost/api/sessions/s1', {
+            method: 'DELETE'
+        })
+
+        expect(res.status).toBe(409)
+        expect(cleanupSessionContainer).not.toHaveBeenCalled()
+        expect(deleteSession).not.toHaveBeenCalled()
+    })
+})

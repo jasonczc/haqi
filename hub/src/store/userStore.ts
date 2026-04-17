@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite'
 
 import type { StoredUser } from './types'
-import { addUser, getUser, getUsersByPlatform, getUsersByPlatformAndNamespace, removeUser } from './users'
+import { addUser, ensureOwnerUser, getUser, getUsersByPlatform, getUsersByPlatformAndNamespace, removeUser } from './users'
 
 export class UserStore {
     private readonly db: Database
@@ -28,5 +28,9 @@ export class UserStore {
 
     removeUser(platform: string, platformUserId: string): boolean {
         return removeUser(this.db, platform, platformUserId)
+    }
+
+    ensureOwnerUser(ownerId: number, namespace: string): void {
+        ensureOwnerUser(this.db, ownerId, namespace)
     }
 }

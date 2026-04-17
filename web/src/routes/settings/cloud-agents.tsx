@@ -12,8 +12,6 @@ import { CloudRequestDetailContent } from '@/routes/settings/request-detail'
 import { CloudWorkspaceDetailContent } from '@/routes/settings/workspace-detail'
 import {
     CursorButton,
-    CursorDetailGrid,
-    CursorDetailItem,
     CursorDialogBody,
     CursorDialogFooter,
     CursorDialogHeader,
@@ -27,8 +25,9 @@ import {
     CursorSettingsBadge,
     CursorSettingsCard,
     CursorSettingsHeader,
+    CursorSettingsRow,
     CursorSettingsSection,
-    CursorSummaryMetric,
+    CursorTabButton,
     CursorTextArea,
     CursorTextField,
 } from '@/components/settings/CursorSettingsPrimitives'
@@ -51,13 +50,6 @@ const AGENT_OPTIONS: Array<{ value: AgentFlavor; label: string }> = [
     { value: 'gemini', label: 'Gemini' },
     { value: 'opencode', label: 'OpenCode' },
 ]
-
-function formatDate(ts: number | undefined | null): string {
-    if (typeof ts !== 'number' || !Number.isFinite(ts)) {
-        return 'unknown'
-    }
-    return new Date(ts).toLocaleString()
-}
 
 function formatRelativeTime(ts: number | undefined | null): string {
     if (typeof ts !== 'number' || !Number.isFinite(ts)) {
@@ -115,9 +107,6 @@ function WorkspaceStatusBadge(props: { status: string }) {
 
 type ActivityLinkKind = 'request' | 'workspace'
 
-const activityRowClass = 'flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-4 py-4 transition-colors hover:bg-[var(--cursor-bg-hover)] last:border-b-0'
-const sidebarRowClass = 'block rounded-lg border border-[var(--cursor-stroke-tertiary)] px-3 py-2 transition-colors hover:bg-[var(--cursor-bg-hover)]'
-
 function ActivityRowBody(props: {
     kind: ActivityLinkKind
     statusBadge: ReactNode
@@ -151,6 +140,8 @@ function ActivityRowBody(props: {
     )
 }
 
+const activityRowClass = 'flex items-start justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-4 py-3 transition-colors hover:bg-[var(--cursor-bg-hover)] last:border-b-0'
+
 function buildActivityItems(requests: CloudSpawnRequest[], workspaces: CloudWorkspace[]): ActivityItem[] {
     return [
         ...requests.map((request) => ({
@@ -180,9 +171,6 @@ export default function SettingsCloudAgentsPage(props: {
 
     const [gitNameDraft, setGitNameDraft] = useState('')
     const [gitEmailDraft, setGitEmailDraft] = useState('')
-    const [branchPrefixDraft, setBranchPrefixDraft] = useState(DEFAULT_BRANCH_PREFIX)
-    const [baseBranchDraft, setBaseBranchDraft] = useState('')
-    const [defaultRepositoryUrlDraft, setDefaultRepositoryUrlDraft] = useState('')
     const [settingsStatus, setSettingsStatus] = useState<string | null>(null)
     const [githubTokenDraft, setGitHubTokenDraft] = useState('')
     const [githubStatus, setGitHubStatus] = useState<string | null>(null)
@@ -202,7 +190,6 @@ export default function SettingsCloudAgentsPage(props: {
     const [launchStatus, setLaunchStatus] = useState<string | null>(null)
     const [newAgentOpen, setNewAgentOpen] = useState(false)
     const [activityFilter, setActivityFilter] = useState<ActivityFilter>('all')
-    const detailOpen = Boolean(props.selectedRequestId || props.selectedWorkspaceId)
 
     const settingsHydratedRef = useRef(false)
     const launchHydratedRef = useRef(false)
@@ -274,9 +261,6 @@ export default function SettingsCloudAgentsPage(props: {
         settingsHydratedRef.current = true
         setGitNameDraft(settings.gitName)
         setGitEmailDraft(settings.gitEmail)
-        setBranchPrefixDraft(settings.branchPrefix || DEFAULT_BRANCH_PREFIX)
-        setBaseBranchDraft(settings.baseBranch)
-        setDefaultRepositoryUrlDraft(settings.defaultRepositoryUrl)
     }, [cloudAgentSettingsQuery.data?.settings])
 
     useEffect(() => {
@@ -285,9 +269,8 @@ export default function SettingsCloudAgentsPage(props: {
             return
         }
         launchHydratedRef.current = true
-        setRepositoryUrlDraft(settings.defaultRepositoryUrl)
-        setRepositoryBranchDraft(settings.baseBranch || DEFAULT_BASE_BRANCH)
-        setBranchPrefixOverride(settings.branchPrefix || DEFAULT_BRANCH_PREFIX)
+        setRepositoryBranchDraft(DEFAULT_BASE_BRANCH)
+        setBranchPrefixOverride(DEFAULT_BRANCH_PREFIX)
         setGitNameOverride(settings.gitName)
         setGitEmailOverride(settings.gitEmail)
     }, [cloudAgentSettingsQuery.data?.settings])
@@ -298,22 +281,16 @@ export default function SettingsCloudAgentsPage(props: {
             return await api.updateCloudAgentSettings({
                 gitName: gitNameDraft,
                 gitEmail: gitEmailDraft,
-                branchPrefix: branchPrefixDraft,
-                baseBranch: baseBranchDraft,
-                defaultRepositoryUrl: defaultRepositoryUrlDraft,
             })
         },
         onSuccess: async (result) => {
-            setSettingsStatus('Defaults saved')
+            setSettingsStatus('Identity saved')
             setGitNameDraft(result.settings.gitName)
             setGitEmailDraft(result.settings.gitEmail)
-            setBranchPrefixDraft(result.settings.branchPrefix || DEFAULT_BRANCH_PREFIX)
-            setBaseBranchDraft(result.settings.baseBranch)
-            setDefaultRepositoryUrlDraft(result.settings.defaultRepositoryUrl)
             await queryClient.invalidateQueries({ queryKey: queryKeys.cloudAgentSettings })
         },
         onError: (error) => {
-            setSettingsStatus(error instanceof Error ? error.message : 'Failed to save defaults')
+            setSettingsStatus(error instanceof Error ? error.message : 'Failed to save identity')
         }
     })
 
@@ -485,452 +462,293 @@ export default function SettingsCloudAgentsPage(props: {
         }
     })
 
-    const defaultEnvironment = environments[0]
-    const defaultRepo = cloudAgentSettingsQuery.data?.settings.defaultRepositoryUrl
-        || defaultEnvironment?.id?.replace(/^repo:/, '')
-        || 'No default repository'
+    if (props.selectedRequestId || props.selectedWorkspaceId) {
+        const isRequest = Boolean(props.selectedRequestId)
+        return (
+            <>
+                <div className="mb-4">
+                    <Link
+                        to="/settings/cloud-agents"
+                        className="text-[12px] leading-4 text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]"
+                    >
+                        ← Back to Cloud Agents
+                    </Link>
+                </div>
+                <CursorSettingsHeader
+                    title={isRequest ? 'Request detail' : 'Workspace detail'}
+                    description={isRequest
+                        ? 'Cloud spawn request lifecycle, bootstrap log, and worker assignment.'
+                        : 'Daemon workspace status, runtime configuration, and recent leases.'}
+                />
+                {props.selectedRequestId ? (
+                    <CloudRequestDetailContent
+                        requestId={props.selectedRequestId}
+                        routeScope="agents"
+                        embedded
+                    />
+                ) : props.selectedWorkspaceId ? (
+                    <CloudWorkspaceDetailContent
+                        workspaceId={props.selectedWorkspaceId}
+                        embedded
+                    />
+                ) : null}
+            </>
+        )
+    }
+
+    const launchDisabled = !githubConnection?.connected
 
     return (
         <>
-            <CursorSettingsHeader
-                title="Cloud Agents"
-                description="GitHub-first background agents. Connect GitHub, choose a repo, bootstrap a branch, and launch daemon-backed workspaces."
-            />
-
-            <div className="grid gap-6 xl:grid-cols-[260px_minmax(0,1.35fr)_minmax(320px,0.85fr)]">
-                <div className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-6 xl:self-start">
-                    <CursorSettingsCard className="p-4">
-                        <div className="flex flex-col gap-4">
-                            <div>
-                                <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Workspace</div>
-                                <div className="mt-2 text-[16px] font-semibold text-[var(--cursor-text-primary)]">Cloud Agents</div>
-                                <div className="mt-1 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
-                                    Standalone background-agent workspace. GitHub-first, daemon-session only.
-                                </div>
-                            </div>
-
-                            <div className="grid gap-2">
-                                <CursorButton type="button" onClick={() => setNewAgentOpen(true)}>
-                                    New Agent
-                                </CursorButton>
-                                <CursorButton
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => {
-                                        if (githubConnection?.connected) {
-                                            void githubReposQuery.refetch()
-                                            return
-                                        }
-                                        const field = document.getElementById('cloud-agents-github-token') as HTMLInputElement | null
-                                        field?.focus()
-                                    }}
-                                >
-                                    {githubConnection?.connected ? 'Refresh GitHub Repos' : 'Connect GitHub'}
-                                </CursorButton>
-                            </div>
-
-                            <div className="border-t border-[var(--cursor-stroke-tertiary)] pt-4">
-                                <div className="mb-2 text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Recent</div>
-                                <div className="grid gap-2">
-                                    {activityItems.slice(0, 6).map((item) => item.kind === 'request' ? (
-                                        <Link
-                                            key={`sidebar-request:${item.id}`}
-                                            to="/settings/cloud-agents/requests/$requestId"
-                                            params={{ requestId: item.id }}
-                                            className={sidebarRowClass}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <RequestPhaseBadge phase={item.request.phase} />
-                                                <span className="truncate font-mono text-[11px] text-[var(--cursor-text-primary)]">{item.id}</span>
-                                            </div>
-                                            <div className="mt-1 truncate text-[12px] text-[var(--cursor-text-secondary)]">
-                                                {item.request.request.workspaceSource?.repository?.url ?? 'No repo'}
-                                            </div>
-                                        </Link>
-                                    ) : (
-                                        <Link
-                                            key={`sidebar-workspace:${item.id}`}
-                                            to="/settings/cloud-agents/workspaces/$workspaceId"
-                                            params={{ workspaceId: item.id }}
-                                            className={sidebarRowClass}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <WorkspaceStatusBadge status={item.workspace.status} />
-                                                <span className="truncate font-mono text-[11px] text-[var(--cursor-text-primary)]">{item.id}</span>
-                                            </div>
-                                            <div className="mt-1 truncate text-[12px] text-[var(--cursor-text-secondary)]">
-                                                {item.workspace.machineId ?? 'pending worker'}
-                                            </div>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </CursorSettingsCard>
+            <div className="mb-6 flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <CursorSettingsHeader
+                        title="Cloud Agents"
+                        description="GitHub-first background agents. Connect GitHub, set defaults, and launch daemon-backed workspaces."
+                    />
                 </div>
-
-                <div className="flex min-w-0 flex-col gap-6">
-                    <CursorSettingsSection title="GitHub" subtitle="Connection first. Repo picker unlocks after a valid token is stored.">
-                        <CursorSettingsCard className="p-5">
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <div className="text-[15px] font-semibold text-[var(--cursor-text-primary)]">
-                                                {githubConnection?.connected
-                                                    ? `Connected as ${githubConnection.profile?.login ?? 'GitHub user'}`
-                                                    : 'GitHub not connected'}
-                                            </div>
-                                            <CursorSettingsBadge tone={githubConnection?.connected ? 'success' : 'danger'}>
-                                                {githubConnection?.connected ? 'Connected' : 'Disconnected'}
-                                            </CursorSettingsBadge>
-                                        </div>
-                                        <div className="mt-1 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">
-                                            PAT-based for now. Used for private repo clone, branch push, and later PR actions.
-                                        </div>
-                                    </div>
-                                    {githubConnection?.connected && githubRepos.length > 0 ? (
-                                        <CursorSummaryMetric
-                                            label="Repos visible"
-                                            value={githubRepos.length}
-                                            className="min-w-[140px] text-right"
-                                        />
-                                    ) : null}
-                                </div>
-
-                                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                                    <div className="flex flex-col gap-1.5">
-                                        <CursorFieldLabel htmlFor="cloud-agents-github-token">GitHub token</CursorFieldLabel>
-                                        <CursorTextField
-                                            id="cloud-agents-github-token"
-                                            type="password"
-                                            value={githubTokenDraft}
-                                            onChange={(event) => setGitHubTokenDraft(event.target.value)}
-                                            placeholder={githubConnection?.connected ? 'Replace token' : 'github_pat_...'}
-                                        />
-                                        <CursorFieldHint>
-                                            Fine-grained PAT recommended. Minimum: metadata read, contents read/write, pull requests read/write.
-                                        </CursorFieldHint>
-                                    </div>
-                                    <div className="flex items-end gap-2">
-                                        <CursorButton
-                                            type="button"
-                                            onClick={() => connectGitHubMutation.mutate()}
-                                            disabled={connectGitHubMutation.isPending}
-                                        >
-                                            {connectGitHubMutation.isPending ? 'Connecting…' : (githubConnection?.connected ? 'Replace Token' : 'Connect GitHub')}
-                                        </CursorButton>
-                                        {githubConnection?.connected ? (
-                                            <CursorButton
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => disconnectGitHubMutation.mutate()}
-                                                disabled={disconnectGitHubMutation.isPending}
-                                            >
-                                                {disconnectGitHubMutation.isPending ? 'Disconnecting…' : 'Disconnect'}
-                                            </CursorButton>
-                                        ) : null}
-                                    </div>
-                                </div>
-
-                                {githubStatus ? (
-                                    <CursorNotice>{githubStatus}</CursorNotice>
-                                ) : null}
-                                {githubConnection?.error ? (
-                                    <CursorNotice tone="danger">{githubConnection.error}</CursorNotice>
-                                ) : null}
-                            </div>
-                        </CursorSettingsCard>
-                    </CursorSettingsSection>
-
-                    <CursorSettingsSection title="Quick Actions" subtitle="Cursor-style flow: connect GitHub, then launch agents from a focused modal instead of a giant settings form.">
-                        <CursorSettingsCard className="p-5">
-                            <div className="flex flex-col gap-4">
-                                <div className="flex flex-wrap items-start justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <div className="text-[15px] font-semibold text-[var(--cursor-text-primary)]">New background agent</div>
-                                        <div className="mt-1 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">
-                                            Pick repo, branch policy, identity, and bootstrap details in one focused flow.
-                                        </div>
-                                    </div>
-                                    <CursorButton
-                                        type="button"
-                                        onClick={() => setNewAgentOpen(true)}
-                                        disabled={!githubConnection?.connected && !cloudAgentSettingsQuery.data?.settings.defaultRepositoryUrl.trim()}
-                                    >
-                                        New Agent
-                                    </CursorButton>
-                                </div>
-                                <CursorDetailGrid className="md:grid-cols-3">
-                                    <CursorDetailItem
-                                        label="Default repo"
-                                        value={<span className="block truncate">{defaultRepo}</span>}
-                                    />
-                                    <CursorDetailItem
-                                        label="Git identity"
-                                        value={(
-                                            <>
-                                                <div className="truncate">{cloudAgentSettingsQuery.data?.settings.gitName || 'Not set'}</div>
-                                                <div className="mt-1 truncate text-[12px] font-normal text-[var(--cursor-text-secondary)]">
-                                                    {cloudAgentSettingsQuery.data?.settings.gitEmail || 'Set defaults on the right'}
-                                                </div>
-                                            </>
-                                        )}
-                                    />
-                                    <CursorDetailItem
-                                        label="Branch policy"
-                                        value={(
-                                            <>
-                                                <div>Create from {baseBranchDraft || DEFAULT_BASE_BRANCH}</div>
-                                                <div className="mt-1 text-[12px] font-normal text-[var(--cursor-text-secondary)]">
-                                                    {branchPrefixDraft || DEFAULT_BRANCH_PREFIX}*
-                                                </div>
-                                            </>
-                                        )}
-                                    />
-                                </CursorDetailGrid>
-                            </div>
-                        </CursorSettingsCard>
-                    </CursorSettingsSection>
-
-                    <CursorSettingsSection
-                        title="Activity"
-                        subtitle="Unified feed for queued agents and daemon workspaces, closer to a real background-agent sidebar."
-                        action={<span className="text-[12px] text-[var(--cursor-text-secondary)]">Primary activity surface</span>}
-                    >
-                        <CursorSettingsCard>
-                            <div className="flex items-center gap-2 border-b border-[var(--cursor-stroke-tertiary)] px-4 py-3">
-                                <CursorButton type="button" size="sm" variant={activityFilter === 'all' ? 'primary' : 'outline'} onClick={() => setActivityFilter('all')}>
-                                    All
-                                </CursorButton>
-                                <CursorButton type="button" size="sm" variant={activityFilter === 'requests' ? 'primary' : 'outline'} onClick={() => setActivityFilter('requests')}>
-                                    Requests
-                                </CursorButton>
-                                <CursorButton type="button" size="sm" variant={activityFilter === 'workspaces' ? 'primary' : 'outline'} onClick={() => setActivityFilter('workspaces')}>
-                                    Workspaces
-                                </CursorButton>
-                            </div>
-                            {requestsQuery.isLoading || workspacesQuery.isLoading ? (
-                                <div className="px-4 py-6 text-[13px] text-[var(--cursor-text-secondary)]">Loading activity…</div>
-                            ) : filteredActivityItems.length === 0 ? (
-                                <div className="px-4 py-6">
-                                    <CursorEmptyState
-                                        title="No activity yet"
-                                        description="Launch an agent and provisioning state will appear here."
-                                    />
-                                </div>
-                            ) : (
-                                filteredActivityItems.slice(0, 14).map((item) => item.kind === 'request' ? (
-                                    <Link
-                                        key={`request:${item.id}`}
-                                        to="/settings/cloud-agents/requests/$requestId"
-                                        params={{ requestId: item.id }}
-                                        className={activityRowClass}
-                                    >
-                                        <ActivityRowBody
-                                            kind="request"
-                                            showKindBadge
-                                            statusBadge={<RequestPhaseBadge phase={item.request.phase} />}
-                                            title={item.request.id}
-                                            secondary={`${item.request.request.workspaceSource?.repository?.url ?? 'No repo'} · ${item.request.request.agent ?? 'agent'}`}
-                                            tertiary={formatRelativeTime(item.request.updatedAt)}
-                                            error={item.request.error ? (item.request.error.message ?? item.request.error.code) : undefined}
-                                        />
-                                    </Link>
-                                ) : (
-                                    <Link
-                                        key={`workspace:${item.id}`}
-                                        to="/settings/cloud-agents/workspaces/$workspaceId"
-                                        params={{ workspaceId: item.id }}
-                                        className={activityRowClass}
-                                    >
-                                        <ActivityRowBody
-                                            kind="workspace"
-                                            showKindBadge
-                                            statusBadge={<WorkspaceStatusBadge status={item.workspace.status} />}
-                                            title={item.workspace.id}
-                                            secondary={`${item.workspace.machineId ?? 'pending worker'} · ${item.workspace.mode ?? 'ephemeral'} · ${item.workspace.path ?? 'workspace path pending'}`}
-                                            tertiary={formatRelativeTime(item.workspace.updatedAt)}
-                                        />
-                                    </Link>
-                                ))
-                            )}
-                        </CursorSettingsCard>
-                    </CursorSettingsSection>
-                </div>
-
-                <div className="flex min-w-0 flex-col gap-6">
-                    <CursorSettingsSection title="Overview" subtitle="Queue, workers, and daemon workspaces at a glance.">
-                        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1 2xl:grid-cols-3">
-                            <CursorSummaryMetric
-                                label="Active workers"
-                                value={activeWorkers.length}
-                                hint={`${workers.length} total connected`}
-                            />
-                            <CursorSummaryMetric
-                                label="Queued or running"
-                                value={requests.filter((request) => !['failed', 'canceled', 'succeeded'].includes(request.phase)).length}
-                                hint={`${requests.length} recent requests`}
-                            />
-                            <CursorSummaryMetric
-                                label="Tracked workspaces"
-                                value={workspaces.length}
-                                hint={`${workspaces.filter((workspace) => workspace.status === 'ready' || workspace.status === 'leased').length} usable`}
-                            />
-                        </div>
-                    </CursorSettingsSection>
-
-                    <CursorSettingsSection
-                        title="Workspaces"
-                        subtitle="Recent daemon workspaces and their current lifecycle state."
-                        action={<span className="text-[12px] text-[var(--cursor-text-secondary)]">Also appears in activity feed</span>}
-                    >
-                        <CursorSettingsCard>
-                            {workspacesQuery.isLoading ? (
-                                <div className="px-4 py-6 text-[13px] text-[var(--cursor-text-secondary)]">Loading workspaces…</div>
-                            ) : workspaces.length === 0 ? (
-                                <div className="px-4 py-6">
-                                    <CursorEmptyState
-                                        title="No workspaces tracked"
-                                        description="Daemon workspaces appear here once an agent starts provisioning."
-                                    />
-                                </div>
-                            ) : (
-                                workspaces.map((workspace) => (
-                                    <Link
-                                        key={workspace.id}
-                                        to="/settings/cloud-agents/workspaces/$workspaceId"
-                                        params={{ workspaceId: workspace.id }}
-                                        className={activityRowClass}
-                                    >
-                                        <ActivityRowBody
-                                            kind="workspace"
-                                            statusBadge={<WorkspaceStatusBadge status={workspace.status} />}
-                                            title={workspace.id}
-                                            secondary={`${workspace.machineId ?? 'pending worker'} · ${workspace.mode ?? 'ephemeral'} · ${formatRelativeTime(workspace.updatedAt)}`}
-                                            tertiary={workspace.path ? (
-                                                <span className="truncate font-mono">{workspace.path}</span>
-                                            ) : undefined}
-                                        />
-                                    </Link>
-                                ))
-                            )}
-                        </CursorSettingsCard>
-                    </CursorSettingsSection>
-
-                    <CursorSettingsSection title="Defaults" subtitle="Used to prefill new agents. Session UI can still override them.">
-                        <CursorSettingsCard className="p-5">
-                            <div className="grid gap-4">
-                                <div className="flex flex-col gap-1.5">
-                                    <CursorFieldLabel htmlFor="cloud-agents-default-git-name">Git author name</CursorFieldLabel>
-                                    <CursorTextField
-                                        id="cloud-agents-default-git-name"
-                                        value={gitNameDraft}
-                                        onChange={(event) => setGitNameDraft(event.target.value)}
-                                        placeholder="Jane Doe"
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <CursorFieldLabel htmlFor="cloud-agents-default-git-email">Git author email</CursorFieldLabel>
-                                    <CursorTextField
-                                        id="cloud-agents-default-git-email"
-                                        value={gitEmailDraft}
-                                        onChange={(event) => setGitEmailDraft(event.target.value)}
-                                        placeholder="jane@example.com"
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <CursorFieldLabel htmlFor="cloud-agents-default-repo">Default repository</CursorFieldLabel>
-                                    <CursorTextField
-                                        id="cloud-agents-default-repo"
-                                        value={defaultRepositoryUrlDraft}
-                                        onChange={(event) => setDefaultRepositoryUrlDraft(event.target.value)}
-                                        placeholder="https://github.com/org/repo.git"
-                                    />
-                                </div>
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                    <div className="flex flex-col gap-1.5">
-                                        <CursorFieldLabel htmlFor="cloud-agents-default-base-branch">Base branch</CursorFieldLabel>
-                                        <CursorTextField
-                                            id="cloud-agents-default-base-branch"
-                                            value={baseBranchDraft}
-                                            onChange={(event) => setBaseBranchDraft(event.target.value)}
-                                            placeholder={DEFAULT_BASE_BRANCH}
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-1.5">
-                                        <CursorFieldLabel htmlFor="cloud-agents-default-branch-prefix">Branch prefix</CursorFieldLabel>
-                                        <CursorTextField
-                                            id="cloud-agents-default-branch-prefix"
-                                            value={branchPrefixDraft}
-                                            onChange={(event) => setBranchPrefixDraft(event.target.value)}
-                                            placeholder={DEFAULT_BRANCH_PREFIX}
-                                        />
-                                    </div>
-                                </div>
-                                {settingsStatus ? (
-                                    <CursorNotice tone={saveDefaultsMutation.isError ? 'danger' : 'accent'}>
-                                        {settingsStatus}
-                                    </CursorNotice>
-                                ) : null}
-                                <div className="flex justify-end">
-                                    <CursorButton
-                                        type="button"
-                                        onClick={() => saveDefaultsMutation.mutate()}
-                                        disabled={saveDefaultsMutation.isPending}
-                                    >
-                                        {saveDefaultsMutation.isPending ? 'Saving…' : 'Save Defaults'}
-                                    </CursorButton>
-                                </div>
-                            </div>
-                        </CursorSettingsCard>
-                    </CursorSettingsSection>
-
-                    <CursorSettingsSection title="Infrastructure" subtitle="Operational controls still available, but no longer the main entrypoint.">
-                        <CursorSettingsCard className="p-0">
-                            <CursorExpandableRow
-                                title="Workers"
-                                description={`${activeWorkers.length} active / ${workers.length} total`}
-                            >
-                                <CloudWorkersManager />
-                            </CursorExpandableRow>
-                            <CursorExpandableRow
-                                title="Secrets"
-                                description="Namespace cloud secrets"
-                            >
-                                <CloudSecretsManager />
-                            </CursorExpandableRow>
-                            <CursorExpandableRow
-                                title="Environments"
-                                description={`${environments.length} configured`}
-                            >
-                                {environments.length === 0 ? (
-                                    <CursorEmptyState
-                                        title="No environments"
-                                        description="Add a repository environment to preconfigure bootstrap, runtime, and previews."
-                                    />
-                                ) : (
-                                    <div className="grid gap-3">
-                                        {environments.map((environment) => (
-                                            <CursorSettingsCard key={environment.id} className="px-3 py-3">
-                                                <div className="text-[13px] font-semibold text-[var(--cursor-text-primary)]">
-                                                    {environment.id.replace(/^repo:/, '')}
-                                                </div>
-                                                <div className="mt-1 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
-                                                    {environment.runtimeKind ?? 'daemon-session'} · {environment.serviceCount} services · {environment.repositoryDependenciesCount} bootstrap deps
-                                                </div>
-                                            </CursorSettingsCard>
-                                        ))}
-                                    </div>
-                                )}
-                            </CursorExpandableRow>
-                        </CursorSettingsCard>
-                    </CursorSettingsSection>
-                </div>
+                <CursorButton
+                    type="button"
+                    className="shrink-0"
+                    onClick={() => setNewAgentOpen(true)}
+                    disabled={launchDisabled}
+                >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    New Agent
+                </CursorButton>
             </div>
 
+            <CursorSettingsSection title="GitHub">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title={githubConnection?.connected
+                            ? `Connected as ${githubConnection.profile?.login ?? 'GitHub user'}`
+                            : 'GitHub not connected'}
+                        description="PAT-based for now. Used for private repo clone, branch push, and PR actions."
+                        control={
+                            <div className="flex items-center gap-2">
+                                <CursorSettingsBadge tone={githubConnection?.connected ? 'success' : 'danger'}>
+                                    {githubConnection?.connected ? 'Connected' : 'Disconnected'}
+                                </CursorSettingsBadge>
+                                {githubConnection?.connected ? (
+                                    <CursorButton
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => disconnectGitHubMutation.mutate()}
+                                        disabled={disconnectGitHubMutation.isPending}
+                                    >
+                                        {disconnectGitHubMutation.isPending ? 'Disconnecting…' : 'Disconnect'}
+                                    </CursorButton>
+                                ) : null}
+                            </div>
+                        }
+                    />
+                    <CursorSettingsRow
+                        title="Personal access token"
+                        description="Classic (ghp_…) or fine-grained (github_pat_…). Scopes: classic needs repo; fine-grained needs metadata read + contents read/write + pull requests read/write."
+                        noBorder
+                        control={
+                            <div className="flex items-center gap-2">
+                                <CursorTextField
+                                    id="cloud-agents-github-token"
+                                    type="password"
+                                    value={githubTokenDraft}
+                                    onChange={(event) => setGitHubTokenDraft(event.target.value)}
+                                    placeholder={githubConnection?.connected ? 'Replace token' : 'ghp_… or github_pat_…'}
+                                    className="w-[260px] max-w-full"
+                                />
+                                <CursorButton
+                                    type="button"
+                                    onClick={() => connectGitHubMutation.mutate()}
+                                    disabled={connectGitHubMutation.isPending || !githubTokenDraft.trim()}
+                                >
+                                    {connectGitHubMutation.isPending
+                                        ? 'Connecting…'
+                                        : githubConnection?.connected ? 'Replace' : 'Connect'}
+                                </CursorButton>
+                            </div>
+                        }
+                    />
+                </CursorSettingsCard>
+                {githubStatus ? (
+                    <div className="mt-3">
+                        <CursorNotice>{githubStatus}</CursorNotice>
+                    </div>
+                ) : null}
+                {githubConnection?.error ? (
+                    <div className="mt-3">
+                        <CursorNotice tone="danger">{githubConnection.error}</CursorNotice>
+                    </div>
+                ) : null}
+            </CursorSettingsSection>
+
+            <CursorSettingsSection title="Git identity" subtitle="Used for every commit made by cloud agents. Overridable per launch.">
+                <CursorSettingsCard>
+                    <CursorSettingsRow
+                        title="Author name"
+                        description="Appears on commits pushed by cloud agents."
+                        control={
+                            <CursorTextField
+                                id="cloud-agents-default-git-name"
+                                value={gitNameDraft}
+                                onChange={(event) => setGitNameDraft(event.target.value)}
+                                placeholder="Jane Doe"
+                                className="w-[280px] max-w-full"
+                            />
+                        }
+                    />
+                    <CursorSettingsRow
+                        title="Author email"
+                        description="Matches the GitHub account where possible."
+                        noBorder
+                        control={
+                            <CursorTextField
+                                id="cloud-agents-default-git-email"
+                                value={gitEmailDraft}
+                                onChange={(event) => setGitEmailDraft(event.target.value)}
+                                placeholder="jane@example.com"
+                                className="w-[280px] max-w-full"
+                            />
+                        }
+                    />
+                </CursorSettingsCard>
+                {settingsStatus ? (
+                    <div className="mt-3">
+                        <CursorNotice tone={saveDefaultsMutation.isError ? 'danger' : 'accent'}>
+                            {settingsStatus}
+                        </CursorNotice>
+                    </div>
+                ) : null}
+                <div className="mt-3 flex justify-end">
+                    <CursorButton
+                        type="button"
+                        onClick={() => saveDefaultsMutation.mutate()}
+                        disabled={saveDefaultsMutation.isPending}
+                    >
+                        {saveDefaultsMutation.isPending ? 'Saving…' : 'Save identity'}
+                    </CursorButton>
+                </div>
+            </CursorSettingsSection>
+
+            <CursorSettingsSection
+                title="Activity"
+                subtitle="Recent spawn requests and daemon workspaces, newest first."
+            >
+                <div className="mb-3 flex items-center gap-4 border-b border-[var(--border-tertiary)]">
+                    <CursorTabButton active={activityFilter === 'all'} onClick={() => setActivityFilter('all')}>
+                        All
+                    </CursorTabButton>
+                    <CursorTabButton active={activityFilter === 'requests'} onClick={() => setActivityFilter('requests')}>
+                        Requests
+                    </CursorTabButton>
+                    <CursorTabButton active={activityFilter === 'workspaces'} onClick={() => setActivityFilter('workspaces')}>
+                        Workspaces
+                    </CursorTabButton>
+                </div>
+                <CursorSettingsCard>
+                    {requestsQuery.isLoading || workspacesQuery.isLoading ? (
+                        <div className="px-4 py-6 text-[13px] text-[var(--cursor-text-secondary)]">Loading activity…</div>
+                    ) : filteredActivityItems.length === 0 ? (
+                        <div className="px-4 py-6">
+                            <CursorEmptyState
+                                title="No activity yet"
+                                description="Launch an agent and provisioning state will appear here."
+                            />
+                        </div>
+                    ) : (
+                        filteredActivityItems.slice(0, 14).map((item) => item.kind === 'request' ? (
+                            <Link
+                                key={`request:${item.id}`}
+                                to="/settings/cloud-agents/requests/$requestId"
+                                params={{ requestId: item.id }}
+                                className={activityRowClass}
+                            >
+                                <ActivityRowBody
+                                    kind="request"
+                                    showKindBadge
+                                    statusBadge={<RequestPhaseBadge phase={item.request.phase} />}
+                                    title={item.request.id}
+                                    secondary={`${item.request.request.workspaceSource?.repository?.url ?? 'No repo'} · ${item.request.request.agent ?? 'agent'}`}
+                                    tertiary={formatRelativeTime(item.request.updatedAt)}
+                                    error={item.request.error ? (item.request.error.message ?? item.request.error.code) : undefined}
+                                />
+                            </Link>
+                        ) : (
+                            <Link
+                                key={`workspace:${item.id}`}
+                                to="/settings/cloud-agents/workspaces/$workspaceId"
+                                params={{ workspaceId: item.id }}
+                                className={activityRowClass}
+                            >
+                                <ActivityRowBody
+                                    kind="workspace"
+                                    showKindBadge
+                                    statusBadge={<WorkspaceStatusBadge status={item.workspace.status} />}
+                                    title={item.workspace.id}
+                                    secondary={`${item.workspace.machineId ?? 'pending worker'} · ${item.workspace.mode ?? 'ephemeral'} · ${item.workspace.path ?? 'workspace path pending'}`}
+                                    tertiary={formatRelativeTime(item.workspace.updatedAt)}
+                                />
+                            </Link>
+                        ))
+                    )}
+                </CursorSettingsCard>
+            </CursorSettingsSection>
+
+            <CursorSettingsSection title="Infrastructure" subtitle="Operational controls for workers, secrets, and environments.">
+                <CursorSettingsCard>
+                    <CursorExpandableRow
+                        title="Workers"
+                        description={`${activeWorkers.length} active · ${workers.length} total`}
+                    >
+                        <CloudWorkersManager />
+                    </CursorExpandableRow>
+                    <CursorExpandableRow
+                        title="Secrets"
+                        description="Namespace cloud secrets"
+                    >
+                        <CloudSecretsManager />
+                    </CursorExpandableRow>
+                    <CursorExpandableRow
+                        title="Environments"
+                        description={`${environments.length} configured`}
+                    >
+                        {environments.length === 0 ? (
+                            <CursorEmptyState
+                                title="No environments"
+                                description="Add a repository environment to preconfigure bootstrap, runtime, and previews."
+                            />
+                        ) : (
+                            <div className="flex flex-col">
+                                {environments.map((environment) => (
+                                    <div
+                                        key={environment.id}
+                                        className="flex items-center justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-3 py-3 last:border-b-0"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="truncate text-[13px] font-medium text-[var(--cursor-text-primary)]">
+                                                {environment.id.replace(/^repo:/, '')}
+                                            </div>
+                                            <div className="mt-1 truncate text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
+                                                {environment.runtimeKind ?? 'daemon-session'} · {environment.serviceCount} services · {environment.repositoryDependenciesCount} bootstrap deps
+                                            </div>
+                                        </div>
+                                        {environment.hasPreviewPorts ? (
+                                            <CursorSettingsBadge tone="accent">Preview</CursorSettingsBadge>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CursorExpandableRow>
+                </CursorSettingsCard>
+            </CursorSettingsSection>
+
             <Dialog open={newAgentOpen} onOpenChange={setNewAgentOpen}>
-                <DialogContent className="max-w-5xl border-0 bg-transparent p-0 shadow-none">
+                <DialogContent className="max-w-2xl border-0 bg-transparent p-0 shadow-none">
                     <DialogTitle className="sr-only">New Cloud Agent</DialogTitle>
                     <DialogDescription className="sr-only">
                         Configure repository, branch strategy, identity, and bootstrap options for a background daemon agent.
@@ -938,7 +756,7 @@ export default function SettingsCloudAgentsPage(props: {
                     <CursorDialogShell>
                         <CursorDialogHeader
                             title="New Cloud Agent"
-                            description="GitHub-first background launch. Repo, branch strategy, identity, checkpoint, then daemon-session bootstrap."
+                            description="Background launch, daemon-session runtime. The activity feed tracks provisioning."
                             action={
                                 <CursorButton
                                     type="button"
@@ -950,222 +768,190 @@ export default function SettingsCloudAgentsPage(props: {
                                 </CursorButton>
                             }
                         />
-                        <CursorDialogBody className="gap-5">
-                            <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
-                                <div className="flex flex-col gap-4">
-                                    <div className="flex flex-col gap-1.5">
-                                        <CursorFieldLabel htmlFor="cloud-agents-prompt">Prompt</CursorFieldLabel>
-                                        <CursorTextArea
-                                            id="cloud-agents-prompt"
-                                            rows={6}
-                                            value={promptDraft}
-                                            onChange={(event) => setPromptDraft(event.target.value)}
-                                            placeholder="What should this agent do?"
-                                        />
-                                        <CursorFieldHint>
-                                            Starts in background, lands in the activity feed, then opens the session once running.
-                                        </CursorFieldHint>
-                                    </div>
+                        <CursorDialogBody>
+                            <div className="flex flex-col gap-1.5">
+                                <CursorFieldLabel htmlFor="cloud-agents-prompt">Prompt</CursorFieldLabel>
+                                <CursorTextArea
+                                    id="cloud-agents-prompt"
+                                    rows={4}
+                                    value={promptDraft}
+                                    onChange={(event) => setPromptDraft(event.target.value)}
+                                    placeholder="What should this agent do?"
+                                />
+                                <CursorFieldHint>
+                                    Runs in the background. Lands in the activity feed, then opens the session once running.
+                                </CursorFieldHint>
+                            </div>
 
-                                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px]">
-                                        <div className="flex flex-col gap-1.5">
-                                            <CursorFieldLabel htmlFor="cloud-agents-repo-search">Repository</CursorFieldLabel>
-                                            {githubConnection?.connected ? (
-                                                <>
-                                                    <CursorTextField
-                                                        id="cloud-agents-repo-search"
-                                                        value={repositorySearch}
-                                                        onChange={(event) => setRepositorySearch(event.target.value)}
-                                                        placeholder="Search connected GitHub repositories"
-                                                    />
-                                                    <div className="max-h-64 overflow-auto rounded-lg border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)]">
-                                                        {githubReposQuery.isLoading ? (
-                                                            <div className="px-3 py-3 text-[13px] text-[var(--cursor-text-secondary)]">Loading repositories…</div>
-                                                        ) : filteredRepos.length === 0 ? (
-                                                            <div className="px-3 py-3 text-[13px] text-[var(--cursor-text-secondary)]">No repositories match.</div>
-                                                        ) : (
-                                                            filteredRepos.map((repo) => {
-                                                                const selected = selectedRepo?.cloneUrl === repo.cloneUrl
-                                                                return (
-                                                                    <button
-                                                                        key={repo.cloneUrl}
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            setRepositoryUrlDraft(repo.cloneUrl)
-                                                                            if (!repositoryBranchDraft.trim()) {
-                                                                                setRepositoryBranchDraft(repo.defaultBranch || DEFAULT_BASE_BRANCH)
-                                                                            }
-                                                                        }}
-                                                                        className={`flex w-full items-start justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-3 py-3 text-left last:border-b-0 hover:bg-[var(--cursor-bg-hover)] ${selected ? 'bg-[var(--cursor-bg-hover)]' : ''}`}
-                                                                    >
-                                                                        <div className="min-w-0">
-                                                                            <div className="truncate text-[13px] font-semibold text-[var(--cursor-text-primary)]">{repo.fullName}</div>
-                                                                            <div className="mt-1 truncate text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
-                                                                                default {repo.defaultBranch || 'branch'} · updated {new Date(repo.updatedAt).toLocaleDateString()}
-                                                                            </div>
-                                                                        </div>
-                                                                        {repo.private ? (
-                                                                            <CursorSettingsBadge tone="accent">Private</CursorSettingsBadge>
-                                                                        ) : null}
-                                                                    </button>
-                                                                )
-                                                            })
-                                                        )}
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <CursorNotice>
-                                                    Connect GitHub first to browse repositories. Manual URL still works below.
-                                                </CursorNotice>
-                                            )}
-                                        </div>
-                                        <div className="flex flex-col gap-4">
-                                            <div className="flex flex-col gap-1.5">
-                                                <CursorFieldLabel htmlFor="cloud-agents-agent">Agent</CursorFieldLabel>
-                                                <CursorSelect
-                                                    id="cloud-agents-agent"
-                                                    value={selectedAgent}
-                                                    onChange={(event) => setSelectedAgent(event.target.value as AgentFlavor)}
-                                                >
-                                                    {AGENT_OPTIONS.map((option) => (
-                                                        <option key={option.value} value={option.value}>{option.label}</option>
-                                                    ))}
-                                                </CursorSelect>
-                                            </div>
-                                            <CursorSettingsCard className="px-3 py-3 text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
-                                                Runtime fixed to <span className="font-medium text-[var(--cursor-text-primary)]">daemon-session</span> and launch fixed to <span className="font-medium text-[var(--cursor-text-primary)]">background</span>.
-                                            </CursorSettingsCard>
-                                        </div>
+                            {githubConnection?.connected ? (
+                                <div className="flex flex-col gap-1.5">
+                                    <CursorFieldLabel htmlFor="cloud-agents-repo-search">Repository</CursorFieldLabel>
+                                    <CursorTextField
+                                        id="cloud-agents-repo-search"
+                                        value={repositorySearch}
+                                        onChange={(event) => setRepositorySearch(event.target.value)}
+                                        placeholder="Search connected GitHub repositories"
+                                    />
+                                    <div className="max-h-60 overflow-auto rounded-[8px] border border-[var(--cursor-stroke-tertiary)] bg-[var(--cursor-bg-card)]">
+                                        {githubReposQuery.isLoading ? (
+                                            <div className="px-3 py-3 text-[13px] text-[var(--cursor-text-secondary)]">Loading repositories…</div>
+                                        ) : filteredRepos.length === 0 ? (
+                                            <div className="px-3 py-3 text-[13px] text-[var(--cursor-text-secondary)]">No repositories match.</div>
+                                        ) : (
+                                            filteredRepos.map((repo) => {
+                                                const selected = selectedRepo?.cloneUrl === repo.cloneUrl
+                                                return (
+                                                    <button
+                                                        key={repo.cloneUrl}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setRepositoryUrlDraft(repo.cloneUrl)
+                                                            if (!repositoryBranchDraft.trim()) {
+                                                                setRepositoryBranchDraft(repo.defaultBranch || DEFAULT_BASE_BRANCH)
+                                                            }
+                                                        }}
+                                                        className={`flex w-full items-start justify-between gap-3 border-b border-[var(--cursor-stroke-tertiary)] px-3 py-2 text-left last:border-b-0 hover:bg-[var(--cursor-bg-hover)] ${selected ? 'bg-[var(--cursor-bg-hover)]' : ''}`}
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <div className="truncate text-[13px] font-medium text-[var(--cursor-text-primary)]">{repo.fullName}</div>
+                                                            <div className="mt-0.5 truncate text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
+                                                                default {repo.defaultBranch || 'branch'} · updated {new Date(repo.updatedAt).toLocaleDateString()}
+                                                            </div>
+                                                        </div>
+                                                        {repo.private ? (
+                                                            <CursorSettingsBadge tone="accent">Private</CursorSettingsBadge>
+                                                        ) : null}
+                                                    </button>
+                                                )
+                                            })
+                                        )}
                                     </div>
-
-                                    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px_220px]">
-                                        <div className="flex flex-col gap-1.5">
-                                            <CursorFieldLabel htmlFor="cloud-agents-repo-url">Repository URL</CursorFieldLabel>
-                                            <CursorTextField
-                                                id="cloud-agents-repo-url"
-                                                type="url"
-                                                value={repositoryUrlDraft}
-                                                onChange={(event) => setRepositoryUrlDraft(event.target.value)}
-                                                placeholder="https://github.com/org/repo.git"
-                                            />
-                                            <CursorFieldHint>
-                                                Clone target. Default is {defaultRepo}.
-                                            </CursorFieldHint>
-                                        </div>
-                                        <div className="flex flex-col gap-1.5">
-                                            <CursorFieldLabel htmlFor="cloud-agents-base-branch">Base branch</CursorFieldLabel>
-                                            <CursorTextField
-                                                id="cloud-agents-base-branch"
-                                                value={repositoryBranchDraft}
-                                                onChange={(event) => setRepositoryBranchDraft(event.target.value)}
-                                                placeholder={selectedRepo?.defaultBranch || baseBranchDraft || DEFAULT_BASE_BRANCH}
-                                            />
-                                        </div>
-                                        <div className="flex flex-col gap-1.5">
-                                            <CursorFieldLabel htmlFor="cloud-agents-branch-mode">Branch strategy</CursorFieldLabel>
-                                            <CursorSelect
-                                                id="cloud-agents-branch-mode"
-                                                value={branchModeDraft}
-                                                onChange={(event) => setBranchModeDraft(event.target.value as BranchMode)}
-                                            >
-                                                <option value="create">Create new branch</option>
-                                                <option value="reuse">Reuse base branch</option>
-                                                <option value="detached">Detached checkout</option>
-                                            </CursorSelect>
-                                        </div>
-                                    </div>
-
-                                    {branchModeDraft === 'create' ? (
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                            <div className="flex flex-col gap-1.5">
-                                                <CursorFieldLabel htmlFor="cloud-agents-branch-prefix">Branch prefix</CursorFieldLabel>
-                                                <CursorTextField
-                                                    id="cloud-agents-branch-prefix"
-                                                    value={branchPrefixOverride}
-                                                    onChange={(event) => setBranchPrefixOverride(event.target.value)}
-                                                    placeholder={branchPrefixDraft || DEFAULT_BRANCH_PREFIX}
-                                                />
-                                            </div>
-                                            <div className="flex flex-col gap-1.5">
-                                                <CursorFieldLabel htmlFor="cloud-agents-branch-name">Branch name override</CursorFieldLabel>
-                                                <CursorTextField
-                                                    id="cloud-agents-branch-name"
-                                                    value={branchNameDraft}
-                                                    onChange={(event) => setBranchNameDraft(event.target.value)}
-                                                    placeholder="optional-slug"
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : null}
                                 </div>
+                            ) : (
+                                <CursorNotice>Connect GitHub to browse repositories. Manual URL still works below.</CursorNotice>
+                            )}
 
-                                <div className="grid gap-4">
-                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-                                        <div className="flex flex-col gap-1.5">
-                                            <CursorFieldLabel htmlFor="cloud-agents-environment">Environment</CursorFieldLabel>
-                                            <CursorSelect
-                                                id="cloud-agents-environment"
-                                                value={environmentIdDraft}
-                                                onChange={(event) => setEnvironmentIdDraft(event.target.value)}
-                                            >
-                                                <option value="">Workspace default</option>
-                                                {environments.map((environment) => (
-                                                    <option key={environment.id} value={environment.id}>
-                                                        {environment.id.replace(/^repo:/, '')}
-                                                    </option>
-                                                ))}
-                                            </CursorSelect>
-                                        </div>
-                                        <div className="flex flex-col gap-1.5">
-                                            <CursorFieldLabel htmlFor="cloud-agents-checkpoint">Checkpoint</CursorFieldLabel>
-                                            <CursorSelect
-                                                id="cloud-agents-checkpoint"
-                                                value={checkpointIdDraft}
-                                                onChange={(event) => setCheckpointIdDraft(event.target.value)}
-                                            >
-                                                <option value="">None</option>
-                                                {(checkpointsQuery.data?.checkpoints ?? []).map((checkpoint) => (
-                                                    <option key={checkpoint.id} value={checkpoint.id}>
-                                                        {checkpoint.name}
-                                                    </option>
-                                                ))}
-                                            </CursorSelect>
-                                        </div>
+                            <div className="flex flex-col gap-1.5">
+                                <CursorFieldLabel htmlFor="cloud-agents-repo-url">Repository URL</CursorFieldLabel>
+                                <CursorTextField
+                                    id="cloud-agents-repo-url"
+                                    type="url"
+                                    value={repositoryUrlDraft}
+                                    onChange={(event) => setRepositoryUrlDraft(event.target.value)}
+                                    placeholder="https://github.com/org/repo.git"
+                                />
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="flex flex-col gap-1.5">
+                                    <CursorFieldLabel htmlFor="cloud-agents-base-branch">Base branch</CursorFieldLabel>
+                                    <CursorTextField
+                                        id="cloud-agents-base-branch"
+                                        value={repositoryBranchDraft}
+                                        onChange={(event) => setRepositoryBranchDraft(event.target.value)}
+                                        placeholder={selectedRepo?.defaultBranch || DEFAULT_BASE_BRANCH}
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <CursorFieldLabel htmlFor="cloud-agents-branch-mode">Branch strategy</CursorFieldLabel>
+                                    <CursorSelect
+                                        id="cloud-agents-branch-mode"
+                                        value={branchModeDraft}
+                                        onChange={(event) => setBranchModeDraft(event.target.value as BranchMode)}
+                                    >
+                                        <option value="create">Create new branch</option>
+                                        <option value="reuse">Reuse base branch</option>
+                                        <option value="detached">Detached checkout</option>
+                                    </CursorSelect>
+                                </div>
+                            </div>
+
+                            {branchModeDraft === 'create' ? (
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="flex flex-col gap-1.5">
+                                        <CursorFieldLabel htmlFor="cloud-agents-branch-prefix">Branch prefix</CursorFieldLabel>
+                                        <CursorTextField
+                                            id="cloud-agents-branch-prefix"
+                                            value={branchPrefixOverride}
+                                            onChange={(event) => setBranchPrefixOverride(event.target.value)}
+                                            placeholder={DEFAULT_BRANCH_PREFIX}
+                                        />
                                     </div>
-
-                                    <div className="grid gap-4">
-                                        <div className="flex flex-col gap-1.5">
-                                            <CursorFieldLabel htmlFor="cloud-agents-git-name">Git author name</CursorFieldLabel>
-                                            <CursorTextField
-                                                id="cloud-agents-git-name"
-                                                value={gitNameOverride}
-                                                onChange={(event) => setGitNameOverride(event.target.value)}
-                                                placeholder="Jane Doe"
-                                            />
-                                        </div>
-                                        <div className="flex flex-col gap-1.5">
-                                            <CursorFieldLabel htmlFor="cloud-agents-git-email">Git author email</CursorFieldLabel>
-                                            <CursorTextField
-                                                id="cloud-agents-git-email"
-                                                value={gitEmailOverride}
-                                                onChange={(event) => setGitEmailOverride(event.target.value)}
-                                                placeholder="jane@example.com"
-                                            />
-                                        </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <CursorFieldLabel htmlFor="cloud-agents-branch-name">Branch name override</CursorFieldLabel>
+                                        <CursorTextField
+                                            id="cloud-agents-branch-name"
+                                            value={branchNameDraft}
+                                            onChange={(event) => setBranchNameDraft(event.target.value)}
+                                            placeholder="optional-slug"
+                                        />
                                     </div>
+                                </div>
+                            ) : null}
 
-                                    <CursorSettingsCard className="px-4 py-4">
-                                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--cursor-text-tertiary)]">Bootstrap summary</div>
-                                        <div className="mt-2 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">
-                                            Repo sync policy: <span className="font-medium text-[var(--cursor-text-primary)]">fetch-reset</span>
-                                        </div>
-                                        <div className="mt-1 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">
-                                            Workspace mode: <span className="font-medium text-[var(--cursor-text-primary)]">ephemeral</span>
-                                        </div>
-                                        <div className="mt-1 text-[13px] leading-[18px] text-[var(--cursor-text-secondary)]">
-                                            GitHub identity: <span className="font-medium text-[var(--cursor-text-primary)]">{cloudAgentSettingsQuery.data?.settings.githubUsername || 'not inferred'}</span>
-                                        </div>
-                                    </CursorSettingsCard>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="flex flex-col gap-1.5">
+                                    <CursorFieldLabel htmlFor="cloud-agents-agent">Agent</CursorFieldLabel>
+                                    <CursorSelect
+                                        id="cloud-agents-agent"
+                                        value={selectedAgent}
+                                        onChange={(event) => setSelectedAgent(event.target.value as AgentFlavor)}
+                                    >
+                                        {AGENT_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </CursorSelect>
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <CursorFieldLabel htmlFor="cloud-agents-environment">Environment</CursorFieldLabel>
+                                    <CursorSelect
+                                        id="cloud-agents-environment"
+                                        value={environmentIdDraft}
+                                        onChange={(event) => setEnvironmentIdDraft(event.target.value)}
+                                    >
+                                        <option value="">Workspace default</option>
+                                        {environments.map((environment) => (
+                                            <option key={environment.id} value={environment.id}>
+                                                {environment.id.replace(/^repo:/, '')}
+                                            </option>
+                                        ))}
+                                    </CursorSelect>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                                <div className="flex flex-col gap-1.5">
+                                    <CursorFieldLabel htmlFor="cloud-agents-checkpoint">Checkpoint</CursorFieldLabel>
+                                    <CursorSelect
+                                        id="cloud-agents-checkpoint"
+                                        value={checkpointIdDraft}
+                                        onChange={(event) => setCheckpointIdDraft(event.target.value)}
+                                    >
+                                        <option value="">None</option>
+                                        {(checkpointsQuery.data?.checkpoints ?? []).map((checkpoint) => (
+                                            <option key={checkpoint.id} value={checkpoint.id}>
+                                                {checkpoint.name}
+                                            </option>
+                                        ))}
+                                    </CursorSelect>
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <CursorFieldLabel htmlFor="cloud-agents-git-name">Git author name</CursorFieldLabel>
+                                    <CursorTextField
+                                        id="cloud-agents-git-name"
+                                        value={gitNameOverride}
+                                        onChange={(event) => setGitNameOverride(event.target.value)}
+                                        placeholder="Jane Doe"
+                                    />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <CursorFieldLabel htmlFor="cloud-agents-git-email">Git author email</CursorFieldLabel>
+                                    <CursorTextField
+                                        id="cloud-agents-git-email"
+                                        value={gitEmailOverride}
+                                        onChange={(event) => setGitEmailOverride(event.target.value)}
+                                        placeholder="jane@example.com"
+                                    />
                                 </div>
                             </div>
 
@@ -1179,8 +965,8 @@ export default function SettingsCloudAgentsPage(props: {
                             ) : null}
                         </CursorDialogBody>
                         <CursorDialogFooter className="px-5 pb-5">
-                            <div className="mr-auto text-[12px] leading-4 text-[var(--cursor-text-secondary)]">
-                                Launches through self-hosted cloud workers only. Full daemon-session bootstrap lifecycle remains intact.
+                            <div className="mr-auto text-[12px] leading-4 text-[var(--cursor-text-tertiary)]">
+                                Runtime: daemon-session · launch: background · sync: fetch-reset
                             </div>
                             <CursorButton
                                 type="button"
@@ -1198,51 +984,6 @@ export default function SettingsCloudAgentsPage(props: {
                             </CursorButton>
                         </CursorDialogFooter>
                     </CursorDialogShell>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog
-                open={detailOpen}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        navigate({ to: '/settings/cloud-agents' })
-                    }
-                }}
-            >
-                <DialogContent className="left-auto right-0 top-0 h-[100dvh] w-[min(840px,100vw)] max-w-none translate-x-0 translate-y-0 rounded-none border-l border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-0 shadow-2xl">
-                    <DialogTitle className="sr-only">Cloud agent detail</DialogTitle>
-                    <DialogDescription className="sr-only">
-                        Request and workspace details for the selected cloud agent activity item.
-                    </DialogDescription>
-                    <div className="flex h-full min-h-0 flex-col bg-[var(--cursor-bg-app)]">
-                        <div className="flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] px-5 py-4">
-                            <div>
-                                <div className="text-[15px] font-semibold text-[var(--cursor-text-primary)]">
-                                    {props.selectedRequestId ? 'Request detail' : 'Workspace detail'}
-                                </div>
-                                <div className="mt-1 text-[12px] text-[var(--cursor-text-secondary)]">
-                                    Stay in the agent workspace while inspecting background state.
-                                </div>
-                            </div>
-                            <CursorButton type="button" variant="outline" size="sm" onClick={() => navigate({ to: '/settings/cloud-agents' })}>
-                                Close
-                            </CursorButton>
-                        </div>
-                        <div className="min-h-0 flex-1 overflow-auto">
-                            {props.selectedRequestId ? (
-                                <CloudRequestDetailContent
-                                    requestId={props.selectedRequestId}
-                                    routeScope="agents"
-                                    embedded
-                                />
-                            ) : props.selectedWorkspaceId ? (
-                                <CloudWorkspaceDetailContent
-                                    workspaceId={props.selectedWorkspaceId}
-                                    embedded
-                                />
-                            ) : null}
-                        </div>
-                    </div>
                 </DialogContent>
             </Dialog>
         </>

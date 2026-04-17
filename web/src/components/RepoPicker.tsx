@@ -198,7 +198,7 @@ export function RepoPicker(props: {
                             groups.map(group => (
                                 <div key={group.owner}>
                                     {groups.length > 1 && (
-                                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+                                        <div className="px-3 pt-2 pb-1 text-[11px] font-medium text-[var(--text-tertiary)]">
                                             {group.owner}
                                         </div>
                                     )}

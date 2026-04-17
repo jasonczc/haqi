@@ -363,6 +363,8 @@ function WorkerActions({ worker }: { worker: CloudWorkerSummary }) {
     const { api } = useAppContext()
     const queryClient = useQueryClient()
     const [stopping, setStopping] = useState(false)
+    const [removing, setRemoving] = useState(false)
+    const [removeError, setRemoveError] = useState<string | null>(null)
 
     const localWorkerQuery = useQuery({
         queryKey: ['cloud-local-worker'],
@@ -388,8 +390,23 @@ function WorkerActions({ worker }: { worker: CloudWorkerSummary }) {
         }
     }
 
+    async function handleRemove() {
+        if (!api) return
+        setRemoving(true)
+        setRemoveError(null)
+        try {
+            await api.deleteCloudWorker(worker.machineId)
+            void queryClient.invalidateQueries({ queryKey: queryKeys.cloudWorkers() })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.machines })
+        } catch (err: any) {
+            setRemoveError(err?.message ?? 'Failed to remove')
+        } finally {
+            setRemoving(false)
+        }
+    }
+
     return (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
             {isLocalWorker ? (
                 <CursorButton
                     variant="danger"
@@ -401,7 +418,21 @@ function WorkerActions({ worker }: { worker: CloudWorkerSummary }) {
                 </CursorButton>
             ) : worker.active ? (
                 <CursorSettingsBadge>remote</CursorSettingsBadge>
-            ) : null}
+            ) : (
+                <>
+                    {removeError ? (
+                        <span className="text-[12px] text-[var(--danger)]">{removeError}</span>
+                    ) : null}
+                    <CursorButton
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleRemove()}
+                        disabled={removing}
+                    >
+                        {removing ? 'Removing...' : 'Remove'}
+                    </CursorButton>
+                </>
+            )}
         </div>
     )
 }

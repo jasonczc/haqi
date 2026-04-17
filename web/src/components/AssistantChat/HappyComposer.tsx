@@ -261,10 +261,12 @@ function buildClaudeModelOptions(
 ): ComposerModelOption[] {
     const options: ComposerModelOption[] = [
         { value: 'auto', label: 'Default (recommended)' },
+        { value: 'global.anthropic.claude-opus-4-7-v1', label: 'Opus 4.7' },
+        { value: 'global.anthropic.claude-opus-4-7-v1[1m]', label: 'Opus 4.7 (1M context)' },
         { value: 'us.anthropic.claude-sonnet-4-6', label: 'Sonnet 4.6' },
-        { value: 'us.anthropic.claude-sonnet-4-6[1m]', label: 'Sonnet (1M context)' },
+        { value: 'us.anthropic.claude-sonnet-4-6[1m]', label: 'Sonnet 4.6 (1M context)' },
         { value: 'global.anthropic.claude-opus-4-6-v1', label: 'Opus 4.6' },
-        { value: 'global.anthropic.claude-opus-4-6-v1[1m]', label: 'Opus (1M context)' },
+        { value: 'global.anthropic.claude-opus-4-6-v1[1m]', label: 'Opus 4.6 (1M context)' },
         { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
     ]
 
@@ -282,6 +284,8 @@ function getThinkEffortOptionsForFlavor(flavor?: string | null): ComposerThinkEf
             { value: 'low', label: 'Low' },
             { value: 'medium', label: 'Medium' },
             { value: 'high', label: 'High' },
+            { value: 'max', label: 'Max' },
+            { value: 'xhigh', label: 'XHigh' },
         ]
     }
     if (flavor === 'codex') {
@@ -435,6 +439,7 @@ export function HappyComposer(props: {
             || normalizedThinkEffort === 'low'
             || normalizedThinkEffort === 'medium'
             || normalizedThinkEffort === 'high'
+            || normalizedThinkEffort === 'max'
             || normalizedThinkEffort === 'xhigh') {
             return thinkEffortOptions.some((option) => option.value === normalizedThinkEffort)
                 ? normalizedThinkEffort
@@ -1288,7 +1293,7 @@ export function HappyComposer(props: {
                             {showInlineQueuePanel ? (
                                 <div className="chat-inline-queue border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] px-3 py-2">
                                     <div className="chat-inline-queue-row flex flex-wrap items-center gap-2">
-                                        <span className="chat-inline-queue-label text-[11px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)]">
+                                        <span className="chat-inline-queue-label text-[12px] font-medium text-[var(--cursor-text-secondary)]">
                                             {t('queue.dialog.title')}
                                         </span>
                                         <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-xs text-[var(--cursor-text-primary)]">

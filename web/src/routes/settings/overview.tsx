@@ -112,10 +112,10 @@ export default function SettingsOverviewPage() {
                 <CursorSettingsCard className="p-6">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                         <div className="text-[13px] leading-[18px] font-semibold text-[var(--cursor-text-primary)]">AI Line Edits in the last year</div>
-                        <div className="overview-tabs">
-                            <button type="button" className="overview-tab-btn active">All</button>
-                            <button type="button" className="overview-tab-btn">Cloud</button>
-                            <button type="button" className="overview-tab-btn">Agent</button>
+                        <div className="segmented-control">
+                            <button type="button" className="segmented-control-item" data-active>All</button>
+                            <button type="button" className="segmented-control-item">Cloud</button>
+                            <button type="button" className="segmented-control-item">Agent</button>
                         </div>
                     </div>
 

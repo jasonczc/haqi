@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { CodeBlock } from '@/components/CodeBlock'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { DiffView } from '@/components/DiffView'
-import { parseUnifiedDiff } from '@/lib/gitDiff'
+import { inferGitDiffLanguage, parseUnifiedDiff } from '@/lib/gitDiff'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { PermissionFooter } from '@/components/ToolCard/PermissionFooter'
 import { isAskUserQuestionToolName } from '@/components/ToolCard/askUserQuestion'
@@ -255,12 +255,33 @@ function renderToolInput(block: ToolCallBlock): ReactNode {
                 .filter(Boolean)
 
             if (rendered.length > 0) {
+                const remainingEdits = edits.length - 3
+                let remainingAdded = 0
+                let remainingRemoved = 0
+                if (remainingEdits > 0) {
+                    for (let i = 3; i < edits.length; i += 1) {
+                        const edit = edits[i]
+                        if (!isObject(edit)) continue
+                        const oldString = getInputString(edit, 'old_string')
+                        const newString = getInputString(edit, 'new_string')
+                        if (oldString === null || newString === null) continue
+                        const oldLines = oldString === '' ? 0 : oldString.split('\n').length
+                        const newLines = newString === '' ? 0 : newString.split('\n').length
+                        remainingAdded += Math.max(newLines - oldLines, 0)
+                        remainingRemoved += Math.max(oldLines - newLines, 0)
+                    }
+                }
+
                 return (
                     <div className="flex flex-col gap-2">
                         {rendered}
-                        {edits.length > 3 ? (
+                        {remainingEdits > 0 ? (
                             <div className="text-xs text-[var(--cursor-text-secondary)]">
-                                (+{edits.length - 3} more edits)
+                                (+{remainingEdits} more
+                                {remainingAdded > 0 || remainingRemoved > 0
+                                    ? ` · +${remainingAdded} lines · −${remainingRemoved} lines`
+                                    : ''}
+                                )
                             </div>
                         ) : null}
                     </div>
@@ -273,12 +294,13 @@ function renderToolInput(block: ToolCallBlock): ReactNode {
         const filePath = getInputStringAny(input, ['file_path', 'path'])
         const content = getInputStringAny(input, ['content', 'text'])
         if (filePath && content !== null) {
+            const language = inferGitDiffLanguage(filePath)
             return (
                 <div className="flex flex-col gap-2">
                     <div className="text-xs text-[var(--cursor-text-secondary)] font-mono break-all">
                         {filePath}
                     </div>
-                    <CodeBlock code={content} language="text" />
+                    <CodeBlock code={content} language={language} />
                 </div>
             )
         }
@@ -776,7 +798,7 @@ function ToolCardInner(props: ToolCardProps) {
     })()
 
     return (
-        <Card className="tool-card overflow-hidden shadow-sm">
+        <Card className={cn('tool-card overflow-hidden shadow-sm', `tool-card--${props.block.tool.state}`)} data-state={props.block.tool.state}>
             <CardHeader className={cn('tool-card-header space-y-0', isCompact ? 'p-2.5' : 'p-3')}>
                 {isCompact ? (
                     isTurnChangesTool ? (

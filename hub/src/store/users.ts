@@ -78,3 +78,25 @@ export function removeUser(db: Database, platform: string, platformUserId: strin
     ).run(platform, platformUserId)
     return result.changes > 0
 }
+
+/**
+ * Ensure a users row exists with the exact id the access-token flow hands
+ * out as `ownerId` (from owner-id.json). Required so that any table with
+ * `FOREIGN KEY (user_id) REFERENCES users(id)` — e.g. cloud_agent_preferences
+ * — can accept writes from web requests authenticated with CLI_API_TOKEN.
+ * Idempotent: INSERT OR IGNORE skips if the row already exists.
+ */
+export function ensureOwnerUser(db: Database, ownerId: number, namespace: string): void {
+    db.prepare(`
+        INSERT OR IGNORE INTO users (
+            id, platform, platform_user_id, namespace, created_at
+        ) VALUES (
+            @id, 'access-token', @platform_user_id, @namespace, @created_at
+        )
+    `).run({
+        id: ownerId,
+        platform_user_id: `owner-${ownerId}`,
+        namespace,
+        created_at: Date.now()
+    })
+}

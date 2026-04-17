@@ -20,6 +20,7 @@ export function ToastContainer() {
                     key={toast.id}
                     title={toast.title}
                     body={toast.body}
+                    variant={toast.variant ?? 'default'}
                     className="cursor-pointer"
                     onClick={() => {
                         removeToast(toast.id)

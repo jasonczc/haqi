@@ -26,9 +26,6 @@ const updateCloudAgentSettingsSchema = z.object({
     gitName: z.string().max(200).nullable().optional(),
     gitEmail: z.string().max(320).nullable().optional(),
     githubUsername: z.string().max(100).nullable().optional(),
-    branchPrefix: z.string().max(200).nullable().optional(),
-    baseBranch: z.string().max(200).nullable().optional(),
-    defaultRepositoryUrl: z.string().max(2000).nullable().optional(),
 })
 
 const connectGitHubSchema = z.object({
@@ -36,7 +33,6 @@ const connectGitHubSchema = z.object({
 })
 
 const DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL = false
-const DEFAULT_BRANCH_PREFIX = 'haqi/'
 
 type GitHubProfile = {
     login: string
@@ -115,15 +111,30 @@ async function fetchGitHubRepos(token: string): Promise<GitHubRepo[]> {
         }))
 }
 
+async function fetchGitHubBranches(
+    token: string,
+    owner: string,
+    repo: string
+): Promise<Array<{ name: string; protected: boolean }>> {
+    const branches = await githubFetch<Array<{
+        name?: unknown
+        protected?: unknown
+    }>>(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches?per_page=100`, token)
+
+    return branches
+        .filter((b) => typeof b.name === 'string')
+        .map((b) => ({
+            name: b.name as string,
+            protected: Boolean(b.protected),
+        }))
+}
+
 function getCloudAgentSettingsPayload(store: Store, namespace: string, userId: number) {
     const preferences = store.cloudAgentPreferences.getPreferences(namespace, userId)
     return {
         gitName: preferences?.gitName ?? '',
         gitEmail: preferences?.gitEmail ?? '',
         githubUsername: preferences?.githubUsername ?? '',
-        branchPrefix: preferences?.branchPrefix ?? DEFAULT_BRANCH_PREFIX,
-        baseBranch: preferences?.baseBranch ?? '',
-        defaultRepositoryUrl: preferences?.defaultRepositoryUrl ?? '',
     }
 }
 
@@ -292,9 +303,6 @@ export function createSettingsRoutes(
                     gitName: preferences.gitName ?? '',
                     gitEmail: preferences.gitEmail ?? '',
                     githubUsername: preferences.githubUsername ?? '',
-                    branchPrefix: preferences.branchPrefix ?? DEFAULT_BRANCH_PREFIX,
-                    baseBranch: preferences.baseBranch ?? '',
-                    defaultRepositoryUrl: preferences.defaultRepositoryUrl ?? '',
                 }
             })
         } catch (error) {
@@ -351,9 +359,6 @@ export function createSettingsRoutes(
                     gitName: preferences.gitName ?? '',
                     gitEmail: preferences.gitEmail ?? '',
                     githubUsername: preferences.githubUsername ?? '',
-                    branchPrefix: preferences.branchPrefix ?? DEFAULT_BRANCH_PREFIX,
-                    baseBranch: preferences.baseBranch ?? '',
-                    defaultRepositoryUrl: preferences.defaultRepositoryUrl ?? '',
                 },
                 github: {
                     connected: true,
@@ -418,6 +423,40 @@ export function createSettingsRoutes(
         } catch (error) {
             return c.json({
                 error: error instanceof Error ? error.message : 'Failed to list GitHub repositories'
+            }, 502)
+        }
+    })
+
+    app.get('/settings/cloud-agents/github/repos/:owner/:repo/branches', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+
+        const owner = c.req.param('owner')
+        const repo = c.req.param('repo')
+        if (!owner || !repo) {
+            return c.json({ error: 'Missing owner or repo' }, 400)
+        }
+
+        try {
+            const namespace = c.get('namespace')
+            const githubSecret = findGitHubSecret(engine, namespace)
+            if (!githubSecret) {
+                return c.json({ error: 'No GitHub token configured' }, 401)
+            }
+
+            const token = engine.resolveCloudSecretValue(namespace, githubSecret.name)
+            if (!token) {
+                return c.json({ error: 'No GitHub token configured' }, 401)
+            }
+
+            return c.json({
+                branches: await fetchGitHubBranches(token, owner, repo)
+            })
+        } catch (error) {
+            return c.json({
+                error: error instanceof Error ? error.message : 'Failed to list GitHub branches'
             }, 502)
         }
     })

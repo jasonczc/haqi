@@ -1,7 +1,7 @@
 import type { SessionModelMode } from '@/api/types'
 import { inferClaudeModelModeFromModel } from '@hapi/protocol'
 
-export type ClaudeThinkEffort = 'low' | 'medium' | 'high' | 'max'
+export type ClaudeThinkEffort = 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 
 function normalizeResolvedModel(value: string | null | undefined): string | undefined {
     if (typeof value !== 'string') {
@@ -96,7 +96,7 @@ export function findClaudeThinkEffortFromArgs(args: string[] | undefined): Claud
             return undefined
         }
         const normalized = value.trim().toLowerCase()
-        if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max') {
+        if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max' || normalized === 'xhigh') {
             return normalized
         }
         return undefined

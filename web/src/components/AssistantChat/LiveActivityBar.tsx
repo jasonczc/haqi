@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import type { DecryptedMessage } from '@/types/api'
 import { extractLatestLiveActivity } from '@/components/AssistantChat/liveActivity'
-import { Spinner } from '@/components/Spinner'
 
 export function LiveActivityBar(props: {
     messages: DecryptedMessage[]
@@ -17,10 +16,10 @@ export function LiveActivityBar(props: {
     }
 
     return (
-        <div className="animate-bounce-in mx-auto w-full max-w-content px-3 pb-1">
-            <div className="flex items-center gap-2 rounded-lg bg-[var(--cursor-bg-soft)] px-3 py-1.5 text-xs text-[var(--cursor-text-secondary)]">
-                <Spinner size="sm" label={null} className="text-current" />
-                <span className="truncate">{activity}</span>
+        <div className="live-activity-bar mx-auto w-full max-w-content px-3 pb-1">
+            <div className="live-activity-inner flex items-center gap-2.5 rounded-full px-3 py-1.5 text-xs">
+                <span className="live-activity-dot" aria-hidden />
+                <span className="live-activity-text truncate">{activity}</span>
             </div>
         </div>
     )

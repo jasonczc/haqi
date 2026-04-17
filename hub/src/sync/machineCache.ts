@@ -39,11 +39,27 @@ export interface Machine {
 export class MachineCache {
     private readonly machines: Map<string, Machine> = new Map()
     private readonly lastBroadcastAtByMachineId: Map<string, number> = new Map()
+    // Last time we wrote active/active_at to DB for each machine. Throttles
+    // heartbeat persistence so we don't write every 20s keepalive; writes
+    // always fire on state transitions regardless of this throttle.
+    private readonly lastActivityPersistAtByMachineId: Map<string, number> = new Map()
+    private static readonly ACTIVITY_PERSIST_INTERVAL_MS = 60_000
 
     constructor(
         private readonly store: Store,
         private readonly publisher: EventPublisher
     ) {
+    }
+
+    private persistActivity(machine: Machine, active: boolean, activeAt: number, force = false): void {
+        if (!force) {
+            const last = this.lastActivityPersistAtByMachineId.get(machine.id) ?? 0
+            if (activeAt - last < MachineCache.ACTIVITY_PERSIST_INTERVAL_MS) {
+                return
+            }
+        }
+        this.lastActivityPersistAtByMachineId.set(machine.id, activeAt)
+        this.store.machines.updateMachineActivity(machine.id, machine.namespace, active, activeAt)
     }
 
     getMachines(): Machine[] {
@@ -77,6 +93,17 @@ export class MachineCache {
     getOrCreateMachine(id: string, metadata: unknown, runnerState: unknown, namespace: string): Machine {
         const stored = this.store.machines.getOrCreateMachine(id, metadata, runnerState, namespace)
         return this.refreshMachine(stored.id) ?? (() => { throw new Error('Failed to load machine') })()
+    }
+
+    removeMachineByNamespace(machineId: string, namespace: string): boolean {
+        const removed = this.store.machines.deleteMachineByNamespace(machineId, namespace)
+        if (!removed) return false
+        if (this.machines.delete(machineId)) {
+            this.publisher.emit({ type: 'machine-updated', machineId, data: null })
+        }
+        this.lastBroadcastAtByMachineId.delete(machineId)
+        this.lastActivityPersistAtByMachineId.delete(machineId)
+        return true
     }
 
     refreshMachine(machineId: string): Machine | null {
@@ -171,6 +198,11 @@ export class MachineCache {
         machine.active = true
         machine.activeAt = Math.max(machine.activeAt, t)
 
+        // Persist liveness: always on inactive→active transition, otherwise
+        // at most once per ACTIVITY_PERSIST_INTERVAL_MS. Keeps DB in sync so
+        // hub restart correctly restores machine state.
+        this.persistActivity(machine, true, machine.activeAt, /* force */ !wasActive)
+
         const now = Date.now()
         const lastBroadcastAt = this.lastBroadcastAtByMachineId.get(machine.id) ?? 0
         const shouldBroadcast = (!wasActive && machine.active) || (now - lastBroadcastAt > 10_000)
@@ -182,12 +214,28 @@ export class MachineCache {
 
     expireInactive(now: number = Date.now()): void {
         const machineTimeoutMs = 45_000
+        // Auto-prune fully dead machine records so the worker picker and
+        // settings page don't fill up with preempted spot instances. A
+        // machine inactive past the TTL is almost certainly gone for good
+        // (new spot instances get new machineIds). activeAt is the source
+        // of truth: written to DB on transitions and throttled heartbeats
+        // so it survives hub restarts.
+        const deadMachineTtlMs = 60 * 60 * 1000
 
+        const toPrune: Array<{ id: string; namespace: string }> = []
         for (const machine of this.machines.values()) {
-            if (!machine.active) continue
-            if (now - machine.activeAt <= machineTimeoutMs) continue
-            machine.active = false
-            this.publisher.emit({ type: 'machine-updated', machineId: machine.id, data: { active: false } })
+            if (machine.active && now - machine.activeAt > machineTimeoutMs) {
+                machine.active = false
+                this.persistActivity(machine, false, machine.activeAt, /* force */ true)
+                this.publisher.emit({ type: 'machine-updated', machineId: machine.id, data: { active: false } })
+            }
+            if (!machine.active && now - machine.activeAt > deadMachineTtlMs) {
+                toPrune.push({ id: machine.id, namespace: machine.namespace })
+            }
+        }
+
+        for (const { id, namespace } of toPrune) {
+            this.removeMachineByNamespace(id, namespace)
         }
     }
 }

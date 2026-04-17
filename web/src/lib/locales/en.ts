@@ -294,6 +294,7 @@ export default {
 
   // Code block
   'code.copy': 'Copy',
+  'code.copied': 'Copied',
 
   // Diff view
   'diff.title': 'Diff',

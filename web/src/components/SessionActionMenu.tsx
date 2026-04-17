@@ -8,6 +8,7 @@ import {
     type CSSProperties
 } from 'react'
 import { useTranslation } from '@/lib/use-translation'
+import { MenuItem } from '@/components/ui/MenuItem'
 
 type SessionActionMenuProps = {
     isOpen: boolean
@@ -293,9 +294,6 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         }
         : undefined
 
-    const baseItemClassName =
-        'flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]'
-
     return (
         <div
             ref={menuRef}
@@ -304,7 +302,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         >
             <div
                 id={headingId}
-                className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"
+                className="px-3 pt-2 pb-1 text-[11px] font-medium text-[var(--text-tertiary)]"
             >
                 {t('session.more')}
             </div>
@@ -312,74 +310,38 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 id={resolvedMenuId}
                 role="menu"
                 aria-labelledby={headingId}
-                className="flex flex-col gap-1"
+                className="flex flex-col gap-0.5"
             >
-                <button
-                    type="button"
-                    role="menuitem"
-                    className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
-                    onClick={handleRename}
-                >
-                    <EditIcon className="text-[var(--text-tertiary)]" />
+                <MenuItem icon={<EditIcon />} onClick={handleRename}>
                     {t('session.action.rename')}
-                </button>
+                </MenuItem>
 
                 {onSpawnSameConfig ? (
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
-                        onClick={handleSpawnSameConfig}
-                    >
-                        <NewSessionIcon className="text-[var(--text-tertiary)]" />
+                    <MenuItem icon={<NewSessionIcon />} onClick={handleSpawnSameConfig}>
                         {t('session.action.newSameConfig')}
-                    </button>
+                    </MenuItem>
                 ) : null}
 
                 {onDuplicate ? (
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
-                        onClick={handleDuplicate}
-                    >
-                        <DuplicateIcon className="text-[var(--text-tertiary)]" />
+                    <MenuItem icon={<DuplicateIcon />} onClick={handleDuplicate}>
                         {t('session.action.duplicate')}
-                    </button>
+                    </MenuItem>
                 ) : null}
 
                 {onSaveCheckpoint ? (
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={`${baseItemClassName} hover:bg-[var(--bg-quaternary)]`}
-                        onClick={handleSaveCheckpoint}
-                    >
-                        <CheckpointIcon className="text-[var(--text-tertiary)]" />
+                    <MenuItem icon={<CheckpointIcon />} onClick={handleSaveCheckpoint}>
                         Save checkpoint
-                    </button>
+                    </MenuItem>
                 ) : null}
 
                 {sessionActive ? (
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={`${baseItemClassName} text-[var(--danger)] hover:bg-[var(--bg-danger-secondary)]`}
-                        onClick={handleArchive}
-                    >
-                        <ArchiveIcon className="text-[var(--danger)]" />
+                    <MenuItem icon={<ArchiveIcon />} tone="danger" onClick={handleArchive}>
                         {t('session.action.archive')}
-                    </button>
+                    </MenuItem>
                 ) : (
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={`${baseItemClassName} text-[var(--danger)] hover:bg-[var(--bg-danger-secondary)]`}
-                        onClick={handleDelete}
-                    >
-                        <TrashIcon className="text-[var(--danger)]" />
+                    <MenuItem icon={<TrashIcon />} tone="danger" onClick={handleDelete}>
                         {t('session.action.delete')}
-                    </button>
+                    </MenuItem>
                 )}
             </div>
         </div>

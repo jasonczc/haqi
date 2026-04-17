@@ -1,11 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
+export type ToastVariant = 'default' | 'success' | 'error' | 'warning'
+
 export type Toast = {
     id: string
     title: string
     body: string
     sessionId: string
     url: string
+    variant?: ToastVariant
 }
 
 export type ToastContextValue = {

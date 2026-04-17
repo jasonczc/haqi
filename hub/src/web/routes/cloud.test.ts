@@ -247,12 +247,8 @@ describe('createCloudRoutes', () => {
     })
 
     it('reports an attached local worker from machine summary', async () => {
-        process.kill = mock(((pid: number, signal?: number | NodeJS.Signals) => {
-            if (signal === 0 || signal === undefined) {
-                return true as never
-            }
-            return true as never
-        }) as typeof process.kill)
+        // Use the test process's own pid so the /proc/<pid>/status liveness check passes.
+        const alivePid = process.pid
 
         const app = createAuthedApp(() => ({
             listCloudWorkers: () => [{
@@ -263,7 +259,7 @@ describe('createCloudRoutes', () => {
                 executorType: 'cloud-self-hosted',
                 lifecycle: 'idle',
                 runnerState: {
-                    pid: 43210,
+                    pid: alivePid,
                     startedAt: 123,
                     lifecycle: 'idle'
                 },
@@ -275,10 +271,37 @@ describe('createCloudRoutes', () => {
         expect(response.status).toBe(200)
         expect(await response.json()).toEqual({
             running: true,
-            pid: 43210,
+            pid: alivePid,
             exitCode: null,
             startedAt: 123,
             logs: ['[hub] Attached to existing local worker process from machine summary']
         })
+    })
+
+    it('reports no local worker when the summary pid is a zombie / unreachable', async () => {
+        // Pid 1 is init/systemd — readable by /proc but not a worker bun process.
+        // Use a guaranteed-dead pid instead: 2^22 - 1, almost certainly unused.
+        const deadPid = 4194303
+
+        const app = createAuthedApp(() => ({
+            listCloudWorkers: () => [{
+                machineId: buildLocalWorkerMachineId('default'),
+                provider: 'manual',
+                active: false,
+                selectable: false,
+                executorType: 'cloud-self-hosted',
+                lifecycle: 'idle',
+                runnerState: {
+                    pid: deadPid,
+                    startedAt: 123,
+                    lifecycle: 'idle'
+                },
+                updatedAt: 1
+            }]
+        }))
+
+        const response = await app.request('http://localhost/api/cloud/local-worker')
+        expect(response.status).toBe(200)
+        expect(await response.json()).toEqual({ running: false, logs: [] })
     })
 })

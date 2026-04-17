@@ -78,4 +78,53 @@ describe('resolveCliAuthToken', () => {
             namespace: 'team-b'
         })
     })
+
+    it('gives worker sessions a long TTL independent of the enrollment window', () => {
+        const store = new Store(':memory:')
+        const secretBroker = new SecretBroker(store)
+        // Enrollment token with an aggressive 10-minute window — this used to
+        // leak into the worker session and kill reconnects after hub restarts.
+        const { token: enrollmentToken, record: enrollmentRecord } = secretBroker.createEnrollmentToken({
+            namespace: 'default',
+            machineId: 'machine-1',
+            ttlMinutes: 10
+        })
+
+        const exchanged = secretBroker.exchangeEnrollmentToken(enrollmentToken)
+        expect(exchanged).not.toBeNull()
+        if (!exchanged) return
+
+        const session = store.cloud.getWorkerSessionByHash(
+            require('node:crypto').createHash('sha256').update(exchanged.workerSessionToken).digest('hex')
+        )
+        expect(session).not.toBeNull()
+        expect(session!.expiresAt).not.toBeNull()
+        // Session must outlive the enrollment window by far.
+        const hoursBeyondEnrollment = ((session!.expiresAt ?? 0) - (enrollmentRecord.expiresAt ?? 0)) / (60 * 60 * 1000)
+        expect(hoursBeyondEnrollment).toBeGreaterThan(24 * 7) // at least a week
+    })
+
+    it('slides the worker-session expiry forward on every successful resolve', () => {
+        const store = new Store(':memory:')
+        const secretBroker = new SecretBroker(store)
+        const { token: enrollmentToken } = secretBroker.createEnrollmentToken({
+            namespace: 'default',
+            machineId: 'machine-1',
+            ttlMinutes: 10
+        })
+        const exchanged = secretBroker.exchangeEnrollmentToken(enrollmentToken)
+        if (!exchanged) throw new Error('enrollment failed')
+
+        const hashOf = (t: string) => require('node:crypto').createHash('sha256').update(t).digest('hex')
+        const before = store.cloud.getWorkerSessionByHash(hashOf(exchanged.workerSessionToken))!.expiresAt ?? 0
+
+        // Simulate some time passing between the first auth and the next.
+        // Resolving must bump expires_at, not leave it at the exchange-time
+        // value — otherwise a long-running worker's session would slowly
+        // drift toward expiry.
+        const resolved = secretBroker.resolveWorkerSessionToken(exchanged.workerSessionToken)
+        expect(resolved).not.toBeNull()
+        const after = store.cloud.getWorkerSessionByHash(hashOf(exchanged.workerSessionToken))!.expiresAt ?? 0
+        expect(after).toBeGreaterThanOrEqual(before)
+    })
 })

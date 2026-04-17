@@ -154,7 +154,7 @@ describe('UpdatePlanView', () => {
 
         expect(completed).toBeInTheDocument()
         expect(completed.className).toContain('line-through')
-        expect(inProgress.className).toContain('text-[var(--cursor-link)]')
+        expect(inProgress.className).toContain('text-[var(--cursor-text-primary)]')
         expect(pending.className).toContain('text-[var(--cursor-text-secondary)]')
     })
 

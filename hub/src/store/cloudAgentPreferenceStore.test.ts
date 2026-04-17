@@ -11,26 +11,18 @@ describe('CloudAgentPreferenceStore', () => {
             gitName: '  Jane Doe  ',
             gitEmail: 'jane@example.com',
             githubUsername: ' janedoe ',
-            branchPrefix: ' haqi/ ',
-            baseBranch: ' main ',
-            defaultRepositoryUrl: ' https://github.com/acme/demo.git ',
         })
 
         expect(first.gitName).toBe('Jane Doe')
         expect(first.gitEmail).toBe('jane@example.com')
         expect(first.githubUsername).toBe('janedoe')
-        expect(first.branchPrefix).toBe('haqi/')
-        expect(first.baseBranch).toBe('main')
-        expect(first.defaultRepositoryUrl).toBe('https://github.com/acme/demo.git')
 
         const second = store.cloudAgentPreferences.upsertPreferences('default', user.id, {
-            branchPrefix: '',
-            baseBranch: 'develop',
+            gitEmail: 'new@example.com',
         })
 
         expect(second.gitName).toBe('Jane Doe')
-        expect(second.branchPrefix).toBeNull()
-        expect(second.baseBranch).toBe('develop')
+        expect(second.gitEmail).toBe('new@example.com')
     })
 
     it('isolates preferences by namespace and user', () => {

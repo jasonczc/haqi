@@ -20,9 +20,10 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--cursor-button)] text-[var(--cursor-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className="new-messages-indicator absolute bottom-20 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--cursor-button)] px-3.5 py-1.5 text-sm font-medium text-[var(--cursor-button-text)]"
         >
-            {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
+            {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')}
+            <span aria-hidden className="ml-1 inline-block">↓</span>
         </button>
     )
 }
@@ -39,10 +40,10 @@ function MessageSkeleton() {
     return (
         <div role="status" aria-live="polite">
             <span className="sr-only">{t('misc.loadingMessages')}</span>
-            <div className="space-y-3 animate-pulse">
+            <div className="space-y-3">
                 {rows.map((row, index) => (
                     <div key={`skeleton-${index}`} className={row.align === 'end' ? 'flex justify-end' : 'flex justify-start'}>
-                        <div className={`${row.height} ${row.width} rounded-xl bg-[var(--cursor-bg-quiet)]`} />
+                        <div className={`skeleton ${row.height} ${row.width} rounded-xl`} />
                     </div>
                 ))}
             </div>

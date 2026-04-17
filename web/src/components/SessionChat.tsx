@@ -29,6 +29,7 @@ import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
 import { TeamPanel } from '@/components/TeamPanel'
+import { ChecklistStatusIcon } from '@/components/ui/ChecklistStatusIcon'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useQueueInlinePanel } from '@/hooks/useQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
@@ -345,10 +346,10 @@ function extractLatestCodexPlan(messages: NormalizedMessage[]): CodexPlanSnapsho
     return null
 }
 
-function getCodexPlanStatusBadgeClass(status: CodexPlanStatus): string {
-    if (status === 'completed') return 'bg-[var(--success)]/10 text-[var(--success)]'
-    if (status === 'in_progress') return 'bg-[var(--accent)]/10 text-[var(--accent)]'
-    return 'bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-tertiary)]'
+function getCodexPlanTextClass(status: CodexPlanStatus): string {
+    if (status === 'completed') return 'text-[var(--cursor-text-tertiary)] line-through'
+    if (status === 'in_progress') return 'text-[var(--cursor-text-primary)] font-medium'
+    return 'text-[var(--cursor-text-secondary)]'
 }
 
 const CODEX_SEND_MODE_STORAGE_PREFIX = 'hapi:codexSendMode:'
@@ -461,7 +462,7 @@ function SessionInactiveBanner(props: {
                             <button
                                 type="button"
                                 onClick={() => setStderrExpanded(v => !v)}
-                                className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]"
+                                className="flex items-center gap-1 text-[11px] font-semibold text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]"
                             >
                                 <span>stderr</span>
                                 <span>{stderrExpanded ? '▾' : '▸'}</span>
@@ -482,7 +483,7 @@ function SessionInactiveBanner(props: {
                             <button
                                 type="button"
                                 onClick={() => setStdoutExpanded(v => !v)}
-                                className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]"
+                                className="flex items-center gap-1 text-[11px] font-semibold text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]"
                             >
                                 <span>stdout</span>
                                 <span>{stdoutExpanded ? '▾' : '▸'}</span>
@@ -1481,12 +1482,12 @@ export function SessionChat(props: {
                 <div className={`chat-center relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
                     {showCodexPlanNotebook && latestCodexPlan ? (
                         <div className="px-3 pt-2">
-                            <div className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)]/50 p-2.5">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                            <div className="queue-plan-notebook">
+                                <div className="queue-plan-head">
+                                    <div className="queue-plan-title">
                                         {t('queuePlan.title')}
-                                    </span>
-                                    <span className="text-[10px] text-[var(--cursor-text-tertiary)]">
+                                    </div>
+                                    <span className="queue-plan-meta">
                                         {t('queuePlan.updated', {
                                             time: new Date(latestCodexPlan.updatedAt).toLocaleTimeString([], {
                                                 hour: '2-digit',
@@ -1494,80 +1495,95 @@ export function SessionChat(props: {
                                             })
                                         })}
                                     </span>
-                                    <div className="ml-auto flex items-center gap-1">
+                                    <div className="ml-auto flex items-center gap-0.5">
                                         <button
                                             type="button"
-                                            className="rounded px-1.5 py-1 text-[11px] text-[var(--cursor-text-tertiary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)]"
+                                            className="queue-plan-icon-btn"
                                             onClick={() => setIsCodexPlanCollapsed((prev) => !prev)}
+                                            aria-label={isCodexPlanCollapsed ? t('queuePlan.expand') : t('queuePlan.collapse')}
+                                            title={isCodexPlanCollapsed ? t('queuePlan.expand') : t('queuePlan.collapse')}
+                                            aria-expanded={!isCodexPlanCollapsed}
                                         >
-                                            {isCodexPlanCollapsed ? t('queuePlan.expand') : t('queuePlan.collapse')}
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                style={{ transform: isCodexPlanCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform var(--motion-base) var(--motion-ease-out)' }}
+                                            >
+                                                <polyline points="6 9 12 15 18 9" />
+                                            </svg>
                                         </button>
                                         <button
                                             type="button"
-                                            className="rounded px-1.5 py-1 text-[11px] text-[var(--cursor-text-tertiary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)]"
+                                            className="queue-plan-icon-btn"
                                             onClick={() => setDismissedCodexPlanSignature(latestCodexPlan.signature)}
+                                            aria-label={t('queuePlan.close')}
+                                            title={t('queuePlan.close')}
                                         >
-                                            {t('queuePlan.close')}
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18" />
+                                                <line x1="6" y1="6" x2="18" y2="18" />
+                                            </svg>
                                         </button>
                                     </div>
                                 </div>
 
-                                {!isCodexPlanCollapsed ? (
-                                    <div className="mt-2 space-y-1.5">
-                                        {latestCodexPlan.explanation ? (
-                                            <div className="text-xs text-[var(--cursor-text-tertiary)]">
-                                                {latestCodexPlan.explanation}
-                                            </div>
-                                        ) : null}
-                                        <div className="space-y-1">
-                                            {latestCodexPlan.entries.map((entry, index) => (
-                                                <div key={`${entry.step}:${index}`} className="flex items-start gap-2 text-xs">
-                                                    <span
-                                                        className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getCodexPlanStatusBadgeClass(entry.status)}`}
-                                                    >
-                                                        {entry.status === 'completed'
-                                                            ? t('queuePlan.status.completed')
-                                                            : entry.status === 'in_progress'
-                                                                ? t('queuePlan.status.inProgress')
-                                                                : t('queuePlan.status.pending')}
-                                                    </span>
-                                                    <span className="min-w-0 flex-1 break-words text-[var(--cursor-text-primary)]">
-                                                        {entry.step}
-                                                    </span>
-                                                </div>
-                                            ))}
+                                <div
+                                    className="queue-plan-body"
+                                    data-collapsed={isCodexPlanCollapsed ? '' : undefined}
+                                    aria-hidden={isCodexPlanCollapsed}
+                                >
+                                    {latestCodexPlan.explanation ? (
+                                        <div className="queue-plan-explanation">
+                                            {latestCodexPlan.explanation}
                                         </div>
+                                    ) : null}
+                                    <div className="flex flex-col gap-1.5">
+                                        {latestCodexPlan.entries.map((entry, index) => (
+                                            <div
+                                                key={`${entry.step}:${index}`}
+                                                data-status={entry.status}
+                                                className="queue-plan-row flex items-start gap-2 text-[13px] leading-[1.5]"
+                                            >
+                                                <ChecklistStatusIcon status={entry.status} className="mt-[2px]" />
+                                                <span className={`min-w-0 flex-1 break-words ${getCodexPlanTextClass(entry.status)}`}>
+                                                    {entry.step}
+                                                </span>
+                                            </div>
+                                        ))}
                                     </div>
-                                ) : null}
+                                </div>
                             </div>
                         </div>
                     ) : null}
 
                     <div className="chat-mode-switch px-3 pt-2">
-                        <div className="flex w-full items-center justify-end gap-1 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)]/40 p-1">
+                        <div className="segmented-control ml-auto">
                             <button
                                 type="button"
-                                className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'normal'
-                                    ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
-                                    : 'text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'}`}
+                                className="segmented-control-item"
+                                data-active={props.viewMode === 'normal' ? '' : undefined}
                                 onClick={() => props.onViewModeChange('normal')}
                             >
                                 Normal
                             </button>
                             <button
                                 type="button"
-                                className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'brief'
-                                    ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
-                                    : 'text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'}`}
+                                className="segmented-control-item"
+                                data-active={props.viewMode === 'brief' ? '' : undefined}
                                 onClick={() => props.onViewModeChange('brief')}
                             >
                                 Brief
                             </button>
                             <button
                                 type="button"
-                                className={`rounded px-2.5 py-1 text-xs font-mono transition-colors ${props.viewMode === 'cli'
-                                    ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
-                                    : 'text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'}`}
+                                className="segmented-control-item font-mono"
+                                data-active={props.viewMode === 'cli' ? '' : undefined}
                                 onClick={() => props.onViewModeChange('cli')}
                             >
                                 CLI
@@ -1738,7 +1754,7 @@ export function SessionChat(props: {
                             aria-expanded={isMcpGuideExpanded}
                         >
                             <div className="flex items-center justify-between gap-2">
-                                <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                <div className="text-[11px] text-[var(--cursor-text-tertiary)]">
                                     {t('mcp.guide.title')}
                                 </div>
                                 <button
@@ -1869,28 +1885,28 @@ export function SessionChat(props: {
                                         </div>
                                         <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-[var(--cursor-text-tertiary)] sm:grid-cols-2">
                                             <div>
-                                                <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.status')}</span>
+                                                <span className="text-[10px]">{t('mcp.server.status')}</span>
                                                 <div className="mt-1 break-all text-sm text-[var(--cursor-text-primary)]">{server.status}</div>
                                             </div>
                                             <div>
-                                                <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.transport')}</span>
+                                                <span className="text-[10px]">{t('mcp.server.transport')}</span>
                                                 <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">{server.transport ?? 'unknown'}</div>
                                             </div>
                                             {server.source ? (
                                                 <div>
-                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.source')}</span>
+                                                    <span className="text-[10px]">{t('mcp.server.source')}</span>
                                                     <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">{server.source}</div>
                                                 </div>
                                             ) : null}
                                             {server.target ? (
                                                 <div>
-                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.target')}</span>
+                                                    <span className="text-[10px]">{t('mcp.server.target')}</span>
                                                     <div className="mt-1 break-all text-sm font-mono text-[var(--cursor-text-primary)]">{server.target}</div>
                                                 </div>
                                             ) : null}
                                             {server.auth ? (
                                                 <div className="sm:col-span-2">
-                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.auth')}</span>
+                                                    <span className="text-[10px]">{t('mcp.server.auth')}</span>
                                                     <div className="mt-1 break-all text-sm text-[var(--cursor-text-primary)]">{server.auth}</div>
                                                 </div>
                                             ) : null}
@@ -1926,12 +1942,12 @@ export function SessionChat(props: {
                                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                         {codexQueueStatus ? (
                                             <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 sm:col-span-2">
-                                                <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                <div className="text-[11px] text-[var(--cursor-text-tertiary)]">
                                                     Queue
                                                 </div>
                                                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                                                     <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                        <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                             Pending
                                                         </div>
                                                         <div className="mt-1 text-lg font-semibold text-[var(--cursor-text-primary)]">
@@ -1939,7 +1955,7 @@ export function SessionChat(props: {
                                                         </div>
                                                     </div>
                                                     <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                        <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                             In queue
                                                         </div>
                                                         <div className="mt-1">
@@ -1955,7 +1971,7 @@ export function SessionChat(props: {
                                                         </div>
                                                     </div>
                                                     <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                        <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                             Task running
                                                         </div>
                                                         <div className="mt-1">
@@ -1973,7 +1989,7 @@ export function SessionChat(props: {
                                                 </div>
                                                 {codexQueueStatus.nextPreview ? (
                                                     <div className="mt-2 rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                        <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                        <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                             Next queued message
                                                         </div>
                                                         <div className="mt-1 break-all text-sm font-mono text-[var(--cursor-text-primary)]">
@@ -2008,7 +2024,7 @@ export function SessionChat(props: {
                                                     key={rowKey}
                                                     className={`rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 ${isWide ? 'sm:col-span-2' : ''}`}
                                                 >
-                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                    <div className="text-[11px] text-[var(--cursor-text-tertiary)]">
                                                         {row.label}
                                                     </div>
                                                     {isRateLimit && rateLimit ? (
@@ -2054,7 +2070,7 @@ export function SessionChat(props: {
                                 {sessionUsage ? (
                                     <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
                                         <div className="flex items-center justify-between gap-2">
-                                            <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                            <div className="text-[11px] text-[var(--cursor-text-tertiary)]">
                                                 {t('queueStatus.usage.title')}
                                             </div>
                                             <div className="text-xs text-[var(--cursor-text-tertiary)]">
@@ -2067,7 +2083,7 @@ export function SessionChat(props: {
                                         </div>
                                         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                             <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.totalTokens')}
                                                 </div>
                                                 <div className="mt-1 text-lg font-semibold text-[var(--cursor-text-primary)]">
@@ -2075,7 +2091,7 @@ export function SessionChat(props: {
                                                 </div>
                                             </div>
                                             <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.events')}
                                                 </div>
                                                 <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
@@ -2083,7 +2099,7 @@ export function SessionChat(props: {
                                                 </div>
                                             </div>
                                             <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.inputTokens')}
                                                 </div>
                                                 <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
@@ -2091,7 +2107,7 @@ export function SessionChat(props: {
                                                 </div>
                                             </div>
                                             <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.outputTokens')}
                                                 </div>
                                                 <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
@@ -2099,7 +2115,7 @@ export function SessionChat(props: {
                                                 </div>
                                             </div>
                                             <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.cachedInputTokens')}
                                                 </div>
                                                 <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
@@ -2107,7 +2123,7 @@ export function SessionChat(props: {
                                                 </div>
                                             </div>
                                             <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2">
-                                                <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                     {t('queueStatus.usage.cacheCreationTokens')}
                                                 </div>
                                                 <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
@@ -2116,7 +2132,7 @@ export function SessionChat(props: {
                                             </div>
                                             {sessionUsage.allTime.reasoningOutputTokens > 0 ? (
                                                 <div className="rounded-md bg-[var(--cursor-bg-quiet)] p-2 sm:col-span-2">
-                                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                    <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                                         {t('queueStatus.usage.reasoningOutputTokens')}
                                                     </div>
                                                     <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
@@ -2191,7 +2207,7 @@ export function SessionChat(props: {
                         {codexQueueStatus ? (
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                                 <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                    <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                         {t('queue.summary.pending')}
                                     </div>
                                     <div className="mt-1 text-lg font-semibold text-[var(--cursor-text-primary)]">
@@ -2199,7 +2215,7 @@ export function SessionChat(props: {
                                     </div>
                                 </div>
                                 <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                    <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                         {t('queue.summary.inQueue')}
                                     </div>
                                     <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
@@ -2207,7 +2223,7 @@ export function SessionChat(props: {
                                     </div>
                                 </div>
                                 <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                    <div className="text-[10px] text-[var(--cursor-text-tertiary)]">
                                         {t('queue.summary.taskRunning')}
                                     </div>
                                     <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
@@ -2229,7 +2245,7 @@ export function SessionChat(props: {
                                         >
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0 flex-1">
-                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                                    <div className="text-[11px] text-[var(--cursor-text-tertiary)]">
                                                         #{index + 1}
                                                         {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
                                                     </div>

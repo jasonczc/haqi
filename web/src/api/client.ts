@@ -449,9 +449,6 @@ export class ApiClient {
         gitName?: string | null
         gitEmail?: string | null
         githubUsername?: string | null
-        branchPrefix?: string | null
-        baseBranch?: string | null
-        defaultRepositoryUrl?: string | null
     }): Promise<import('@/types/api').CloudAgentSettingsResponse> {
         return await this.request<import('@/types/api').CloudAgentSettingsResponse>('/api/settings/cloud-agents', {
             method: 'PATCH',
@@ -474,6 +471,11 @@ export class ApiClient {
 
     async getCloudAgentGitHubRepos(): Promise<import('@/types/api').CloudAgentGitHubReposResponse> {
         return await this.request<import('@/types/api').CloudAgentGitHubReposResponse>('/api/settings/cloud-agents/github/repos')
+    }
+
+    async getCloudAgentGitHubBranches(owner: string, repo: string): Promise<import('@/types/api').CloudAgentGitHubBranchesResponse> {
+        const url = `/api/settings/cloud-agents/github/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`
+        return await this.request<import('@/types/api').CloudAgentGitHubBranchesResponse>(url)
     }
 
     async getPushVapidPublicKey(): Promise<PushVapidPublicKeyResponse> {
@@ -903,6 +905,13 @@ export class ApiClient {
         }
         const qs = params.toString()
         return await this.request<CloudWorkersResponse>(`/api/cloud/workers${qs ? `?${qs}` : ''}`)
+    }
+
+    async deleteCloudWorker(machineId: string): Promise<{ removed: boolean; machineId: string }> {
+        return await this.request<{ removed: boolean; machineId: string }>(
+            `/api/cloud/workers/${encodeURIComponent(machineId)}`,
+            { method: 'DELETE' }
+        )
     }
 
     async getCloudCheckpoints(): Promise<CloudCheckpointsResponse> {

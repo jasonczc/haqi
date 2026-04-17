@@ -181,7 +181,7 @@ export function ProjectActionMenu(props: ProjectActionMenuProps) {
         >
             <div
                 id={headingId}
-                className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-tertiary)]"
+                className="px-3 pt-2 pb-1 text-[11px] font-medium text-[var(--text-tertiary)]"
             >
                 {t('session.more')}
             </div>

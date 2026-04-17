@@ -21,9 +21,6 @@ export class CloudAgentPreferenceStore {
             gitName?: string | null
             gitEmail?: string | null
             githubUsername?: string | null
-            branchPrefix?: string | null
-            baseBranch?: string | null
-            defaultRepositoryUrl?: string | null
         }
     ): StoredCloudAgentPreferences {
         return upsertCloudAgentPreferences(this.db, namespace, userId, updates)

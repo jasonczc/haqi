@@ -33,7 +33,7 @@ describe('resolveSpawnThinkEffort', () => {
         expect(resolveSpawnThinkEffort('codex', 'auto')).toBeUndefined()
         expect(resolveSpawnThinkEffort('claude', 'medium')).toBe('medium')
         expect(resolveSpawnThinkEffort('claude', 'max')).toBe('max')
-        expect(resolveSpawnThinkEffort('claude', 'xhigh')).toBeUndefined()
+        expect(resolveSpawnThinkEffort('claude', 'xhigh')).toBe('xhigh')
         expect(resolveSpawnThinkEffort('gemini', 'high')).toBeUndefined()
     })
 })

@@ -190,6 +190,21 @@ export async function startWorker(options: WorkerStartOptions): Promise<void> {
 }
 
 function isProcessAlive(pid: number): boolean {
+    if (!Number.isFinite(pid) || pid <= 0) return false
+    // `process.kill(pid, 0)` returns success for zombie (Z) / dying (X) processes
+    // because the pid entry still exists. On Linux, read /proc/<pid>/status to
+    // reject those. On non-Linux, fall back to the kill(0) probe.
+    if (process.platform === 'linux') {
+        try {
+            const status = readFileSync(`/proc/${pid}/status`, 'utf-8')
+            const match = status.match(/^State:\s+([A-Z])/m)
+            if (!match) return false
+            const state = match[1]
+            return state === 'R' || state === 'S' || state === 'D' || state === 'T'
+        } catch {
+            return false
+        }
+    }
     try { process.kill(pid, 0); return true } catch { return false }
 }
 

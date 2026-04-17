@@ -142,7 +142,7 @@ function SessionPicker(props: {
                             <>
                                 {online.length > 0 && (
                                     <>
-                                        <div className="px-2 py-0.5 font-mono text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
+                                        <div className="px-2 py-0.5 text-[11px] font-medium text-[var(--text-tertiary)]">
                                             online ({online.length})
                                         </div>
                                         {online.map(renderRow)}
@@ -150,7 +150,7 @@ function SessionPicker(props: {
                                 )}
                                 {offline.length > 0 && (
                                     <>
-                                        <div className="px-2 py-0.5 font-mono text-[10px] text-[var(--text-tertiary)] uppercase tracking-wide">
+                                        <div className="px-2 py-0.5 text-[11px] font-medium text-[var(--text-tertiary)]">
                                             offline ({offline.length})
                                         </div>
                                         {offline.map(renderRow)}

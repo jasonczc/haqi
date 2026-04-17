@@ -148,21 +148,18 @@ export function LoginPrompt(props: LoginPromptProps) {
                         </div>
                     )}
 
-                    <button
+                    <Button
                         type="submit"
+                        size="lg"
                         disabled={isLoading || !accessToken.trim()}
                         aria-busy={isLoading}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--bg-neutral)] py-2.5 font-medium text-[var(--bg-editor)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                        className="w-full"
+                        leadingIcon={isLoading ? <Spinner size="sm" label={null} className="text-[var(--bg-editor)]" /> : undefined}
                     >
-                        {isLoading ? (
-                            <>
-                                <Spinner size="sm" label={null} className="text-[var(--bg-editor)]" />
-                                {isBindMode ? t('login.bind.submitting') : t('login.submitting')}
-                            </>
-                        ) : (
-                            submitLabel
-                        )}
-                    </button>
+                        {isLoading
+                            ? (isBindMode ? t('login.bind.submitting') : t('login.submitting'))
+                            : submitLabel}
+                    </Button>
                 </form>
 
                 {/* Help links */}
@@ -173,7 +170,10 @@ export function LoginPrompt(props: LoginPromptProps) {
                         </a>
                         <Dialog open={isServerDialogOpen} onOpenChange={handleServerDialogOpenChange}>
                             <DialogTrigger asChild>
-                                <button type="button" className="underline hover:text-[var(--text-primary)]">
+                                <button
+                                    type="button"
+                                    className="underline underline-offset-2 decoration-[var(--cursor-stroke-secondary)] hover:text-[var(--text-primary)] hover:decoration-[var(--cursor-text-primary)] transition-colors"
+                                >
                                     Hub {props.serverUrl ? `${t('login.server.custom')}` : `${t('login.server.default')}`}
                                 </button>
                             </DialogTrigger>

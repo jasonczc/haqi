@@ -815,13 +815,13 @@ function AddMemberModal(props: {
                         <>
                             {online.length > 0 ? (
                                 <>
-                                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)]">Online ({online.length})</div>
+                                    <div className="px-4 py-1.5 text-[10px] font-semibold text-[var(--cursor-text-secondary)]">Online ({online.length})</div>
                                     {online.map(renderSessionRow)}
                                 </>
                             ) : null}
                             {offline.length > 0 ? (
                                 <>
-                                    <button type="button" onClick={() => setOfflineExpanded((v) => !v)} className="flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] transition-colors">
+                                    <button type="button" onClick={() => setOfflineExpanded((v) => !v)} className="flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-[10px] font-semibold text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] transition-colors">
                                         <ChevronRightIcon className={`h-3 w-3 transition-transform ${offlineExpanded ? 'rotate-90' : ''}`} />
                                         Offline ({offline.length})
                                     </button>
@@ -1133,7 +1133,7 @@ function PendingRequestsQuickModal(props: {
                                         </div>
 
                                         <div className="px-3 py-2">
-                                            <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--cursor-text-secondary)]">
+                                            <div className="mb-1 text-[11px] font-medium text-[var(--cursor-text-secondary)]">
                                                 Arguments
                                             </div>
                                             <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-2 text-[11px] text-[var(--cursor-text-primary)]">
@@ -2963,7 +2963,7 @@ export default function GroupDetailPage() {
                         className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--cursor-text-primary)] transition-colors"
                     >
                         {membersExpanded ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
-                        <span className="font-medium uppercase tracking-wide">Members</span>
+                        <span className="font-medium">Members</span>
                         <span className="text-[10px]">{members.length}</span>
                         {members.some(m => {
                             const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
@@ -3076,7 +3076,7 @@ export default function GroupDetailPage() {
                         className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--cursor-text-primary)] transition-colors"
                     >
                         {noteOpen ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
-                        <span className="font-medium uppercase tracking-wide">Note</span>
+                        <span className="font-medium">Note</span>
                         {note ? <span className="text-[10px]">v{note.version}</span> : null}
                     </button>
                     <div className="ml-auto flex gap-1">

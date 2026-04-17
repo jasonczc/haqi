@@ -27,6 +27,9 @@ import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
 import { HomeComposer } from '@/components/HomeComposer'
+import { Button } from '@/components/ui/button'
+import { Kbd, KbdHint } from '@/components/ui/Kbd'
+import { NavItem } from '@/components/ui/NavItem'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
@@ -437,67 +440,67 @@ function SessionsPage() {
                 <div className="sidebar bg-[var(--bg-chrome)] pt-[env(safe-area-inset-top)]">
                     {/* Top bar */}
                     <div className="sidebar-header flex items-center gap-1 px-2 pt-2 pb-0.5">
-                        <button
-                            type="button"
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            iconOnly
+                            className="sidebar-icon-btn"
                             onClick={() => toggleDesktopSidebar?.()}
-                            className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                             title="Toggle sidebar"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
-                        </button>
-                        <button
-                            type="button"
-                            className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            leadingIcon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>}
+                        />
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            iconOnly
+                            className="sidebar-icon-btn"
                             title="Search agents (⌘K)"
-                        >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        </button>
+                            leadingIcon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>}
+                        />
+                        <KbdHint className="sidebar-kbd-hint ml-auto">
+                            <Kbd>⌘</Kbd><Kbd>K</Kbd>
+                        </KbdHint>
                     </div>
                     {/* Cursor-style nav */}
                     <nav className="sidebar-nav flex flex-col gap-0.5 px-2 pt-2 pb-1">
-                        <button
-                            type="button"
+                        <NavItem
+                            variant="primary"
                             onClick={() => openNewSession()}
-                            className="nav-item flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>}
+                            trailing={<KbdHint className="sidebar-kbd-hint nav-item-kbd"><Kbd>⌘</Kbd><Kbd>N</Kbd></KbdHint>}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                             New Agent
-                        </button>
-                        <button
-                            type="button"
+                        </NavItem>
+                        <NavItem
                             onClick={() => navigate({ to: '/settings/automations' })}
-                            className="nav-item flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                             Automations
-                        </button>
-                        <button
-                            type="button"
+                        </NavItem>
+                        <NavItem
                             onClick={() => navigate({ to: '/settings/overview' })}
-                            className="nav-item flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                             Dashboard
-                        </button>
-                        <button
-                            type="button"
-                            className="nav-item flex items-center gap-2 rounded-[6px] px-2 py-1.5 text-[var(--font-size-base)] text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                        </NavItem>
+                        <NavItem
+                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>}
                         >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
                             Bugbot
-                        </button>
+                        </NavItem>
                     </nav>
                     {inDrawer && onClose ? (
                         <div className="flex justify-end px-2 py-1">
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                iconOnly
+                                className="sidebar-icon-btn"
                                 onClick={onClose}
-                                className="rounded-[6px] p-1.5 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                                 title={t('sessions.sidebar.close')}
                                 aria-label={t('sessions.sidebar.close')}
-                            >
-                                <CloseIcon className="h-4 w-4" />
-                            </button>
+                                leadingIcon={<CloseIcon className="h-4 w-4" />}
+                            />
                         </div>
                     ) : null}
                 </div>
@@ -654,7 +657,7 @@ function SessionsPage() {
                     </div>
                 ) : null}
 
-                <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--bg-editor)]`}>
+                <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-editor)]">
                     {isSessionsIndex ? (
                         <HomeComposer
                             api={api}
@@ -664,8 +667,31 @@ function SessionsPage() {
                                 <>
                                     <div className="home-section-header">
                                         <div className="home-section-title">Recent runs</div>
-                                        <div className="home-section-meta">{Math.min(visibleSessions.length, 8)} visible</div>
+                                        {visibleSessions.length > 0 ? (
+                                            <div className="home-section-meta">
+                                                {Math.min(visibleSessions.length, 8)} of {visibleSessions.length}
+                                            </div>
+                                        ) : null}
                                     </div>
+                                    {visibleSessions.length === 0 ? (
+                                        <div className="home-empty-state">
+                                            <svg
+                                                className="home-empty-icon"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="1.5"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                aria-hidden
+                                            >
+                                                <circle cx="12" cy="12" r="9" />
+                                                <polyline points="12 7 12 12 15.5 14" />
+                                            </svg>
+                                            <div className="home-empty-title">No runs yet</div>
+                                            <div className="home-empty-hint">Your recent agents will appear here.</div>
+                                        </div>
+                                    ) : null}
                                     <div className="agent-list mt-2 w-full">
                                         {visibleSessions.slice(0, 8).map(s => {
                                             const title = getSessionDisplayTitle(s)

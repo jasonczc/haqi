@@ -6,9 +6,6 @@ export type StoredCloudAgentPreferences = {
     gitName: string | null
     gitEmail: string | null
     githubUsername: string | null
-    branchPrefix: string | null
-    baseBranch: string | null
-    defaultRepositoryUrl: string | null
     createdAt: number
     updatedAt: number
 }
@@ -19,9 +16,6 @@ type PreferenceRow = {
     git_name: string | null
     git_email: string | null
     github_username: string | null
-    branch_prefix: string | null
-    base_branch: string | null
-    default_repository_url: string | null
     created_at: number
     updated_at: number
 }
@@ -40,9 +34,6 @@ function mapRow(row: PreferenceRow | null | undefined): StoredCloudAgentPreferen
         gitName: row.git_name,
         gitEmail: row.git_email,
         githubUsername: row.github_username,
-        branchPrefix: row.branch_prefix,
-        baseBranch: row.base_branch,
-        defaultRepositoryUrl: row.default_repository_url,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
     }
@@ -60,9 +51,6 @@ export function getCloudAgentPreferences(
             git_name,
             git_email,
             github_username,
-            branch_prefix,
-            base_branch,
-            default_repository_url,
             created_at,
             updated_at
         FROM cloud_agent_preferences
@@ -79,9 +67,6 @@ export function upsertCloudAgentPreferences(
         gitName?: string | null
         gitEmail?: string | null
         githubUsername?: string | null
-        branchPrefix?: string | null
-        baseBranch?: string | null
-        defaultRepositoryUrl?: string | null
     }
 ): StoredCloudAgentPreferences {
     const now = Date.now()
@@ -94,9 +79,6 @@ export function upsertCloudAgentPreferences(
             git_name,
             git_email,
             github_username,
-            branch_prefix,
-            base_branch,
-            default_repository_url,
             created_at,
             updated_at
         ) VALUES (
@@ -105,9 +87,6 @@ export function upsertCloudAgentPreferences(
             @git_name,
             @git_email,
             @github_username,
-            @branch_prefix,
-            @base_branch,
-            @default_repository_url,
             @created_at,
             @updated_at
         )
@@ -115,9 +94,6 @@ export function upsertCloudAgentPreferences(
             git_name = excluded.git_name,
             git_email = excluded.git_email,
             github_username = excluded.github_username,
-            branch_prefix = excluded.branch_prefix,
-            base_branch = excluded.base_branch,
-            default_repository_url = excluded.default_repository_url,
             updated_at = excluded.updated_at
     `).run({
         namespace,
@@ -125,9 +101,6 @@ export function upsertCloudAgentPreferences(
         git_name: updates.gitName !== undefined ? trimOrNull(updates.gitName) : (current?.gitName ?? null),
         git_email: updates.gitEmail !== undefined ? trimOrNull(updates.gitEmail) : (current?.gitEmail ?? null),
         github_username: updates.githubUsername !== undefined ? trimOrNull(updates.githubUsername) : (current?.githubUsername ?? null),
-        branch_prefix: updates.branchPrefix !== undefined ? trimOrNull(updates.branchPrefix) : (current?.branchPrefix ?? null),
-        base_branch: updates.baseBranch !== undefined ? trimOrNull(updates.baseBranch) : (current?.baseBranch ?? null),
-        default_repository_url: updates.defaultRepositoryUrl !== undefined ? trimOrNull(updates.defaultRepositoryUrl) : (current?.defaultRepositoryUrl ?? null),
         created_at: current?.createdAt ?? now,
         updated_at: now,
     })
@@ -138,9 +111,6 @@ export function upsertCloudAgentPreferences(
         gitName: trimOrNull(updates.gitName),
         gitEmail: trimOrNull(updates.gitEmail),
         githubUsername: trimOrNull(updates.githubUsername),
-        branchPrefix: trimOrNull(updates.branchPrefix),
-        baseBranch: trimOrNull(updates.baseBranch),
-        defaultRepositoryUrl: trimOrNull(updates.defaultRepositoryUrl),
         createdAt: current?.createdAt ?? now,
         updatedAt: now,
     }

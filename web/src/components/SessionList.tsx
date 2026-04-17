@@ -21,6 +21,7 @@ type SessionListRow =
     | {
         type: 'date-header'
         label: string
+        isFirst: boolean
     }
     | {
         type: 'session'
@@ -58,12 +59,14 @@ function buildDateRows(sessions: SessionSummary[]): SessionListRow[] {
 
     const rows: SessionListRow[] = []
     let currentGroup = ''
+    let isFirstGroup = true
 
     for (const session of sorted) {
         const group = getDateGroup(session.updatedAt)
         if (group !== currentGroup) {
             currentGroup = group
-            rows.push({ type: 'date-header', label: group })
+            rows.push({ type: 'date-header', label: group, isFirst: isFirstGroup })
+            isFirstGroup = false
         }
         rows.push({ type: 'session', session, forceOffline: false })
     }
@@ -124,27 +127,28 @@ function formatRelativeTime(value: number, t: (key: string, params?: Record<stri
 function RunStatusIcon(props: { active: boolean; thinking: boolean }) {
     if (props.thinking) {
         return (
-            <svg width="12" height="12" viewBox="0 0 16 16" className="animate-spin text-[var(--accent)]">
-                <circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeDasharray="28 12" />
-            </svg>
+            <span
+                className="session-status-dot session-status-dot-thinking"
+                aria-label="Thinking"
+                role="img"
+            />
         )
     }
     if (props.active) {
         return (
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" className="text-[var(--success)]">
-                <circle cx="4" cy="4" r="2" fill="currentColor" />
-                <circle cx="4" cy="12" r="2" fill="currentColor" />
-                <circle cx="12" cy="12" r="2" fill="currentColor" />
-                <path d="M4 6v4M8 12h2" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
+            <span
+                className="session-status-dot session-status-dot-running"
+                aria-label="Running"
+                role="img"
+            />
         )
     }
     return (
-        <svg width="12" height="12" viewBox="0 0 16 16" className="text-[var(--text-quaternary)]">
-            <circle cx="5" cy="3.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="5" cy="12.5" r="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M5 5.5v5" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
+        <span
+            className="session-status-dot session-status-dot-idle"
+            aria-label="Idle"
+            role="img"
+        />
     )
 }
 
@@ -237,8 +241,8 @@ function SessionItem(props: {
                 aria-current={selected ? 'page' : undefined}
             >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                    {/* PR status icon — 16px container */}
-                    <div className="flex w-4 shrink-0 items-center justify-center">
+                    {/* Run status indicator — 16px container */}
+                    <div className="session-status-slot flex w-4 shrink-0 items-center justify-center">
                         <RunStatusIcon active={effectiveActive} thinking={effectiveThinking} />
                     </div>
                     {/* Title */}
@@ -252,26 +256,36 @@ function SessionItem(props: {
                         const deletions = meta?.prDeletions as number | undefined
                         if (!additions && !deletions) return null
                         return (
-                            <div className="flex shrink-0 items-center gap-1 text-[var(--text-tertiary)]">
+                            <div className="flex shrink-0 items-center gap-1 text-[var(--text-tertiary)] tabular-nums">
                                 {additions ? <span className="text-[var(--added)]">+{additions}</span> : null}
                                 {deletions ? <span className="text-[var(--removed)]">-{deletions}</span> : null}
                             </div>
                         )
                     })()}
-                    {/* Hover overlay: time + archive */}
+                    {/* Hover overlay: time + archive + delete */}
                     <div className="absolute right-0 inset-y-0 z-10 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="h-full w-4 shrink-0" style={{ background: 'linear-gradient(to right, transparent, var(--bg-chrome))' }} />
-                        <div className="flex h-full items-center gap-1 bg-[var(--bg-chrome)] pr-1">
-                            <span className="text-[var(--font-size-base)] text-[var(--text-tertiary)]">
+                        <div className="flex h-full items-center gap-0.5 bg-[var(--bg-chrome)] pr-1">
+                            <span className="mr-1 text-[var(--font-size-base)] text-[var(--text-tertiary)] tabular-nums">
                                 {formatRelativeTime(s.updatedAt, t)}
                             </span>
                             <button
                                 type="button"
-                                className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                                className="session-hover-action session-hover-action-archive flex h-6 w-6 items-center justify-center rounded-md"
                                 onClick={(e) => { e.stopPropagation(); handleArchive(); }}
                                 title="Archive"
+                                aria-label="Archive session"
                             >
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8"/><path d="M10 12h4"/></svg>
+                            </button>
+                            <button
+                                type="button"
+                                className="session-hover-action session-hover-action-delete flex h-6 w-6 items-center justify-center rounded-md"
+                                onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
+                                title="Delete"
+                                aria-label="Delete session"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
                             </button>
                         </div>
                     </div>
@@ -381,8 +395,14 @@ export function SessionList(props: {
                     itemContent={(_, row) => {
                         if (row.type === 'date-header') {
                             return (
-                                <div className="px-3 pt-4 pb-1">
-                                    <span className="text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
+                                <div
+                                    className={`session-list-date-header px-3 pb-0.5 ${
+                                        row.isFirst
+                                            ? 'session-list-date-header-first pt-2'
+                                            : 'pt-3 mt-2 border-t border-[var(--border-subtle)]'
+                                    }`}
+                                >
+                                    <span className="session-list-date-header-label">
                                         {row.label}
                                     </span>
                                 </div>

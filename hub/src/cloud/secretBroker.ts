@@ -259,7 +259,13 @@ export class SecretBroker {
         if (!secureCompareTokenHash(token, record.tokenHash)) {
             return null
         }
-        this.store.cloud.touchWorkerSession(record.id)
+        // Sliding renewal: every successful resolve extends the worker session
+        // so a worker that keeps heartbeating effectively never expires.
+        // Without this, the session token inherits the enrollment token's
+        // short TTL (~10 min) and the worker can't reconnect after any hub
+        // restart that outlasts the window.
+        const extendedTo = Date.now() + WORKER_SESSION_RENEW_MS
+        this.store.cloud.touchWorkerSession(record.id, Date.now(), extendedTo)
         return this.store.cloud.getWorkerSession(record.id) ?? record
     }
 
@@ -281,11 +287,14 @@ export class SecretBroker {
             return null // Already revoked by concurrent request
         }
 
+        // Worker session lives on its own long TTL, independent of the
+        // enrollment token's short bootstrap window. Every heartbeat bumps
+        // the window forward via resolveWorkerSessionToken.
         const workerSession = this.createWorkerSessionToken({
             namespace: record.namespace,
             machineId: record.machineId,
             enrollmentTokenId: record.id,
-            expiresAt: record.expiresAt ?? null
+            expiresAt: Date.now() + WORKER_SESSION_RENEW_MS
         })
         return {
             namespace: record.namespace,
@@ -295,3 +304,7 @@ export class SecretBroker {
         }
     }
 }
+
+// 30 days: a worker that heartbeats weekly stays authenticated forever;
+// a worker that disappears for a month is treated as gone and must re-enroll.
+const WORKER_SESSION_RENEW_MS = 30 * 24 * 60 * 60 * 1000

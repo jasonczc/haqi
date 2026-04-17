@@ -65,7 +65,7 @@ export function FilesChangedList(props: { files: FileChange[] }) {
                                 >
                                     <FileStatusIcon status={file.status} />
                                     {/* File type icon */}
-                                    <span className="flex-shrink-0 text-[11px] font-medium uppercase tracking-wider text-[var(--cursor-text-tertiary)] w-4 text-center">
+                                    <span className="flex-shrink-0 text-[11px] font-medium uppercase text-[var(--cursor-text-tertiary)] w-4 text-center">
                                         {ext === 'ts' || ext === 'tsx' ? (
                                             <span style={{ color: 'rgb(49 120 198)' }}>TS</span>
                                         ) : ext === 'js' || ext === 'jsx' ? (

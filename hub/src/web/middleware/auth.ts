@@ -61,7 +61,12 @@ export function createAuthMiddleware(jwtSecret: Uint8Array, store: Store): Middl
         if (!resolved) {
             return c.json({ error: 'Invalid token' }, 401)
         }
-        c.set('userId', cachedOwnerId ?? await ownerIdPromise)
+        const ownerId = cachedOwnerId ?? await ownerIdPromise
+        // Mirror /api/auth: ensure the users row exists so FK-bound writes
+        // (cloud_agent_preferences, future tables) don't fail for raw-token
+        // callers.
+        store.users.ensureOwnerUser(ownerId, resolved.namespace)
+        c.set('userId', ownerId)
         c.set('namespace', resolved.namespace)
         await next()
         return

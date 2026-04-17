@@ -3,11 +3,14 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const toastVariants = cva(
-    'pointer-events-auto w-full max-w-sm rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] text-[var(--text-primary)] shadow-lg',
+    'pointer-events-auto w-full max-w-sm rounded-lg border text-[var(--text-primary)] shadow-lg animate-slide-up transition-colors',
     {
         variants: {
             variant: {
-                default: 'border-[var(--border-secondary)] bg-[var(--bg-editor)]'
+                default: 'border-[var(--border-secondary)] bg-[var(--bg-editor)]',
+                success: 'border-[var(--cursor-success-border,rgba(34,197,94,0.24))] bg-[var(--cursor-success-bg,rgba(34,197,94,0.08))]',
+                error: 'border-[var(--cursor-danger-border,rgba(220,38,38,0.24))] bg-[var(--cursor-danger-bg,rgba(220,38,38,0.08))]',
+                warning: 'border-[var(--cursor-warning-border,rgba(251,191,36,0.26))] bg-[var(--cursor-warning-bg,rgba(251,191,36,0.08))]'
             }
         },
         defaultVariants: {

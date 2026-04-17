@@ -583,7 +583,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (!normalized || normalized === 'auto') {
             return undefined;
         }
-        if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max') {
+        if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max' || normalized === 'xhigh') {
             return normalized;
         }
         throw new Error('Invalid think effort');

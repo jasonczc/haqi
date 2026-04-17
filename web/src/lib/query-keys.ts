@@ -15,6 +15,7 @@ export const queryKeys = {
     cloudSecrets: ['cloud-secrets'] as const,
     cloudAgentSettings: ['cloud-agent-settings'] as const,
     cloudAgentGitHubRepos: ['cloud-agent-github-repos'] as const,
+    cloudAgentGitHubBranches: (owner: string, repo: string) => ['cloud-agent-github-branches', owner, repo] as const,
     cloudSecret: (secretId: string) => ['cloud-secret', secretId] as const,
     cloudWorkerEnrollmentTokens: ['cloud-worker-enrollment-tokens'] as const,
     localRuntime: ['local-runtime'] as const,

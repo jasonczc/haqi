@@ -14,19 +14,20 @@ export function CodeBlock(props: {
     const highlighted = useShikiHighlighter(props.code, props.language)
 
     return (
-        <div className="relative min-w-0 max-w-full">
+        <div className="code-block-wrapper relative min-w-0 max-w-full group">
             {showCopyButton ? (
                 <button
                     type="button"
                     onClick={() => copy(props.code)}
-                    className="absolute right-1.5 top-1.5 rounded p-1 text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]"
-                    title={t('code.copy')}
+                    className={`code-block-copy ${copied ? 'is-copied' : ''}`}
+                    title={copied ? t('code.copied') : t('code.copy')}
+                    aria-label={copied ? 'Copied' : 'Copy code'}
                 >
                     {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
                 </button>
             ) : null}
 
-            <div className="min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden rounded-md bg-[var(--cursor-bg-card)]">
+            <div className="code-block-scroll min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden rounded-md bg-[var(--cursor-bg-card)]">
                 <pre className="shiki m-0 w-max min-w-full p-2 pr-8 text-xs font-mono">
                     <code className="block">{highlighted ?? props.code}</code>
                 </pre>

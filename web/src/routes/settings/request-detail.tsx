@@ -211,7 +211,7 @@ export function CloudRequestDetailContent(props: {
                 />
                 {request.error ? (
                     <div className="md:col-span-2">
-                        <div className="text-[11px] uppercase tracking-[0.08em] text-[var(--text-secondary)]">Last Error</div>
+                        <div className="text-[12px] font-medium text-[var(--text-secondary)]">Last Error</div>
                         <div className="mt-1 rounded-md border border-[var(--danger)]/20 bg-[var(--danger)]/10 p-3 text-[var(--danger)]">
                             <div className="font-medium">{request.error.code ?? 'error'}</div>
                             <div className="mt-1">{request.error.message}</div>

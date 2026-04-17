@@ -26,7 +26,12 @@ import {
     PopoverOption,
     PopoverPillRow,
 } from '@/components/ChipPopover'
-import { CursorTextField } from '@/components/settings/CursorSettingsPrimitives'
+import {
+    CursorSelect,
+    CursorSettingsCard,
+    CursorSettingsRow,
+    CursorTextField,
+} from '@/components/settings/CursorSettingsPrimitives'
 import {
 
     CODEX_SERVICE_TIER_OPTIONS,
@@ -68,6 +73,10 @@ import {
     parseListInput,
     parsePreviewPortInput,
 } from '@/components/NewSession/spawnPayload'
+import { Kbd, KbdHint } from '@/components/ui/Kbd'
+import { Button } from '@/components/ui/button'
+import { StatusDot } from '@/components/ui/StatusDot'
+import { AgentAvatar } from '@/components/ui/AgentAvatar'
 
 const AUTO_CLOUD_MACHINE_ID = 'auto'
 
@@ -167,6 +176,68 @@ function SpinnerSvg() {
     )
 }
 
+function GitBranchSvg() {
+    return (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="6" y1="3" x2="6" y2="15" />
+            <circle cx="18" cy="6" r="3" />
+            <circle cx="6" cy="18" r="3" />
+            <path d="M18 9a9 9 0 0 1-9 9" />
+        </svg>
+    )
+}
+
+function CheckSvg({ size = 14 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+        </svg>
+    )
+}
+
+function CloseSvg({ size = 14 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+    )
+}
+
+function SearchSvg({ size = 13 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.5" y2="16.5" />
+        </svg>
+    )
+}
+
+function RepoSvg({ size = 13 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor">
+            <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v7.355c.3-.151.633-.245.988-.27L4.5 9.5h8Z" />
+        </svg>
+    )
+}
+
+function LockSvg({ size = 10 }: { size?: number }) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+    )
+}
+
+
+function parseRepoShortName(url: string): string | null {
+    const trimmed = url.trim().replace(/\.git$/, '').replace(/\/+$/, '')
+    if (!trimmed) return null
+    const m = trimmed.match(/[:/]([^/:\s]+)\/([^/:\s]+)$/)
+    return m ? `${m[1]}/${m[2]}` : null
+}
+
 export function HomeComposer(props: {
     api: ApiClient | null
     onOpenSession: (sessionId: string) => void
@@ -180,12 +251,95 @@ export function HomeComposer(props: {
     const [prompt, setPrompt] = useState('')
     const [repoUrl, setRepoUrl] = useState(() => lastConfig?.repositoryUrl ?? '')
     const [repoBranch, setRepoBranch] = useState(() => lastConfig?.repositoryBranch ?? '')
+    const [repoSearch, setRepoSearch] = useState('')
     const [repoBranchMode, setRepoBranchMode] = useState<'create' | 'reuse' | 'detached'>(() => lastConfig?.repositoryBranchMode ?? 'create')
     const [repoBranchPrefix, setRepoBranchPrefix] = useState(() => lastConfig?.repositoryBranchPrefix ?? 'haqi/')
     const [repoBranchName, setRepoBranchName] = useState(() => lastConfig?.repositoryBranchName ?? '')
-    const [gitName, setGitName] = useState(() => lastConfig?.gitName ?? '')
-    const [gitEmail, setGitEmail] = useState(() => lastConfig?.gitEmail ?? '')
+    // Git identity is a global setting (Settings → Cloud Agents → Git identity).
+    // Derived from the cloud agent settings query below — no per-launch state.
     const [showRepoPanel, setShowRepoPanel] = useState(false)
+    const [showRepoAdvanced, setShowRepoAdvanced] = useState(false)
+    const [isRepoPanelExiting, setIsRepoPanelExiting] = useState(false)
+    const [isRepoAdvancedExiting, setIsRepoAdvancedExiting] = useState(false)
+    const [autoFilledFields, setAutoFilledFields] = useState<Set<'url' | 'branch'>>(() => new Set())
+    const autoFillTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const repoSearchInputRef = useRef<HTMLInputElement>(null)
+    const repoItemRefs = useRef<Array<HTMLButtonElement | null>>([])
+
+    const closeRepoPanel = useCallback(() => {
+        setIsRepoPanelExiting(true)
+    }, [])
+    const handleRepoPanelAnimationEnd = useCallback((e: React.AnimationEvent<HTMLDivElement>) => {
+        if (e.animationName === 'repo-panel-out') {
+            setShowRepoPanel(false)
+            setIsRepoPanelExiting(false)
+        }
+    }, [])
+
+    const toggleRepoAdvanced = useCallback(() => {
+        if (showRepoAdvanced && !isRepoAdvancedExiting) {
+            setIsRepoAdvancedExiting(true)
+        } else if (!showRepoAdvanced) {
+            setShowRepoAdvanced(true)
+            setIsRepoAdvancedExiting(false)
+        } else {
+            setIsRepoAdvancedExiting(false)
+        }
+    }, [showRepoAdvanced, isRepoAdvancedExiting])
+
+    const handleAdvancedAnimationEnd = useCallback((e: React.AnimationEvent<HTMLDivElement>) => {
+        if (e.animationName === 'advanced-section-out') {
+            setShowRepoAdvanced(false)
+            setIsRepoAdvancedExiting(false)
+        }
+    }, [])
+
+    useEffect(() => () => {
+        if (autoFillTimerRef.current) clearTimeout(autoFillTimerRef.current)
+    }, [])
+
+    const handleRepoPick = useCallback((repo: { cloneUrl: string; defaultBranch: string | null }) => {
+        const filled: Array<'url' | 'branch'> = ['url']
+        setRepoUrl(repo.cloneUrl)
+        if (!repoBranch.trim()) {
+            setRepoBranch(repo.defaultBranch || 'main')
+            filled.push('branch')
+        }
+        setAutoFilledFields(new Set(filled))
+        if (autoFillTimerRef.current) clearTimeout(autoFillTimerRef.current)
+        autoFillTimerRef.current = setTimeout(() => {
+            setAutoFilledFields(new Set())
+            autoFillTimerRef.current = null
+        }, 1100)
+    }, [repoBranch])
+
+    const focusRepoItem = useCallback((index: number) => {
+        const btn = repoItemRefs.current[index]
+        if (!btn) return
+        btn.focus()
+        btn.scrollIntoView({ block: 'nearest' })
+    }, [])
+
+    const handleRepoSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'ArrowDown' && repoItemRefs.current[0]) {
+            e.preventDefault()
+            focusRepoItem(0)
+        }
+    }, [focusRepoItem])
+
+    const handleRepoItemKeyDown = useCallback((index: number, listLength: number) => (e: React.KeyboardEvent<HTMLButtonElement>) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            focusRepoItem(index + 1 < listLength ? index + 1 : 0)
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            if (index === 0) {
+                repoSearchInputRef.current?.focus()
+            } else {
+                focusRepoItem(index - 1)
+            }
+        }
+    }, [focusRepoItem])
     const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => lastConfig?.workspaceMode ?? 'ephemeral')
     const [directory] = useState('')
 
@@ -256,6 +410,17 @@ export function HomeComposer(props: {
             return await props.api.getCloudAgentSettings()
         }
     })
+    const githubConnected = Boolean(cloudAgentSettingsQuery.data?.github?.connected)
+    const githubReposQuery = useQuery({
+        queryKey: queryKeys.cloudAgentGitHubRepos,
+        enabled: Boolean(props.api) && githubConnected,
+        staleTime: 60_000,
+        retry: false,
+        queryFn: async () => {
+            if (!props.api) throw new Error('API unavailable')
+            return await props.api.getCloudAgentGitHubRepos()
+        }
+    })
     const localRuntimeQuery = useQuery({
         queryKey: queryKeys.localRuntime,
         enabled: Boolean(props.api),
@@ -268,37 +433,41 @@ export function HomeComposer(props: {
         }
     })
 
-    useEffect(() => {
-        const settings = cloudAgentSettingsQuery.data?.settings
-        if (!settings) return
-        if (!lastConfig?.repositoryUrl && !repoUrl.trim() && settings.defaultRepositoryUrl) {
-            setRepoUrl(settings.defaultRepositoryUrl)
+    // Effective git identity, pulled from global settings at submit time.
+    const effectiveGitName = (cloudAgentSettingsQuery.data?.settings.gitName ?? '').trim()
+    const effectiveGitEmail = (cloudAgentSettingsQuery.data?.settings.gitEmail ?? '').trim()
+
+    const githubRepos = githubReposQuery.data?.repos ?? []
+    const filteredGithubRepos = useMemo(() => {
+        const needle = repoSearch.trim().toLowerCase()
+        if (!needle) return githubRepos.slice(0, 8)
+        return githubRepos
+            .filter((repo) =>
+                repo.fullName.toLowerCase().includes(needle)
+                || repo.name.toLowerCase().includes(needle)
+                || repo.owner.toLowerCase().includes(needle)
+            )
+            .slice(0, 8)
+    }, [githubRepos, repoSearch])
+    const selectedGithubRepo = useMemo(() => {
+        const needle = repoUrl.trim()
+        if (!needle) return null
+        return githubRepos.find((repo) => repo.cloneUrl === needle || repo.url === needle) ?? null
+    }, [githubRepos, repoUrl])
+
+    const githubBranchesQuery = useQuery({
+        queryKey: selectedGithubRepo
+            ? queryKeys.cloudAgentGitHubBranches(selectedGithubRepo.owner, selectedGithubRepo.name)
+            : ['cloud-agent-github-branches', 'none'] as const,
+        enabled: Boolean(props.api) && githubConnected && Boolean(selectedGithubRepo),
+        staleTime: 60_000,
+        retry: false,
+        queryFn: async () => {
+            if (!props.api || !selectedGithubRepo) throw new Error('No repo selected')
+            return await props.api.getCloudAgentGitHubBranches(selectedGithubRepo.owner, selectedGithubRepo.name)
         }
-        if (!lastConfig?.repositoryBranch && !repoBranch.trim() && settings.baseBranch) {
-            setRepoBranch(settings.baseBranch)
-        }
-        if (!lastConfig?.repositoryBranchPrefix && !repoBranchPrefix.trim() && settings.branchPrefix) {
-            setRepoBranchPrefix(settings.branchPrefix)
-        }
-        if (!lastConfig?.gitName && !gitName.trim() && settings.gitName) {
-            setGitName(settings.gitName)
-        }
-        if (!lastConfig?.gitEmail && !gitEmail.trim() && settings.gitEmail) {
-            setGitEmail(settings.gitEmail)
-        }
-    }, [
-        cloudAgentSettingsQuery.data?.settings,
-        gitEmail,
-        gitName,
-        lastConfig?.gitEmail,
-        lastConfig?.gitName,
-        lastConfig?.repositoryBranch,
-        lastConfig?.repositoryBranchPrefix,
-        lastConfig?.repositoryUrl,
-        repoBranch,
-        repoBranchPrefix,
-        repoUrl
-    ])
+    })
+    const githubBranches = githubBranchesQuery.data?.branches ?? []
 
     // ── Phase detection ──
     const hasConnectedWorker = allWorkers.some(w => w.active)
@@ -315,8 +484,6 @@ export function HomeComposer(props: {
     const [skipOnboard, setSkipOnboard] = useState(() => localStorage.getItem('haqi-onboard-skip') === 'true')
     const [startingLocalWorker, setStartingLocalWorker] = useState(false)
     const [localWorkerError, setLocalWorkerError] = useState<string | null>(null)
-    const [setupAgent, setSetupAgent] = useState<'claude' | 'codex'>('claude')
-    const [setupRepoUrl, setSetupRepoUrl] = useState('')
 
     const onboardPhase: 'worker' | 'runtime' | 'setup' | 'ready' =
         !hasConnectedWorker ? 'worker' :
@@ -349,6 +516,8 @@ export function HomeComposer(props: {
             setLocalWorkerError(activeWorkerFailure ?? 'Worker is online but not ready yet')
             return
         }
+        const setupAgent: 'claude' | 'codex' = agent === 'codex' ? 'codex' : 'claude'
+        const trimmedRepoUrl = repoUrl.trim()
         try {
             const result = await spawnSession({
                 machineId: worker.machineId,
@@ -357,7 +526,7 @@ export function HomeComposer(props: {
                 executionBackend: (worker as any).executorType ?? 'cloud-self-hosted',
                 runtimeKind: 'daemon-session',
                 yolo: true,
-                workspaceSource: setupRepoUrl.trim() ? { repository: { url: setupRepoUrl.trim() } } : undefined,
+                workspaceSource: trimmedRepoUrl ? { repository: { url: trimmedRepoUrl } } : undefined,
             })
             if (result.type === 'success' && result.sessionId) {
                 props.onOpenSession(result.sessionId)
@@ -367,7 +536,7 @@ export function HomeComposer(props: {
         } catch (err: any) {
             setLocalWorkerError(err?.message ?? 'Failed to start setup')
         }
-    }, [selectableWorker, activeWorkerFailure, setupAgent, setupRepoUrl, spawnSession, props, navigate])
+    }, [selectableWorker, activeWorkerFailure, agent, repoUrl, spawnSession, props, navigate])
 
     const handlePrepareRuntime = useCallback(async () => {
         if (!props.api) return
@@ -383,15 +552,17 @@ export function HomeComposer(props: {
 
     // ── Derived data ──
     const selectableMachines = useMemo(() => {
-        if (executionBackend === 'cloud-self-hosted') {
-            return machines.filter(m => m.metadata?.executorType === 'cloud-self-hosted')
-        }
-        if (executionBackend === 'cloud-managed') {
-            return machines.filter(m => m.metadata?.executorType === 'cloud-managed')
-        }
-        return machines.filter(m =>
-            m.metadata?.executorType !== 'cloud-self-hosted' && m.metadata?.executorType !== 'cloud-managed'
-        )
+        const byExecutor = executionBackend === 'cloud-self-hosted'
+            ? machines.filter(m => m.metadata?.executorType === 'cloud-self-hosted')
+            : executionBackend === 'cloud-managed'
+                ? machines.filter(m => m.metadata?.executorType === 'cloud-managed')
+                : machines.filter(m =>
+                    m.metadata?.executorType !== 'cloud-self-hosted' && m.metadata?.executorType !== 'cloud-managed'
+                )
+        // Hide inactive machines from the picker — they can't run tasks.
+        // Historical records stay visible in Settings → Cloud Workers, where
+        // they can be inspected and pruned.
+        return byExecutor.filter(m => m.active)
     }, [executionBackend, machines])
 
     const modelOptions = useMemo(() => getModelOptionsForAgent(agent), [agent])
@@ -404,6 +575,15 @@ export function HomeComposer(props: {
         if (thinkEffortOptions.length === 0) return null
         return thinkEffortOptions.find(o => o.value === thinkEffort)?.label ?? thinkEffort
     }, [thinkEffort, thinkEffortOptions])
+
+    const machineLabel = useMemo(() => {
+        if (!isCloud) return 'local'
+        if (machineId === AUTO_CLOUD_MACHINE_ID || !machineId) {
+            return executionBackend === 'cloud-managed' ? 'managed · auto' : 'self-hosted · auto'
+        }
+        const m = machines.find(x => x.id === machineId)
+        return m?.metadata?.host ?? m?.id.slice(0, 8) ?? 'cloud'
+    }, [isCloud, machineId, machines, executionBackend])
 
     // ── Apply one-shot preset from sessionStorage (set by Settings → Checkpoints links) ──
     useEffect(() => {
@@ -561,8 +741,8 @@ export function HomeComposer(props: {
                 workspaceSource,
                 workspace,
                 gitIdentity: {
-                    ...(gitName.trim() ? { name: gitName.trim() } : {}),
-                    ...(gitEmail.trim() ? { email: gitEmail.trim() } : {}),
+                    ...(effectiveGitName ? { name: effectiveGitName } : {}),
+                    ...(effectiveGitEmail ? { email: effectiveGitEmail } : {}),
                     ...(cloudAgentSettingsQuery.data?.settings.githubUsername?.trim()
                         ? { githubUsername: cloudAgentSettingsQuery.data.settings.githubUsername.trim() }
                         : {}),
@@ -611,8 +791,6 @@ export function HomeComposer(props: {
                     repositoryBranchMode: repoBranchMode,
                     repositoryBranchPrefix: repoBranchPrefix.trim(),
                     repositoryBranchName: repoBranchName.trim(),
-                    gitName: gitName.trim(),
-                    gitEmail: gitEmail.trim(),
                     workspaceMode,
                     networkPolicy,
                     ttlMinutes: ttlMinutes.trim(),
@@ -657,8 +835,6 @@ export function HomeComposer(props: {
                     repositoryBranchMode: repoBranchMode,
                     repositoryBranchPrefix: repoBranchPrefix.trim(),
                     repositoryBranchName: repoBranchName.trim(),
-                    gitName: gitName.trim(),
-                    gitEmail: gitEmail.trim(),
                     workspaceMode,
                     networkPolicy,
                     ttlMinutes: ttlMinutes.trim(),
@@ -685,7 +861,7 @@ export function HomeComposer(props: {
     }, [
         prompt, isPending, isCloud, machineId, selectableMachines, agent, model, customModel,
         thinkEffort, serviceTier, networkPolicy, labels, secrets, previewPreferredPort,
-        sessionType, worktreeName, previewUrl, repoUrl, repoBranch, repoBranchMode, repoBranchPrefix, repoBranchName, gitName, gitEmail, checkpointId,
+        sessionType, worktreeName, previewUrl, repoUrl, repoBranch, repoBranchMode, repoBranchPrefix, repoBranchName, effectiveGitName, effectiveGitEmail, checkpointId,
         workspaceMode, directory, ttlMinutes, environmentId, runtimeKind, yolo,
         executionBackend, launchMode, previewAutoDetect, spawnSession, props, navigate, cloudAgentSettingsQuery.data?.settings.githubUsername,
     ])
@@ -710,262 +886,344 @@ export function HomeComposer(props: {
         <div className="flex flex-1 flex-col items-center justify-start overflow-y-auto">
             <div className="content-wrapper">
                 <div className="home-hero">
-                    <div className="home-eyebrow">New agent</div>
+                    <h1 className="home-title">Start an agent</h1>
+                    <p className="home-subtitle">Describe a task below, or pick a quick start.</p>
 
-                    {/* ── Phase 1: No worker ── */}
-                    {onboardPhase === 'worker' ? (
-                        <div className="prompt-container">
-                            <div className="prompt-card" style={{ padding: '24px' }}>
-                                <div className="chip-popover-label" style={{ padding: 0, marginBottom: 8, fontSize: 14, textTransform: 'none', letterSpacing: 'normal', color: 'var(--cursor-text-primary)', fontWeight: 600 }}>
-                                    Connect a worker to start
+                    {/* ── Onboarding banner (slim, ambient) ── */}
+                    {onboardPhase !== 'ready' ? (() => {
+                        const busy = startingLocalWorker || runtimeBuilding || (onboardPhase === 'setup' && isPending)
+                        const errorMsg = localWorkerError ?? (onboardPhase === 'setup' && !hasSelectableWorker ? activeWorkerFailure : null)
+                        const title =
+                            onboardPhase === 'worker'
+                                ? (allWorkers.length > 0
+                                    ? `All ${allWorkers.length} worker${allWorkers.length === 1 ? '' : 's'} offline`
+                                    : 'Start a worker to run agents')
+                                : onboardPhase === 'runtime'
+                                    ? (runtimeBuilding ? 'Building runtime image…' : 'Prepare the runtime image')
+                                    : 'Save a setup checkpoint to skip rebuilds'
+                        const hint = errorMsg ?? (
+                            onboardPhase === 'worker'
+                                ? (startingLocalWorker ? 'Starting worker…' : 'Runs on this machine and executes agent tasks.')
+                                : onboardPhase === 'runtime'
+                                    ? (runtimeMessage ?? 'Builds haqi-workspace:dev once, reused by all sessions.')
+                                    : 'Install deps once, reuse instantly — or skip to run without Docker.'
+                        )
+                        return (
+                            <div className="status-banner">
+                                <span className={`status-banner-dot ${errorMsg ? 'danger' : busy ? 'busy' : ''}`} />
+                                <div className="status-banner-body">
+                                    <div className="status-banner-title">{title}</div>
+                                    <div className={`status-banner-hint ${errorMsg ? 'danger' : ''}`}>{hint}</div>
                                 </div>
-                                <div style={{ fontSize: 13, color: 'var(--cursor-text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
-                                    A worker runs on your machine and executes agent tasks. Start one with a single click.
-                                </div>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <button
-                                        type="button"
-                                        className="action-btn active"
-                                        style={{ width: 'auto', borderRadius: 8, padding: '8px 16px', height: 'auto', fontSize: 13, gap: 6 }}
-                                        onClick={handleStartLocalWorker}
-                                        disabled={startingLocalWorker}
-                                    >
-                                        {startingLocalWorker ? <SpinnerSvg /> : null}
-                                        {startingLocalWorker ? 'Starting...' : 'Start Worker on This Machine'}
-                                    </button>
-                                </div>
-                                {localWorkerError ? (
-                                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--cursor-danger, #dc2626)' }}>{localWorkerError}</div>
-                                ) : null}
-                                <div style={{ marginTop: 12, fontSize: 12, color: 'var(--cursor-text-tertiary)' }}>
-                                    {startingLocalWorker ? 'Starting worker...' : 'Waiting for worker to come online...'}
+                                <div className="status-banner-actions">
+                                    {onboardPhase === 'worker' ? (
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
+                                            onClick={handleStartLocalWorker}
+                                            disabled={startingLocalWorker}
+                                            leadingIcon={startingLocalWorker ? <SpinnerSvg /> : undefined}
+                                        >
+                                            {startingLocalWorker ? 'Starting…' : allWorkers.length > 0 ? 'Restart worker' : 'Start worker'}
+                                        </Button>
+                                    ) : null}
+                                    {onboardPhase === 'runtime' ? (
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
+                                            onClick={handlePrepareRuntime}
+                                            disabled={runtimeBuilding}
+                                            leadingIcon={runtimeBuilding ? <SpinnerSvg /> : undefined}
+                                        >
+                                            {runtimeBuilding ? 'Building…' : 'Prepare runtime'}
+                                        </Button>
+                                    ) : null}
+                                    {onboardPhase === 'setup' ? (
+                                        <>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={handleSkipOnboard}
+                                            >
+                                                Skip
+                                            </Button>
+                                            <Button
+                                                variant="primary"
+                                                size="sm"
+                                                onClick={handleStartSetup}
+                                                disabled={isPending || !hasSelectableWorker}
+                                                leadingIcon={isPending ? <SpinnerSvg /> : undefined}
+                                            >
+                                                {isPending ? 'Starting…' : 'Start setup'}
+                                            </Button>
+                                        </>
+                                    ) : null}
                                 </div>
                             </div>
-                        </div>
-                    ) : null}
+                        )
+                    })() : null}
 
-                    {/* ── Phase 2: Prepare runtime ── */}
-                    {onboardPhase === 'runtime' ? (
-                        <div className="prompt-container">
-                            <div className="prompt-card" style={{ padding: '24px' }}>
-                                <div style={{ fontSize: 14, color: 'var(--cursor-text-primary)', fontWeight: 600, marginBottom: 8 }}>
-                                    Prepare runtime
-                                </div>
-                                <div style={{ fontSize: 13, color: 'var(--cursor-text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
-                                    Build the Docker runtime image once on this worker before starting setup sessions.
-                                </div>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <button
-                                        type="button"
-                                        className="action-btn active"
-                                        style={{ width: 'auto', borderRadius: 8, padding: '8px 16px', height: 'auto', fontSize: 13, gap: 6 }}
-                                        onClick={handlePrepareRuntime}
-                                        disabled={runtimeBuilding}
-                                    >
-                                        {runtimeBuilding ? <SpinnerSvg /> : null}
-                                        {runtimeBuilding ? 'Preparing...' : 'Prepare Runtime'}
-                                    </button>
-                                </div>
-                                {localWorkerError ? (
-                                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--cursor-danger, #dc2626)' }}>{localWorkerError}</div>
-                                ) : null}
-                                <div style={{ marginTop: 12, fontSize: 12, color: 'var(--cursor-text-tertiary)' }}>
-                                    {runtimeBuilding
-                                        ? (runtimeMessage ?? 'Building haqi-workspace:dev...')
-                                        : 'Docker runtime image is not ready yet.'}
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
-
-                    {/* ── Phase 3: No checkpoint ── */}
-                    {onboardPhase === 'setup' ? (
-                        <div className="prompt-container">
-                            <div className="prompt-card" style={{ padding: '24px' }}>
-                                <div style={{ fontSize: 14, color: 'var(--cursor-text-primary)', fontWeight: 600, marginBottom: 8 }}>
-                                    Setup your environment
-                                </div>
-                                <div style={{ fontSize: 13, color: 'var(--cursor-text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
-                                    Start a setup session to install dependencies. Save a checkpoint when done to reuse the environment instantly.
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                                    <input
-                                        type="text"
-                                        className="chip-popover-input"
-                                        placeholder="Repository URL (optional)"
-                                        value={setupRepoUrl}
-                                        onChange={e => setSetupRepoUrl(e.target.value)}
-                                    />
-                                    <div className="chip-popover-pills">
-                                        <button type="button" className={`chip-popover-pill ${setupAgent === 'claude' ? 'active' : ''}`} onClick={() => setSetupAgent('claude')}>Claude</button>
-                                        <button type="button" className={`chip-popover-pill ${setupAgent === 'codex' ? 'active' : ''}`} onClick={() => setSetupAgent('codex')}>Codex</button>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <button
-                                        type="button"
-                                        className="action-btn active"
-                                        style={{ width: 'auto', borderRadius: 8, padding: '8px 16px', height: 'auto', fontSize: 13 }}
-                                        onClick={handleStartSetup}
-                                        disabled={isPending || !hasSelectableWorker}
-                                    >
-                                        {isPending ? <SpinnerSvg /> : null}
-                                        {isPending ? 'Starting...' : 'Start Setup Session'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="pill-btn"
-                                        onClick={handleSkipOnboard}
-                                    >
-                                        Skip — use without Docker
-                                    </button>
-                                </div>
-                                {!hasSelectableWorker ? (
-                                    <div style={{ marginTop: 8, fontSize: 12, color: activeWorkerFailure ? 'var(--cursor-danger, #dc2626)' : 'var(--cursor-text-tertiary)' }}>
-                                        {activeWorkerFailure ?? 'Worker connected. Waiting for it to become ready...'}
-                                    </div>
-                                ) : null}
-                            </div>
-                        </div>
-                    ) : null}
-
-                    {/* ── Phase 3: Normal composer ── */}
-                    {onboardPhase !== 'ready' ? null : (<>
+                    {/* ── Composer (always visible, submit gated by onboard phase) ── */}
+                    {(<>
 
                     {/* ── Repo selector ── */}
-                    <div className="repo-selector">
+                    <div className={`repo-selector ${showRepoPanel ? 'items-stretch' : ''}`}>
                         {showRepoPanel ? (
-                            <div className="chip-popover-group">
-                                <div className="chip-popover-row">
-                                    <div className="chip-popover-row-left">
-                                        <span className="chip-popover-row-label">Repository URL</span>
-                                    </div>
-                                    <div className="chip-popover-row-right">
-                                        <input
-                                            type="text"
-                                            className="chip-popover-input"
-                                            placeholder="https://github.com/org/repo"
-                                            value={repoUrl}
-                                            onChange={e => setRepoUrl(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="chip-popover-row">
-                                    <div className="chip-popover-row-left">
-                                        <span className="chip-popover-row-label">Branch</span>
-                                    </div>
-                                    <div className="chip-popover-row-right">
-                                        <input
-                                            type="text"
-                                            className="chip-popover-input"
-                                            placeholder="main"
-                                            value={repoBranch}
-                                            onChange={e => setRepoBranch(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="chip-popover-row">
-                                    <div className="chip-popover-row-left">
-                                        <span className="chip-popover-row-label">Workspace</span>
-                                    </div>
-                                    <div className="chip-popover-row-right">
-                                        <PopoverPillRow
-                                            options={WORKSPACE_MODE_OPTIONS}
-                                            value={workspaceMode}
-                                            onChange={v => setWorkspaceMode(v as WorkspaceMode)}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="chip-popover-row">
-                                    <div className="chip-popover-row-left">
-                                        <span className="chip-popover-row-label">Branch mode</span>
-                                    </div>
-                                    <div className="chip-popover-row-right">
-                                        <PopoverPillRow
-                                            options={[
-                                                { value: 'create', label: 'Create' },
-                                                { value: 'reuse', label: 'Reuse' },
-                                                { value: 'detached', label: 'Detached' },
-                                            ]}
-                                            value={repoBranchMode}
-                                            onChange={v => setRepoBranchMode(v as 'create' | 'reuse' | 'detached')}
-                                        />
-                                    </div>
-                                </div>
-                                {repoBranchMode === 'create' ? (
-                                    <>
-                                        <div className="chip-popover-row">
-                                            <div className="chip-popover-row-left">
-                                                <span className="chip-popover-row-label">Branch prefix</span>
-                                            </div>
-                                            <div className="chip-popover-row-right">
-                                                <CursorTextField
-                                                    compact
-                                                    placeholder="haqi/"
-                                                    value={repoBranchPrefix}
-                                                    onChange={e => setRepoBranchPrefix(e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="chip-popover-row">
-                                            <div className="chip-popover-row-left">
-                                                <span className="chip-popover-row-label">Branch name</span>
-                                            </div>
-                                            <div className="chip-popover-row-right">
-                                                <CursorTextField
-                                                    compact
-                                                    placeholder="auto from prompt"
-                                                    value={repoBranchName}
-                                                    onChange={e => setRepoBranchName(e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : null}
-                                <div className="chip-popover-row">
-                                    <div className="chip-popover-row-left">
-                                        <span className="chip-popover-row-label">Git name</span>
-                                    </div>
-                                    <div className="chip-popover-row-right">
-                                        <CursorTextField
-                                            compact
-                                            placeholder="Jane Doe"
-                                            value={gitName}
-                                            onChange={e => setGitName(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="chip-popover-row">
-                                    <div className="chip-popover-row-left">
-                                        <span className="chip-popover-row-label">Git email</span>
-                                    </div>
-                                    <div className="chip-popover-row-right">
-                                        <CursorTextField
-                                            compact
-                                            type="email"
-                                            placeholder="jane@example.com"
-                                            value={gitEmail}
-                                            onChange={e => setGitEmail(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="repo-btn"
-                                    onClick={() => setShowRepoPanel(false)}
-                                >
-                                    Collapse
-                                </button>
-                            </div>
-                        ) : (
-                            <button
-                                type="button"
-                                className="repo-btn"
-                                onClick={() => setShowRepoPanel(true)}
+                            <div
+                                className={`repo-panel-expanded flex w-full flex-col gap-3 ${isRepoPanelExiting ? 'repo-panel-exiting' : ''}`}
+                                onAnimationEnd={handleRepoPanelAnimationEnd}
                             >
-                                Select repository &#9662;
-                            </button>
-                        )}
+                                <div className="repo-panel-head">
+                                    <div className="repo-panel-head-title">
+                                        {selectedGithubRepo?.fullName ?? parseRepoShortName(repoUrl) ?? 'Choose a repo'}
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        iconOnly
+                                        onClick={closeRepoPanel}
+                                        aria-label="Close repository settings"
+                                        title="Close"
+                                        leadingIcon={<CloseSvg />}
+                                    />
+                                </div>
+                                <CursorSettingsCard>
+                                    {githubConnected ? (
+                                        <CursorSettingsRow
+                                            alignTop
+                                            title="From GitHub"
+                                            description={selectedGithubRepo ? undefined : 'Pick a connected repo.'}
+                                            control={
+                                                <div className="flex w-[320px] max-w-full flex-col gap-2">
+                                                    <div className="repo-search">
+                                                        <span className="repo-search-icon" aria-hidden><SearchSvg /></span>
+                                                        <CursorTextField
+                                                            ref={repoSearchInputRef}
+                                                            compact
+                                                            className="repo-search-input"
+                                                            placeholder={githubReposQuery.isLoading
+                                                                ? 'Loading repos…'
+                                                                : 'Search repositories'}
+                                                            value={repoSearch}
+                                                            onChange={e => setRepoSearch(e.target.value)}
+                                                            onKeyDown={handleRepoSearchKeyDown}
+                                                        />
+                                                    </div>
+                                                    <div className="repo-list">
+                                                        {githubReposQuery.isLoading ? (
+                                                            <div className="repo-list-empty">Loading…</div>
+                                                        ) : filteredGithubRepos.length === 0 ? (
+                                                            <div className="repo-list-empty">
+                                                                {repoSearch.trim() ? 'No repositories match.' : 'No repositories.'}
+                                                            </div>
+                                                        ) : (
+                                                            filteredGithubRepos.map((repo, index) => {
+                                                                const active = selectedGithubRepo?.cloneUrl === repo.cloneUrl
+                                                                return (
+                                                                    <button
+                                                                        key={repo.cloneUrl}
+                                                                        ref={el => { repoItemRefs.current[index] = el }}
+                                                                        type="button"
+                                                                        onClick={() => handleRepoPick(repo)}
+                                                                        onKeyDown={handleRepoItemKeyDown(index, filteredGithubRepos.length)}
+                                                                        className={`repo-list-item ${active ? 'repo-list-item--active' : ''}`}
+                                                                    >
+                                                                        <span className="repo-list-item-icon" aria-hidden>
+                                                                            <RepoSvg />
+                                                                        </span>
+                                                                        <div className="repo-list-item-body">
+                                                                            <div className="repo-list-item-name">
+                                                                                {repo.fullName}
+                                                                                {repo.private ? (
+                                                                                    <span className="repo-list-item-lock" aria-label="Private">
+                                                                                        <LockSvg />
+                                                                                    </span>
+                                                                                ) : null}
+                                                                            </div>
+                                                                            <div className="repo-list-item-meta">
+                                                                                {repo.defaultBranch || 'default branch'}
+                                                                            </div>
+                                                                        </div>
+                                                                        {active ? (
+                                                                            <span className="repo-list-item-check" aria-hidden>
+                                                                                <CheckSvg />
+                                                                            </span>
+                                                                        ) : null}
+                                                                    </button>
+                                                                )
+                                                            })
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            }
+                                        />
+                                    ) : null}
+                                    <CursorSettingsRow
+                                        title="Repository URL"
+                                        description={githubConnected ? 'Or paste a git URL.' : 'Git remote to clone.'}
+                                        control={
+                                            <CursorTextField
+                                                compact
+                                                className={`w-[280px] max-w-full ${autoFilledFields.has('url') ? 'pulse-fill' : ''}`}
+                                                placeholder="https://github.com/org/repo"
+                                                value={repoUrl}
+                                                onChange={e => setRepoUrl(e.target.value)}
+                                            />
+                                        }
+                                    />
+                                    <CursorSettingsRow
+                                        title="Base branch"
+                                        description={githubBranchesQuery.isLoading
+                                            ? 'Loading…'
+                                            : githubBranchesQuery.error
+                                                ? 'Could not load branches; type a name.'
+                                                : undefined}
+                                        control={
+                                            selectedGithubRepo && githubBranches.length > 0 ? (
+                                                <CursorSelect
+                                                    className={`w-[240px] max-w-full ${autoFilledFields.has('branch') ? 'pulse-fill' : ''}`}
+                                                    value={repoBranch}
+                                                    onChange={e => setRepoBranch(e.target.value)}
+                                                >
+                                                    <option value="">
+                                                        {selectedGithubRepo.defaultBranch
+                                                            ? `Default (${selectedGithubRepo.defaultBranch})`
+                                                            : 'Select branch'}
+                                                    </option>
+                                                    {githubBranches.map(b => (
+                                                        <option key={b.name} value={b.name}>
+                                                            {b.name}{b.protected ? ' · protected' : ''}
+                                                        </option>
+                                                    ))}
+                                                </CursorSelect>
+                                            ) : (
+                                                <CursorTextField
+                                                    compact
+                                                    className={`w-[200px] max-w-full ${autoFilledFields.has('branch') ? 'pulse-fill' : ''}`}
+                                                    placeholder={selectedGithubRepo?.defaultBranch || 'main'}
+                                                    value={repoBranch}
+                                                    onChange={e => setRepoBranch(e.target.value)}
+                                                />
+                                            )
+                                        }
+                                    />
+                                    <button
+                                        type="button"
+                                        className={`repo-advanced-toggle ${showRepoAdvanced && !isRepoAdvancedExiting ? 'is-open' : ''}`}
+                                        onClick={toggleRepoAdvanced}
+                                        aria-expanded={showRepoAdvanced && !isRepoAdvancedExiting}
+                                    >
+                                        <span className="repo-advanced-toggle-chevron" aria-hidden>
+                                            <ChevronSvg />
+                                        </span>
+                                        <span>Advanced</span>
+                                        <span className="repo-advanced-toggle-hint">
+                                            workspace · branch strategy
+                                        </span>
+                                    </button>
+                                    {showRepoAdvanced ? (
+                                        <div
+                                            className={`repo-advanced-section ${isRepoAdvancedExiting ? 'repo-advanced-section--exiting' : ''}`}
+                                            onAnimationEnd={handleAdvancedAnimationEnd}
+                                        >
+                                            <CursorSettingsRow
+                                                title="Workspace"
+                                                description="Ephemeral wipes on exit · Persistent keeps files · Snapshot restores from a checkpoint."
+                                                control={
+                                                    <PopoverPillRow
+                                                        options={WORKSPACE_MODE_OPTIONS}
+                                                        value={workspaceMode}
+                                                        onChange={v => setWorkspaceMode(v as WorkspaceMode)}
+                                                    />
+                                                }
+                                            />
+                                            <CursorSettingsRow
+                                                title="Branch strategy"
+                                                description="How task branches are made."
+                                                noBorder={repoBranchMode !== 'create'}
+                                                control={
+                                                    <PopoverPillRow
+                                                        options={[
+                                                            { value: 'create', label: 'Create' },
+                                                            { value: 'reuse', label: 'Reuse' },
+                                                            { value: 'detached', label: 'Detached' },
+                                                        ]}
+                                                        value={repoBranchMode}
+                                                        onChange={v => setRepoBranchMode(v as 'create' | 'reuse' | 'detached')}
+                                                    />
+                                                }
+                                            />
+                                            {repoBranchMode === 'create' ? (
+                                                <>
+                                                    <CursorSettingsRow
+                                                        title="Branch prefix"
+                                                        description="New task branches become {prefix}{slug}."
+                                                        control={
+                                                            <CursorTextField
+                                                                compact
+                                                                className="w-[200px] max-w-full"
+                                                                placeholder="haqi/"
+                                                                value={repoBranchPrefix}
+                                                                onChange={e => setRepoBranchPrefix(e.target.value)}
+                                                            />
+                                                        }
+                                                    />
+                                                    <CursorSettingsRow
+                                                        title="Branch name"
+                                                        description="Optional slug; leave blank to derive from prompt."
+                                                        noBorder
+                                                        control={
+                                                            <CursorTextField
+                                                                compact
+                                                                className="w-[240px] max-w-full"
+                                                                placeholder="auto from prompt"
+                                                                value={repoBranchName}
+                                                                onChange={e => setRepoBranchName(e.target.value)}
+                                                            />
+                                                        }
+                                                    />
+                                                </>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
+                                </CursorSettingsCard>
+                            </div>
+                        ) : (() => {
+                            const shortRepo = selectedGithubRepo?.fullName ?? parseRepoShortName(repoUrl)
+                            const branchLabel = repoBranch.trim() || selectedGithubRepo?.defaultBranch || ''
+                            if (!shortRepo) {
+                                return (
+                                    <Button
+                                        variant="ghost"
+                                        size="xs"
+                                        className="repo-btn"
+                                        onClick={() => setShowRepoPanel(true)}
+                                        trailingIcon={<ChevronSvg />}
+                                    >
+                                        Select repository
+                                    </Button>
+                                )
+                            }
+                            return (
+                                <Button
+                                    variant="secondary"
+                                    size="xs"
+                                    className="repo-btn repo-btn--selected"
+                                    onClick={() => setShowRepoPanel(true)}
+                                    title="Change repository or branch"
+                                    leadingIcon={<GitBranchSvg />}
+                                    trailingIcon={<ChevronSvg />}
+                                >
+                                    <span className="repo-chip-name">{shortRepo}</span>
+                                    {branchLabel ? (
+                                        <>
+                                            <span className="repo-chip-sep">·</span>
+                                            <span className="repo-chip-branch">{branchLabel}</span>
+                                        </>
+                                    ) : null}
+                                </Button>
+                            )
+                        })()}
                     </div>
 
                     {/* ── Prompt card ── */}
@@ -983,48 +1241,65 @@ export function HomeComposer(props: {
                             <div className="prompt-footer">
                                 <div className="prompt-tools">
                                     {/* Model chip */}
-                                    <button
+                                    <Button
                                         ref={modelChipRef}
-                                        type="button"
-                                        className="tool-chip"
+                                        variant="ghost"
+                                        size="xs"
+                                        className="tool-chip tool-chip--with-avatar"
                                         onClick={() => togglePopover('model')}
+                                        leadingIcon={<AgentAvatar agent={agent} size={16} />}
+                                        trailingIcon={<ChevronSvg />}
                                     >
-                                        {agent}{' '}
-                                        {modelLabel}
-                                        {effortLabel ? ` ${effortLabel}` : ''}
-                                        {' '}<ChevronSvg />
-                                    </button>
+                                        <span className="tool-chip-text">
+                                            {modelLabel}
+                                            {effortLabel ? (
+                                                <span className="tool-chip-effort">{effortLabel}</span>
+                                            ) : null}
+                                        </span>
+                                    </Button>
 
                                     {/* Cloud chip */}
-                                    <button
+                                    <Button
                                         ref={cloudChipRef}
-                                        type="button"
+                                        variant="ghost"
+                                        size="xs"
                                         className="tool-chip"
                                         onClick={() => togglePopover('cloud')}
+                                        trailingIcon={<ChevronSvg />}
                                     >
                                         {isCloud ? 'Cloud' : 'Local'}
-                                        {isCloud ? (
-                                            <span className="inline-block w-2 h-2 rounded-full bg-green-500 ml-1" />
-                                        ) : null}
-                                        {' '}<ChevronSvg />
-                                    </button>
+                                        {isCloud ? <StatusDot tone="success" size={6} className="ml-1" /> : null}
+                                    </Button>
 
                                     {/* Config chip */}
-                                    <button
+                                    <Button
                                         ref={configChipRef}
-                                        type="button"
+                                        variant="ghost"
+                                        size="xs"
                                         className="tool-chip"
                                         onClick={() => togglePopover('config')}
-                                    >
-                                        <GearSvg /> <ChevronSvg />
-                                    </button>
+                                        leadingIcon={<GearSvg />}
+                                        trailingIcon={<ChevronSvg />}
+                                    />
                                 </div>
                                 <div className="prompt-actions">
+                                    {hasPrompt && onboardPhase === 'ready' && !isPending ? (
+                                        <KbdHint className="kbd-hint">
+                                            <Kbd>⌘</Kbd>
+                                            <Kbd>↵</Kbd>
+                                        </KbdHint>
+                                    ) : null}
                                     <button
                                         type="button"
-                                        className={`action-btn ${hasPrompt ? 'active' : ''}`}
-                                        disabled={!hasPrompt || isPending}
+                                        className={`action-btn ${hasPrompt && onboardPhase === 'ready' ? 'active' : ''}`}
+                                        disabled={!hasPrompt || isPending || onboardPhase !== 'ready'}
                                         onClick={() => void handleSubmit()}
+                                        title={
+                                            onboardPhase === 'worker' ? 'Start a worker before sending'
+                                            : onboardPhase === 'runtime' ? 'Runtime image not ready'
+                                            : onboardPhase === 'setup' ? 'Finish or skip setup first'
+                                            : 'Send (⌘↵)'
+                                        }
                                     >
                                         {isPending ? <SpinnerSvg /> : <SendSvg />}
                                     </button>
@@ -1033,23 +1308,72 @@ export function HomeComposer(props: {
                         </div>
                     </div>
 
+                    {onboardPhase !== 'ready' ? (
+                        <div className="mt-2 text-[12px] leading-4 text-[var(--cursor-text-tertiary)]">
+                            {onboardPhase === 'worker'
+                                ? 'Draft your prompt — send unlocks once a worker is online.'
+                                : onboardPhase === 'runtime'
+                                    ? 'Draft your prompt — send unlocks once the runtime image is ready.'
+                                    : 'Draft your prompt — send unlocks after setup (or skip setup).'}
+                        </div>
+                    ) : hasPrompt ? (() => {
+                        const repoShort = selectedGithubRepo?.fullName ?? parseRepoShortName(repoUrl)
+                        const branchShort = repoBranch.trim() || selectedGithubRepo?.defaultBranch || ''
+                        const repoSummary = repoShort
+                            ? (branchShort ? `${repoShort}@${branchShort}` : repoShort)
+                            : null
+                        return (
+                            <div className="will-run-summary">
+                                <span className="will-run-label">Runs</span>
+                                <span className="will-run-val will-run-val--agent">{agent}</span>
+                                {modelLabel ? (
+                                    <>
+                                        <span className="will-run-sep">·</span>
+                                        <span className="will-run-val">{modelLabel}</span>
+                                    </>
+                                ) : null}
+                                {effortLabel ? (
+                                    <span className="will-run-effort">{effortLabel}</span>
+                                ) : null}
+                                {repoSummary ? (
+                                    <>
+                                        <span className="will-run-sep">·</span>
+                                        <span className="will-run-val">{repoSummary}</span>
+                                    </>
+                                ) : null}
+                                <span className="will-run-sep">·</span>
+                                <span className="will-run-val">{machineLabel}</span>
+                            </div>
+                        )
+                    })() : null}
+
                     {/* ── Spawn error ── */}
                     {spawnError ? (
-                        <div className="mt-2 text-sm text-red-400">{spawnError}</div>
+                        <div className="composer-error" role="alert">
+                            <svg className="composer-error-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <span>{spawnError}</span>
+                        </div>
                     ) : null}
 
                     {/* ── Quick prompt pills ── */}
-                    <div className="action-pills">
-                        {QUICK_PROMPTS.map(text => (
-                            <button
-                                key={text}
-                                type="button"
-                                className="pill-btn"
-                                onClick={() => handleQuickPrompt(text)}
-                            >
-                                {text}
-                            </button>
-                        ))}
+                    <div className="quick-prompts">
+                        <div className="quick-prompts-label">Try</div>
+                        <div className="action-pills">
+                            {QUICK_PROMPTS.map(text => (
+                                <button
+                                    key={text}
+                                    type="button"
+                                    className="pill-btn"
+                                    onClick={() => handleQuickPrompt(text)}
+                                >
+                                    {text}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     </>)}
                 </div>
@@ -1066,7 +1390,10 @@ export function HomeComposer(props: {
                                 selected={agent === opt.value}
                                 onClick={() => setAgent(opt.value)}
                             >
-                                {opt.label}
+                                <span className="chip-popover-option-row">
+                                    <AgentAvatar agent={opt.value} />
+                                    {opt.label}
+                                </span>
                             </PopoverOption>
                         ))}
                     </PopoverGroup>

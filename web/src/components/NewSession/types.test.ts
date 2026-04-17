@@ -9,6 +9,7 @@ describe('NewSession model options', () => {
             'sonnet',
             'opus',
             'haiku',
+            'claude-opus-4-7',
             'claude-sonnet-4-6',
             'claude-opus-4-6',
             'claude-haiku-4-5-20251001'
@@ -28,7 +29,7 @@ describe('NewSession model options', () => {
 
     it('includes Claude think effort options', () => {
         const thinkEfforts = CLAUDE_THINK_EFFORT_OPTIONS.map((option) => option.value)
-        expect(thinkEfforts).toEqual(['max', 'high', 'auto', 'low', 'medium'])
+        expect(thinkEfforts).toEqual(['xhigh', 'max', 'high', 'auto', 'low', 'medium'])
     })
 
     it('includes codex think effort options', () => {

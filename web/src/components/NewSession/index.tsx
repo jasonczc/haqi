@@ -320,15 +320,6 @@ export function NewSession(props: {
     useEffect(() => {
         const settings = cloudAgentSettingsQuery.data?.settings
         if (!settings) return
-        if (!lastSessionConfig?.repositoryUrl && !repositoryUrl.trim() && settings.defaultRepositoryUrl) {
-            setRepositoryUrl(settings.defaultRepositoryUrl)
-        }
-        if (!lastSessionConfig?.repositoryBranch && !repositoryBranch.trim() && settings.baseBranch) {
-            setRepositoryBranch(settings.baseBranch)
-        }
-        if (!lastSessionConfig?.repositoryBranchPrefix && !repositoryBranchPrefix.trim() && settings.branchPrefix) {
-            setRepositoryBranchPrefix(settings.branchPrefix)
-        }
         if (!lastSessionConfig?.gitName && !gitName.trim() && settings.gitName) {
             setGitName(settings.gitName)
         }
@@ -340,13 +331,7 @@ export function NewSession(props: {
         gitEmail,
         gitName,
         lastSessionConfig?.gitEmail,
-        lastSessionConfig?.gitName,
-        lastSessionConfig?.repositoryBranch,
-        lastSessionConfig?.repositoryBranchPrefix,
-        lastSessionConfig?.repositoryUrl,
-        repositoryBranch,
-        repositoryBranchPrefix,
-        repositoryUrl
+        lastSessionConfig?.gitName
     ])
 
     const allPaths = useDirectorySuggestions(machineIdForPathQueries, sessions, recentPaths)

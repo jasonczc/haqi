@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
 import { isObject } from '@hapi/protocol'
+import { ChecklistStatusIcon } from '@/components/ui/ChecklistStatusIcon'
 
 export type ChecklistStatus = 'pending' | 'in_progress' | 'completed'
 
@@ -77,15 +77,10 @@ export function extractUpdatePlanChecklist(input: unknown, result: unknown): Che
     return []
 }
 
-function checklistTone(item: ChecklistItem): string {
-    if (item.status === 'completed') return 'text-[var(--success)] line-through'
-    if (item.status === 'in_progress') return 'text-[var(--cursor-link)]'
+function checklistTextTone(status: ChecklistStatus): string {
+    if (status === 'completed') return 'text-[var(--cursor-text-tertiary)] line-through'
+    if (status === 'in_progress') return 'text-[var(--cursor-text-primary)]'
     return 'text-[var(--cursor-text-secondary)]'
-}
-
-function checklistIcon(item: ChecklistItem): ReactNode {
-    if (item.status === 'completed') return '☑'
-    return '☐'
 }
 
 export function ChecklistList(props: { items: ChecklistItem[]; emptyLabel?: string | null }) {
@@ -96,12 +91,19 @@ export function ChecklistList(props: { items: ChecklistItem[]; emptyLabel?: stri
     }
 
     return (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
             {props.items.map((item, idx) => {
                 const text = item.text.trim().length > 0 ? item.text.trim() : '(empty)'
                 return (
-                    <div key={item.id ?? String(idx)} className={`text-sm ${checklistTone(item)}`}>
-                        {checklistIcon(item)} {text}
+                    <div
+                        key={item.id ?? String(idx)}
+                        data-status={item.status}
+                        className="checklist-item-transition flex items-start gap-2 text-[13px] leading-[1.5]"
+                    >
+                        <span className="checklist-item-icon mt-[2px]">
+                            <ChecklistStatusIcon status={item.status} />
+                        </span>
+                        <span className={`checklist-item-text flex-1 min-w-0 ${checklistTextTone(item.status)}`}>{text}</span>
                     </div>
                 )
             })}

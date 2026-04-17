@@ -844,10 +844,6 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Think level is only supported for Claude and Codex sessions' }, 400)
         }
 
-        if (flavor === 'claude' && parsed.data.thinkEffort === 'xhigh') {
-            return c.json({ error: 'Claude thinkEffort does not support xhigh (expected auto/low/medium/high)' }, 400)
-        }
-
         try {
             await engine.applySessionConfig(sessionResult.sessionId, {
                 thinkEffort: parsed.data.thinkEffort
@@ -1004,9 +1000,19 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Cannot delete active session. Archive it first.' }, 409)
         }
 
+        // Best-effort: tear down the daemon-session container before dropping
+        // the DB row so Settings → Containers doesn't accumulate orphans.
+        // Container cleanup failures are recorded in the response but never
+        // block session deletion — we'd rather have an orphan container than
+        // a permanently undeletable session.
+        const containerCleanup = await engine.cleanupSessionContainer(
+            sessionResult.sessionId,
+            sessionResult.session.namespace
+        )
+
         try {
             await engine.deleteSession(sessionResult.sessionId)
-            return c.json({ ok: true })
+            return c.json({ ok: true, containerCleanup })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to delete session'
             // Map "active session" error to 409 conflict (race condition: session became active)

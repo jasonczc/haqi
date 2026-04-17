@@ -296,6 +296,7 @@ export default {
 
   // Code block
   'code.copy': '复制',
+  'code.copied': '已复制',
 
   // Diff view
   'diff.title': '差异',

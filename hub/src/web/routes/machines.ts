@@ -98,10 +98,6 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: previewUrl.error }, 400)
         }
 
-        if (parsed.data.agent === 'claude' && parsed.data.thinkEffort === 'xhigh') {
-            return c.json({ error: 'Claude thinkEffort does not support xhigh (expected low/medium/high)' }, 400)
-        }
-
         if (parsed.data.executionBackend === 'cloud-self-hosted' || parsed.data.executionBackend === 'cloud-managed') {
             if (parsed.data.directory?.trim()) {
                 return c.json({ error: 'Cloud sessions do not accept directory; use workspaceSource.repository' }, 400)

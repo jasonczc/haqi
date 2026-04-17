@@ -11,31 +11,32 @@ function formatFileSize(bytes: number): string {
 function ImageAttachment(props: { attachment: AttachmentMetadata }) {
     const { attachment } = props
     return (
-        <div className="relative overflow-hidden rounded-lg">
+        <figure className="message-attachment-image relative overflow-hidden rounded-xl">
             <img
                 src={attachment.previewUrl}
                 alt={attachment.filename}
-                className="max-h-48 max-w-full object-contain"
+                className="max-h-56 max-w-full object-contain"
+                loading="lazy"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5">
-                <span className="text-xs text-white/90 line-clamp-1">
-                    {attachment.filename}
-                </span>
-            </div>
-        </div>
+            <figcaption className="message-attachment-image-caption">
+                <span className="line-clamp-1">{attachment.filename}</span>
+            </figcaption>
+        </figure>
     )
 }
 
 function FileAttachment(props: { attachment: AttachmentMetadata }) {
     const { attachment } = props
     return (
-        <div className="flex items-center gap-2 rounded-lg bg-[var(--cursor-bg-card)] px-3 py-2">
-            <FileIcon fileName={attachment.filename} size={24} />
+        <div className="message-attachment-file">
+            <span className="message-attachment-file-icon">
+                <FileIcon fileName={attachment.filename} size={22} />
+            </span>
             <div className="min-w-0 flex-1">
-                <div className="truncate text-base font-medium text-[var(--cursor-text-primary)]">
+                <div className="message-attachment-file-name truncate">
                     {attachment.filename}
                 </div>
-                <div className="text-xs text-[var(--cursor-text-secondary)]">
+                <div className="message-attachment-file-meta">
                     {formatFileSize(attachment.size)}
                 </div>
             </div>

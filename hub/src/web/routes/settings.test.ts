@@ -36,10 +36,7 @@ describe('createSettingsRoutes', () => {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
                 gitName: 'Jane Doe',
-                gitEmail: 'jane@example.com',
-                branchPrefix: 'haqi/',
-                baseBranch: 'main',
-                defaultRepositoryUrl: 'https://github.com/acme/demo.git'
+                gitEmail: 'jane@example.com'
             })
         })
 
@@ -48,10 +45,7 @@ describe('createSettingsRoutes', () => {
             settings: {
                 gitName: 'Jane Doe',
                 gitEmail: 'jane@example.com',
-                githubUsername: '',
-                branchPrefix: 'haqi/',
-                baseBranch: 'main',
-                defaultRepositoryUrl: 'https://github.com/acme/demo.git'
+                githubUsername: ''
             }
         })
 
@@ -61,10 +55,7 @@ describe('createSettingsRoutes', () => {
             settings: {
                 gitName: 'Jane Doe',
                 gitEmail: 'jane@example.com',
-                githubUsername: '',
-                branchPrefix: 'haqi/',
-                baseBranch: 'main',
-                defaultRepositoryUrl: 'https://github.com/acme/demo.git'
+                githubUsername: ''
             },
             github: {
                 connected: false,

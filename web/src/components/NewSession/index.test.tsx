@@ -34,9 +34,6 @@ const defaultCloudAgentSettingsResponse = {
         gitName: '',
         gitEmail: '',
         githubUsername: '',
-        branchPrefix: 'haqi/',
-        baseBranch: '',
-        defaultRepositoryUrl: '',
     },
     github: {
         connected: false,

@@ -9,6 +9,9 @@ import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { parseUnifiedDiff } from '@/lib/gitDiff'
 import { ChecklistList, extractTodoChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
+import { CopyIcon, CheckIcon } from '@/components/icons'
+import { useTranslation } from '@/lib/use-translation'
 
 const MAX_IMAGE_PREVIEW_BYTES = 8 * 1024 * 1024
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
@@ -328,7 +331,14 @@ const BashResultView: ToolViewComponent = (props: ToolViewProps) => {
             <>
                 <div className="flex flex-col gap-2">
                     {stdio.stdout ? <CodeBlock code={stdio.stdout} language="text" /> : null}
-                    {stdio.stderr ? <CodeBlock code={stdio.stderr} language="text" /> : null}
+                    {stdio.stderr ? (
+                        <div className="tool-result-stderr rounded-md border-l-2 border-[var(--danger)] bg-[var(--danger)]/5 pl-1">
+                            <div className="tool-result-stderr-label px-2 pt-1 text-[11px] font-medium text-[var(--danger)]">
+                                stderr
+                            </div>
+                            <CodeBlock code={stdio.stderr} language="text" />
+                        </div>
+                    ) : null}
                 </div>
                 <RawJsonDevOnly value={result} />
             </>
@@ -428,6 +438,27 @@ const LineListResultView: ToolViewComponent = (props: ToolViewProps) => {
     )
 }
 
+function FilepathChip(props: { path: string; fullPath?: string }) {
+    const { t } = useTranslation()
+    const { copied, copy } = useCopyToClipboard()
+    const label = props.path
+    const copyTarget = props.fullPath ?? props.path
+    return (
+        <div className="tool-result-filepath-chip inline-flex max-w-full items-center gap-1.5 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-xs font-mono text-[var(--cursor-text-primary)]">
+            <span className="tool-result-filepath-chip-label min-w-0 truncate">{label}</span>
+            <button
+                type="button"
+                onClick={() => copy(copyTarget)}
+                className="tool-result-filepath-chip-copy inline-flex shrink-0 items-center justify-center rounded text-[var(--cursor-text-secondary)] transition-colors hover:text-[var(--cursor-text-primary)] focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--cursor-link)]"
+                title={copied ? t('code.copied') : t('code.copy')}
+                aria-label={copied ? t('code.copied') : t('code.copy')}
+            >
+                {copied ? <CheckIcon className="h-3 w-3" /> : <CopyIcon className="h-3 w-3" />}
+            </button>
+        </div>
+    )
+}
+
 const ReadResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
 
@@ -441,8 +472,8 @@ const ReadResultView: ToolViewComponent = (props: ToolViewProps) => {
         return (
             <>
                 {path ? (
-                    <div className="mb-2 text-xs text-[var(--cursor-text-secondary)] font-mono break-all">
-                        {basename(path)}
+                    <div className="mb-2">
+                        <FilepathChip path={basename(path)} fullPath={path} />
                     </div>
                 ) : null}
                 <CodeBlock code={file.content} language="text" />
@@ -711,7 +742,7 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
 
             {collab.prompt ? (
                 <div className="rounded-md border border-[var(--cursor-stroke-primary)] p-2 text-xs text-[var(--cursor-text-secondary)]">
-                    <div className="mb-1 font-medium uppercase tracking-wide">prompt</div>
+                    <div className="mb-1 font-medium text-[var(--cursor-text-tertiary)]">Prompt</div>
                     <div className="break-words text-[var(--cursor-text-primary)]">{collab.prompt}</div>
                 </div>
             ) : null}
