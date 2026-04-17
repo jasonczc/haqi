@@ -159,6 +159,12 @@ export function StatusBar(props: {
         ? (isCodexPlanMode ? t('codex.mode.plan') : t('codex.mode.normal'))
         : null
 
+    // When session is inactive, let the standalone 'Session is inactive' banner
+    // own that communication — don't duplicate it inside the composer.
+    if (!props.active) {
+        return null
+    }
+
     // Only render when there's real state to surface. Idle = null (cursor-parity).
     const hasPermissionRequests = Boolean(
         props.agentState?.requests && Object.keys(props.agentState.requests).length > 0
