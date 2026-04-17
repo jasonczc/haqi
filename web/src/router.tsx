@@ -28,7 +28,6 @@ import { useSendMessage } from '@/hooks/mutations/useSendMessage'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
 import { HomeComposer } from '@/components/HomeComposer'
 import { Button } from '@/components/ui/button'
-import { Kbd, KbdHint } from '@/components/ui/Kbd'
 import { NavItem } from '@/components/ui/NavItem'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
@@ -306,6 +305,45 @@ function getSessionHistoryState(session: SessionSummary): 'draft' | 'merged' | '
     return 'merged'
 }
 
+function extractRepoFromSession(session: SessionSummary): string {
+    const url = (session.metadata as { repositoryUrl?: string } | undefined)?.repositoryUrl
+    if (url) {
+        const match = url.match(/([^/]+\/[^/.]+?)(?:\.git)?$/)
+        if (match) {
+            const parts = match[1].split('/')
+            return parts[parts.length - 1]
+        }
+    }
+    const path = (session.metadata as { path?: string } | undefined)?.path
+    if (path) {
+        const parts = path.split('/').filter(Boolean)
+        if (parts.length > 0) return parts[parts.length - 1]
+    }
+    return 'Other'
+}
+
+function groupSessionsByRepo(sessions: SessionSummary[]): Array<{ label: string; sessions: SessionSummary[] }> {
+    const map = new Map<string, SessionSummary[]>()
+    for (const session of sessions) {
+        const label = extractRepoFromSession(session)
+        if (!map.has(label)) map.set(label, [])
+        map.get(label)!.push(session)
+    }
+    // Order: sections with any active-thinking session first; within, sort by most recent updatedAt.
+    const entries = Array.from(map.entries()).map(([label, sess]) => {
+        const mostRecent = Math.max(...sess.map(s => s.updatedAt))
+        const hasActive = sess.some(s => s.active && s.pendingRequestsCount > 0)
+        return { label, sessions: sess, mostRecent, hasActive }
+    })
+    entries.sort((a, b) => {
+        if (a.label === 'Other') return 1
+        if (b.label === 'Other') return -1
+        if (a.hasActive !== b.hasActive) return a.hasActive ? -1 : 1
+        return b.mostRecent - a.mostRecent
+    })
+    return entries.map(e => ({ label: e.label, sessions: e.sessions }))
+}
+
 function SessionStatusIcon(props: { state: 'draft' | 'merged' | 'open'; className?: string }) {
     if (props.state === 'open') {
         return (
@@ -447,29 +485,15 @@ function SessionsPage() {
                             size="sm"
                             iconOnly
                             className="sidebar-icon-btn"
-                            onClick={() => toggleDesktopSidebar?.()}
-                            title="Toggle sidebar"
-                            leadingIcon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            iconOnly
-                            className="sidebar-icon-btn"
                             title="Search agents (⌘K)"
-                            leadingIcon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>}
+                            leadingIcon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>}
                         />
-                        <KbdHint className="sidebar-kbd-hint ml-auto">
-                            <Kbd>⌘</Kbd><Kbd>K</Kbd>
-                        </KbdHint>
                     </div>
                     {/* Cursor-style nav */}
                     <nav className="sidebar-nav flex flex-col gap-0.5 px-2 pt-2 pb-1">
                         <NavItem
-                            variant="primary"
                             onClick={() => openNewSession()}
-                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>}
-                            trailing={<KbdHint className="sidebar-kbd-hint nav-item-kbd"><Kbd>⌘</Kbd><Kbd>N</Kbd></KbdHint>}
+                            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>}
                         >
                             New Agent
                         </NavItem>
@@ -514,67 +538,84 @@ function SessionsPage() {
                         </div>
                     ) : null}
                     <div className="sidebar-section min-h-0 flex-1 overflow-y-auto">
-                        <div className="section-title">This Week</div>
-                        {visibleSessions.slice(0, 20).map((session) => {
-                            const state = getSessionHistoryState(session)
-                            const title = getSessionDisplayTitle(session)
-                            const selected = selectedSessionId === session.id
-                            const meta = session.metadata as any
-                            const additions = meta?.prAdditions as number | undefined
-                            const deletions = meta?.prDeletions as number | undefined
-                            const childTitle = typeof meta?.summary?.text === 'string' && meta.summary.text !== title
-                                ? meta.summary.text
-                                : undefined
-                            return (
-                                <div key={session.id} className="history-item-group">
-                                    <button
-                                        type="button"
-                                        onClick={() => selectSession(session.id)}
-                                        className={`history-item w-[calc(100%-20px)] text-left ${selected ? 'active' : ''}`}
-                                    >
-                                        <div className="history-item-left">
-                                            <SessionStatusIcon
-                                                state={state}
-                                                className={`history-icon ${state === 'open' ? 'green' : state === 'merged' ? 'purple' : 'gray'}`}
-                                            />
-                                            <span className="history-title">{title}</span>
-                                        </div>
-                                        <span className="history-stats">
-                                            {additions ? `+${additions}` : formatHomeTime(session.updatedAt)}
-                                            {deletions ? <span style={{ color: '#ef4444' }}> -{deletions}</span> : null}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            if (window.confirm(`Delete session "${title}"? This stops the agent and removes its container.`)) {
-                                                void deleteSessionFromSidebar(session.id)
-                                            }
-                                        }}
-                                        className="history-item-delete"
-                                        title="Delete session"
-                                        aria-label="Delete session"
-                                    >
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="3 6 5 6 21 6" />
-                                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                                            <path d="M10 11v6" />
-                                            <path d="M14 11v6" />
-                                        </svg>
-                                    </button>
-                                    {childTitle ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => selectSession(session.id)}
-                                            className="history-sub-item w-[calc(100%-20px)] text-left"
-                                        >
-                                            {childTitle}
-                                        </button>
-                                    ) : null}
+                        {groupSessionsByRepo(visibleSessions.slice(0, 40)).map(group => (
+                            <div key={group.label}>
+                                <div
+                                    className="section-title"
+                                    style={{
+                                        padding: '12px 8px 4px',
+                                        fontSize: 'var(--font-size-sm)',
+                                        fontWeight: 'var(--font-weight-semibold)',
+                                        color: 'var(--text-tertiary)',
+                                    }}
+                                >
+                                    {group.label}
                                 </div>
-                            )
-                        })}
+                                {group.sessions.map((session) => {
+                                    const state = getSessionHistoryState(session)
+                                    const title = getSessionDisplayTitle(session)
+                                    const selected = selectedSessionId === session.id
+                                    const meta = session.metadata as any
+                                    const additions = meta?.prAdditions as number | undefined
+                                    const deletions = meta?.prDeletions as number | undefined
+                                    const childTitle = typeof meta?.summary?.text === 'string' && meta.summary.text !== title
+                                        ? meta.summary.text
+                                        : undefined
+                                    return (
+                                        <div key={session.id} className="history-item-group">
+                                            <button
+                                                type="button"
+                                                onClick={() => selectSession(session.id)}
+                                                className={`history-item w-[calc(100%-20px)] text-left ${selected ? 'active' : ''}`}
+                                            >
+                                                <div className="history-item-left">
+                                                    {/* Hollow-circle status icon — cursor style */}
+                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`history-icon ${state === 'open' ? 'green' : state === 'merged' ? 'purple' : 'gray'}`} style={{ opacity: 0.7 }}>
+                                                        <circle cx="12" cy="12" r="8" />
+                                                    </svg>
+                                                    <span className="history-title">{title}</span>
+                                                </div>
+                                                {/* Diff stats only when meaningful — cursor hides the time badge */}
+                                                {additions || deletions ? (
+                                                    <span className="history-stats">
+                                                        {additions ? `+${additions}` : ''}
+                                                        {deletions ? <span style={{ color: 'var(--danger)' }}> -{deletions}</span> : null}
+                                                    </span>
+                                                ) : null}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    if (window.confirm(`Delete session "${title}"? This stops the agent and removes its container.`)) {
+                                                        void deleteSessionFromSidebar(session.id)
+                                                    }
+                                                }}
+                                                className="history-item-delete"
+                                                title="Delete session"
+                                                aria-label="Delete session"
+                                            >
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="3 6 5 6 21 6" />
+                                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                                    <path d="M10 11v6" />
+                                                    <path d="M14 11v6" />
+                                                </svg>
+                                            </button>
+                                            {childTitle ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => selectSession(session.id)}
+                                                    className="history-sub-item w-[calc(100%-20px)] text-left"
+                                                >
+                                                    {childTitle}
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ))}
                         {visibleSessions.length === 0 && !isLoading ? (
                             <div className="px-4 py-3 text-[12px] text-[var(--text-tertiary)]">No sessions yet.</div>
                         ) : null}
@@ -582,28 +623,21 @@ function SessionsPage() {
                 </div>
                 {/* User card — bottom of sidebar */}
                 <div className="sidebar-footer">
-                    <div className="user-profile cursor-sidebar-user-profile">
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--bg-tertiary)] text-[var(--font-size-sm)] font-[var(--font-weight-semibold)] text-[var(--text-secondary)]">
+                    <div className="user-profile cursor-sidebar-user-profile" style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div
+                            className="flex shrink-0 items-center justify-center rounded-full bg-[var(--bg-tertiary)] text-[var(--font-size-xs)] font-[var(--font-weight-semibold)] text-[var(--text-secondary)]"
+                            style={{ width: '20px', height: '20px' }}
+                        >
                             H
                         </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-[var(--font-size-base)] text-[var(--text-primary)]">haqi</div>
-                            <div className="text-[var(--font-size-xs)] text-[var(--text-tertiary)]">Self-hosted</div>
-                        </div>
-                        <button
-                            type="button"
-                            className="rounded-[6px] p-1 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                            title="More options"
-                        >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
-                        </button>
+                        <div className="min-w-0 flex-1 truncate text-[var(--font-size-sm)] text-[var(--text-primary)]">haqi</div>
                         <button
                             type="button"
                             onClick={() => navigate({ to: '/settings' })}
-                            className="rounded-[6px] p-1 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                            title="Customize thread list"
+                            className="rounded-[4px] p-1 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            title="Settings"
                         >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                         </button>
                     </div>
                 </div>
