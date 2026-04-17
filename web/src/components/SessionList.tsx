@@ -124,31 +124,69 @@ function formatRelativeTime(value: number, t: (key: string, params?: Record<stri
     return new Date(ms).toLocaleDateString()
 }
 
-function RunStatusIcon(props: { active: boolean; thinking: boolean }) {
-    if (props.thinking) {
+function SessionGitIcon(props: { status: 'branch' | 'merge' | 'pr' }) {
+    const color =
+        props.status === 'merge'
+            ? 'var(--purple)'
+            : props.status === 'pr'
+                ? 'var(--green)'
+                : 'var(--text-tertiary)'
+    if (props.status === 'merge') {
         return (
-            <span
-                className="session-status-dot session-status-dot-thinking"
-                aria-label="Thinking"
-                role="img"
-            />
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                <circle cx="18" cy="18" r="3" />
+                <circle cx="6" cy="6" r="3" />
+                <path d="M6 21V9a9 9 0 0 0 9 9" />
+            </svg>
         )
     }
-    if (props.active) {
+    if (props.status === 'pr') {
         return (
-            <span
-                className="session-status-dot session-status-dot-running"
-                aria-label="Running"
-                role="img"
-            />
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                <circle cx="18" cy="18" r="3" />
+                <circle cx="6" cy="6" r="3" />
+                <path d="M13 6h3a2 2 0 0 1 2 2v7" />
+                <line x1="6" y1="9" x2="6" y2="21" />
+            </svg>
         )
     }
     return (
-        <span
-            className="session-status-dot session-status-dot-idle"
-            aria-label="Idle"
-            role="img"
-        />
+        <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <line x1="6" y1="3" x2="6" y2="15" />
+            <circle cx="18" cy="6" r="3" />
+            <circle cx="6" cy="18" r="3" />
+            <path d="M18 9a9 9 0 0 1-9 9" />
+        </svg>
     )
 }
 
@@ -162,7 +200,7 @@ function SessionItem(props: {
     forceOffline?: boolean
 }) {
     const { t } = useTranslation()
-    const { session: s, onSelect, api, selected = false, forceOffline = false } = props
+    const { session: s, onSelect, api, selected = false } = props
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -199,8 +237,6 @@ function SessionItem(props: {
     })
 
     const sessionName = getSessionTitle(s)
-    const effectiveActive = forceOffline ? false : s.active
-    const effectiveThinking = forceOffline ? false : s.thinking
 
     const handleArchive = () => {
         if (!skipArchiveConfirmation) {
@@ -241,20 +277,31 @@ function SessionItem(props: {
                 aria-current={selected ? 'page' : undefined}
             >
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                    {/* Run status indicator — 16px container */}
-                    <div className="session-status-slot flex w-4 shrink-0 items-center justify-center">
-                        <RunStatusIcon active={effectiveActive} thinking={effectiveThinking} />
+                    {/* Git icon — 16px container (hardcoded to 'branch'; no PR status field on Session yet) */}
+                    <div className="session-git-slot flex w-4 shrink-0 items-center justify-center">
+                        <SessionGitIcon status="branch" />
                     </div>
                     {/* Title */}
                     <div className="min-w-0 flex-1 truncate text-[var(--font-size-base)] text-[var(--text-primary)]">
                         {sessionName}
                     </div>
-                    {/* Line counts (if available) */}
+                    {/* Diff-stats placeholder (reserved for aggregated linesAdded/linesRemoved when API provides it) */}
                     {(() => {
-                        const meta = s.metadata as any
-                        const additions = meta?.prAdditions as number | undefined
-                        const deletions = meta?.prDeletions as number | undefined
-                        if (!additions && !deletions) return null
+                        const meta = s.metadata as { prAdditions?: number; prDeletions?: number } | null | undefined
+                        const additions = meta?.prAdditions
+                        const deletions = meta?.prDeletions
+                        if (!additions && !deletions) {
+                            return (
+                                <span
+                                    className="history-stats shrink-0"
+                                    style={{
+                                        fontSize: 'var(--font-size-sm)',
+                                        color: 'var(--text-secondary)',
+                                    }}
+                                    aria-hidden="true"
+                                />
+                            )
+                        }
                         return (
                             <div className="flex shrink-0 items-center gap-1 text-[var(--text-tertiary)] tabular-nums">
                                 {additions ? <span className="text-[var(--added)]">+{additions}</span> : null}
@@ -396,15 +443,19 @@ export function SessionList(props: {
                         if (row.type === 'date-header') {
                             return (
                                 <div
-                                    className={`session-list-date-header px-3 pb-0.5 ${
-                                        row.isFirst
-                                            ? 'session-list-date-header-first pt-2'
-                                            : 'pt-3 mt-2 border-t border-[var(--border-subtle)]'
+                                    className={`session-list-date-header section-title ${
+                                        row.isFirst ? 'session-list-date-header-first' : ''
                                     }`}
+                                    style={{
+                                        padding: '12px 8px 4px',
+                                        fontSize: 'var(--font-size-sm)',
+                                        fontWeight: 'var(--font-weight-semibold)',
+                                        color: 'var(--text-tertiary)',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.02em',
+                                    }}
                                 >
-                                    <span className="session-list-date-header-label">
-                                        {row.label}
-                                    </span>
+                                    {row.label}
                                 </div>
                             )
                         }
