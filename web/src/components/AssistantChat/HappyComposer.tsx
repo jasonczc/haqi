@@ -1304,7 +1304,7 @@ export function HappyComposer(props: {
                             className="chat-input-box overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--focus)]"
                             style={{
                                 background: cliMode ? 'transparent' : 'var(--editor)',
-                                border: `1px solid var(--border-tertiary)`,
+                                border: `1px solid var(--border-quaternary)`,
                                 borderRadius: cliMode ? '4px' : 'var(--composer-radius)',
                                 padding: `var(--composer-padding-top) var(--composer-padding-right) var(--composer-padding-bottom) var(--composer-padding-left)`,
                                 boxShadow: cliMode ? 'none' : '0 4px 12px rgba(0,0,0,0.05)',

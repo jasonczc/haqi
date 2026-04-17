@@ -266,15 +266,13 @@ export function SessionHeader(props: {
 
                     {/* Right-side cluster: Share + More */}
                     <div className="chat-header-controls flex items-center gap-1">
-                        <Button
-                            variant="ghost"
-                            size="sm"
+                        <button
+                            type="button"
                             onClick={handleShare}
-                            title="Share"
-                            aria-label="Share"
+                            className="share-link px-2 py-1 text-[length:var(--font-size-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                         >
                             Share
-                        </Button>
+                        </button>
 
                         <Button
                             ref={menuAnchorRef}
