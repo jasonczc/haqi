@@ -151,15 +151,11 @@
 /* ── Chat round grouping (CSS-only, no DOM wrappers) ─────────────
    Every user message starts a new round (40px top gap).
    Agent/tool/reasoning blocks inside a round get 24px top gap. */
-.chat-timeline-inner > .chat-message-user + *,
-.chat-timeline-inner > * + .chat-message-user {
+.chat-timeline-inner > * {
   margin-top: 0;
 }
-.chat-timeline-inner > .chat-message-user {
+.chat-timeline-inner > .chat-message-user:not(:first-child) {
   margin-top: var(--chat-round-gap);
-}
-.chat-timeline-inner > .chat-message-user:first-child {
-  margin-top: 0;
 }
 .chat-timeline-inner > *:not(.chat-message-user):not(:first-child) {
   margin-top: var(--chat-round-gap-internal);
