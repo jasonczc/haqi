@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'vitest'
 import { prepareWorkspace } from './prepareWorkspace'
 
 describe('prepareWorkspace', () => {

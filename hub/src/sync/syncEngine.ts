@@ -2183,6 +2183,7 @@ ${note.content}
             secrets: request.secrets,
             labels: request.labels,
             preview: request.preview,
+            computerUse: request.computerUse,
             initialPrompt: request.initialPrompt,
             checkpointId: request.checkpointId,
             launchMode: request.launchMode,

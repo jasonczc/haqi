@@ -109,6 +109,85 @@ export type DockerRunSpec = {
     ports?: DockerCliPortBinding[]
     labels?: Record<string, string>
     detach?: boolean
+    cpus?: number
+    memoryMb?: number
+}
+
+/**
+ * Pure translator from a DockerRunSpec to the `docker run ...` argv.
+ * Exported so it can be unit-tested without spawning docker.
+ */
+export function buildDockerRunArgs(spec: DockerRunSpec): string[] {
+    const args: string[] = ['run']
+    if (spec.detach !== false) {
+        args.push('-d')
+    }
+    if (spec.name) {
+        args.push('--name', spec.name)
+    }
+    if (spec.user) {
+        args.push('--user', spec.user)
+    }
+    if (spec.privileged) {
+        args.push('--privileged')
+    }
+    if (spec.init) {
+        args.push('--init')
+    }
+    if (spec.ipc) {
+        args.push('--ipc', spec.ipc)
+    }
+    if (spec.shmSize) {
+        args.push('--shm-size', spec.shmSize)
+    }
+    if (typeof spec.cpus === 'number' && Number.isFinite(spec.cpus) && spec.cpus > 0) {
+        args.push('--cpus', String(spec.cpus))
+    }
+    if (typeof spec.memoryMb === 'number' && Number.isFinite(spec.memoryMb) && spec.memoryMb > 0) {
+        args.push('--memory', `${spec.memoryMb}m`)
+    }
+    for (const securityOpt of spec.securityOpt ?? []) {
+        args.push('--security-opt', securityOpt)
+    }
+    for (const capability of spec.capAdd ?? []) {
+        args.push('--cap-add', capability)
+    }
+    for (const device of spec.devices ?? []) {
+        args.push('--device', device)
+    }
+    for (const group of spec.groupAdd ?? []) {
+        args.push('--group-add', group)
+    }
+    if (spec.workingDir) {
+        args.push('-w', spec.workingDir)
+    }
+    for (const env of spec.env ?? []) {
+        args.push('-e', env)
+    }
+    for (const extraHost of spec.extraHosts ?? []) {
+        args.push('--add-host', extraHost)
+    }
+    for (const mount of spec.mounts ?? []) {
+        args.push('-v', mount)
+    }
+    for (const port of spec.ports ?? []) {
+        const protocol = port.protocol ?? 'tcp'
+        const binding = port.hostPort
+            ? `${port.hostPort}:${port.containerPort}/${protocol}`
+            : `${port.containerPort}/${protocol}`
+        args.push('-p', binding)
+    }
+    for (const [key, value] of Object.entries(spec.labels ?? {})) {
+        args.push('--label', `${key}=${value}`)
+    }
+    if (spec.entrypoint) {
+        args.push('--entrypoint', spec.entrypoint)
+    }
+    args.push(spec.image)
+    if (spec.command?.length) {
+        args.push(...spec.command)
+    }
+    return args
 }
 
 type DockerExecSpec = {
@@ -156,71 +235,7 @@ export class DockerCliRuntime {
     }
 
     async run(spec: DockerRunSpec): Promise<string> {
-        const args: string[] = ['run']
-        if (spec.detach !== false) {
-            args.push('-d')
-        }
-        if (spec.name) {
-            args.push('--name', spec.name)
-        }
-        if (spec.user) {
-            args.push('--user', spec.user)
-        }
-        if (spec.privileged) {
-            args.push('--privileged')
-        }
-        if (spec.init) {
-            args.push('--init')
-        }
-        if (spec.ipc) {
-            args.push('--ipc', spec.ipc)
-        }
-        if (spec.shmSize) {
-            args.push('--shm-size', spec.shmSize)
-        }
-        for (const securityOpt of spec.securityOpt ?? []) {
-            args.push('--security-opt', securityOpt)
-        }
-        for (const capability of spec.capAdd ?? []) {
-            args.push('--cap-add', capability)
-        }
-        for (const device of spec.devices ?? []) {
-            args.push('--device', device)
-        }
-        for (const group of spec.groupAdd ?? []) {
-            args.push('--group-add', group)
-        }
-        if (spec.workingDir) {
-            args.push('-w', spec.workingDir)
-        }
-        for (const env of spec.env ?? []) {
-            args.push('-e', env)
-        }
-        for (const extraHost of spec.extraHosts ?? []) {
-            args.push('--add-host', extraHost)
-        }
-        for (const mount of spec.mounts ?? []) {
-            args.push('-v', mount)
-        }
-        for (const port of spec.ports ?? []) {
-            const protocol = port.protocol ?? 'tcp'
-            const binding = port.hostPort
-                ? `${port.hostPort}:${port.containerPort}/${protocol}`
-                : `${port.containerPort}/${protocol}`
-            args.push('-p', binding)
-        }
-        for (const [key, value] of Object.entries(spec.labels ?? {})) {
-            args.push('--label', `${key}=${value}`)
-        }
-        if (spec.entrypoint) {
-            args.push('--entrypoint', spec.entrypoint)
-        }
-        args.push(spec.image)
-        if (spec.command?.length) {
-            args.push(...spec.command)
-        }
-
-        const result = await runDockerCommand(args)
+        const result = await runDockerCommand(buildDockerRunArgs(spec))
         return result.stdout.trim()
     }
 

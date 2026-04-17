@@ -47,6 +47,7 @@ export type LastSessionConfig = {
     secrets?: string
     previewAutoDetect?: boolean
     previewPreferredPort?: string
+    computerUse?: boolean
 }
 
 function loadAgentPreferenceMap(storageKey: string): AgentPreferenceMap {
@@ -358,6 +359,9 @@ export function loadLastSessionConfig(): LastSessionConfig | null {
         }
         if (typeof parsed.previewPreferredPort === 'string') {
             config.previewPreferredPort = parsed.previewPreferredPort
+        }
+        if (typeof parsed.computerUse === 'boolean') {
+            config.computerUse = parsed.computerUse
         }
 
         return Object.keys(config).length > 0 ? config : null

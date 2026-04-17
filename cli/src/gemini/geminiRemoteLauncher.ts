@@ -48,7 +48,7 @@ class GeminiRemoteLauncher extends RemoteLauncherBase {
         const messageBuffer = this.messageBuffer;
         const baseInstructions = buildGeminiSystemPrompt(session.path);
 
-        const { server: happyServer, mcpServers } = await buildHapiMcpBridge(session.client);
+        const { server: happyServer, mcpServers } = await buildHapiMcpBridge(session.client, 'gemini');
         this.happyServer = happyServer;
 
         const runtimeConfig = resolveGeminiRuntimeConfig({ model: this.model });

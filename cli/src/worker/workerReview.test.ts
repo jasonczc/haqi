@@ -209,8 +209,10 @@ describe('WEB-1: SSE handles cloudWorkers invalidation via machine-updated', () 
 // FIXED: workers.tsx now renders an error state when isError is true
 // ============================================================
 describe('WEB-2: Workers page shows empty state instead of error', () => {
-    it('workers.tsx checks isError and renders error state', async () => {
-        const source = await readSource('web/src/routes/cloud/workers.tsx')
+    it('cloud-workers.tsx checks isError and renders error state', async () => {
+        // Page moved from web/src/routes/cloud/workers.tsx to
+        // web/src/routes/settings/cloud-workers.tsx in the settings refactor.
+        const source = await readSource('web/src/routes/settings/cloud-workers.tsx')
         expect(source).toContain('isLoading')
         // Fixed: isError check is now present
         expect(source).toContain('isError')
@@ -242,15 +244,16 @@ describe('WEB-4: hasSelectableWorkers check is always true', () => {
 // FIXED: settings page now has a link to /cloud/workers
 // ============================================================
 describe('WEB-5: Workers page has no navigation entry', () => {
-    it('settings page links to /cloud/workers', async () => {
-        // Check common navigation files
+    it('cloud-workers is reachable via the settings area', async () => {
+        // After the settings refactor, worker management is embedded in the
+        // cloud-agents settings page (CloudWorkersManager component). We
+        // verify both that the cloud-workers route is registered and that
+        // the cloud-agents page surfaces it.
         const router = await readSource('web/src/router.tsx')
-        // The route exists
-        expect(router).toContain("path: '/cloud/workers'")
+        expect(router).toMatch(/path:\s*'(workers|cloud-workers)'/)
 
-        // Fixed: settings page now links to /cloud/workers
-        const settingsPage = await readSource('web/src/routes/settings/index.tsx')
-        expect(settingsPage).toContain('/cloud/workers')
+        const cloudAgents = await readSource('web/src/routes/settings/cloud-agents.tsx')
+        expect(cloudAgents).toContain('cloud-workers')
     })
 })
 
@@ -259,8 +262,9 @@ describe('WEB-5: Workers page has no navigation entry', () => {
 // FIXED: workers.tsx now imports useTranslation and uses t() for all strings
 // ============================================================
 describe('WEB-6: Workers page bypasses i18n', () => {
-    it('workers.tsx imports useTranslation and uses t() calls', async () => {
-        const source = await readSource('web/src/routes/cloud/workers.tsx')
+    it('cloud-workers.tsx imports useTranslation and uses t() calls', async () => {
+        // Page moved to web/src/routes/settings/cloud-workers.tsx.
+        const source = await readSource('web/src/routes/settings/cloud-workers.tsx')
         // Fixed: useTranslation is now imported
         expect(source).toContain('useTranslation')
         // Fixed: t() calls are now used
@@ -273,11 +277,15 @@ describe('WEB-6: Workers page bypasses i18n', () => {
 // FIXED: CloudSettingsSection now uses <Link to="/cloud/workers"> for SPA navigation
 // ============================================================
 describe('WEB-7: Guidance banner uses full page reload', () => {
-    it('CloudSettingsSection uses <Link to> for /cloud/workers link', async () => {
+    it('CloudSettingsSection uses <Link to> for worker-management navigation', async () => {
+        // The worker-management link now points at /settings/cloud-agents
+        // (which embeds the workers page) rather than the deprecated
+        // /cloud/workers path. The spirit of WEB-7 — prefer SPA <Link>
+        // over <a href> — is preserved.
         const source = await readSource('web/src/components/NewSession/CloudSettingsSection.tsx')
-        // Fixed: <Link to="/cloud/workers"> for SPA navigation
-        expect(source).toContain("to=\"/cloud/workers\"")
-        // No longer using <a href>
+        // The worker-guidance link uses <Link to=...> (SPA navigation).
+        expect(source).toContain('to="/settings/cloud-agents"')
+        // The legacy /cloud/workers full-page href is gone.
         expect(source).not.toContain('href="/cloud/workers"')
     })
 })

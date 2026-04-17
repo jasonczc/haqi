@@ -157,6 +157,9 @@ function createSessionStub() {
         },
         getPermissionMode() {
             return session.permissionMode;
+        },
+        setStopCurrentTurnHandler(_handler: (() => Promise<void>) | null) {
+            /* test stub: no-op */
         }
     };
 

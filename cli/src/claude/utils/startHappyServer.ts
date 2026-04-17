@@ -24,6 +24,8 @@ import {
     reviewLoopWorkerSubmitInputSchema,
     reviewLoopReviewerSubmitInputSchema
 } from "@/mcp/hapiMcpTools";
+import { registerComputerUseTools } from "@/mcp/registerComputerUseTools";
+import { DaemonComputerUseRuntime } from "@/computerUse/runtime";
 
 type JsonObject = Record<string, unknown>;
 
@@ -446,6 +448,17 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    // Computer-use tools are registered directly on Claude's HTTP MCP
+    // server when HAQI_COMPUTER_USE is enabled. Claude consumes this
+    // MCP endpoint natively (type: 'http') and never goes through the
+    // stdio bridge, so the registration must happen here.
+    const computerUseToolNames = process.env.HAQI_COMPUTER_USE === '1'
+        ? registerComputerUseTools(mcp, new DaemonComputerUseRuntime())
+        : [];
+    if (computerUseToolNames.length > 0) {
+        logger.debug(`[hapiMCP] Registered computer-use tools: ${computerUseToolNames.join(', ')}`);
+    }
+
     const transport = new StreamableHTTPServerTransport({
         // NOTE: Returning session id here will result in claude
         // sdk spawn to fail with `Invalid Request: Server already initialized`
@@ -486,7 +499,8 @@ export async function startHappyServer(client: ApiSessionClient) {
             'report_add_asset',
             'report_create_share',
             'review_loop_worker_submit',
-            'review_loop_reviewer_submit'
+            'review_loop_reviewer_submit',
+            ...computerUseToolNames
         ],
         stop: () => {
             logger.debug('[hapiMCP] Stopping server');

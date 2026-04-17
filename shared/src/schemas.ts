@@ -924,6 +924,7 @@ export const MachineSpawnRequestSchema = z.object({
         autoDetect: z.boolean().optional(),
         preferredPort: z.number().int().positive().optional()
     }).optional(),
+    computerUse: z.boolean().optional(),
     initialPrompt: z.string().optional(),
     gitIdentity: GitIdentitySchema.optional(),
     spawnRequestId: z.string().optional(),

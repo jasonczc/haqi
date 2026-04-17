@@ -59,6 +59,17 @@ export async function buildSpawnEnvironment(
         extraEnv.HAPI_EXECUTION_BACKEND = options.executionBackend
     }
 
+    // Computer-use flag: flipped on at session-spawn time when the user
+    // opted in. Downstream:
+    //   - Claude reads it in startHappyServer and registers tools directly
+    //     on the in-process HTTP MCP server (native path).
+    //   - Codex/Gemini/OpenCode read it in buildHapiMcpBridge and inject
+    //     the stdio MCP bridge into their ACP backend config.
+    //   - Cursor does not currently wire MCP in its launcher (no-op).
+    if (options.computerUse) {
+        extraEnv.HAQI_COMPUTER_USE = '1'
+    }
+
     return extraEnv
 }
 
@@ -100,7 +111,8 @@ export function buildSpawnArgs(options: SpawnSessionOptions): string[] {
         && (options.thinkEffort === 'low'
             || options.thinkEffort === 'medium'
             || options.thinkEffort === 'high'
-            || options.thinkEffort === 'max')
+            || options.thinkEffort === 'max'
+            || options.thinkEffort === 'xhigh')
     ) {
         args.push('--effort', options.thinkEffort)
     }

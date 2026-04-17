@@ -44,6 +44,7 @@ type SpawnInput = {
         autoDetect?: boolean
         preferredPort?: number
     }
+    computerUse?: boolean
     initialPrompt?: string
     gitIdentity?: GitIdentity
 }
@@ -86,6 +87,7 @@ export function useSpawnSession(api: ApiClient | null): {
                 secrets: input.secrets,
                 labels: input.labels,
                 preview: input.preview,
+                computerUse: input.computerUse,
                 initialPrompt: input.initialPrompt,
                 gitIdentity: input.gitIdentity
             })

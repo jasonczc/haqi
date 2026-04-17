@@ -45,6 +45,12 @@ export interface SpawnSessionOptions {
         autoDetect?: boolean
         preferredPort?: number
     }
+    /**
+     * Opt into "computer use" for this session: the runner injects a
+     * computer-use MCP bridge (screenshot/click/type/etc.) into whichever
+     * agent runs, so all flavors get desktop automation.
+     */
+    computerUse?: boolean
     initialPrompt?: string
     gitIdentity?: GitIdentity
     spawnRequestId?: string

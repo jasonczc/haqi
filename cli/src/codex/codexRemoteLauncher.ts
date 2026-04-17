@@ -1014,7 +1014,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             });
         }
 
-        const { server: happyServer, mcpServers } = await buildHapiMcpBridge(session.client);
+        const { server: happyServer, mcpServers } = await buildHapiMcpBridge(session.client, 'codex');
         this.happyServer = happyServer;
         session.setStopCurrentTurnHandler(() => this.handleStopCurrentTurn());
 

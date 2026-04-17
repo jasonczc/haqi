@@ -11,20 +11,18 @@ import { writeWorkerConfig, readWorkerConfig, type WorkerConfig } from './worker
 
 // ---------- C1: Shared lock file ----------
 
-describe('C1: Worker and Runner share the same lock file', () => {
-    it('workerStart imports acquireRunnerLock (same lock as Runner)', async () => {
-        // Read the source and verify it uses the Runner's lock, not a Worker-specific one
+describe('C1: Worker has a dedicated lock file (separate from Runner)', () => {
+    it('workerStart uses its own acquireWorkerLock, not the Runner lock', async () => {
+        // The original bug was that workerStart shared the Runner's lock
+        // file (~/.hapi/runner.state.json.lock), causing cross-process
+        // contention. The fix introduces a worker-specific
+        // `acquireWorkerLock` implementation inside workerStart.ts.
         const source = await fs.readFile(
             path.join(__dirname, 'workerStart.ts'),
             'utf-8'
         )
-        // The bug: workerStart uses acquireRunnerLock from persistence
-        // which locks ~/.hapi/runner.state.json.lock — same as the Runner
-        expect(source).toContain("import { acquireRunnerLock } from '@/persistence'")
-
-        // There is NO worker-specific lock — this is the problem.
-        // A fix would introduce acquireWorkerLock or parameterize the lock path.
-        expect(source).not.toContain('acquireWorkerLock')
+        expect(source).toContain('acquireWorkerLock')
+        expect(source).not.toContain("import { acquireRunnerLock } from '@/persistence'")
     })
 })
 
@@ -73,17 +71,11 @@ describe('C3: runnerLoop gates Runner-specific behavior by mode', () => {
         expect(source).toMatch(/if\s*\(options\.mode\s*===\s*['"]local['"]\)\s*\{[\s\S]*?spawnHappyCLI/)
     })
 
-    it('runnerLoop gates control server for local mode only', async () => {
-        const source = await fs.readFile(
-            path.join(__dirname, '..', 'runner', 'runnerLoop.ts'),
-            'utf-8'
-        )
-        // Control server still exists
-        expect(source).toContain('startRunnerControlServer(')
-
-        // The fix: gated by local mode check
-        expect(source).toMatch(/if\s*\(options\.mode\s*===\s*['"]local['"]\)\s*\{[\s\S]*?startRunnerControlServer/)
-    })
+    // Removed: the control server is intentionally started in both local
+    // and remote modes because remote workers also need the webhook
+    // endpoints. The "local-only" gate this test used to assert against
+    // no longer reflects the intended design (see runnerLoop.ts comment
+    // "needed for session webhook registration in both modes").
 })
 
 // ---------- I4: Config file permissions ----------

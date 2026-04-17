@@ -380,6 +380,7 @@ export function HomeComposer(props: {
     const [previewUrl, setPreviewUrl] = useState(() => lastConfig?.previewUrl ?? '')
     const [previewAutoDetect, setPreviewAutoDetect] = useState(() => lastConfig?.previewAutoDetect ?? false)
     const [previewPreferredPort, setPreviewPreferredPort] = useState(() => lastConfig?.previewPreferredPort ?? '')
+    const [computerUse, setComputerUse] = useState<boolean>(() => lastConfig?.computerUse ?? false)
 
     // ── UI state ──
     const [spawnError, setSpawnError] = useState<string | null>(null)
@@ -756,6 +757,7 @@ export function HomeComposer(props: {
                     autoDetect: previewAutoDetect,
                     preferredPort: parsedPreviewPort,
                 },
+                computerUse,
                 initialPrompt: trimmedPrompt,
             })
 
@@ -798,6 +800,7 @@ export function HomeComposer(props: {
                     secrets: secrets.trim(),
                     previewAutoDetect,
                     previewPreferredPort: previewPreferredPort.trim(),
+                    computerUse,
                 })
                 props.onOpenSession(result.sessionId)
                 return
@@ -864,6 +867,7 @@ export function HomeComposer(props: {
         sessionType, worktreeName, previewUrl, repoUrl, repoBranch, repoBranchMode, repoBranchPrefix, repoBranchName, effectiveGitName, effectiveGitEmail, checkpointId,
         workspaceMode, directory, ttlMinutes, environmentId, runtimeKind, yolo,
         executionBackend, launchMode, previewAutoDetect, spawnSession, props, navigate, cloudAgentSettingsQuery.data?.settings.githubUsername,
+        computerUse,
     ])
 
     // ── Keyboard handler for textarea ──
@@ -1643,6 +1647,19 @@ export function HomeComposer(props: {
                                 onClick={() => setYolo(prev => !prev)}
                             >
                                 {yolo ? 'On' : 'Off'}
+                            </button>
+                        </PopoverRow>
+                    </PopoverGroup>
+
+                    <PopoverGroup label="Computer use">
+                        <PopoverRow label="Desktop control">
+                            <button
+                                type="button"
+                                className={`chip-popover-pill ${computerUse ? 'active' : ''}`}
+                                onClick={() => setComputerUse(prev => !prev)}
+                                title="Give the agent screenshot + mouse/keyboard tools via MCP"
+                            >
+                                {computerUse ? 'On' : 'Off'}
                             </button>
                         </PopoverRow>
                     </PopoverGroup>
