@@ -1318,7 +1318,7 @@ export function HappyComposer(props: {
                                     style={{ borderBottom: '1px solid var(--border-tertiary)', padding: '8px 12px' }}
                                 >
                                     <div className="chat-inline-queue-row flex flex-wrap items-center gap-2">
-                                        <span className="chat-inline-queue-label text-[12px] font-medium text-[var(--cursor-text-secondary)]">
+                                        <span className="chat-inline-queue-label text-[length:var(--font-size-sm)] font-medium text-[var(--cursor-text-secondary)]">
                                             {t('queue.dialog.title')}
                                         </span>
                                         <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-xs text-[var(--cursor-text-primary)]">
@@ -1361,7 +1361,7 @@ export function HappyComposer(props: {
                                                                 key={entry.id}
                                                                 className="chat-inline-queue-entry flex items-center gap-2 rounded-md bg-[var(--cursor-bg-quiet)] px-2 py-1.5"
                                                             >
-                                                                <span className="chat-inline-queue-index text-[10px] text-[var(--cursor-text-secondary)]">
+                                                                <span className="chat-inline-queue-index text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                                                     #{index + 1}
                                                                 </span>
                                                                 <span
@@ -1369,7 +1369,7 @@ export function HappyComposer(props: {
                                                                 >
                                                                     {previewText}
                                                                 </span>
-                                                                <span className="chat-inline-queue-time shrink-0 text-[10px] text-[var(--cursor-text-secondary)]">
+                                                                <span className="chat-inline-queue-time shrink-0 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                                                     {new Date(entry.enqueuedAt).toLocaleTimeString([], {
                                                                         hour: '2-digit',
                                                                         minute: '2-digit'
@@ -1379,7 +1379,7 @@ export function HappyComposer(props: {
                                                         )
                                                     })}
                                                     {codexQueueEntries.length > 5 ? (
-                                                        <div className="px-1 text-[11px] text-[var(--cursor-text-secondary)]">
+                                                        <div className="px-1 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                                             +{codexQueueEntries.length - 5}
                                                         </div>
                                                     ) : null}
@@ -1406,7 +1406,7 @@ export function HappyComposer(props: {
                                             className="chat-input-attachment flex max-w-full items-center gap-2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2 py-1 text-xs text-[var(--cursor-text-primary)]"
                                             title={attachment.path}
                                         >
-                                            <span className="chat-input-attachment-name max-w-[180px] truncate">
+                                            <span className="chat-input-attachment-name truncate" style={{ maxWidth: '180px' }}>
                                                 {attachment.filename}
                                             </span>
                                             <button
@@ -1441,7 +1441,7 @@ export function HappyComposer(props: {
                                     onSelect={handleSelect}
                                     onKeyDown={handleKeyDown}
                                     onPaste={handlePaste}
-                                    className={`chat-input-field flex-1 resize-none bg-transparent leading-snug text-[var(--cursor-text-primary)] placeholder-[var(--cursor-text-secondary)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[0.8125rem]' : 'text-base'}`}
+                                    className={`chat-input-field flex-1 resize-none bg-transparent leading-snug text-[var(--cursor-text-primary)] placeholder-[var(--cursor-text-secondary)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[length:var(--font-size-base)]' : 'text-base'}`}
                                 />
                             </div>
 

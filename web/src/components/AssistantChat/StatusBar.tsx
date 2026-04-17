@@ -177,7 +177,7 @@ export function StatusBar(props: {
                         {connectionStatus.text}
                     </span>
                     {codexModeLabel ? (
-                        <span className={`composer-status-mode text-[10px] ${isCodexPlanMode ? 'text-[var(--accent)]' : 'text-[var(--cursor-text-secondary)]'}`}>
+                        <span className={`composer-status-mode text-[length:var(--font-size-xs)] ${isCodexPlanMode ? 'text-[var(--accent)]' : 'text-[var(--cursor-text-secondary)]'}`}>
                             {codexModeLabel}
                         </span>
                     ) : null}
@@ -189,7 +189,8 @@ export function StatusBar(props: {
                             return (
                                 <span
                                     key={`${agent.name}:${agent.startedAt ?? index}`}
-                                    className="composer-status-chip max-w-[220px] truncate rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-[10px] text-[var(--cursor-text-secondary)]"
+                                    className="composer-status-chip truncate rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]"
+                                    style={{ maxWidth: '220px' }}
                                     title={label}
                                 >
                                     {label}

@@ -441,7 +441,7 @@ export function ComposerButtons(props: {
                         aria-label={t('composer.queue')}
                         className="composer-queue-btn"
                         badge={props.queuePendingCount > 0 ? (
-                            <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-semibold leading-4 text-white">
+                            <span className="absolute -right-0.5 -top-0.5 inline-flex items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[length:var(--font-size-xs)] font-semibold leading-4 text-white" style={{ minWidth: '16px' }}>
                                 {props.queuePendingCount > 99 ? '99+' : props.queuePendingCount}
                             </span>
                         ) : null}
