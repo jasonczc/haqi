@@ -164,9 +164,12 @@ export function SessionHeader(props: {
 
     return (
         <>
-            <div className="chat-header bg-[var(--bg-editor)] pt-[env(safe-area-inset-top)]">
-                <div className="flex min-h-[60px] items-center gap-2 border-b border-[var(--border-tertiary)] px-4">
-                    {/* Back button */}
+            <div className="chat-header bg-[var(--chrome)] pt-[env(safe-area-inset-top)]">
+                <div
+                    className="flex items-center border-b border-[var(--border-tertiary)] px-4"
+                    style={{ height: 'var(--navbar-height)', gap: 'var(--context-tab-gap)' }}
+                >
+                    {/* Back button — 28x28 icon-btn */}
                     <Button
                         variant="ghost"
                         size="sm"
@@ -174,69 +177,69 @@ export function SessionHeader(props: {
                         onClick={props.onBack}
                         aria-label="Back"
                         leadingIcon={
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <polyline points="15 18 9 12 15 6" />
                             </svg>
                         }
                     />
 
-                    {/* Session status dot — green if running on container, gray otherwise */}
                     <StatusDot
                         tone={session.metadata?.containerId ? 'success' : 'idle'}
                         size={8}
                         title={session.metadata?.containerId ? 'Running' : 'Idle'}
-                        className="mr-0.5"
                     />
 
-                    {/* Single-line title area */}
-                    <div className="min-w-0 flex-1">
-                        <div className="session-title truncate text-[var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
+                    {/* Title row: session title + repo in a single baseline-aligned line */}
+                    <div className="chat-title flex min-w-0 flex-1 items-baseline gap-2">
+                        <h2 className="truncate text-[length:var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
                             {title}
-                        </div>
+                        </h2>
                         {session.metadata?.repositoryUrl ? (
-                            <div className="session-subtitle truncate text-[12px] text-[var(--text-tertiary)]">
+                            <span className="chat-repo truncate text-[length:var(--font-size-sm)] text-[var(--text-secondary)]">
                                 {extractRepoShortName(session.metadata.repositoryUrl)}
-                            </div>
+                            </span>
                         ) : null}
                     </div>
 
-                    {session.metadata?.containerId ? (
+                    {/* Right-side icon cluster */}
+                    <div className="chat-header-controls flex items-center gap-1">
+                        {session.metadata?.containerId ? (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                iconOnly
+                                onClick={() => setCheckpointDialogOpen(true)}
+                                title="Save checkpoint"
+                                leadingIcon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg>}
+                            />
+                        ) : null}
+
+                        {props.onToggleWorkbench ? (
+                            <Button
+                                variant={props.workbenchOpen ? 'default' : 'ghost'}
+                                size="sm"
+                                iconOnly
+                                onClick={props.onToggleWorkbench}
+                                title="Toggle workbench"
+                                aria-label="Toggle workbench"
+                                leadingIcon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>}
+                            />
+                        ) : null}
+
                         <Button
+                            ref={menuAnchorRef}
                             variant="ghost"
                             size="sm"
-                            onClick={() => setCheckpointDialogOpen(true)}
-                            title="Save checkpoint"
-                            leadingIcon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l7-3 7 3z"/></svg>}
-                        >
-                            <span className="hidden sm:inline">Save</span>
-                        </Button>
-                    ) : null}
-
-                    {props.onToggleWorkbench ? (
-                        <Button
-                            variant={props.workbenchOpen ? 'default' : 'ghost'}
-                            size="sm"
                             iconOnly
-                            onClick={props.onToggleWorkbench}
-                            title="Toggle workbench"
-                            aria-label="Toggle workbench"
-                            leadingIcon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></svg>}
+                            onClick={handleMenuToggle}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen}
+                            aria-controls={menuOpen ? menuId : undefined}
+                            title={t('session.more')}
+                            leadingIcon={<MoreVerticalIcon />}
                         />
-                    ) : null}
-
-                    <Button
-                        ref={menuAnchorRef}
-                        variant="ghost"
-                        size="sm"
-                        iconOnly
-                        onClick={handleMenuToggle}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        aria-haspopup="menu"
-                        aria-expanded={menuOpen}
-                        aria-controls={menuOpen ? menuId : undefined}
-                        title={t('session.more')}
-                        leadingIcon={<MoreVerticalIcon />}
-                    />
+                    </div>
                 </div>
             </div>
 
