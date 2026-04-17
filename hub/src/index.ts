@@ -200,10 +200,14 @@ async function main() {
         enqueue: (namespace, machineId, request) =>
             syncEngine!.enqueueRoutineSpawn(namespace, machineId || 'auto', request)
     }
+    // Always provide a sane effectDbPath so toggling
+    // HAQI_ROUTINES_BACKEND=effect is a no-config switch. The file is
+    // only created when the Effect backend is actually active.
     routinesHandle = await bootRoutines({
         store,
         spawnCoordinator: routineSpawnCoordinator,
         eventPublisher: syncEngine.getEventPublisher(),
+        effectDbPath: join(config.dataDir, 'routines-effect.db'),
         log: (msg, data) => {
             if (data !== undefined) console.log(msg, data)
             else console.log(msg)

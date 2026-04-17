@@ -74,15 +74,23 @@ export async function bootRoutines(deps: {
 
     let firePipeline: { submit: FirePipeline['submit'] }
     let effectPipeline: EffectFirePipeline | undefined
-    if (backend === 'effect') {
-        if (!deps.effectDbPath) {
-            throw new Error('bootRoutines: effectDbPath is required when backend=effect')
-        }
+    let resolvedBackend: RoutinesBackend = backend
+    if (backend === 'effect' && !deps.effectDbPath) {
+        // Degrade loudly: operator asked for Effect but didn't supply a
+        // db path. Better to keep the hub up on legacy than take the
+        // whole process down (this is boot-time code; a crash here
+        // means no hub, which means no auth, no sessions, nothing).
+        log(
+            '[routines] WARN: backend=effect requested but no effectDbPath provided; falling back to backend=legacy'
+        )
+        resolvedBackend = 'legacy'
+    }
+    if (resolvedBackend === 'effect') {
         effectPipeline = new EffectFirePipeline({
             store: deps.store,
             spawnCoordinator: deps.spawnCoordinator,
             eventPublisher: deps.eventPublisher,
-            dbPath: deps.effectDbPath
+            dbPath: deps.effectDbPath!
         })
         firePipeline = effectPipeline
         log('[routines] booted with backend=effect')
@@ -118,7 +126,7 @@ export async function bootRoutines(deps: {
     return {
         firePipeline,
         effectPipeline,
-        backend,
+        backend: resolvedBackend,
         stop: async () => {
             tracker.stop()
             for (const handle of handles) {
