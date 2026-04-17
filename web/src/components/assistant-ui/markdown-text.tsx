@@ -131,7 +131,7 @@ function Table(props: ComponentPropsWithoutRef<'table'>) {
 
     return (
         <div className="aui-md-table-wrapper max-w-full overflow-x-auto">
-            <table {...rest} className={cn('aui-md-table w-full border-collapse', className)} />
+            <table {...rest} className={cn('agent-table aui-md-table w-full border-collapse', className)} />
         </div>
     )
 }

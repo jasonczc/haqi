@@ -33,8 +33,8 @@ export function HappyAssistantMessage() {
         return parts.length > 0 && parts.every((part) => part.type === 'tool-call')
     })
     const rootClass = toolOnly
-        ? 'chat-message-agent-tools py-1 min-w-0 max-w-full overflow-x-hidden'
-        : 'chat-message-agent-body px-1 min-w-0 max-w-full overflow-x-hidden'
+        ? 'chat-message-agent-tools min-w-0 max-w-full overflow-x-hidden'
+        : 'chat-message-agent-body min-w-0 max-w-full overflow-x-hidden'
 
     if (isCliOutput) {
         return (

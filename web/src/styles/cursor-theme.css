@@ -160,3 +160,50 @@
 .chat-timeline-inner > *:not(.chat-message-user):not(:first-child) {
   margin-top: var(--chat-round-gap-internal);
 }
+
+/* ── Assistant prose (cursor parity) ─────────────────────── */
+.chat-message-agent {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--text-primary);
+  padding-left: 4px;
+}
+.chat-message-agent p { margin: 0 0 16px 0; }
+.chat-message-agent h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 24px 0 12px 0;
+}
+.chat-message-agent strong { font-weight: var(--font-weight-semibold); }
+.chat-message-agent ul { padding-left: 20px; margin-bottom: 16px; }
+.chat-message-agent li { margin-bottom: 6px; }
+.chat-message-agent code {
+  background: var(--border-quaternary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.agent-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  font-size: var(--font-size-base);
+}
+.agent-table th,
+.agent-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-tertiary);
+  text-align: left;
+}
+.agent-table th {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+.agent-table td { vertical-align: top; }
+.agent-table td a {
+  color: var(--accent);
+  text-decoration: none;
+}
