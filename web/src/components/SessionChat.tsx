@@ -1566,35 +1566,6 @@ export function SessionChat(props: {
                         </div>
                     ) : null}
 
-                    <div className="chat-mode-switch px-3 pt-2 hidden md:block">
-                        <div className="segmented-control ml-auto">
-                            <button
-                                type="button"
-                                className="segmented-control-item"
-                                data-active={props.viewMode === 'normal' ? '' : undefined}
-                                onClick={() => props.onViewModeChange('normal')}
-                            >
-                                Normal
-                            </button>
-                            <button
-                                type="button"
-                                className="segmented-control-item"
-                                data-active={props.viewMode === 'brief' ? '' : undefined}
-                                onClick={() => props.onViewModeChange('brief')}
-                            >
-                                Brief
-                            </button>
-                            <button
-                                type="button"
-                                className="segmented-control-item font-mono"
-                                data-active={props.viewMode === 'cli' ? '' : undefined}
-                                onClick={() => props.onViewModeChange('cli')}
-                            >
-                                CLI
-                            </button>
-                        </div>
-                    </div>
-
                     {props.viewMode === 'brief' ? (
                         <BriefTurnList
                             api={props.api}
