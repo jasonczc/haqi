@@ -94,6 +94,32 @@
   --workbench-min-width: 320px;
   --navbar-height: 2.75rem;
 
+  /* ── Chat layout (cursor-clone parity) ────────── */
+  --chat-timeline-padding-y: 16px;
+  --chat-timeline-padding-x: 24px;
+  --chat-round-gap: 40px;
+  --chat-round-gap-internal: 24px;
+  --chat-message-gap: 12px;
+  --chat-content-max: 720px;
+
+  /* ── User prompt card ─────────────────────────── */
+  --user-card-radius: 12px;
+  --user-card-padding-y: 12px;
+  --user-card-padding-x: 16px;
+  --user-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+
+  /* ── Composer ─────────────────────────────────── */
+  --composer-radius: 16px;
+  --composer-padding-top: 12px;
+  --composer-padding-right: 12px;
+  --composer-padding-bottom: 8px;
+  --composer-padding-left: 16px;
+  --composer-fade-height: 80px;
+
+  /* ── Context panel ────────────────────────────── */
+  --context-panel-width: 440px;
+  --context-tab-gap: 16px;
+
   /* Apply base styles */
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
@@ -120,4 +146,21 @@
 }
 .cursor-theme ::-webkit-scrollbar-thumb:hover {
   background: color-mix(in oklab, var(--base) 20%, transparent);
+}
+
+/* ── Chat round grouping (CSS-only, no DOM wrappers) ─────────────
+   Every user message starts a new round (40px top gap).
+   Agent/tool/reasoning blocks inside a round get 24px top gap. */
+.chat-timeline-inner > .chat-message-user + *,
+.chat-timeline-inner > * + .chat-message-user {
+  margin-top: 0;
+}
+.chat-timeline-inner > .chat-message-user {
+  margin-top: var(--chat-round-gap);
+}
+.chat-timeline-inner > .chat-message-user:first-child {
+  margin-top: 0;
+}
+.chat-timeline-inner > *:not(.chat-message-user):not(:first-child) {
+  margin-top: var(--chat-round-gap-internal);
 }
