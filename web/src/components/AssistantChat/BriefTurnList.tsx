@@ -381,7 +381,7 @@ function LivePreviewCarousel(props: {
     const activeLine = lines[activeLineIndex] ?? 'Waiting for updates…'
 
     return (
-        <div className="min-h-[3.6rem] py-0.5">
+        <div className="py-0.5" style={{ minHeight: '3.6rem' }}>
             <div className={`whitespace-pre-wrap break-words text-sm leading-6 text-[var(--cursor-text-secondary)] transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'}`}>
                 {activeLine}
             </div>
@@ -936,19 +936,19 @@ export function BriefTurnList(props: {
                                 onClick={() => openTurnDetails(turn.id)}
                                 aria-label="Open assistant details"
                             >
-                                <div className="flex min-h-[7.25rem] flex-col gap-1.5 py-1">
+                                <div className="flex flex-col gap-1.5 py-1" style={{ minHeight: '7.25rem' }}>
                                     <div className="flex items-center gap-2">
-                                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-2 py-0.5 text-[11px] font-medium text-[var(--accent)]">
+                                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-2 py-0.5 text-[length:var(--font-size-xs)] font-medium text-[var(--accent)]">
                                             <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--accent)]" />
                                             {generatingBadgeText}
                                         </span>
-                                        <span className="ml-auto text-[11px] text-[var(--cursor-text-secondary)]">{messageMeta}</span>
+                                        <span className="ml-auto text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">{messageMeta}</span>
                                     </div>
                                     <LivePreviewCarousel
                                         preview={assistantPreviewRaw}
                                         liveActivity={liveActivity}
                                     />
-                                    <div className="text-[11px] text-[var(--cursor-text-secondary)]">
+                                    <div className="text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                         <span className="underline decoration-dotted">Click to open details</span>
                                     </div>
                                 </div>
@@ -957,7 +957,7 @@ export function BriefTurnList(props: {
                     ) : shouldShowFullLastBlock ? (
                         <div className="w-full max-w-[92%] px-1 py-1">
                             <BriefFullMarkdownContent content={assistantPreview} />
-                            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--cursor-text-secondary)]">
+                            <div className="mt-2 flex items-center gap-2 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                 <span>{messageMeta}</span>
                                 <span>·</span>
                                 <button
@@ -984,7 +984,7 @@ export function BriefTurnList(props: {
                     ) : (
                         <div className="w-full max-w-[92%] px-1 py-1">
                             <BriefFullMarkdownContent content={assistantPreview} />
-                            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--cursor-text-secondary)]">
+                            <div className="mt-2 flex items-center gap-2 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                 <span>{messageMeta}</span>
                                 <span>·</span>
                                 <button

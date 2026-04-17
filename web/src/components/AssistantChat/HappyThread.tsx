@@ -145,7 +145,6 @@ export function HappyThread(props: {
     }, [isNearBottom, props.onAtBottomChange])
 
     const showSkeleton = props.isLoadingMessages && props.messagesVersion === 0 && props.pendingCount === 0
-    const isCompact = props.density === 'compact'
 
     return (
         <HappyChatProvider value={{
@@ -159,12 +158,21 @@ export function HappyThread(props: {
             onRefresh: props.onRefresh,
             onRetryMessage: props.onRetryMessage
         }}>
-            <ThreadPrimitive.Root className="chat-timeline relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
+            <ThreadPrimitive.Root
+                className="chat-timeline relative flex min-h-0 min-w-0 w-full flex-1 flex-col"
+                style={{ background: 'var(--chrome)' }}
+            >
                 <ThreadPrimitive.Viewport
                     ref={viewportRef}
                     className="chat-timeline-viewport app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
                 >
-                    <div className={`chat-timeline-inner mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
+                    <div
+                        className="chat-timeline-inner mx-auto w-full min-w-0"
+                        style={{
+                            maxWidth: 'var(--chat-content-max)',
+                            padding: `var(--chat-timeline-padding-y) var(--chat-timeline-padding-x)`,
+                        }}
+                    >
                         {showSkeleton ? (
                             <MessageSkeleton />
                         ) : (
@@ -182,10 +190,8 @@ export function HappyThread(props: {
                                 ) : null}
                             </>
                         )}
-                        <div className={`chat-rounds flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
-                            <ThreadMessagesList />
-                        </div>
-                        <div className="chat-timeline-spacer" />
+                        <ThreadMessagesList />
+                        <div className="chat-timeline-spacer" style={{ height: '120px' }} />
                     </div>
                 </ThreadPrimitive.Viewport>
                 <NewMessagesIndicator
