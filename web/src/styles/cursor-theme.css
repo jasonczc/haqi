@@ -211,3 +211,16 @@
   color: var(--accent);
   text-decoration: none;
 }
+
+/* Maximized workbench hides the sidebar and chat-main */
+body.layout-maximized .sidebar,
+body.layout-maximized .chat-main {
+  display: none !important;
+}
+/* Let the outer context-panel wrapper fill the viewport when maximized */
+body.layout-maximized .context-panel {
+  width: 100vw !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  flex: 1 1 100% !important;
+}

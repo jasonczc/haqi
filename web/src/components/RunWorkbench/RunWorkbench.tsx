@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import type { Session } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import type { WorkbenchTab, PrInfo, CiCheck, CommitInfo, FileChange, BranchStatus } from './types'
@@ -18,6 +18,7 @@ function WorkbenchTabBar(props: {
     isSetupMode: boolean
     hasDesktop: boolean
     hasTerminal: boolean
+    maximized: boolean
     onClose: () => void
     onFullscreen: () => void
 }) {
@@ -38,24 +39,39 @@ function WorkbenchTabBar(props: {
         ]
 
     return (
-        <div className="context-header flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)]">
-            <div className="context-tabs flex">
-                {tabs.filter(t => t.available).map(tab => (
-                    <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => props.onTabChange(tab.key)}
-                        className={`context-tab relative px-0 py-1 text-[13px] font-medium transition-colors ${
-                            props.activeTab === tab.key
-                                ? 'active text-[var(--cursor-text-primary)]'
-                                : 'text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-secondary)]'
-                        }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
+        <div
+            className="context-header flex items-center justify-between"
+            style={{
+                padding: '8px 12px 8px 16px',
+                borderBottom: '1px solid var(--border-tertiary)',
+            }}
+        >
+            <div className="context-tabs flex" style={{ gap: 'var(--context-tab-gap)' }}>
+                {tabs.filter(t => t.available).map(tab => {
+                    const isActive = props.activeTab === tab.key
+                    return (
+                        <button
+                            key={tab.key}
+                            type="button"
+                            className="context-tab"
+                            onClick={() => props.onTabChange(tab.key)}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: '4px 0',
+                                fontSize: 'var(--font-size-base)',
+                                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                fontWeight: isActive ? 'var(--font-weight-semibold)' : 'var(--font-weight-normal)',
+                                borderBottom: isActive ? '2px solid var(--text-primary)' : '2px solid transparent',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            {tab.label}
+                        </button>
+                    )
+                })}
             </div>
-            <div className="context-controls relative-wrapper flex items-center gap-0.5 pr-2">
+            <div className="context-controls relative-wrapper flex items-center gap-1">
                 {/* More menu */}
                 <Button
                     variant="ghost"
@@ -78,14 +94,14 @@ function WorkbenchTabBar(props: {
                     <div className="dropdown-divider" />
                     <button type="button" className="dropdown-item dropdown-item-danger">Archive</button>
                 </div>
-                {/* Fullscreen */}
+                {/* Maximize / Restore */}
                 <Button
                     variant="ghost"
                     size="sm"
                     iconOnly
                     onClick={props.onFullscreen}
-                    title="Expand panel"
-                    aria-label="Expand panel"
+                    title={props.maximized ? 'Restore' : 'Expand panel'}
+                    aria-label={props.maximized ? 'Restore' : 'Expand panel'}
                     leadingIcon={
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="15 3 21 3 21 9" />
@@ -136,7 +152,7 @@ export function RunWorkbench(props: {
 
     const defaultTab: WorkbenchTab = isSetupMode ? 'setup' : 'git'
     const [activeTab, setActiveTab] = useState<WorkbenchTab>(defaultTab)
-    const [isFullscreen, setIsFullscreen] = useState(false)
+    const [maximized, setMaximized] = useState(false)
 
     // Validate active tab
     const effectiveTab = useMemo(() => {
@@ -147,22 +163,31 @@ export function RunWorkbench(props: {
         return activeTab
     }, [activeTab, hasDesktop, hasTerminal, isSetupMode, defaultTab])
 
-    const handleFullscreen = () => {
-        setIsFullscreen(prev => !prev)
-    }
+    const handleFullscreen = useCallback(() => setMaximized(v => !v), [])
 
-    const containerClass = isFullscreen
-        ? 'context-panel fixed inset-0 z-50 flex flex-col bg-[var(--cursor-bg-card)]'
-        : 'context-panel flex h-full w-full flex-col border-l border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)]'
+    useEffect(() => {
+        if (!maximized) return
+        document.body.classList.add('layout-maximized')
+        return () => document.body.classList.remove('layout-maximized')
+    }, [maximized])
 
     return (
-        <div className={containerClass}>
+        <aside
+            className="context-panel flex flex-col flex-shrink-0 z-10 h-full"
+            style={{
+                width: maximized ? '100vw' : 'var(--context-panel-width)',
+                background: 'var(--editor)',
+                borderLeft: maximized ? 'none' : '1px solid var(--border-tertiary)',
+                transition: 'width 0.2s',
+            }}
+        >
             <WorkbenchTabBar
                 activeTab={effectiveTab}
                 onTabChange={setActiveTab}
                 isSetupMode={isSetupMode}
                 hasDesktop={hasDesktop}
                 hasTerminal={hasTerminal}
+                maximized={maximized}
                 onClose={props.onClose}
                 onFullscreen={handleFullscreen}
             />
@@ -196,6 +221,6 @@ export function RunWorkbench(props: {
                     <TerminalPanel sessionId={props.session.id} />
                 )}
             </div>
-        </div>
+        </aside>
     )
 }
