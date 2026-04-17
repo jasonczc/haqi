@@ -42,4 +42,9 @@ export const queryKeys = {
     skills: (sessionId: string) => ['skills', sessionId] as const,
     reviewLoops: ['review-loops'] as const,
     reviewLoop: (loopId: string) => ['review-loop', loopId] as const,
+    routines: ['routines'] as const,
+    routine: (routineId: string) => ['routine', routineId] as const,
+    routineRuns: (routineId: string) => ['routine-runs', routineId] as const,
+    routineRun: (routineId: string, runId: string) => ['routine-run', routineId, runId] as const,
+    routineEvents: (routineId: string) => ['routine-events', routineId] as const,
 }

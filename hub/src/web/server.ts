@@ -34,6 +34,8 @@ import { createDesktopRoutes, resolveDesktopProxyTarget } from './routes/desktop
 import type { ReportPublicBaseUrlSettings } from '../config/reportPublicBaseUrl'
 import { createSettingsRoutes } from './routes/settings'
 import { createGitHubRoutes } from './routes/github'
+import { createRoutineAdminRoutes, createRoutineFireRoutes } from './routes/routines'
+import type { FirePipelineSubmit } from '../routines/triggerRegistry'
 import type { SSEManager } from '../sse/sseManager'
 import type { VisibilityTracker } from '../visibility/visibilityTracker'
 import type { Server as BunServer } from 'bun'
@@ -145,6 +147,7 @@ function createWebApp(options: {
     embeddedAssetMap: Map<string, EmbeddedWebAsset> | null
     relayMode?: boolean
     officialWebUrl?: string
+    getFirePipeline?: () => FirePipelineSubmit | null
 }): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
@@ -202,6 +205,13 @@ function createWebApp(options: {
 
     app.route('/api', createAuthRoutes(options.jwtSecret, options.store))
     app.route('/api', createBindRoutes(options.jwtSecret, options.store))
+    // Fire endpoint is token-authed, not user-session-authed. Mount
+    // BEFORE the user-auth middleware so bearer-token requests don't
+    // trip over a missing user session.
+    app.route('/api', createRoutineFireRoutes({
+        getStore: () => options.store,
+        getFirePipeline: () => options.getFirePipeline?.() ?? null
+    }))
 
     app.use('/api/*', createAuthMiddleware(options.jwtSecret, options.store))
     app.route('/api', createEventsRoutes(options.getSseManager, options.getSyncEngine, options.getVisibilityTracker))
@@ -222,6 +232,7 @@ function createWebApp(options: {
     app.route('/api', createContainerRoutes(options.getSyncEngine))
     app.route('/api', createSettingsRoutes(options.store, options.getSyncEngine))
     app.route('/api', createGitHubRoutes(options.getSyncEngine))
+    app.route('/api', createRoutineAdminRoutes({ getStore: () => options.store }))
     const reportPublicBaseUrlState: { value: ReportPublicBaseUrlSettings } = {
         value: options.reportPublicBaseUrl
     }
@@ -377,6 +388,7 @@ export async function startWebServer(options: {
     corsOrigins?: string[]
     relayMode?: boolean
     officialWebUrl?: string
+    getFirePipeline?: () => FirePipelineSubmit | null
 }): Promise<BunServer<WebSocketData>> {
     const isCompiled = isBunCompiled()
     const embeddedAssetMap = isCompiled ? await loadEmbeddedAssetMap() : null
@@ -394,7 +406,8 @@ export async function startWebServer(options: {
         corsOrigins: options.corsOrigins,
         embeddedAssetMap,
         relayMode: options.relayMode,
-        officialWebUrl: options.officialWebUrl
+        officialWebUrl: options.officialWebUrl,
+        getFirePipeline: options.getFirePipeline
     })
 
     const socketHandler = options.socketEngine.handler()

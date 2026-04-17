@@ -166,5 +166,115 @@ export function createCloudTablesSchema(db: Database): void {
             ON cloud_checkpoints(namespace, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_cloud_checkpoints_parent
             ON cloud_checkpoints(parent_checkpoint_id);
+
+        -- Routines -------------------------------------------------------
+        -- Declarative "when X happens, spawn agent with Y config" rows.
+        -- Version counter bumps on update; fires/runs snapshot the version
+        -- so historical runs remain reproducible after edits.
+        CREATE TABLE IF NOT EXISTS routines (
+            id TEXT PRIMARY KEY,
+            namespace TEXT NOT NULL DEFAULT 'default',
+            name TEXT NOT NULL,
+            description TEXT,
+            version INTEGER NOT NULL DEFAULT 1,
+            status TEXT NOT NULL DEFAULT 'active',
+            trigger_kind TEXT NOT NULL,
+            config TEXT NOT NULL,
+            created_by TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_routines_namespace
+            ON routines(namespace, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_routines_trigger_kind
+            ON routines(trigger_kind);
+
+        -- Fire tokens: per-routine bearer tokens for the API trigger.
+        -- Mirrors enrollment token handling: store only token_hash, never
+        -- the raw secret. token_preview (first 6 chars + ...) is safe to
+        -- show in the UI for identification.
+        CREATE TABLE IF NOT EXISTS routine_fire_tokens (
+            id TEXT PRIMARY KEY,
+            namespace TEXT NOT NULL DEFAULT 'default',
+            routine_id TEXT NOT NULL,
+            name TEXT,
+            token_hash TEXT NOT NULL UNIQUE,
+            token_preview TEXT NOT NULL,
+            created_by TEXT,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER,
+            revoked_at INTEGER,
+            last_used_at INTEGER
+        );
+        CREATE INDEX IF NOT EXISTS idx_routine_fire_tokens_routine
+            ON routine_fire_tokens(routine_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_routine_fire_tokens_hash
+            ON routine_fire_tokens(token_hash);
+
+        -- Fires: every "someone asked this routine to run" event.
+        -- dedup_key is used by webhook triggers to drop GitHub redelivery.
+        CREATE TABLE IF NOT EXISTS routine_fires (
+            id TEXT PRIMARY KEY,
+            namespace TEXT NOT NULL DEFAULT 'default',
+            routine_id TEXT NOT NULL,
+            routine_version INTEGER NOT NULL,
+            trigger_kind TEXT NOT NULL,
+            payload TEXT,
+            actor TEXT NOT NULL,
+            dedup_key TEXT,
+            filter_result TEXT,
+            fired_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_routine_fires_routine
+            ON routine_fires(routine_id, fired_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_routine_fires_dedup
+            ON routine_fires(routine_id, dedup_key)
+            WHERE dedup_key IS NOT NULL;
+
+        -- Runs: the actual execution. status is the state machine; only
+        -- terminal states have ended_at set.
+        CREATE TABLE IF NOT EXISTS routine_runs (
+            id TEXT PRIMARY KEY,
+            namespace TEXT NOT NULL DEFAULT 'default',
+            routine_id TEXT NOT NULL,
+            routine_version INTEGER NOT NULL,
+            fire_id TEXT NOT NULL,
+            spawn_request_id TEXT,
+            session_id TEXT,
+            status TEXT NOT NULL,
+            skipped_reason TEXT,
+            started_at INTEGER,
+            ended_at INTEGER,
+            outcome TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_routine_runs_routine
+            ON routine_runs(routine_id, started_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_routine_runs_fire
+            ON routine_runs(fire_id);
+        CREATE INDEX IF NOT EXISTS idx_routine_runs_session
+            ON routine_runs(session_id);
+        CREATE INDEX IF NOT EXISTS idx_routine_runs_status
+            ON routine_runs(status);
+
+        -- Events: cross-cutting observability stream. Every layer
+        -- (pipeline / tracker / triggers) appends here so the UI can
+        -- render a complete "why did this fire and what happened?"
+        -- timeline without digging through app logs.
+        CREATE TABLE IF NOT EXISTS routine_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            namespace TEXT NOT NULL DEFAULT 'default',
+            routine_id TEXT NOT NULL,
+            fire_id TEXT,
+            run_id TEXT,
+            kind TEXT NOT NULL,
+            data TEXT,
+            at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_routine_events_routine
+            ON routine_events(routine_id, at DESC);
+        CREATE INDEX IF NOT EXISTS idx_routine_events_run
+            ON routine_events(run_id, at);
+        CREATE INDEX IF NOT EXISTS idx_routine_events_fire
+            ON routine_events(fire_id);
     `)
 }

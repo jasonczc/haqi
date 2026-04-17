@@ -649,6 +649,22 @@ export class SyncEngine {
         return this.spawnCoordinator.listRequests(namespace, limit)
     }
 
+    /**
+     * Route a routine-driven spawn straight into the spawn coordinator
+     * without going through the session prompt pipeline. The Routines
+     * subsystem builds the MachineSpawnRequest itself (with rendered
+     * template and labels) and just needs an ID back to correlate.
+     */
+    enqueueRoutineSpawn(namespace: string, machineId: string, request: MachineSpawnRequest): { id: string } {
+        const accepted = this.spawnCoordinator.enqueue(namespace, machineId, request)
+        return { id: accepted.id }
+    }
+
+    /** Exposed so Routines subsystem can subscribe to the same bus. */
+    getEventPublisher(): EventPublisher {
+        return this.eventPublisher
+    }
+
     getCloudRequestByNamespace(requestId: string, namespace: string): CloudSpawnRequest | null {
         return this.spawnCoordinator.getRequest(namespace, requestId)
     }

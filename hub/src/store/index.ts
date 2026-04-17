@@ -18,6 +18,7 @@ import { createGroupConversationTurnsSchema } from './groupTurns'
 import { createCloudTablesSchema } from './cloudTables'
 import { CloudStore } from './cloudStore'
 import { CheckpointStore } from './checkpointStore'
+import { RoutineStore } from './routineStore'
 
 export type {
     PreviewUrlHistoryEntry,
@@ -63,9 +64,10 @@ export { ReportStore } from './reportStore'
 export { ReviewLoopStore } from './reviewLoopStore'
 export { CloudStore } from './cloudStore'
 export { CheckpointStore } from './checkpointStore'
+export { RoutineStore, FireDuplicateError } from './routineStore'
 export type { StoredCheckpoint, CreateCheckpointParams, DeleteCheckpointResult } from './checkpointStore'
 
-const SCHEMA_VERSION: number = 16
+const SCHEMA_VERSION: number = 17
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -114,6 +116,7 @@ export class Store {
     readonly reviewLoops: ReviewLoopStore
     readonly cloud: CloudStore
     readonly checkpoints: CheckpointStore
+    readonly routines: RoutineStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -163,6 +166,7 @@ export class Store {
         this.reviewLoops = new ReviewLoopStore(this.db)
         this.cloud = new CloudStore(this.db)
         this.checkpoints = new CheckpointStore(this.db)
+        this.routines = new RoutineStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -285,6 +289,13 @@ export class Store {
         if (currentVersion === 15 && SCHEMA_VERSION >= 16) {
             this.migrateFromV15ToV16()
             this.setUserVersion(16)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 16 && SCHEMA_VERSION >= 17) {
+            this.migrateFromV16ToV17()
+            this.setUserVersion(17)
             this.initSchema()
             return
         }
@@ -1185,6 +1196,22 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v15->v16 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV16ToV17(): void {
+        // v17 adds the routines subsystem tables (routines, routine_fire_tokens,
+        // routine_fires, routine_runs, routine_events). They live in
+        // createCloudTablesSchema() via IF NOT EXISTS, so this migration
+        // is a thin transactional wrapper around a re-run of that DDL.
+        try {
+            this.db.exec('BEGIN')
+            createCloudTablesSchema(this.db)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v16->v17 failed: ${message}`)
         }
     }
 

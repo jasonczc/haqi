@@ -933,3 +933,114 @@ export type VisibilityPayload = {
 }
 
 export type SyncEvent = ProtocolSyncEvent
+
+// ── Routines ────────────────────────────────────────────────────────
+
+export type RoutineTriggerKind = 'api' | 'schedule' | 'github'
+
+export type RoutineStatus = 'active' | 'paused' | 'archived'
+
+export type RoutineRunStatus =
+    | 'queued'
+    | 'spawning'
+    | 'running'
+    | 'succeeded'
+    | 'failed'
+    | 'timeout'
+    | 'skipped'
+    | 'cancelled'
+
+export type RoutineSummary = {
+    id: string
+    namespace: string
+    name: string
+    description?: string
+    version: number
+    status: RoutineStatus
+    trigger: { kind: RoutineTriggerKind } & Record<string, unknown>
+    concurrency: 'skip' | 'queue' | 'cancel-previous' | 'allow'
+    createdAt: number
+    updatedAt: number
+    filter?: unknown
+    spawn?: Record<string, unknown>
+}
+
+export type RoutineFireSummary = {
+    id: string
+    routineId: string
+    routineVersion: number
+    triggerKind: RoutineTriggerKind
+    actor: { type: string } & Record<string, unknown>
+    payload?: unknown
+    dedupKey?: string
+    filterResult?: { matched: boolean; reason?: string }
+    firedAt: number
+}
+
+export type RoutineRunSummary = {
+    id: string
+    namespace: string
+    routineId: string
+    routineVersion: number
+    fireId: string
+    spawnRequestId?: string
+    sessionId?: string
+    status: RoutineRunStatus
+    skippedReason?: string
+    startedAt?: number
+    endedAt?: number
+    outcome?: {
+        exitCode?: number
+        message?: string
+        prUrl?: string
+        commitSha?: string
+    }
+}
+
+export type RoutineEventKind =
+    | 'fire-received'
+    | 'filter-evaluated'
+    | 'run-queued'
+    | 'run-spawning'
+    | 'run-started'
+    | 'run-ended'
+    | 'skipped'
+    | 'error'
+
+export type RoutineEventRow = {
+    id: number
+    namespace: string
+    routineId: string
+    fireId?: string
+    runId?: string
+    kind: RoutineEventKind
+    data?: unknown
+    at: number
+}
+
+export type ListRoutinesResponse = {
+    ok: boolean
+    routines: RoutineSummary[]
+}
+
+export type GetRoutineResponse = {
+    ok: boolean
+    routine: RoutineSummary
+}
+
+export type ListRoutineRunsResponse = {
+    ok: boolean
+    runs: RoutineRunSummary[]
+}
+
+export type GetRoutineRunResponse = {
+    ok: boolean
+    run: RoutineRunSummary
+    fire: RoutineFireSummary | null
+    events: RoutineEventRow[]
+}
+
+export type ListRoutineEventsResponse = {
+    ok: boolean
+    events: RoutineEventRow[]
+}

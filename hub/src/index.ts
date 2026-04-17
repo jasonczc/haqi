@@ -15,6 +15,7 @@ import { NotificationHub } from './notifications/notificationHub'
 import type { NotificationChannel } from './notifications/notificationTypes'
 import { HappyBot } from './telegram/bot'
 import { startWebServer } from './web/server'
+import { bootRoutines, type RoutinesSubsystemHandle, type SpawnCoordinatorLike } from './routines'
 import { getOrCreateJwtSecret } from './config/jwtSecret'
 import { createSocketServer } from './socket/server'
 import { SSEManager } from './sse/sseManager'
@@ -106,6 +107,7 @@ let sseManager: SSEManager | null = null
 let visibilityTracker: VisibilityTracker | null = null
 let notificationHub: NotificationHub | null = null
 let tunnelManager: TunnelManager | null = null
+let routinesHandle: RoutinesSubsystemHandle | null = null
 
 async function main() {
     console.log('HAQI Hub starting...')
@@ -191,6 +193,23 @@ async function main() {
 
     syncEngine = new SyncEngine(store, socketServer.io, socketServer.rpcRegistry, sseManager)
 
+    // Routines subsystem: registers trigger drivers, starts the schedule
+    // loop, and subscribes RunTracker to the event bus. The returned
+    // firePipeline feeds the /api/routines/:id/fire HTTP endpoint.
+    const routineSpawnCoordinator: SpawnCoordinatorLike = {
+        enqueue: (namespace, machineId, request) =>
+            syncEngine!.enqueueRoutineSpawn(namespace, machineId || 'auto', request)
+    }
+    routinesHandle = await bootRoutines({
+        store,
+        spawnCoordinator: routineSpawnCoordinator,
+        eventPublisher: syncEngine.getEventPublisher(),
+        log: (msg, data) => {
+            if (data !== undefined) console.log(msg, data)
+            else console.log(msg)
+        }
+    })
+
     const notificationChannels: NotificationChannel[] = [
         new PushNotificationChannel(pushService, sseManager, visibilityTracker, config.publicUrl)
     ]
@@ -226,7 +245,8 @@ async function main() {
         socketEngine: socketServer.engine,
         corsOrigins,
         relayMode: relayFlag.enabled,
-        officialWebUrl
+        officialWebUrl,
+        getFirePipeline: () => routinesHandle?.firePipeline ?? null
     })
 
     // Start the bot if configured
@@ -307,6 +327,10 @@ async function main() {
         await tunnelManager?.stop()
         await happyBot?.stop()
         notificationHub?.stop()
+        // Stop routines BEFORE syncEngine — RunTracker subscribes to the
+        // event publisher, so unsubscribe first to avoid a dangling
+        // listener firing during engine teardown.
+        await routinesHandle?.stop()
         syncEngine?.stop()
         sseManager?.stop()
         webServer?.stop()

@@ -65,6 +65,8 @@ import CloudContainersPage from '@/routes/settings/containers'
 import CloudCheckpointsPage from '@/routes/settings/checkpoints'
 import CloudOnboardPage from '@/routes/settings/onboard'
 import CloudAutomationsPage from '@/routes/settings/automations'
+import SettingsRoutinesPage from '@/routes/settings/routines'
+import SettingsRoutineDetailPage from '@/routes/settings/routine-detail'
 import DebugDiffPage from '@/routes/debug/diff'
 import GroupDetailPage from '@/routes/groups/detail'
 import ReviewLoopsIndexPage from '@/routes/review-loops/index'
@@ -2214,6 +2216,21 @@ const settingsAutomationsRoute = createRoute({
     component: CloudAutomationsPage,
 })
 
+const settingsRoutinesRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'routines',
+    component: SettingsRoutinesPage,
+})
+
+const settingsRoutineDetailRoute = createRoute({
+    getParentRoute: () => settingsRoute,
+    path: 'routines/$routineId',
+    component: SettingsRoutineDetailPage,
+    validateSearch: (search: Record<string, unknown>): { run?: string } => ({
+        run: typeof search.run === 'string' ? search.run : undefined
+    })
+})
+
 const debugDiffRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/debug/diff',
@@ -2405,6 +2422,8 @@ export const routeTree = rootRoute.addChildren([
         settingsWorkspacesRoute,
         settingsWorkspaceDetailRoute,
         settingsAutomationsRoute,
+        settingsRoutinesRoute,
+        settingsRoutineDetailRoute,
     ]),
 ])
 

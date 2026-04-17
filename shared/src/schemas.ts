@@ -1262,6 +1262,246 @@ const CloudSecretChangedSchema = SessionEventBaseSchema.extend({
     secretId: z.string()
 })
 
+// --------------------------------------------------------------------
+// Routines
+// --------------------------------------------------------------------
+//
+// A Routine is a declarative definition of "when X happens, spawn an
+// agent session with Y config on Z repo". The shape is:
+//
+//   Routine   ← the config (repo, agent, trigger, filter, runtime...)
+//   Fire      ← one event that says "someone asked this routine to run"
+//   Run       ← the actual execution (may map to a session, or be skipped)
+//   Event     ← the cross-cutting observability stream tying them together
+//
+// See hub/src/routines/ for the runtime. Keep these schemas here so the
+// web, hub, and cli all share a single source of truth for persisted
+// payloads (filter expressions, trigger configs, etc.) and so SSE event
+// shapes are type-safe across boundaries.
+
+// Filter DSL: a small declarative expression tree over the FireEvent
+// context. Keeping it as data (not code) means the web UI can render a
+// builder, the hub can diff versions, and users can preview "would this
+// match?" against historical payloads before enabling the routine.
+const FilterLeafOp = z.enum(['eq', 'ne', 'includes', 'startsWith', 'endsWith', 'matches', 'exists'])
+
+export type FilterExpression =
+    | { op: 'eq' | 'ne' | 'includes' | 'startsWith' | 'endsWith' | 'matches'; path: string; value: string | number | boolean }
+    | { op: 'exists'; path: string }
+    | { op: 'and'; clauses: FilterExpression[] }
+    | { op: 'or'; clauses: FilterExpression[] }
+    | { op: 'not'; clause: FilterExpression }
+
+// zod needs `z.lazy` to handle the recursive type.
+export const FilterExpressionSchema: z.ZodType<FilterExpression> = z.lazy(() => z.union([
+    z.object({
+        op: FilterLeafOp.exclude(['exists']),
+        path: z.string().min(1),
+        value: z.union([z.string(), z.number(), z.boolean()])
+    }),
+    z.object({ op: z.literal('exists'), path: z.string().min(1) }),
+    z.object({ op: z.literal('and'), clauses: z.array(FilterExpressionSchema).min(1) }),
+    z.object({ op: z.literal('or'), clauses: z.array(FilterExpressionSchema).min(1) }),
+    z.object({ op: z.literal('not'), clause: FilterExpressionSchema })
+]))
+
+// Trigger config: the per-driver shape.
+//   - api: nothing configurable today (the token grants permission to fire).
+//   - schedule: interval-based for now; upgrade to cron-string later.
+//   - github: the events + filters to subscribe to on the webhook side.
+//     The generic FilterExpression handles payload-level filtering.
+export const ApiTriggerConfigSchema = z.object({
+    kind: z.literal('api')
+})
+
+export const ScheduleTriggerConfigSchema = z.object({
+    kind: z.literal('schedule'),
+    every: z.enum(['hour', 'day']),
+    // minute 0-59 within the hour for hourly; minute 0-59 AND hour 0-23 for daily.
+    minute: z.number().int().min(0).max(59),
+    hour: z.number().int().min(0).max(23).optional(),
+    // IANA tz name for `day`; ignored for `hour`. Default UTC.
+    timezone: z.string().optional()
+})
+
+export const GitHubTriggerConfigSchema = z.object({
+    kind: z.literal('github'),
+    events: z.array(z.enum(['pull_request', 'release'])).min(1),
+    // webhook secret used for signature verification. Hub mints it on routine create.
+    webhookSecretHash: z.string().optional()
+})
+
+export const TriggerConfigSchema = z.discriminatedUnion('kind', [
+    ApiTriggerConfigSchema,
+    ScheduleTriggerConfigSchema,
+    GitHubTriggerConfigSchema
+])
+
+export type TriggerKind = 'api' | 'schedule' | 'github'
+export type ApiTriggerConfig = z.infer<typeof ApiTriggerConfigSchema>
+export type ScheduleTriggerConfig = z.infer<typeof ScheduleTriggerConfigSchema>
+export type GitHubTriggerConfig = z.infer<typeof GitHubTriggerConfigSchema>
+export type TriggerConfig = z.infer<typeof TriggerConfigSchema>
+
+// Concurrency policy: what to do when a fire arrives but the routine
+// already has a running execution.
+export const ConcurrencyPolicySchema = z.enum(['skip', 'queue', 'cancel-previous', 'allow'])
+export type ConcurrencyPolicy = z.infer<typeof ConcurrencyPolicySchema>
+
+// The materialized spawn config. We intentionally reuse MachineSpawnRequest
+// for most fields and add the small amount of routine-specific context
+// (prompt template, allowed connectors) on top. At fire time we clone the
+// routine config + overlay any runtime-context (e.g., the webhook payload
+// surfaced as template variables) and hand the result to SpawnCoordinator.
+export const RoutineSpawnOverridesSchema = z.object({
+    agent: AgentFlavorSchema.optional(),
+    model: z.string().optional(),
+    thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'max', 'xhigh']).optional(),
+    runtimeKind: RuntimeKindSchema.optional(),
+    environmentId: z.string().optional(),
+    workspaceSource: WorkspaceSourceSchema.optional(),
+    networkPolicy: NetworkModeSchema.optional(),
+    computerUse: z.boolean().optional(),
+    secrets: z.array(z.string()).optional(),
+    // Prompt template. {{variables}} are substituted from trigger payload.
+    promptTemplate: z.string().optional()
+})
+export type RoutineSpawnOverrides = z.infer<typeof RoutineSpawnOverridesSchema>
+
+export const RoutineStatusSchema = z.enum(['active', 'paused', 'archived'])
+export type RoutineStatus = z.infer<typeof RoutineStatusSchema>
+
+export const RoutineSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    name: z.string().min(1),
+    description: z.string().optional(),
+    // Version bumps on every update. Fires snapshot this so run history
+    // remains reproducible across edits.
+    version: z.number().int().nonnegative(),
+    status: RoutineStatusSchema,
+    trigger: TriggerConfigSchema,
+    filter: FilterExpressionSchema.optional(),
+    spawn: RoutineSpawnOverridesSchema,
+    concurrency: ConcurrencyPolicySchema,
+    createdBy: z.string().optional(),
+    createdAt: z.number(),
+    updatedAt: z.number()
+})
+export type Routine = z.infer<typeof RoutineSchema>
+
+// Fire token: per-routine, scope=fire. Mirrors enrollment token shape.
+export const RoutineFireTokenSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    routineId: z.string(),
+    name: z.string().optional(),
+    tokenPreview: z.string(),
+    createdBy: z.string().optional(),
+    createdAt: z.number(),
+    expiresAt: z.number().optional(),
+    revokedAt: z.number().optional(),
+    lastUsedAt: z.number().optional()
+})
+export type RoutineFireToken = z.infer<typeof RoutineFireTokenSchema>
+
+// FireActor: who or what caused this fire.
+export const FireActorSchema = z.union([
+    z.object({ type: z.literal('api'), tokenId: z.string() }),
+    z.object({ type: z.literal('schedule') }),
+    z.object({ type: z.literal('github'), deliveryId: z.string().optional(), sender: z.string().optional() }),
+    z.object({ type: z.literal('user'), userId: z.string() })
+])
+export type FireActor = z.infer<typeof FireActorSchema>
+
+export const FilterResultSchema = z.object({
+    matched: z.boolean(),
+    reason: z.string().optional()
+})
+export type FilterResult = z.infer<typeof FilterResultSchema>
+
+export const RoutineFireSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    routineId: z.string(),
+    routineVersion: z.number().int().nonnegative(),
+    triggerKind: z.enum(['api', 'schedule', 'github']),
+    // Normalized payload per trigger kind. API trigger may put arbitrary
+    // JSON here; GitHub trigger stores the subset of the webhook we care about.
+    payload: z.unknown().optional(),
+    actor: FireActorSchema,
+    dedupKey: z.string().optional(),
+    filterResult: FilterResultSchema.optional(),
+    firedAt: z.number()
+})
+export type RoutineFire = z.infer<typeof RoutineFireSchema>
+
+export const RoutineRunStatusSchema = z.enum([
+    'queued',
+    'spawning',
+    'running',
+    'succeeded',
+    'failed',
+    'timeout',
+    'skipped',
+    'cancelled'
+])
+export type RoutineRunStatus = z.infer<typeof RoutineRunStatusSchema>
+
+export const RoutineRunOutcomeSchema = z.object({
+    exitCode: z.number().optional(),
+    message: z.string().optional(),
+    prUrl: z.string().optional(),
+    commitSha: z.string().optional()
+})
+export type RoutineRunOutcome = z.infer<typeof RoutineRunOutcomeSchema>
+
+export const RoutineRunSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    routineId: z.string(),
+    routineVersion: z.number().int().nonnegative(),
+    fireId: z.string(),
+    spawnRequestId: z.string().optional(),
+    sessionId: z.string().optional(),
+    status: RoutineRunStatusSchema,
+    skippedReason: z.string().optional(),
+    startedAt: z.number().optional(),
+    endedAt: z.number().optional(),
+    outcome: RoutineRunOutcomeSchema.optional()
+})
+export type RoutineRun = z.infer<typeof RoutineRunSchema>
+
+export const RoutineEventKindSchema = z.enum([
+    'fire-received',
+    'filter-evaluated',
+    'run-queued',
+    'run-spawning',
+    'run-started',
+    'run-ended',
+    'skipped',
+    'error'
+])
+export type RoutineEventKind = z.infer<typeof RoutineEventKindSchema>
+
+export const RoutineEventSchema = z.object({
+    id: z.number().int().nonnegative(),
+    namespace: z.string(),
+    routineId: z.string(),
+    fireId: z.string().optional(),
+    runId: z.string().optional(),
+    kind: RoutineEventKindSchema,
+    data: z.unknown().optional(),
+    at: z.number()
+})
+export type RoutineEvent = z.infer<typeof RoutineEventSchema>
+
+// SSE event for routine updates (appended to the SyncEvent union below).
+const RoutineChangedSchema = z.object({
+    namespace: z.string(),
+    routineId: z.string()
+})
+
 export const SyncEventSchema = z.discriminatedUnion('type', [
     SessionChangedSchema.extend({
         type: z.literal('session-added'),
@@ -1361,6 +1601,22 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
         port: z.number(),
         url: z.string(),
         name: z.string().optional()
+    }),
+    RoutineChangedSchema.extend({
+        type: z.literal('routine-added'),
+        data: z.unknown().optional()
+    }),
+    RoutineChangedSchema.extend({
+        type: z.literal('routine-updated'),
+        data: z.unknown().optional()
+    }),
+    RoutineChangedSchema.extend({
+        type: z.literal('routine-removed')
+    }),
+    RoutineChangedSchema.extend({
+        type: z.literal('routine-run-updated'),
+        runId: z.string(),
+        status: RoutineRunStatusSchema
     })
 ])
 

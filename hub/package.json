@@ -15,8 +15,14 @@
         "generate:embedded-web-assets": "bun run scripts/generate-embedded-web-assets.ts"
     },
     "dependencies": {
+        "@effect/cluster": "^0.58.0",
+        "@effect/platform": "^0.96.0",
+        "@effect/sql": "^0.51.0",
+        "@effect/sql-sqlite-bun": "^0.52.0",
+        "@effect/workflow": "^0.18.0",
         "@hapi/protocol": "workspace:*",
         "@socket.io/bun-engine": "^0.1.0",
+        "effect": "^3.21.0",
         "grammy": "^1.38.4",
         "hono": "^4.11.2",
         "jose": "^6.1.3",

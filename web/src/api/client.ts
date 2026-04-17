@@ -1427,4 +1427,28 @@ export class ApiClient {
     }> {
         return await this.request(`/api/sessions/${sessionId}/github/repos`)
     }
+
+    // ── Routines ─────────────────────────────────────────────────
+
+    async listRoutines(): Promise<import('@/types/api').ListRoutinesResponse> {
+        return await this.request('/api/routines')
+    }
+
+    async getRoutine(routineId: string): Promise<import('@/types/api').GetRoutineResponse> {
+        return await this.request(`/api/routines/${encodeURIComponent(routineId)}`)
+    }
+
+    async listRoutineRuns(routineId: string, limit = 100): Promise<import('@/types/api').ListRoutineRunsResponse> {
+        return await this.request(`/api/routines/${encodeURIComponent(routineId)}/runs?limit=${limit}`)
+    }
+
+    async getRoutineRun(routineId: string, runId: string): Promise<import('@/types/api').GetRoutineRunResponse> {
+        return await this.request(
+            `/api/routines/${encodeURIComponent(routineId)}/runs/${encodeURIComponent(runId)}`
+        )
+    }
+
+    async listRoutineEvents(routineId: string, limit = 200): Promise<import('@/types/api').ListRoutineEventsResponse> {
+        return await this.request(`/api/routines/${encodeURIComponent(routineId)}/events?limit=${limit}`)
+    }
 }
