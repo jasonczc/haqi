@@ -2115,17 +2115,6 @@ html.dark body,
     position: relative;
 }
 
-.chat-timeline-viewport {
-    background: var(--cursor-bg-card);
-}
-
-.chat-timeline-inner {
-    max-width: 800px;
-    padding-top: 24px;
-    padding-left: 16px;
-    padding-right: 16px;
-}
-
 .chat-rounds {
     gap: 20px;
 }

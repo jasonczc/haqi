@@ -127,9 +127,9 @@ function formatRelativeTime(value: number, t: (key: string, params?: Record<stri
 function SessionGitIcon(props: { status: 'branch' | 'merge' | 'pr' }) {
     const color =
         props.status === 'merge'
-            ? 'var(--purple)'
+            ? 'var(--accent)'
             : props.status === 'pr'
-                ? 'var(--green)'
+                ? 'var(--success)'
                 : 'var(--text-tertiary)'
     if (props.status === 'merge') {
         return (

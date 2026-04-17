@@ -122,7 +122,7 @@ export function HappyUserMessage() {
                     boxShadow: 'var(--user-card-shadow)',
                 }}
             >
-                <div className="user-prompt-body min-w-0">
+                <div className={`user-prompt-body min-w-0 ${onRetry ? 'pr-8' : ''}`}>
                     {hasText && <LazyRainbowText text={text} />}
                     {hasAttachments && <MessageAttachments attachments={attachments} />}
                 </div>

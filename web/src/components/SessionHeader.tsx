@@ -191,7 +191,10 @@ export function SessionHeader(props: {
 
                     {/* Title row: session title + repo in a single baseline-aligned line */}
                     <div className="chat-title flex min-w-0 flex-1 items-baseline gap-2">
-                        <h2 className="truncate text-[length:var(--font-size-base)] font-[var(--font-weight-semibold)] text-[var(--text-primary)]">
+                        <h2
+                            className="truncate text-[length:var(--font-size-base)] text-[var(--text-primary)]"
+                            style={{ fontWeight: 'var(--font-weight-semibold)' }}
+                        >
                             {title}
                         </h2>
                         {session.metadata?.repositoryUrl ? (
