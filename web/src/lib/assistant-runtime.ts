@@ -16,9 +16,37 @@ export type HappyChatMessageMetadata = {
     event?: AgentEvent
     source?: CliOutputBlock['source']
     attachments?: AttachmentMetadata[]
+    /** For user messages: duration (ms) of the agent turn that followed this prompt.
+     *  null when the turn is still open (live-count on the client). */
+    turnDurationMs?: number | null
 }
 
-function toThreadMessageLike(block: ChatBlock): ThreadMessageLike {
+function indexTurnDurations(blocks: ChatBlock[]): Map<string, number | null> {
+    const out = new Map<string, number | null>()
+    let lastUserId: string | null = null
+    let lastUserClosed = false
+    for (const b of blocks) {
+        if (b.kind === 'user-text') {
+            if (lastUserId !== null && !lastUserClosed) {
+                out.set(lastUserId, null)
+            }
+            lastUserId = b.id
+            lastUserClosed = false
+            continue
+        }
+        if (b.kind === 'agent-event' && (b.event as { type?: string; durationMs?: number }).type === 'turn-duration' && lastUserId) {
+            const ms = (b.event as { durationMs?: number }).durationMs ?? null
+            out.set(lastUserId, ms)
+            lastUserClosed = true
+        }
+    }
+    if (lastUserId !== null && !out.has(lastUserId)) {
+        out.set(lastUserId, null)
+    }
+    return out
+}
+
+function toThreadMessageLike(block: ChatBlock, turnDurations: Map<string, number | null>): ThreadMessageLike {
     if (block.kind === 'user-text') {
         const messageId = `user:${block.id}`
         return {
@@ -32,7 +60,8 @@ function toThreadMessageLike(block: ChatBlock): ThreadMessageLike {
                     status: block.status,
                     localId: block.localId,
                     originalText: block.originalText,
-                    attachments: block.attachments
+                    attachments: block.attachments,
+                    turnDurationMs: turnDurations.get(block.id) ?? null
                 } satisfies HappyChatMessageMetadata
             }
         }
@@ -177,10 +206,21 @@ export function useHappyRuntime(props: {
     attachmentAdapter?: AttachmentAdapter
     allowSendWhenInactive?: boolean
 }) {
+    // Index turn durations once per blocks change so every converter call
+    // can look up the duration for the preceding user prompt.
+    const turnDurations = useMemo(
+        () => indexTurnDurations(props.blocks as ChatBlock[]),
+        [props.blocks]
+    )
+    const convertCallback = useCallback(
+        (block: ChatBlock) => toThreadMessageLike(block, turnDurations),
+        [turnDurations]
+    )
+
     // Use cached message converter for performance optimization
     // This prevents re-converting all messages on every render
     const convertedMessages = useExternalMessageConverter<ChatBlock>({
-        callback: toThreadMessageLike,
+        callback: convertCallback,
         messages: props.blocks as ChatBlock[],
         isRunning: props.session.thinking,
     })
