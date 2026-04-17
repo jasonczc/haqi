@@ -12,6 +12,7 @@ export type SessionSummaryMetadata = {
     summary?: { text: string }
     flavor?: string | null
     worktree?: WorktreeMetadata
+    repositoryUrl?: string
 }
 
 export type SessionSummary = {
@@ -39,7 +40,8 @@ export function toSessionSummary(session: Session): SessionSummary {
         collaborationMode: session.metadata.collaborationMode,
         summary: session.metadata.summary ? { text: session.metadata.summary.text } : undefined,
         flavor: session.metadata.flavor ?? null,
-        worktree: session.metadata.worktree
+        worktree: session.metadata.worktree,
+        repositoryUrl: session.metadata.repositoryUrl
     } : null
 
     const todoProgress = session.todos?.length ? {

@@ -44,7 +44,7 @@ function createSession(overrides: Partial<SessionSummary> = {}): SessionSummary 
     }
 }
 
-describe('SessionList date-based grouping', () => {
+describe('SessionList repo-based grouping', () => {
     afterEach(() => {
         cleanup()
     })
@@ -66,13 +66,25 @@ describe('SessionList date-based grouping', () => {
         })
     })
 
-    it('renders sessions in a flat list with date headers', () => {
+    it('renders sessions grouped by repo short name with Other fallback', () => {
         const now = Date.now()
         renderWithProviders(
             <SessionList
                 sessions={[
-                    createSession({ id: 's1', updatedAt: now, metadata: { path: '/a', name: 'Recent Session' } }),
-                    createSession({ id: 's2', updatedAt: now - 86400000 * 2, metadata: { path: '/b', name: 'Older Session' } }),
+                    createSession({
+                        id: 's1',
+                        updatedAt: now,
+                        metadata: {
+                            path: '/a',
+                            name: 'Recent Session',
+                            repositoryUrl: 'https://github.com/acme/alpha.git',
+                        }
+                    }),
+                    createSession({
+                        id: 's2',
+                        updatedAt: now - 86400000 * 2,
+                        metadata: { path: '/b', name: 'Orphan Session' }
+                    }),
                 ]}
                 onSelect={vi.fn()}
                 onNewSession={vi.fn()}
@@ -83,8 +95,9 @@ describe('SessionList date-based grouping', () => {
             />
         )
 
-        // Should find date header text
-        expect(screen.getByText('Today')).toBeDefined()
+        // Repo-grouped header + Other fallback header should both appear
+        expect(screen.getByText('acme/alpha')).toBeDefined()
+        expect(screen.getByText('Other')).toBeDefined()
     })
 
     it('renders empty state when no sessions', () => {

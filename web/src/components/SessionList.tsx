@@ -13,6 +13,7 @@ import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
+import { extractRepoShortName } from '@/components/SessionHeader'
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -47,7 +48,7 @@ function getDateGroup(updatedAt: number): string {
     return 'Earlier'
 }
 
-function buildDateRows(sessions: SessionSummary[]): SessionListRow[] {
+export function buildDateRows(sessions: SessionSummary[]): SessionListRow[] {
     // Sort all sessions by updatedAt descending (newest first)
     const sorted = [...sessions].sort((a, b) => {
         // Active thinking sessions first, then active, then by time
@@ -69,6 +70,79 @@ function buildDateRows(sessions: SessionSummary[]): SessionListRow[] {
             isFirstGroup = false
         }
         rows.push({ type: 'session', session, forceOffline: false })
+    }
+
+    return rows
+}
+
+const REPO_OTHER_LABEL = 'Other'
+
+function getSessionRepoSection(session: SessionSummary): string {
+    const url = session.metadata?.repositoryUrl
+    if (typeof url === 'string' && url.trim().length > 0) {
+        const shortName = extractRepoShortName(url.trim())
+        if (shortName && shortName.length > 0) {
+            return shortName
+        }
+    }
+    return REPO_OTHER_LABEL
+}
+
+export function buildRepoRows(sessions: SessionSummary[]): SessionListRow[] {
+    // Bucket sessions by repo section
+    const buckets = new Map<string, SessionSummary[]>()
+    for (const session of sessions) {
+        const section = getSessionRepoSection(session)
+        const existing = buckets.get(section)
+        if (existing) {
+            existing.push(session)
+        } else {
+            buckets.set(section, [session])
+        }
+    }
+
+    // Per-section sort: active-thinking first, then active, then by updatedAt desc
+    const sectionRank = (list: SessionSummary[]): SessionSummary[] => {
+        return [...list].sort((a, b) => {
+            const rankA = a.active ? (a.pendingRequestsCount > 0 ? 0 : 1) : 2
+            const rankB = b.active ? (b.pendingRequestsCount > 0 ? 0 : 1) : 2
+            if (rankA !== rankB) return rankA - rankB
+            return b.updatedAt - a.updatedAt
+        })
+    }
+
+    // Sort sections: those containing active sessions first, then by most-recent
+    // updatedAt within section. 'Other' always last.
+    type SectionEntry = {
+        label: string
+        sessions: SessionSummary[]
+        hasActive: boolean
+        mostRecent: number
+    }
+    const entries: SectionEntry[] = []
+    for (const [label, list] of buckets.entries()) {
+        const sorted = sectionRank(list)
+        const hasActive = sorted.some((s) => s.active)
+        const mostRecent = sorted.reduce((acc, s) => (s.updatedAt > acc ? s.updatedAt : acc), 0)
+        entries.push({ label, sessions: sorted, hasActive, mostRecent })
+    }
+
+    entries.sort((a, b) => {
+        if (a.label === REPO_OTHER_LABEL && b.label !== REPO_OTHER_LABEL) return 1
+        if (b.label === REPO_OTHER_LABEL && a.label !== REPO_OTHER_LABEL) return -1
+        if (a.hasActive !== b.hasActive) return a.hasActive ? -1 : 1
+        return b.mostRecent - a.mostRecent
+    })
+
+    const rows: SessionListRow[] = []
+    let isFirstGroup = true
+    for (const entry of entries) {
+        if (entry.sessions.length === 0) continue
+        rows.push({ type: 'date-header', label: entry.label, isFirst: isFirstGroup })
+        isFirstGroup = false
+        for (const session of entry.sessions) {
+            rows.push({ type: 'session', session, forceOffline: false })
+        }
     }
 
     return rows
@@ -402,7 +476,7 @@ export function SessionList(props: {
     const { renderHeader = true, api, selectedSessionId, density = 'comfortable' } = props
 
     const rows = useMemo(
-        () => buildDateRows(props.sessions),
+        () => buildRepoRows(props.sessions),
         [props.sessions]
     )
 
