@@ -1049,6 +1049,14 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onServiceTierChange, controlsDisabled, haptic])
 
+    const modelChipLabel = useMemo(() => {
+        if (agentFlavor !== 'claude') return undefined
+        const match = modelOptions.find((option) => option.value === currentModelValue)
+        if (match) return match.label
+        if (typeof model === 'string' && model.trim().length > 0) return model.trim()
+        return 'Default'
+    }, [agentFlavor, modelOptions, currentModelValue, model])
+
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
     const showModelSettings = Boolean(onModelChange && isClaudeFlavor(agentFlavor) && modelOptions.length > 0)
     const showThinkEffortSettings = Boolean(onThinkEffortChange && thinkEffortOptions.length > 0)
@@ -1485,6 +1493,9 @@ export function HappyComposer(props: {
                                 onVoiceToggle={onVoiceToggle ?? (() => {})}
                                 onVoiceMicToggle={onVoiceMicToggle}
                                 onSend={() => { void sendComposerNow() }}
+                                modelChipLabel={modelChipLabel}
+                                modelChipActive={active || thinking}
+                                onModelChipClick={showModelSettings ? handleSettingsToggle : undefined}
                             />
                         </div>
                     </ComposerPrimitive.AttachmentDropzone>
