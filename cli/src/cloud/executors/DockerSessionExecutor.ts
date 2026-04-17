@@ -5,6 +5,7 @@ import type { DockerCliRuntime } from '@/cloud/docker/dockerCli'
 import { runDockerCommand } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
 import { buildSpawnArgs } from '@/cloud/executors/HostProcessExecutor'
+import { updateAgentCliInContainer } from './updateAgentCliInContainer'
 import { collectHostCredentials, injectHostCredentialsIntoContainer } from '@/cloud/credentials/hostCredentials'
 import { ensureWorkspaceContainer } from './WorkspaceContainerManager'
 import { resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
@@ -168,6 +169,11 @@ export async function startDockerSessionExecutor(params: {
         ...(params.options.initialPrompt ? { HAPI_INITIAL_PROMPT: params.options.initialPrompt } : {}),
         ...hostCreds.env
     }
+
+    // Best-effort refresh of the baked-in agent CLI before spawn.
+    // Failure / timeout falls back to the existing version; this never
+    // blocks the session.
+    await updateAgentCliInContainer(params.runtime, container.containerId, params.options.agent ?? 'claude')
 
     const childProcess = params.runtime.spawnExec({
         containerId: container.containerId,

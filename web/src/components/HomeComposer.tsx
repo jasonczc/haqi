@@ -456,6 +456,27 @@ export function HomeComposer(props: {
         return githubRepos.find((repo) => repo.cloneUrl === needle || repo.url === needle) ?? null
     }, [githubRepos, repoUrl])
 
+    // When the user pastes a URL that matches one of their known GitHub
+    // repos, selectedGithubRepo flips from null → { defaultBranch }. Mirror
+    // the picker's auto-fill so that pasted URLs don't silently leave the
+    // branch empty (which the server used to resolve as HEAD ≈ main).
+    useEffect(() => {
+        const defaultBranch = selectedGithubRepo?.defaultBranch
+        if (!defaultBranch) return
+        if (repoBranch.trim()) return
+        setRepoBranch(defaultBranch)
+        setAutoFilledFields((prev) => {
+            const next = new Set(prev)
+            next.add('branch')
+            return next
+        })
+        if (autoFillTimerRef.current) clearTimeout(autoFillTimerRef.current)
+        autoFillTimerRef.current = setTimeout(() => {
+            setAutoFilledFields(new Set())
+            autoFillTimerRef.current = null
+        }, 1100)
+    }, [selectedGithubRepo?.defaultBranch])
+
     const githubBranchesQuery = useQuery({
         queryKey: selectedGithubRepo
             ? queryKeys.cloudAgentGitHubBranches(selectedGithubRepo.owner, selectedGithubRepo.name)
@@ -1089,16 +1110,21 @@ export function HomeComposer(props: {
                                                     value={repoBranch}
                                                     onChange={e => setRepoBranch(e.target.value)}
                                                 >
-                                                    <option value="">
+                                                    {/* Default option carries the repo's actual default branch as its value.
+                                                        Using an empty value used to cascade through the server into target=HEAD,
+                                                        which meant the session silently ignored the user's apparent selection. */}
+                                                    <option value={selectedGithubRepo.defaultBranch ?? ''}>
                                                         {selectedGithubRepo.defaultBranch
                                                             ? `Default (${selectedGithubRepo.defaultBranch})`
                                                             : 'Select branch'}
                                                     </option>
-                                                    {githubBranches.map(b => (
-                                                        <option key={b.name} value={b.name}>
-                                                            {b.name}{b.protected ? ' · protected' : ''}
-                                                        </option>
-                                                    ))}
+                                                    {githubBranches
+                                                        .filter(b => b.name !== selectedGithubRepo.defaultBranch)
+                                                        .map(b => (
+                                                            <option key={b.name} value={b.name}>
+                                                                {b.name}{b.protected ? ' · protected' : ''}
+                                                            </option>
+                                                        ))}
                                                 </CursorSelect>
                                             ) : (
                                                 <CursorTextField

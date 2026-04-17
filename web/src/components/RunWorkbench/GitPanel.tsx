@@ -328,7 +328,14 @@ export function GitPanel(props: {
     const prNumber = props.prInfo?.number
     const prTitle = props.prInfo?.title ?? (props.session.metadata as any)?.name ?? ''
     const branch = props.prInfo?.branch ?? props.session.metadata?.workspaceBranch ?? props.session.metadata?.worktree?.branch ?? ''
-    const baseBranch = props.prInfo?.baseBranch ?? 'main'
+    // Fall through to the session's configured repository ref before
+    // defaulting to 'main'. Hardcoding 'main' makes the UI claim every
+    // session is based on main even when the user picked a feature branch.
+    const baseBranch = props.prInfo?.baseBranch
+        ?? props.session.metadata?.repositoryRef?.branch
+        ?? props.session.metadata?.repositoryRef?.tag
+        ?? (props.session.metadata?.repositoryRef?.commit?.slice(0, 7))
+        ?? 'main'
 
     const subTabs: { key: GitSubTab; label: string; count?: number }[] = [
         { key: 'diff', label: 'Diff' },

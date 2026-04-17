@@ -8,6 +8,7 @@ import { syncRepositoryInContainer } from '@/cloud/workspace/syncRepositoryInCon
 import { syncPathWorkspaceInContainer } from '@/cloud/workspace/syncPathWorkspaceInContainer'
 import { DaemonClient } from './DaemonClient'
 import { buildSpawnArgs } from './HostProcessExecutor'
+import { updateAgentCliInContainer } from './updateAgentCliInContainer'
 import { collectHostCredentials } from '@/cloud/credentials/hostCredentials'
 import { getContainerHomeTargets, resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
 import { mergePreviewTargets } from '@/cloud/preview/previewReporter'
@@ -342,6 +343,11 @@ export async function startDaemonSessionExecutor(params: {
                             await new Promise(r => setTimeout(r, 1000))
                         }
 
+                        // Best-effort refresh of the baked-in agent CLI
+                        // before spawn. Failure / timeout falls back to the
+                        // existing version; this never blocks the session.
+                        await updateAgentCliInContainer(params.runtime, containerId, params.options.agent ?? 'claude')
+
                         // Spawn new agent in existing container
                         const spawnArgs = buildSpawnArgs(params.options)
                         const reattachCreds = collectHostCredentials()
@@ -544,6 +550,11 @@ export async function startDaemonSessionExecutor(params: {
             cwd: params.workspace.workingDirectory,
             env: executionEnv
         })
+
+        // Best-effort refresh of the baked-in agent CLI before spawn on
+        // the fresh-container path. Failure / timeout falls back to the
+        // existing version; this never blocks the session.
+        await updateAgentCliInContainer(params.runtime, containerId, params.options.agent ?? 'claude')
 
         const spawnArgs = buildSpawnArgs(params.options)
         const hostCreds = collectHostCredentials()
