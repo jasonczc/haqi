@@ -57,7 +57,7 @@ function HappyNestedBlockList(props: {
         <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
             {props.blocks.map((block) => {
                 if (block.kind === 'user-text') {
-                    const userBubbleClass = 'chat-message-user chat-user-bubble ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--cursor-bg-quiet)] px-3 py-2 text-[var(--cursor-text-primary)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
+                    const userBubbleClass = 'chat-message-user chat-user-bubble ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--cursor-bg-quiet)] px-3 py-2 text-[var(--text-primary)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
                     const status = block.status
                     const canRetry = status === 'failed' && typeof block.localId === 'string' && Boolean(ctx.onRetryMessage)
                     const onRetry = canRetry ? () => ctx.onRetryMessage!(block.localId!) : undefined
@@ -103,7 +103,7 @@ function HappyNestedBlockList(props: {
                     const presentation = getEventPresentation(block.event)
                     return (
                         <div key={`event:${block.id}`} className="chat-agent-event-row py-1">
-                            <div className="chat-agent-event mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--cursor-text-secondary)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
+                            <div className="chat-agent-event mx-auto w-fit max-w-[88%] px-2 text-center text-[length:var(--font-size-sm)] text-[var(--text-secondary)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
                                 <span className="inline-flex items-center gap-1">
                                     {presentation.icon ? <span aria-hidden="true">{presentation.icon}</span> : null}
                                     <span>{presentation.text}</span>
@@ -139,7 +139,7 @@ function HappyNestedBlockList(props: {
                                         ) : null}
                                         {taskChildren && taskChildren.rest.length > 0 ? (
                                             <details className={`chat-task-details ${isCompact ? 'mt-1.5' : 'mt-2'}`}>
-                                                <summary className="chat-task-details-summary cursor-pointer text-xs text-[var(--cursor-text-secondary)]">
+                                                <summary className="chat-task-details-summary cursor-pointer text-[length:var(--font-size-sm)] text-[var(--text-secondary)]">
                                                     Task details ({taskChildren.rest.length})
                                                 </summary>
                                                 <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
@@ -177,16 +177,19 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
 
         return (
             <div className={`${isCompact ? 'py-0.5' : 'py-1'} min-w-0 max-w-full overflow-x-hidden`}>
-                <div className={`rounded-xl bg-[var(--cursor-bg-quiet)] shadow-sm ${isCompact ? 'p-2.5' : 'p-3'}`}>
-                    <div className="flex items-center gap-2 text-xs">
-                        <div className="font-mono text-[var(--cursor-text-secondary)]">
+                <div
+                    className="border border-[var(--border-tertiary)] bg-[var(--bg-quiet,transparent)] text-[length:var(--font-size-base)] leading-[var(--line-height-base)] text-[var(--text-primary)]"
+                    style={{ borderRadius: 'var(--secondary-card-radius)', padding: 'var(--secondary-card-padding)' }}
+                >
+                    <div className="flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--text-secondary)]">
+                        <div className="font-mono">
                             Tool: {props.toolName}
                         </div>
                         {props.isError ? (
                             <span className="text-[var(--danger)]">Error</span>
                         ) : null}
                         {props.status.type === 'running' && !hasResult ? (
-                            <span className="text-[var(--cursor-text-secondary)]">Running…</span>
+                            <span>Running…</span>
                         ) : null}
                     </div>
 
@@ -232,7 +235,7 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
                         ) : null}
                         {taskChildren && taskChildren.rest.length > 0 ? (
                             <details className={`chat-task-details ${isCompact ? 'mt-1.5' : 'mt-2'}`}>
-                                <summary className="chat-task-details-summary cursor-pointer text-xs text-[var(--cursor-text-secondary)]">
+                                <summary className="chat-task-details-summary cursor-pointer text-[length:var(--font-size-sm)] text-[var(--text-secondary)]">
                                     Task details ({taskChildren.rest.length})
                                 </summary>
                                 <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>

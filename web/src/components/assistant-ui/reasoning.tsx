@@ -45,7 +45,9 @@ export const Reasoning: FC = () => {
         <MarkdownTextPrimitive
             remarkPlugins={MARKDOWN_PLUGINS}
             components={defaultComponents}
-            className={cn('aui-reasoning-content chat-reasoning-content min-w-0 max-w-full break-words text-sm text-[var(--cursor-text-secondary)]')}
+            className={cn(
+                'aui-reasoning-content chat-reasoning-content min-w-0 max-w-full break-words text-[length:var(--font-size-base)] leading-[var(--line-height-base)] text-[var(--text-secondary)]'
+            )}
         />
     )
 }
@@ -71,15 +73,18 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
     }, [isStreaming])
 
     return (
-        <div className="aui-reasoning-group chat-reasoning-group my-2">
+        <div
+            className="aui-reasoning-group chat-reasoning-group my-2 border border-[var(--border-tertiary)]"
+            style={{ borderRadius: 'var(--secondary-card-radius)', padding: 'var(--secondary-card-padding)' }}
+        >
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
                     'chat-reasoning-toggle',
-                    'flex items-center gap-1.5 text-xs font-medium',
-                    'text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]',
-                    'transition-colors cursor-pointer select-none'
+                    'flex items-center gap-1.5 font-medium',
+                    'text-[length:var(--font-size-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
+                    'transition-colors cursor-pointer select-none w-full'
                 )}
             >
                 <ChevronIcon open={isOpen} />
@@ -98,7 +103,9 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                     isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
                 )}
             >
-                <div className="chat-reasoning-body ml-0.5 border-l-2 border-[var(--cursor-stroke-secondary)] pl-4 pt-2">
+                <div
+                    className="chat-reasoning-body ml-0.5 border-l-2 border-[var(--border-tertiary)] pl-4 pt-2 text-[length:var(--font-size-base)] leading-[var(--line-height-base)] text-[var(--text-secondary)]"
+                >
                     {children}
                 </div>
             </div>

@@ -116,6 +116,10 @@
   --composer-padding-left: 16px;
   --composer-fade-height: 80px;
 
+  /* ── Secondary cards (Reasoning / Tool blocks) ─ */
+  --secondary-card-radius: 6px;
+  --secondary-card-padding: 8px 10px;
+
   /* ── Context panel ────────────────────────────── */
   --context-panel-width: 440px;
   --context-tab-gap: 16px;
