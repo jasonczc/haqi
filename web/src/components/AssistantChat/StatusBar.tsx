@@ -159,6 +159,28 @@ export function StatusBar(props: {
         ? (isCodexPlanMode ? t('codex.mode.plan') : t('codex.mode.normal'))
         : null
 
+    // Only render when there's real state to surface. Idle = null (cursor-parity).
+    const hasPermissionRequests = Boolean(
+        props.agentState?.requests && Object.keys(props.agentState.requests).length > 0
+    )
+    const hasVoiceActivity = Boolean(props.voiceStatus) && props.voiceStatus !== 'disconnected'
+    const hasContextWarning = Boolean(contextWarning)
+        && typeof props.contextSize === 'number'
+        && Boolean(maxContextSize)
+        && (props.contextSize / (maxContextSize || 1)) >= 0.5
+    const hasMultipleAgents = runningAgents.length > 1
+    const hasContent = Boolean(props.thinking)
+        || hasPermissionRequests
+        || hasVoiceActivity
+        || hasContextWarning
+        || hasMultipleAgents
+        || Boolean(displayPermissionMode)
+        || Boolean(isCodexPlanMode)
+
+    if (!hasContent) {
+        return null
+    }
+
     return (
         <div
             className="composer-status-bar composer-statusbar flex items-start justify-between gap-3 overflow-x-auto"
@@ -202,7 +224,7 @@ export function StatusBar(props: {
             </div>
 
             <div className="composer-status-meta flex shrink-0 items-center gap-2">
-                {contextWarning ? (
+                {hasContextWarning && contextWarning ? (
                     <span className={`composer-status-context text-[10px] ${contextWarning.color}`}>
                         {contextWarning.text}
                     </span>

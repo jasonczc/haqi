@@ -1,7 +1,28 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
 import { useTranslation } from '@/lib/use-translation'
 import { ComposerIconButton } from '@/components/AssistantChat/ComposerIconButton'
+
+function MoreDotsIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <circle cx="5" cy="12" r="1.4" fill="currentColor" />
+            <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+            <circle cx="19" cy="12" r="1.4" fill="currentColor" />
+        </svg>
+    )
+}
 
 function VoiceAssistantIcon() {
     return (
@@ -379,6 +400,27 @@ export function ComposerButtons(props: {
 }) {
     const { t } = useTranslation()
     const isVoiceConnected = props.voiceStatus === 'connected'
+    const [showMore, setShowMore] = useState(false)
+    const moreWrapperRef = useRef<HTMLDivElement>(null)
+
+    const moreCount = (props.showSettingsButton ? 1 : 0)
+        + (props.showTerminalButton ? 1 : 0)
+        + (props.showStatusButton ? 1 : 0)
+    const showMoreMenuButton = moreCount > 0
+
+    useEffect(() => {
+        if (!showMore) return
+        const handleDocMouseDown = (event: MouseEvent) => {
+            const el = moreWrapperRef.current
+            if (!el) return
+            if (el.contains(event.target as Node)) return
+            setShowMore(false)
+        }
+        document.addEventListener('mousedown', handleDocMouseDown)
+        return () => document.removeEventListener('mousedown', handleDocMouseDown)
+    }, [showMore])
+
+    const closeMore = useCallback(() => setShowMore(false), [])
 
     return (
         <div
@@ -395,39 +437,56 @@ export function ComposerButtons(props: {
                     <AttachmentIcon />
                 </ComposerPrimitive.AddAttachment>
 
-                {props.showSettingsButton ? (
-                    <ComposerIconButton
-                        icon={<SettingsIcon />}
-                        onClick={props.onSettingsToggle}
-                        disabled={props.controlsDisabled}
-                        title={t('composer.settings')}
-                        aria-label={t('composer.settings')}
-                        className="settings-button composer-settings-btn"
-                    />
-                ) : null}
-
-                {props.showTerminalButton ? (
-                    <ComposerIconButton
-                        icon={<TerminalIcon />}
-                        tone="success"
-                        onClick={props.onTerminal}
-                        disabled={props.terminalDisabled}
-                        title={t('composer.terminal')}
-                        aria-label={t('composer.terminal')}
-                        className="composer-terminal-btn"
-                    />
-                ) : null}
-
-                {props.showStatusButton ? (
-                    <ComposerIconButton
-                        icon={<StatusIcon />}
-                        tone="accent"
-                        onClick={props.onStatus}
-                        disabled={props.statusDisabled}
-                        title={t('composer.status')}
-                        aria-label={t('composer.status')}
-                        className="composer-status-btn"
-                    />
+                {showMoreMenuButton ? (
+                    <div ref={moreWrapperRef} className="composer-more-wrapper relative">
+                        <ComposerIconButton
+                            icon={<MoreDotsIcon />}
+                            onClick={() => setShowMore((prev) => !prev)}
+                            disabled={props.controlsDisabled}
+                            title={t('composer.more') || 'More'}
+                            aria-label={t('composer.more') || 'More'}
+                            className="composer-more-btn"
+                            active={showMore}
+                        />
+                        {showMore ? (
+                            <div
+                                className="composer-more-menu absolute bottom-[calc(100%+6px)] left-0 z-20 flex items-center gap-1 rounded-full border border-[var(--border-tertiary)] bg-[var(--bg-elevated,var(--editor))] px-1.5 py-1 shadow-md"
+                            >
+                                {props.showSettingsButton ? (
+                                    <ComposerIconButton
+                                        icon={<SettingsIcon />}
+                                        onClick={() => { closeMore(); props.onSettingsToggle() }}
+                                        disabled={props.controlsDisabled}
+                                        title={t('composer.settings')}
+                                        aria-label={t('composer.settings')}
+                                        className="settings-button composer-settings-btn"
+                                    />
+                                ) : null}
+                                {props.showTerminalButton ? (
+                                    <ComposerIconButton
+                                        icon={<TerminalIcon />}
+                                        tone="success"
+                                        onClick={() => { closeMore(); props.onTerminal() }}
+                                        disabled={props.terminalDisabled}
+                                        title={t('composer.terminal')}
+                                        aria-label={t('composer.terminal')}
+                                        className="composer-terminal-btn"
+                                    />
+                                ) : null}
+                                {props.showStatusButton ? (
+                                    <ComposerIconButton
+                                        icon={<StatusIcon />}
+                                        tone="accent"
+                                        onClick={() => { closeMore(); props.onStatus() }}
+                                        disabled={props.statusDisabled}
+                                        title={t('composer.status')}
+                                        aria-label={t('composer.status')}
+                                        className="composer-status-btn"
+                                    />
+                                ) : null}
+                            </div>
+                        ) : null}
+                    </div>
                 ) : null}
 
                 {props.showQueueButton ? (

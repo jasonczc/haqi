@@ -115,7 +115,7 @@ export function HappyUserMessage() {
             <div
                 className="user-prompt relative text-[length:var(--font-size-base)] text-[var(--text-primary)]"
                 style={{
-                    background: 'var(--editor)',
+                    background: 'var(--user-card-bg)',
                     border: '1px solid var(--border-tertiary)',
                     borderRadius: 'var(--user-card-radius)',
                     padding: 'var(--user-card-padding-y) var(--user-card-padding-x)',
