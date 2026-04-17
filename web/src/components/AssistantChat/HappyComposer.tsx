@@ -1267,31 +1267,56 @@ export function HappyComposer(props: {
     ])
 
     return (
-        <div className={`chat-input-wrapper px-3 ${bottomPaddingClass} pt-2 bg-[var(--cursor-bg-card)] ${cliMode ? 'cli-composer' : ''}`}>
-            <div className="chat-input-shell mx-auto w-full max-w-content">
+        <div
+            className={`chat-input-wrapper ${isIOSPWA ? 'chat-input-wrapper-ios-pwa' : ''} ${cliMode ? 'cli-composer' : ''}`}
+            style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                padding: `0 var(--chat-timeline-padding-x) var(--chat-timeline-padding-x)`,
+                background: `linear-gradient(to top, var(--chrome) 70%, transparent)`,
+                pointerEvents: 'none',
+            }}
+        >
+            <div
+                className={`chat-input-shell mx-auto w-full ${bottomPaddingClass}`}
+                style={{ pointerEvents: 'auto', maxWidth: 'var(--chat-content-max)' }}
+            >
                 <ComposerPrimitive.Root className="relative" onSubmit={handleSubmit}>
                     {overlays}
-
-                    <StatusBar
-                        active={active}
-                        thinking={thinking}
-                        agentState={agentState}
-                        contextSize={contextSize}
-                        contextWindowTokens={contextWindowTokens}
-                        modelMode={modelMode}
-                        permissionMode={permissionMode}
-                        agentFlavor={agentFlavor}
-                        collaborationMode={codexCollaborationMode}
-                        voiceStatus={voiceStatus}
-                    />
 
                     <ComposerPrimitive.AttachmentDropzone
                         asChild
                         disabled={controlsDisabled}
                     >
-                        <div className={`chat-input-box overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--cursor-link)] ${cliMode ? 'rounded border border-[var(--cursor-stroke-primary)] bg-transparent' : 'rounded-[20px] bg-[var(--cursor-bg-quiet)]'}`}>
+                        <div
+                            className="chat-input-box overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--focus)]"
+                            style={{
+                                background: cliMode ? 'transparent' : 'var(--editor)',
+                                border: `1px solid var(--border-tertiary)`,
+                                borderRadius: cliMode ? '4px' : 'var(--composer-radius)',
+                                padding: `var(--composer-padding-top) var(--composer-padding-right) var(--composer-padding-bottom) var(--composer-padding-left)`,
+                                boxShadow: cliMode ? 'none' : '0 4px 12px rgba(0,0,0,0.05)',
+                            }}
+                        >
+                            <StatusBar
+                                active={active}
+                                thinking={thinking}
+                                agentState={agentState}
+                                contextSize={contextSize}
+                                contextWindowTokens={contextWindowTokens}
+                                modelMode={modelMode}
+                                permissionMode={permissionMode}
+                                agentFlavor={agentFlavor}
+                                collaborationMode={codexCollaborationMode}
+                                voiceStatus={voiceStatus}
+                            />
                             {showInlineQueuePanel ? (
-                                <div className="chat-inline-queue border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] px-3 py-2">
+                                <div
+                                    className="chat-inline-queue"
+                                    style={{ borderBottom: '1px solid var(--border-tertiary)', padding: '8px 12px' }}
+                                >
                                     <div className="chat-inline-queue-row flex flex-wrap items-center gap-2">
                                         <span className="chat-inline-queue-label text-[12px] font-medium text-[var(--cursor-text-secondary)]">
                                             {t('queue.dialog.title')}
@@ -1400,7 +1425,7 @@ export function HappyComposer(props: {
                                 </div>
                             ) : null}
 
-                            <div className={`chat-input-row flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
+                            <div className={`chat-input-row flex items-center ${cliMode ? 'px-2 py-1.5' : 'py-1'}`}>
                                 {cliMode && (
                                     <span className="chat-cli-prompt mr-1.5 shrink-0 select-none text-[var(--accent)] font-semibold text-sm">{'❯'}</span>
                                 )}

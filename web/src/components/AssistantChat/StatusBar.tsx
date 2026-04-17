@@ -160,7 +160,14 @@ export function StatusBar(props: {
         : null
 
     return (
-        <div className="composer-status-bar flex items-start justify-between gap-3 px-2 pb-1">
+        <div
+            className="composer-status-bar composer-statusbar flex items-start justify-between gap-3 overflow-x-auto"
+            style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--text-secondary)',
+                marginBottom: '6px',
+            }}
+        >
             <div className="composer-status-main flex min-w-0 flex-col gap-1">
                 <div className="composer-status-row flex items-center gap-1.5">
                     <span

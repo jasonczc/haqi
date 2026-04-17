@@ -381,8 +381,11 @@ export function ComposerButtons(props: {
     const isVoiceConnected = props.voiceStatus === 'connected'
 
     return (
-        <div className="chat-input-footer flex items-center justify-between px-2 pb-2">
-            <div className="chat-input-tools flex items-center gap-1">
+        <div
+            className="chat-input-footer flex items-center justify-between gap-2"
+            style={{ marginTop: '4px' }}
+        >
+            <div className="footer-left chat-input-tools flex items-center gap-1">
                 <ComposerPrimitive.AddAttachment
                     aria-label={t('composer.attach')}
                     title={t('composer.attach')}
@@ -482,7 +485,7 @@ export function ComposerButtons(props: {
             </div>
 
             <div
-                className="chat-input-actions flex items-center gap-1.5"
+                className="footer-right chat-input-actions flex items-center gap-1.5"
                 title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
             >
                 {props.showPlanModeToggle ? (
@@ -491,7 +494,15 @@ export function ComposerButtons(props: {
                         onClick={props.onPlanModeToggle}
                         disabled={props.planModeDisabled}
                         data-active={props.planModeEnabled ? '' : undefined}
-                        className="mode-chip"
+                        className="mode-chip composer-chip hover:bg-[var(--cursor-bg-hover)]"
+                        style={{
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--text-secondary)',
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                        }}
                         title={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
                         aria-label={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
                         aria-pressed={props.planModeEnabled}
@@ -506,7 +517,15 @@ export function ComposerButtons(props: {
                         onClick={() => props.onSendModeChange(props.sendMode === 'queue' ? 'direct' : 'queue')}
                         disabled={props.sendModeDisabled}
                         data-active={props.sendMode === 'queue' ? '' : undefined}
-                        className="mode-chip"
+                        className="mode-chip composer-chip hover:bg-[var(--cursor-bg-hover)]"
+                        style={{
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--text-secondary)',
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                        }}
                         title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
                         aria-label={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
                     >
