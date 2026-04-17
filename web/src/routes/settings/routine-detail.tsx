@@ -30,15 +30,17 @@ import { RunStateGraph } from '@/components/routines/RunStateGraph'
 import { RunEventTimeline } from '@/components/routines/RunEventTimeline'
 
 function statusDotColor(status: RoutineRunStatus): string {
+    // Semantic colors from cursor-theme.css — mirrors the status buckets
+    // used by the state graph and timeline so the whole surface agrees.
     switch (status) {
-        case 'queued': return '#a8a29e'
-        case 'spawning': return '#fbbf24'
-        case 'running': return '#3b82f6'
-        case 'succeeded': return '#10b981'
-        case 'failed': return '#ef4444'
-        case 'timeout': return '#f59e0b'
-        case 'skipped': return '#9ca3af'
-        case 'cancelled': return '#6b7280'
+        case 'queued': return 'var(--text-tertiary)'
+        case 'spawning':
+        case 'timeout': return 'var(--warn)'
+        case 'running': return 'var(--accent)'
+        case 'succeeded': return 'var(--success)'
+        case 'failed': return 'var(--danger)'
+        case 'skipped':
+        case 'cancelled': return 'var(--text-quaternary)'
     }
 }
 
@@ -126,21 +128,21 @@ export default function SettingsRoutineDetailPage() {
                 <div className="flex flex-col gap-1">
                     <Link
                         to="/settings/routines"
-                        className="w-fit text-[11px] text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-link)]"
+                        className="w-fit text-[var(--font-size-xs)] text-[var(--text-tertiary)] hover:text-[var(--accent)]"
                     >
                         ← Routines
                     </Link>
-                    <h1 className="text-[17px] font-semibold text-[var(--cursor-text-primary)]">
+                    <h1 className="text-[var(--font-size-lg)] font-semibold text-[var(--text-primary)]">
                         {routine?.name ?? routineId}
                     </h1>
                     {routine?.description ? (
-                        <p className="text-[12px] text-[var(--cursor-text-tertiary)]">
+                        <p className="text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
                             {routine.description}
                         </p>
                     ) : null}
                 </div>
                 {routine ? (
-                    <div className="flex items-center gap-3 text-[11px] text-[var(--cursor-text-tertiary)]">
+                    <div className="flex items-center gap-3 text-[var(--font-size-xs)] text-[var(--text-tertiary)]">
                         <span>v{routine.version}</span>
                         <span>·</span>
                         <span>{routine.trigger.kind}</span>
@@ -152,16 +154,16 @@ export default function SettingsRoutineDetailPage() {
 
             <div className="grid grid-cols-[320px,1fr] gap-4">
                 {/* Runs list */}
-                <section className="flex flex-col rounded-[8px] border border-[var(--cursor-stroke-secondary)]">
-                    <div className="border-b border-[var(--cursor-stroke-secondary)] px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                <section className="flex flex-col rounded-lg border border-[var(--border-secondary)]">
+                    <div className="border-b border-[var(--border-secondary)] px-3 py-2 text-[var(--font-size-xs)] font-medium uppercase tracking-wide text-[var(--text-tertiary)]">
                         Runs ({runs.length})
                     </div>
                     {runsQ.isLoading ? (
-                        <div className="px-3 py-6 text-center text-[12px] text-[var(--cursor-text-tertiary)]">
+                        <div className="px-3 py-6 text-center text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
                             Loading…
                         </div>
                     ) : runs.length === 0 ? (
-                        <div className="px-3 py-6 text-center text-[12px] text-[var(--cursor-text-tertiary)]">
+                        <div className="px-3 py-6 text-center text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
                             No runs yet.
                         </div>
                     ) : (
@@ -179,10 +181,10 @@ export default function SettingsRoutineDetailPage() {
                                                 search: { run: r.id }
                                             })
                                         }
-                                        className={`flex w-full items-center gap-2 border-b border-[var(--cursor-stroke-secondary)] px-3 py-2 text-left text-[12px] last:border-b-0 transition-colors ${
+                                        className={`flex w-full items-center gap-2 border-b border-[var(--border-secondary)] px-3 py-2 text-left text-[var(--font-size-sm)] last:border-b-0 transition-colors ${
                                             selected
-                                                ? 'bg-[var(--cursor-bg-subtle)]'
-                                                : 'hover:bg-[var(--cursor-bg-subtle)]'
+                                                ? 'bg-[var(--bg-quaternary)]'
+                                                : 'hover:bg-[var(--bg-quaternary)]'
                                         }`}
                                     >
                                         <span
@@ -190,14 +192,14 @@ export default function SettingsRoutineDetailPage() {
                                             style={{ backgroundColor: statusDotColor(r.status) }}
                                         />
                                         <span className="flex min-w-0 flex-1 flex-col">
-                                            <span className="truncate font-medium text-[var(--cursor-text-primary)]">
+                                            <span className="truncate font-medium text-[var(--text-primary)]">
                                                 {r.status}
                                             </span>
-                                            <span className="truncate font-mono text-[10px] text-[var(--cursor-text-tertiary)]">
+                                            <span className="truncate font-mono text-[var(--font-size-xs)] text-[var(--text-tertiary)]">
                                                 {r.id.slice(0, 8)} · {formatHMS(r.startedAt)}
                                             </span>
                                         </span>
-                                        <span className="flex-shrink-0 font-mono text-[10px] text-[var(--cursor-text-tertiary)]">
+                                        <span className="flex-shrink-0 font-mono text-[var(--font-size-xs)] text-[var(--text-tertiary)]">
                                             {formatDuration(r)}
                                         </span>
                                     </button>
@@ -210,36 +212,36 @@ export default function SettingsRoutineDetailPage() {
                 {/* Run detail */}
                 <section className="flex flex-col gap-4">
                     {!selectedRunId ? (
-                        <div className="flex items-center justify-center rounded-[8px] border border-dashed border-[var(--cursor-stroke-secondary)] px-6 py-16 text-[13px] text-[var(--cursor-text-tertiary)]">
+                        <div className="flex items-center justify-center rounded-lg border border-dashed border-[var(--border-secondary)] px-6 py-16 text-[var(--font-size-base)] text-[var(--text-tertiary)]">
                             Select a run to inspect its state graph and timeline.
                         </div>
                     ) : !runDetailQ.data?.ok ? (
-                        <div className="flex items-center justify-center rounded-[8px] border border-dashed border-[var(--cursor-stroke-secondary)] px-6 py-16 text-[13px] text-[var(--cursor-text-tertiary)]">
+                        <div className="flex items-center justify-center rounded-lg border border-dashed border-[var(--border-secondary)] px-6 py-16 text-[var(--font-size-base)] text-[var(--text-tertiary)]">
                             Loading run…
                         </div>
                     ) : (
                         <>
-                            <div className="rounded-[8px] border border-[var(--cursor-stroke-secondary)]">
-                                <div className="flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] px-4 py-2">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                            <div className="rounded-lg border border-[var(--border-secondary)]">
+                                <div className="flex items-center justify-between border-b border-[var(--border-secondary)] px-4 py-2">
+                                    <span className="text-[var(--font-size-xs)] font-medium uppercase tracking-wide text-[var(--text-tertiary)]">
                                         State
                                     </span>
-                                    <span className="font-mono text-[11px] text-[var(--cursor-text-tertiary)]">
+                                    <span className="font-mono text-[var(--font-size-xs)] text-[var(--text-tertiary)]">
                                         {runDetailQ.data.run.id.slice(0, 8)}
                                     </span>
                                 </div>
                                 <RunStateGraph currentStatus={runDetailQ.data.run.status} />
                             </div>
-                            <div className="rounded-[8px] border border-[var(--cursor-stroke-secondary)]">
-                                <div className="flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] px-4 py-2">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                            <div className="rounded-lg border border-[var(--border-secondary)]">
+                                <div className="flex items-center justify-between border-b border-[var(--border-secondary)] px-4 py-2">
+                                    <span className="text-[var(--font-size-xs)] font-medium uppercase tracking-wide text-[var(--text-tertiary)]">
                                         Timeline ({runDetailQ.data.events.length})
                                     </span>
                                     {runDetailQ.data.run.sessionId ? (
                                         <Link
                                             to="/sessions/$sessionId"
                                             params={{ sessionId: runDetailQ.data.run.sessionId }}
-                                            className="text-[11px] text-[var(--cursor-link)] hover:underline"
+                                            className="text-[var(--font-size-xs)] text-[var(--accent)] hover:underline"
                                         >
                                             Open session →
                                         </Link>

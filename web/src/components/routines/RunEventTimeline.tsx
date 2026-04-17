@@ -18,15 +18,19 @@ const KIND_LABEL: Record<RoutineEventKind, string> = {
     error: 'Error'
 }
 
+// Semantic colors from cursor-theme.css. Each event kind maps to the
+// status bucket the transition represents: spawning/running/ended
+// inherit the active colors (warn/accent/success); terminal skips fall
+// back to the dimmed text tokens; errors use --danger.
 const KIND_COLOR: Record<RoutineEventKind, string> = {
-    'fire-received': '#9ca3af',
-    'filter-evaluated': '#64748b',
-    'run-queued': '#a8a29e',
-    'run-spawning': '#fbbf24',
-    'run-started': '#3b82f6',
-    'run-ended': '#10b981',
-    skipped: '#6b7280',
-    error: '#ef4444'
+    'fire-received': 'var(--text-quaternary)',
+    'filter-evaluated': 'var(--text-tertiary)',
+    'run-queued': 'var(--text-tertiary)',
+    'run-spawning': 'var(--warn)',
+    'run-started': 'var(--accent)',
+    'run-ended': 'var(--success)',
+    skipped: 'var(--text-quaternary)',
+    error: 'var(--danger)'
 }
 
 function formatHMS(ts: number): string {
@@ -46,7 +50,7 @@ function formatDelta(ms: number): string {
 export function RunEventTimeline({ events }: { events: RoutineEventRow[] }) {
     if (events.length === 0) {
         return (
-            <div className="rounded-[8px] border border-dashed border-[var(--cursor-stroke-secondary)] px-4 py-6 text-center text-[12px] text-[var(--cursor-text-tertiary)]">
+            <div className="rounded-lg border border-dashed border-[var(--border-secondary)] px-4 py-6 text-center text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
                 No events recorded for this run yet.
             </div>
         )
@@ -60,12 +64,12 @@ export function RunEventTimeline({ events }: { events: RoutineEventRow[] }) {
                 return (
                     <div
                         key={ev.id}
-                        className="relative grid grid-cols-[80px,24px,1fr,90px] items-start gap-2 border-b border-[var(--cursor-stroke-secondary)] px-3 py-2 text-[12px] last:border-b-0"
+                        className="relative grid grid-cols-[80px,24px,1fr,90px] items-start gap-2 border-b border-[var(--border-secondary)] px-3 py-2 text-[var(--font-size-sm)] last:border-b-0"
                     >
-                        <div className="font-mono text-[11px] text-[var(--cursor-text-tertiary)]">
+                        <div className="font-mono text-[var(--font-size-xs)] text-[var(--text-tertiary)]">
                             {formatHMS(ev.at)}
                         </div>
-                        <div className="flex justify-center pt-[3px]">
+                        <div className="flex justify-center pt-1">
                             <span
                                 className="block h-2 w-2 rounded-full"
                                 style={{ backgroundColor: KIND_COLOR[ev.kind] }}
@@ -73,21 +77,21 @@ export function RunEventTimeline({ events }: { events: RoutineEventRow[] }) {
                             {i < events.length - 1 ? (
                                 <span
                                     aria-hidden
-                                    className="absolute left-[calc(80px+8px+12px)] top-[11px] h-full w-px bg-[var(--cursor-stroke-secondary)]"
+                                    className="absolute left-[calc(80px+8px+12px)] top-[11px] h-full w-px bg-[var(--border-secondary)]"
                                 />
                             ) : null}
                         </div>
                         <div className="flex flex-col gap-0.5">
-                            <span className="font-medium text-[var(--cursor-text-primary)]">
+                            <span className="font-medium text-[var(--text-primary)]">
                                 {KIND_LABEL[ev.kind]}
                             </span>
                             {summary ? (
-                                <span className="font-mono text-[11px] text-[var(--cursor-text-secondary)]">
+                                <span className="font-mono text-[var(--font-size-xs)] text-[var(--text-secondary)]">
                                     {summary}
                                 </span>
                             ) : null}
                         </div>
-                        <div className="text-right font-mono text-[11px] text-[var(--cursor-text-tertiary)]">
+                        <div className="text-right font-mono text-[var(--font-size-xs)] text-[var(--text-tertiary)]">
                             {i === 0 ? '' : formatDelta(delta)}
                         </div>
                     </div>

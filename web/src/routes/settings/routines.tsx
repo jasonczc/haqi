@@ -46,9 +46,9 @@ function describeTrigger(trigger: RoutineSummary['trigger']): string {
 function triggerBadgeColor(kind: RoutineTriggerKind): string {
     switch (kind) {
         case 'api':
-            return 'var(--cursor-link)'
+            return 'var(--accent)'
         case 'schedule':
-            return 'var(--cursor-text-primary)'
+            return 'var(--text-primary)'
         case 'github':
             return 'var(--accent)'
     }
@@ -76,31 +76,31 @@ export default function SettingsRoutinesPage() {
         <div className="flex flex-col gap-5 px-6 py-6">
             <header className="flex items-baseline justify-between gap-3">
                 <div>
-                    <h1 className="text-[17px] font-semibold text-[var(--cursor-text-primary)]">
+                    <h1 className="text-[var(--font-size-lg)] font-semibold text-[var(--text-primary)]">
                         Routines
                     </h1>
-                    <p className="mt-0.5 text-[12px] text-[var(--cursor-text-tertiary)]">
+                    <p className="mt-0.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
                         Scheduled, webhook, and API-triggered agent runs. Every fire
                         produces a durable run you can replay.
                     </p>
                 </div>
             </header>
 
-            <div className="rounded-[8px] border border-[var(--cursor-stroke-secondary)]">
-                <div className="grid grid-cols-[1.5fr,1fr,100px,140px] gap-3 border-b border-[var(--cursor-stroke-secondary)] px-4 py-2.5 text-[11px] font-medium uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+            <div className="rounded-lg border border-[var(--border-secondary)]">
+                <div className="grid grid-cols-[1.5fr,1fr,100px,140px] gap-3 border-b border-[var(--border-secondary)] px-4 py-2.5 text-[var(--font-size-xs)] font-medium uppercase tracking-wide text-[var(--text-tertiary)]">
                     <span>Name</span>
                     <span>Trigger</span>
                     <span>Status</span>
                     <span>Updated</span>
                 </div>
                 {q.isLoading ? (
-                    <div className="px-4 py-6 text-center text-[13px] text-[var(--cursor-text-tertiary)]">
+                    <div className="px-4 py-6 text-center text-[var(--font-size-base)] text-[var(--text-tertiary)]">
                         Loading…
                     </div>
                 ) : routines.length === 0 ? (
-                    <div className="px-4 py-10 text-center text-[13px] text-[var(--cursor-text-tertiary)]">
+                    <div className="px-4 py-10 text-center text-[var(--font-size-base)] text-[var(--text-tertiary)]">
                         No routines yet. Create one via{' '}
-                        <code className="rounded bg-[var(--cursor-bg-subtle)] px-1 py-0.5 font-mono text-[11px]">
+                        <code className="rounded bg-[var(--bg-quaternary)] px-1 py-0.5 font-mono text-[var(--font-size-xs)]">
                             POST /api/routines
                         </code>
                         .
@@ -116,19 +116,19 @@ export default function SettingsRoutinesPage() {
                                     params: { routineId: r.id }
                                 })
                             }
-                            className="grid w-full grid-cols-[1.5fr,1fr,100px,140px] gap-3 border-b border-[var(--cursor-stroke-secondary)] px-4 py-3 text-left text-[13px] transition-colors last:border-b-0 hover:bg-[var(--cursor-bg-subtle)]"
+                            className="grid w-full grid-cols-[1.5fr,1fr,100px,140px] gap-3 border-b border-[var(--border-secondary)] px-4 py-3 text-left text-[var(--font-size-base)] transition-colors last:border-b-0 hover:bg-[var(--bg-quaternary)]"
                         >
                             <div className="flex flex-col">
-                                <span className="truncate font-medium text-[var(--cursor-text-primary)]">
+                                <span className="truncate font-medium text-[var(--text-primary)]">
                                     {r.name}
                                 </span>
                                 {r.description ? (
-                                    <span className="truncate text-[11px] text-[var(--cursor-text-tertiary)]">
+                                    <span className="truncate text-[var(--font-size-xs)] text-[var(--text-tertiary)]">
                                         {r.description}
                                     </span>
                                 ) : null}
                             </div>
-                            <div className="flex items-center gap-1.5 text-[12px] text-[var(--cursor-text-secondary)]">
+                            <div className="flex items-center gap-1.5 text-[var(--font-size-sm)] text-[var(--text-secondary)]">
                                 <span
                                     className="h-1.5 w-1.5 rounded-full"
                                     style={{ backgroundColor: triggerBadgeColor(r.trigger.kind) }}
@@ -136,15 +136,15 @@ export default function SettingsRoutinesPage() {
                                 <span className="truncate">{describeTrigger(r.trigger)}</span>
                             </div>
                             <div
-                                className={`text-[12px] ${
+                                className={`text-[var(--font-size-sm)] ${
                                     r.status === 'active'
-                                        ? 'text-[var(--cursor-text-primary)]'
-                                        : 'text-[var(--cursor-text-tertiary)]'
+                                        ? 'text-[var(--text-primary)]'
+                                        : 'text-[var(--text-tertiary)]'
                                 }`}
                             >
                                 {r.status}
                             </div>
-                            <div className="text-[12px] text-[var(--cursor-text-tertiary)]">
+                            <div className="text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
                                 {formatRelative(r.updatedAt)}
                             </div>
                         </button>
