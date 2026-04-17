@@ -178,7 +178,7 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
         return (
             <div className={`${isCompact ? 'py-0.5' : 'py-1'} min-w-0 max-w-full overflow-x-hidden`}>
                 <div
-                    className="border border-[var(--border-tertiary)] bg-[var(--bg-quiet,transparent)] text-[length:var(--font-size-base)] leading-[var(--line-height-base)] text-[var(--text-primary)]"
+                    className="border border-[var(--border-tertiary)] bg-[var(--cursor-bg-quiet)] text-[length:var(--font-size-base)] leading-[var(--line-height-base)] text-[var(--text-primary)]"
                     style={{ borderRadius: 'var(--secondary-card-radius)', padding: 'var(--secondary-card-padding)' }}
                 >
                     <div className="flex items-center gap-2 text-[length:var(--font-size-sm)] text-[var(--text-secondary)]">
