@@ -502,10 +502,14 @@ function SessionInactiveBanner(props: {
 
     // Plain inactive fallback
     return (
-        <div className="px-3 pt-3">
-            <div className="w-full rounded-lg bg-[var(--cursor-bg-quiet)] px-4 py-2.5 text-[var(--font-size-base)] text-[var(--cursor-text-tertiary)]">
-                Session is inactive. Sending will resume it automatically.
-            </div>
+        <div
+            className="chat-inactive-note px-4 py-1 text-center"
+            style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--text-tertiary)',
+            }}
+        >
+            Session is inactive. Sending will resume it automatically.
         </div>
     )
 }
@@ -1562,7 +1566,7 @@ export function SessionChat(props: {
                         </div>
                     ) : null}
 
-                    <div className="chat-mode-switch px-3 pt-2">
+                    <div className="chat-mode-switch px-3 pt-2 hidden md:block">
                         <div className="segmented-control ml-auto">
                             <button
                                 type="button"
