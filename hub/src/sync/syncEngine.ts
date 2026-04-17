@@ -917,8 +917,8 @@ export class SyncEngine {
         await this.rpcGateway.abortSession(sessionId)
     }
 
-    async stopAndFlushCodexQueue(sessionId: string) {
-        return await this.rpcGateway.stopAndFlushCodexQueue(sessionId)
+    async stopAndPreserveCodexQueue(sessionId: string) {
+        return await this.rpcGateway.stopAndPreserveCodexQueue(sessionId)
     }
 
     async archiveSession(sessionId: string): Promise<void> {

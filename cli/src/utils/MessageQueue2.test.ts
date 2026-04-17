@@ -91,6 +91,28 @@ describe('MessageQueue2', () => {
         expect(result?.mode).toBe('local');
     });
 
+    it('should preserve queued messages while dequeue is paused until resumed', async () => {
+        const queue = new MessageQueue2<string>(mode => mode);
+
+        queue.push('keep-1', 'local');
+        queue.push('keep-2', 'local');
+        queue.pauseDequeue();
+
+        const abortController = new AbortController();
+        const waitPromise = queue.waitForMessagesAndGetAsString(abortController.signal);
+
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(queue.isDequeuePaused()).toBe(true);
+        expect(queue.size()).toBe(2);
+
+        queue.resumeDequeue();
+
+        const result = await waitPromise;
+        expect(result).not.toBeNull();
+        expect(result?.message).toBe('keep-1\nkeep-2');
+        expect(queue.size()).toBe(0);
+    });
+
     it('should return null when waiting and queue closes', async () => {
         const queue = new MessageQueue2<string>(mode => mode);
         

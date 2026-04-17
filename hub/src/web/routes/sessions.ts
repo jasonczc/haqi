@@ -448,7 +448,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
     }
 
-    const handleCodexQueueStopAndSend = async (c: Context<WebAppEnv>) => {
+    const handleCodexQueueStopAndPreserve = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
             return engine
@@ -460,12 +460,12 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         try {
-            const result = await engine.stopAndFlushCodexQueue(sessionResult.sessionId)
+            const result = await engine.stopAndPreserveCodexQueue(sessionResult.sessionId)
             return c.json(result)
         } catch (error) {
             return c.json({
                 success: false,
-                error: error instanceof Error ? error.message : 'Failed to stop and flush Codex queue'
+                error: error instanceof Error ? error.message : 'Failed to stop Codex while preserving queue'
             }, 500)
         }
     }
@@ -488,7 +488,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         app.post(`${path}/clear`, handleQueueClear)
     })
 
-    app.post('/sessions/:id/codex-queue/stop-and-send', handleCodexQueueStopAndSend)
+    app.post('/sessions/:id/codex-queue/stop-and-preserve', handleCodexQueueStopAndPreserve)
 
     app.get('/sessions/:id/usage', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)

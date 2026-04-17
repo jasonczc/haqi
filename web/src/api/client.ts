@@ -639,8 +639,8 @@ export class ApiClient {
         return await this.clearQueue(sessionId)
     }
 
-    async stopAndFlushCodexQueue(sessionId: string): Promise<QueueResponse> {
-        return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/stop-and-send`, {
+    async stopAndPreserveCodexQueue(sessionId: string): Promise<QueueResponse> {
+        return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/codex-queue/stop-and-preserve`, {
             method: 'POST',
             body: JSON.stringify({})
         })

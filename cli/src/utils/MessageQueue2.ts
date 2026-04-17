@@ -18,6 +18,7 @@ export class MessageQueue2<T> {
     public queue: MessageQueueItem<T>[] = []; // Made public for testing
     private waiter: ((hasMessages: boolean) => void) | null = null;
     private closed = false;
+    private dequeuePaused = false;
     private onMessageHandler: ((message: string, mode: T) => void) | null = null;
     private nextItemId = 1;
     modeHasher: (mode: T) => string;
@@ -124,6 +125,22 @@ export class MessageQueue2<T> {
         const removed = this.queue.length;
         this.queue = [];
         return removed;
+    }
+
+    pauseDequeue(): void {
+        this.dequeuePaused = true;
+    }
+
+    resumeDequeue(): void {
+        const wasPaused = this.dequeuePaused;
+        this.dequeuePaused = false;
+        if (wasPaused && this.queue.length > 0) {
+            this.notifyWaiter();
+        }
+    }
+
+    isDequeuePaused(): boolean {
+        return this.dequeuePaused;
     }
 
     /**
@@ -258,6 +275,7 @@ export class MessageQueue2<T> {
         logger.debug(`[MessageQueue2] reset() called. Clearing ${this.queue.length} messages`);
         this.clear();
         this.closed = false;
+        this.dequeuePaused = false;
 
         // Clear waiter without calling it since we're not closing
         this.waiter = null;
@@ -303,24 +321,20 @@ export class MessageQueue2<T> {
         hash: string;
         deferUserMessageUntilDequeue: boolean;
     } | null> {
-        // If we have messages, return them immediately
-        if (this.queue.length > 0) {
-            return this.collectBatch();
+        while (true) {
+            if (this.queue.length > 0 && !this.dequeuePaused) {
+                return this.collectBatch();
+            }
+
+            if (this.closed || abortSignal?.aborted) {
+                return null;
+            }
+
+            const hasMessages = await this.waitForMessages(abortSignal);
+            if (!hasMessages) {
+                return null;
+            }
         }
-
-        // If closed or already aborted, return null
-        if (this.closed || abortSignal?.aborted) {
-            return null;
-        }
-
-        // Wait for messages to arrive
-        const hasMessages = await this.waitForMessages(abortSignal);
-
-        if (!hasMessages) {
-            return null;
-        }
-
-        return this.collectBatch();
     }
 
     /**
@@ -414,7 +428,7 @@ export class MessageQueue2<T> {
             this.waiter = waiterFunc;
 
             // Check again in case messages arrived or queue closed while setting up
-            if (this.queue.length > 0) {
+            if (this.queue.length > 0 && !this.dequeuePaused) {
                 finish(true);
                 return;
             }

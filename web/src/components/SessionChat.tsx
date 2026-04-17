@@ -494,7 +494,7 @@ export function SessionChat(props: {
     const supportsQueueControls = supportsQueueControlsFlavor(agentFlavor)
     const {
         abortSession,
-        stopAndFlushCodexQueue,
+        stopAndPreserveCodexQueue,
         switchSession,
         setPermissionMode,
         setModel,
@@ -992,7 +992,7 @@ export function SessionChat(props: {
 
     const handleAbort = useCallback(async () => {
         if (agentFlavor === 'codex' && codexQueuePendingCount > 0) {
-            await stopAndFlushCodexQueue()
+            await stopAndPreserveCodexQueue()
         } else {
             await abortSession()
         }
@@ -1000,7 +1000,7 @@ export function SessionChat(props: {
         void refreshCodexQueue({ silent: true })
     }, [
         abortSession,
-        stopAndFlushCodexQueue,
+        stopAndPreserveCodexQueue,
         agentFlavor,
         codexQueuePendingCount,
         props.onRefresh,
