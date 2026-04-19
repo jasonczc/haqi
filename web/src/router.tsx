@@ -478,6 +478,29 @@ function SessionsPage() {
     // Inline sidebar delete — best-effort archive (kills any running worker/container)
     // then delete from the session store. Errors are logged but don't block the UI.
     const sidebarQueryClient = useQueryClient()
+
+    const shareSessionFromSidebar = useCallback(async (sessionId: string) => {
+        if (typeof window === 'undefined') return
+        const url = `${window.location.origin}/sessions/${sessionId}`
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(url)
+            }
+        } catch {
+            /* ignore */
+        }
+    }, [])
+
+    const archiveSessionFromSidebar = useCallback(async (sessionId: string) => {
+        if (!api) return
+        try {
+            await api.archiveSession(sessionId)
+            await sidebarQueryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+        } catch (err) {
+            console.error('Failed to archive session from sidebar:', err)
+        }
+    }, [api, sidebarQueryClient])
+
     const deleteSessionFromSidebar = useCallback(async (sessionId: string) => {
         if (!api) return
         const matchedId = typeof sessionMatch === 'object' && sessionMatch ? sessionMatch.sessionId : null
@@ -684,12 +707,29 @@ function SessionsPage() {
                                                                 zIndex: 200,
                                                             }}
                                                         >
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Pin</button>
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Rename</button>
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Share</button>
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Copy link</button>
+                                                            <button
+                                                                className="menu-action"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setOpenMenuSessionId(null)
+                                                                    setSessionMenuAnchor(null)
+                                                                    void shareSessionFromSidebar(session.id)
+                                                                }}
+                                                            >
+                                                                Share
+                                                            </button>
                                                             <div className="menu-divider" />
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Archive</button>
+                                                            <button
+                                                                className="menu-action"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setOpenMenuSessionId(null)
+                                                                    setSessionMenuAnchor(null)
+                                                                    void archiveSessionFromSidebar(session.id)
+                                                                }}
+                                                            >
+                                                                Archive
+                                                            </button>
                                                             <button
                                                                 className="menu-action danger"
                                                                 onClick={(e) => {
