@@ -399,8 +399,8 @@ body {
 
 .btn-share {
     background: transparent;
-    border: 1px solid var(--cursor-stroke-primary);
-    padding: 3px 6px;
+    border: none;
+    padding: 3px 8px;
     border-radius: 4px;
     font-size: 12.5px;
     font-weight: 500;
@@ -483,7 +483,7 @@ body {
 /* The actual bordered text area. Haqi keeps flex-column so StatusBar/attachments/ComposerButtons can stack inside, unlike claude-clone's flat textarea-only row. */
 .input-field-box {
     background-color: var(--cursor-bg-app);
-    border: 1px solid #D5D5D5;
+    border: 1px solid #EAEAEA;
     border-radius: 10px; /* Tighter rounding */
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
     display: flex;
@@ -837,33 +837,35 @@ body {
 .cursor-theme .nav-item {
     height: auto !important;
     min-height: 0 !important;
-    padding: 3px 6px !important;
+    padding: 4px 8px !important;
     gap: 6px !important;
-    font-size: 11.5px !important;
+    font-size: 12.5px !important;
     font-weight: 400 !important;
-    border-radius: 5px !important;
+    border-radius: 6px !important;
     color: var(--cursor-text-primary);
     background: transparent;
+    line-height: 1.35 !important;
 }
 .cursor-theme .nav-item svg { width: 13px !important; height: 13px !important; }
-.cursor-theme .nav-item:hover { background-color: var(--cc-accent-hover); }
-.cursor-theme .nav-item.active-item { background-color: var(--cc-accent-active); }
+.cursor-theme .nav-item:hover { background-color: #F3F3F3; }
+.cursor-theme .nav-item.active-item { background-color: #F0F0F0; font-weight: 500 !important; }
 .cursor-theme .nav-item.text-item { color: var(--cursor-text-secondary); font-weight: 400; }
 .cursor-theme .nav-item svg { color: inherit; opacity: 0.85; }
 
-/* Sidebar section labels */
+/* Sidebar section labels — uppercase muted, no chevron, claude-clone style */
 .cursor-theme .section-title {
-    font-size: 9.5px;
-    font-weight: 600;
-    letter-spacing: 0.2px;
-    color: var(--cc-text-muted);
-    padding: 2px 6px 1px;
-    margin-bottom: 2px;
-    text-transform: uppercase;
+    font-size: 10.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.04em !important;
+    color: #9B9B9B !important;
+    padding: 2px 6px 1px !important;
+    margin-bottom: 4px !important;
+    text-transform: uppercase !important;
 }
-.cursor-theme .section-title.lowercase-title { text-transform: none; }
-.cursor-theme .sidebar-section { margin-bottom: 8px; }
-.cursor-theme .sidebar-section-header { height: 20px; padding-right: 6px; margin-bottom: 2px; }
+.cursor-theme .section-title.lowercase-title { text-transform: uppercase !important; }
+.cursor-theme .sidebar-section { margin-bottom: 14px; }
+.cursor-theme .sidebar-section-header { height: 22px; padding-right: 6px; margin-bottom: 2px; cursor: default; }
+.cursor-theme .sidebar-section-header .section-action-btn { display: none; }
 .cursor-theme .nav-item-wrapper { padding: 1px 0; }
 
 /* Sidebar chrome */
@@ -891,17 +893,20 @@ body {
 
 /* Main header density */
 .cursor-theme .main-header { height: 38px; padding: 0 16px; }
-.cursor-theme .breadcrumb { font-size: 11.5px; gap: 4px; color: var(--cursor-text-secondary); }
-.cursor-theme .btn-share { padding: 3px 6px; font-size: 12.5px; border-radius: 4px; border: 1px solid var(--cursor-stroke-primary); background: transparent; color: var(--cursor-text-secondary); }
+.cursor-theme .breadcrumb { font-size: 14px; gap: 6px; color: var(--cursor-text-primary); font-weight: 500; }
+.cursor-theme .breadcrumb > *:not(:last-child) { color: var(--cursor-text-secondary); font-weight: 400; }
+.cursor-theme .btn-share { padding: 3px 8px; font-size: 13px; border-radius: 6px; border: none !important; background: transparent; color: var(--cursor-text-secondary); font-weight: 500; }
+.cursor-theme .btn-share:hover { background-color: #F3F3F3; color: var(--cursor-text-primary); }
 
 /* ============================================================
    COMPOSER — force claude-clone's short thin input shape.
    Haqi's default textarea is 3-4 rows tall + heavy border.
    ============================================================ */
 .cursor-theme .input-field-box {
-    border: 1px solid #D5D5D5 !important;
+    border: 1px solid #EAEAEA !important;
     border-radius: 10px !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03) !important;
+    margin-bottom: 0 !important;
     padding: 4px 8px 4px 12px !important;
     background: #FFFFFF !important;
     min-height: 0 !important;
@@ -961,12 +966,14 @@ body {
 .cursor-theme .chat-timeline-viewport { padding-left: 60px !important; padding-right: 60px !important; }
 .cursor-theme .input-container { max-width: 800px !important; margin-left: auto !important; margin-right: auto !important; }
 .cursor-theme .input-area-wrapper {
-    padding: 40px 60px 8px 60px !important;
+    padding: 20px 60px 10px 60px !important;
     position: absolute !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
 }
+.cursor-theme .input-area-wrapper > * { padding-bottom: 0 !important; }
+.cursor-theme .input-footer { padding-top: 4px !important; padding-bottom: 0 !important; }
 .cursor-theme .chat-center { padding-bottom: 0 !important; }
 .cursor-theme .chat-main { padding-bottom: 0 !important; }
 

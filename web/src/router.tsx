@@ -582,8 +582,7 @@ function SessionsPage() {
                                     tabIndex={0}
                                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroup(group.label) } }}
                                 >
-                                    <div className="section-title lowercase-title" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <svg className="collapse-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                    <div className="section-title">
                                         {group.label}
                                     </div>
                                     <button
