@@ -40,8 +40,8 @@ body {
     height: 100vh;
     background-color: var(--cursor-bg-app, #FFFFFF);
     position: relative;
-    padding: 12px; /* Uniform padding provides the space for the floating visuals */
-    gap: 8px; /* Space between sidebar panel and main content */
+    padding: 0;
+    gap: 0;
     box-sizing: border-box;
 }
 
