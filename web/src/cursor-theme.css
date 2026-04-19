@@ -375,52 +375,54 @@ body {
 }
 
 .main-header {
-    height: 38px; /* Micro header */
+    height: 56px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
+    padding: 0 20px;
 }
 
 .breadcrumb {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     color: var(--cursor-text-secondary);
-    font-size: 11.5px; /* Downsized font */
-    font-weight: 500;
+    font-size: 15px;
+    font-weight: 400;
 }
 
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 10px;
 }
 
 .btn-share {
     background: transparent;
-    border: none;
-    padding: 3px 8px;
-    border-radius: 4px;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--cursor-text-secondary);
+    border: 1px solid #E6E6E6;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--cursor-text-primary);
     cursor: pointer;
 }
-.btn-share:hover { background-color: var(--cc-accent-hover); color: var(--cursor-text-primary); }
+.btn-share:hover { background-color: #F3F3F3; }
 
 .icon-action-btn {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     background: transparent;
     border: none;
-    padding: 2px;
-    color: #888888;
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: #6B6B6B;
     cursor: pointer;
 }
 .icon-action-btn:hover {
     color: var(--cursor-text-primary);
+    background-color: #F3F3F3;
 }
 
 /* Chat Window */
@@ -1061,11 +1063,14 @@ body {
 .cursor-theme .main-content { background: var(--cursor-bg-app); border: none; border-radius: 0; box-shadow: none; }
 
 /* Main header density */
-.cursor-theme .main-header { height: 38px; padding: 0 16px; }
-.cursor-theme .breadcrumb { font-size: 14px; gap: 6px; color: var(--cursor-text-primary); font-weight: 500; }
-.cursor-theme .breadcrumb > *:not(:last-child) { color: var(--cursor-text-secondary); font-weight: 400; }
-.cursor-theme .btn-share { padding: 3px 8px; font-size: 13px; border-radius: 6px; border: none !important; background: transparent; color: var(--cursor-text-secondary); font-weight: 500; }
-.cursor-theme .btn-share:hover { background-color: #F3F3F3; color: var(--cursor-text-primary); }
+.cursor-theme .main-header { height: 56px !important; padding: 0 20px !important; border-bottom: 1px solid #F0F0F0 !important; }
+.cursor-theme .breadcrumb { font-size: 15px !important; gap: 8px !important; color: var(--cursor-text-secondary) !important; font-weight: 400 !important; }
+.cursor-theme .breadcrumb > span[style*="fontWeight"] { color: var(--cursor-text-primary) !important; font-weight: 500 !important; }
+.cursor-theme .btn-share { padding: 5px 12px !important; font-size: 14px !important; border-radius: 6px !important; border: 1px solid #E6E6E6 !important; background: transparent !important; color: var(--cursor-text-primary) !important; font-weight: 400 !important; }
+.cursor-theme .btn-share:hover { background-color: #F3F3F3 !important; }
+.cursor-theme .header-actions { gap: 10px !important; }
+.cursor-theme .icon-action-btn { padding: 4px 6px !important; border-radius: 6px !important; color: #6B6B6B !important; }
+.cursor-theme .icon-action-btn:hover { background-color: #F3F3F3 !important; color: var(--cursor-text-primary) !important; }
 
 /* ============================================================
    COMPOSER — force claude-clone's short thin input shape.
