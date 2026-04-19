@@ -1173,17 +1173,20 @@ body {
    VERTICAL RHYTHM + WIDTH (claude-clone chat column)
    ============================================================ */
 
-/* Content column: 800px max, 60px horizontal gutter on viewport */
+/* Content column: claude-clone is actually ~760px; gutter 24px so on a
+   1400px main pane there's ~280px margin each side which feels balanced.
+   For very wide viewports the composer should feel like it's occupying
+   the same column, so both inner and input-container share 900px cap. */
 .cursor-theme .chat-timeline-inner {
-    max-width: 800px !important;
+    max-width: 900px !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
     margin-left: auto !important;
     margin-right: auto !important;
 }
 .cursor-theme .chat-timeline-viewport {
-    padding-left: 60px !important;
-    padding-right: 60px !important;
+    padding-left: 24px !important;
+    padding-right: 24px !important;
     padding-top: 6px !important;
     padding-bottom: 6px !important;
 }
@@ -1194,9 +1197,9 @@ body {
     --chat-round-gap-internal: 12px !important;
     --chat-message-gap: 6px !important;
 }
-.cursor-theme .input-container { max-width: 800px !important; margin-left: auto !important; margin-right: auto !important; }
+.cursor-theme .input-container { max-width: 900px !important; margin-left: auto !important; margin-right: auto !important; }
 .cursor-theme .input-area-wrapper {
-    padding: 4px 60px 6px 60px !important;
+    padding: 4px 24px 6px 24px !important;
     position: absolute !important;
     bottom: 0 !important;
     left: 0 !important;
