@@ -737,6 +737,57 @@ body {
     margin: 4px 2px;
 }
 
+/* ============================================================
+   COMPOSER FOOTER — tame haqi's oversized send/voice button
+   and shrink icon row density to claude-clone scale.
+   Reference is ~18px line icons, no filled backgrounds.
+   ============================================================ */
+.cursor-theme .composer-send-btn {
+    height: 26px !important;
+    width: 26px !important;
+    background: transparent !important;
+    color: var(--cursor-text-secondary) !important;
+    box-shadow: none !important;
+    border-radius: 999px !important;
+}
+.cursor-theme .composer-send-btn.bg-black,
+.cursor-theme .composer-send-btn[class*="bg-black"] {
+    background: transparent !important;
+    color: #1F1F1F !important;
+}
+.cursor-theme .composer-send-btn:hover:not(:disabled) {
+    background: #F0F0F0 !important;
+    filter: none !important;
+}
+.cursor-theme .composer-send-btn svg {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* Active send state (has text) — subtle dark tint, not full black fill */
+.cursor-theme .composer-send-btn.has-text,
+.cursor-theme .composer-send-btn:not(:disabled)[aria-label*="Send" i],
+.cursor-theme .composer-send-btn:not(:disabled)[aria-label*="发送"] {
+    background: #1F1F1F !important;
+    color: #FFFFFF !important;
+}
+
+/* Composer bottom icon row: shrink icon buttons + gap */
+.cursor-theme .composer-icon-btn {
+    height: 26px !important;
+    width: 26px !important;
+    min-width: 26px !important;
+    color: var(--cursor-text-secondary) !important;
+}
+.cursor-theme .composer-icon-btn svg {
+    width: 15px !important;
+    height: 15px !important;
+}
+.cursor-theme .composer-icon-btn:hover {
+    background: #F0F0F0 !important;
+    color: #1F1F1F !important;
+}
+
 /* ====== HOME / SESSIONS INDEX DENSITY ======
    Tighten haqi's home page typography & spacing to match claude-clone's
    ultra-dense IDE aesthetic. Scoped via .cursor-theme so it only applies
