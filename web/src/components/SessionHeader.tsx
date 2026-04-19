@@ -255,29 +255,37 @@ export function SessionHeader(props: {
                     <button
                         ref={menuAnchorRef}
                         type="button"
-                        className="icon-action-btn"
+                        className="icon-action-btn header-more-btn"
                         onClick={handleMenuToggle}
                         onPointerDown={(e) => e.stopPropagation()}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
                         aria-controls={menuOpen ? menuId : undefined}
                         title={t('session.more')}
-                        style={{ padding: '2px 4px', gap: '4px' }}
                     >
-                        <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '11px', marginRight: '4px' }}>&gt;_</span>
-                        <span
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                background: 'var(--cursor-bg-soft, #EFEFEF)',
-                                padding: '1px 3px',
-                                borderRadius: '4px',
-                            }}
-                        >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="3" x2="16" y2="21"/></svg>
-                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '2px' }}><polyline points="6 9 12 15 18 9"/></svg>
-                        </span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <circle cx="5" cy="12" r="1.6" />
+                            <circle cx="12" cy="12" r="1.6" />
+                            <circle cx="19" cy="12" r="1.6" />
+                        </svg>
                     </button>
+
+                    {props.onToggleWorkbench ? (
+                        <button
+                            type="button"
+                            className="icon-action-btn header-workbench-toggle"
+                            onClick={props.onToggleWorkbench}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            aria-pressed={Boolean(props.workbenchOpen)}
+                            title={props.workbenchOpen ? 'Hide workbench' : 'Show workbench'}
+                            aria-label={props.workbenchOpen ? 'Hide workbench' : 'Show workbench'}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <line x1="15" y1="3" x2="15" y2="21" />
+                            </svg>
+                        </button>
+                    ) : null}
                 </div>
             </header>
 
@@ -289,8 +297,6 @@ export function SessionHeader(props: {
                 onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
                 onSaveCheckpoint={session.metadata?.containerId ? () => setCheckpointDialogOpen(true) : undefined}
-                onToggleWorkbench={props.onToggleWorkbench}
-                workbenchOpen={props.workbenchOpen}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}

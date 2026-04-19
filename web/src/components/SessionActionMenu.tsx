@@ -17,8 +17,6 @@ type SessionActionMenuProps = {
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
     onSaveCheckpoint?: () => void
-    onToggleWorkbench?: () => void
-    workbenchOpen?: boolean
     onArchive: () => void
     onDelete: () => void
     anchorPoint: { x: number; y: number }
@@ -42,8 +40,6 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onSpawnSameConfig,
         onDuplicate,
         onSaveCheckpoint,
-        onToggleWorkbench,
-        workbenchOpen,
         onArchive,
         onDelete,
         anchorPoint,
@@ -81,12 +77,6 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         if (!onSaveCheckpoint) return
         onClose()
         onSaveCheckpoint()
-    }
-
-    const handleToggleWorkbench = () => {
-        if (!onToggleWorkbench) return
-        onClose()
-        onToggleWorkbench()
     }
 
     const handleDelete = () => {
@@ -212,12 +202,6 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             {onSaveCheckpoint ? (
                 <button type="button" role="menuitem" className="menu-action" onClick={handleSaveCheckpoint}>
                     Save checkpoint
-                </button>
-            ) : null}
-
-            {onToggleWorkbench ? (
-                <button type="button" role="menuitem" className="menu-action" onClick={handleToggleWorkbench}>
-                    {workbenchOpen ? 'Hide workbench' : 'Show workbench'}
                 </button>
             ) : null}
 
