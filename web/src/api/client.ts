@@ -1434,6 +1434,42 @@ export class ApiClient {
         return await this.request('/api/routines')
     }
 
+    async createRoutine(body: {
+        name: string
+        description?: string
+        trigger: import('@/types/api').RoutineSummary['trigger']
+        spawn: Record<string, unknown>
+        concurrency?: 'skip' | 'queue' | 'cancel-previous' | 'allow'
+    }): Promise<import('@/types/api').GetRoutineResponse> {
+        return await this.request('/api/routines', {
+            method: 'POST',
+            body: JSON.stringify(body)
+        })
+    }
+
+    async updateRoutine(
+        routineId: string,
+        patch: Partial<{
+            name: string
+            description: string | null
+            status: 'active' | 'paused' | 'archived'
+            trigger: import('@/types/api').RoutineSummary['trigger']
+            spawn: Record<string, unknown>
+            concurrency: 'skip' | 'queue' | 'cancel-previous' | 'allow'
+        }>
+    ): Promise<import('@/types/api').GetRoutineResponse> {
+        return await this.request(`/api/routines/${encodeURIComponent(routineId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch)
+        })
+    }
+
+    async deleteRoutine(routineId: string): Promise<{ ok: boolean }> {
+        return await this.request(`/api/routines/${encodeURIComponent(routineId)}`, {
+            method: 'DELETE'
+        })
+    }
+
     async getRoutine(routineId: string): Promise<import('@/types/api').GetRoutineResponse> {
         return await this.request(`/api/routines/${encodeURIComponent(routineId)}`)
     }

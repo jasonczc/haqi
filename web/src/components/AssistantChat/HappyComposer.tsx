@@ -739,7 +739,7 @@ export function HappyComposer(props: {
         haptic('light')
         setIsSwitching(true)
         try {
-            await onSwitchToRemote()
+            onSwitchToRemote()
         } catch {
             setIsSwitching(false)
         }
@@ -1391,27 +1391,43 @@ export function HappyComposer(props: {
 
                             {attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
                                 <div className="chat-input-attachments flex flex-wrap gap-2 px-4 pt-3">
-                                    {restoredDraftAttachments.map((attachment) => (
-                                        <div
-                                            key={`draft:${attachment.path}`}
-                                            className="chat-input-attachment flex max-w-full items-center gap-2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] px-2 py-1 text-xs text-[var(--cursor-text-primary)]"
-                                            title={attachment.path}
-                                        >
-                                            <span className="chat-input-attachment-name truncate" style={{ maxWidth: '180px' }}>
-                                                {attachment.filename}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                className="chat-input-attachment-remove rounded px-1 text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)]"
-                                                onClick={() => {
-                                                    handleRemoveDraftAttachment(attachment)
-                                                }}
-                                                aria-label={`Remove ${attachment.filename}`}
+                                    {restoredDraftAttachments.map((attachment) => {
+                                        const ext = (() => {
+                                            const idx = attachment.filename.lastIndexOf('.')
+                                            if (idx < 0 || idx >= attachment.filename.length - 1) return ''
+                                            return attachment.filename.slice(idx + 1).toUpperCase().slice(0, 4)
+                                        })()
+                                        return (
+                                            <div
+                                                key={`draft:${attachment.path}`}
+                                                className="composer-attachment-thumb"
+                                                title={attachment.path}
+                                                aria-label={attachment.filename}
                                             >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
+                                                <div className="composer-attachment-fallback">
+                                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                        <polyline points="14 2 14 8 20 8" />
+                                                    </svg>
+                                                    {ext ? <span className="composer-attachment-ext">{ext}</span> : null}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="composer-attachment-remove"
+                                                    onClick={() => {
+                                                        handleRemoveDraftAttachment(attachment)
+                                                    }}
+                                                    aria-label={`Remove ${attachment.filename}`}
+                                                    title="Remove attachment"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                        <line x1="3" y1="3" x2="9" y2="9" />
+                                                        <line x1="9" y1="3" x2="3" y2="9" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
                                     <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
                                 </div>
                             ) : null}

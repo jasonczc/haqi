@@ -1,62 +1,79 @@
-/**
- * Routines list page.
- *
- * Minimal Cursor-style table: one row per routine in the current
- * namespace. Click a row → /settings/routines/$routineId detail view.
- *
- * Data is polled cheaply (5s) instead of SSE for the list view —
- * routines change rarely. Run detail pages subscribe to SSE for
- * live-updating row status.
- */
-
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
-import type { RoutineSummary, RoutineTriggerKind } from '@/types/api'
+import { NewRoutineDialog } from '@/components/NewRoutineDialog'
+import type { RoutineSummary } from '@/types/api'
 
-function formatRelative(ts: number): string {
-    const delta = Date.now() - ts
-    if (delta < 60_000) return 'just now'
-    if (delta < 3_600_000) return `${Math.floor(delta / 60_000)}m ago`
-    if (delta < 86_400_000) return `${Math.floor(delta / 3_600_000)}h ago`
-    return `${Math.floor(delta / 86_400_000)}d ago`
+function LightningIcon(props: { size?: number }) {
+    const s = props.size ?? 18
+    return (
+        <svg
+            width={s}
+            height={s}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+        </svg>
+    )
 }
 
-function describeTrigger(trigger: RoutineSummary['trigger']): string {
+function CloudIcon() {
+    return (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 4.5 14.5" />
+            <path d="M8 19h9" />
+        </svg>
+    )
+}
+
+function ChevronDownIcon() {
+    return (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9" />
+        </svg>
+    )
+}
+
+function formatTrigger(trigger: RoutineSummary['trigger']): string {
     switch (trigger.kind) {
-        case 'api':
-            return 'API'
         case 'schedule': {
             const every = trigger.every as 'hour' | 'day' | undefined
-            const minute = trigger.minute as number | undefined
-            const hour = trigger.hour as number | undefined
-            const tz = (trigger.timezone as string | undefined) ?? 'UTC'
-            if (every === 'hour')
-                return `Every hour at :${String(minute ?? 0).padStart(2, '0')}`
-            return `Daily at ${String(hour ?? 0).padStart(2, '0')}:${String(minute ?? 0).padStart(2, '0')} ${tz}`
+            const hour = (trigger.hour as number | undefined) ?? 0
+            const minute = (trigger.minute as number | undefined) ?? 0
+            if (every === 'hour') {
+                return `Every hour at :${String(minute).padStart(2, '0')}`
+            }
+            const h12 = hour % 12 === 0 ? 12 : hour % 12
+            const ampm = hour < 12 ? 'AM' : 'PM'
+            if (minute === 0) {
+                return `Every day at ${h12}:00 ${ampm}`
+            }
+            return `Every day at ${h12}:${String(minute).padStart(2, '0')} ${ampm}`
         }
+        case 'api':
+            return 'API trigger'
         case 'github':
             return 'GitHub webhook'
-    }
-    return trigger.kind
-}
-
-function triggerBadgeColor(kind: RoutineTriggerKind): string {
-    switch (kind) {
-        case 'api':
-            return 'var(--accent)'
-        case 'schedule':
-            return 'var(--text-primary)'
-        case 'github':
-            return 'var(--accent)'
+        default:
+            return String((trigger as { kind: string }).kind)
     }
 }
 
 export default function SettingsRoutinesPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
+    const qc = useQueryClient()
+    const [view, setView] = useState<'all' | 'calendar'>('all')
+    const [dialogOpen, setDialogOpen] = useState(false)
+
     const q = useQuery({
         queryKey: queryKeys.routines,
         enabled: Boolean(api),
@@ -73,84 +90,97 @@ export default function SettingsRoutinesPage() {
     )
 
     return (
-        <div className="flex flex-col gap-5 px-6 py-6">
-            <header className="flex items-baseline justify-between gap-3">
-                <div>
-                    <h1 className="text-[var(--font-size-lg)] font-semibold text-[var(--text-primary)]">
-                        Routines
-                    </h1>
-                    <p className="mt-0.5 text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
-                        Scheduled, webhook, and API-triggered agent runs. Every fire
-                        produces a durable run you can replay.
-                    </p>
-                </div>
-            </header>
-
-            <div className="rounded-lg border border-[var(--border-secondary)]">
-                <div className="grid grid-cols-[1.5fr,1fr,100px,140px] gap-3 border-b border-[var(--border-secondary)] px-4 py-2.5 text-[var(--font-size-xs)] font-medium uppercase tracking-wide text-[var(--text-tertiary)]">
-                    <span>Name</span>
-                    <span>Trigger</span>
-                    <span>Status</span>
-                    <span>Updated</span>
-                </div>
-                {q.isLoading ? (
-                    <div className="px-4 py-6 text-center text-[var(--font-size-base)] text-[var(--text-tertiary)]">
-                        Loading…
+        <div className="routines-page cursor-theme">
+            <div className="routines-page-inner">
+                <header className="routines-header">
+                    <div className="routines-heading">
+                        <div className="routines-title-row">
+                            <span className="routines-title-icon"><LightningIcon /></span>
+                            <h1 className="routines-title">Routines</h1>
+                        </div>
+                        <p className="routines-subtitle">
+                            Create templated routines that can be kicked off on schedule, by API, or webhook.
+                        </p>
                     </div>
-                ) : routines.length === 0 ? (
-                    <div className="px-4 py-10 text-center text-[var(--font-size-base)] text-[var(--text-tertiary)]">
-                        No routines yet. Create one via{' '}
-                        <code className="rounded bg-[var(--bg-quaternary)] px-1 py-0.5 font-mono text-[var(--font-size-xs)]">
-                            POST /api/routines
-                        </code>
-                        .
+                    <div className="routines-header-actions">
+                        <button
+                            type="button"
+                            className="routines-new-btn"
+                            onClick={() => setDialogOpen(true)}
+                        >
+                            <span>New routine</span>
+                            <ChevronDownIcon />
+                        </button>
+                    </div>
+                </header>
+
+                <div className="routines-tabs" role="tablist">
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={view === 'all'}
+                        className={`routines-tab${view === 'all' ? ' active' : ''}`}
+                        onClick={() => setView('all')}
+                    >
+                        All
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={view === 'calendar'}
+                        className={`routines-tab${view === 'calendar' ? ' active' : ''}`}
+                        onClick={() => setView('calendar')}
+                    >
+                        Calendar
+                    </button>
+                </div>
+
+                {view === 'all' ? (
+                    <div className="routines-list">
+                        {q.isLoading && routines.length === 0 ? (
+                            <div className="routines-empty">Loading…</div>
+                        ) : routines.length === 0 ? (
+                            <div className="routines-empty">No routines yet.</div>
+                        ) : (
+                            routines.map((r) => (
+                                <button
+                                    key={r.id}
+                                    type="button"
+                                    className="routines-row"
+                                    onClick={() =>
+                                        navigate({
+                                            to: '/settings/routines/$routineId',
+                                            params: { routineId: r.id }
+                                        })
+                                    }
+                                >
+                                    <div className="routines-row-body">
+                                        <span className="routines-row-title">{r.name}</span>
+                                        <span className="routines-row-sub">
+                                            {formatTrigger(r.trigger)}
+                                        </span>
+                                    </div>
+                                    <span className="routines-row-badge">
+                                        <CloudIcon />
+                                        Remote
+                                    </span>
+                                </button>
+                            ))
+                        )}
                     </div>
                 ) : (
-                    routines.map((r) => (
-                        <button
-                            key={r.id}
-                            type="button"
-                            onClick={() =>
-                                navigate({
-                                    to: '/settings/routines/$routineId',
-                                    params: { routineId: r.id }
-                                })
-                            }
-                            className="grid w-full grid-cols-[1.5fr,1fr,100px,140px] gap-3 border-b border-[var(--border-secondary)] px-4 py-3 text-left text-[var(--font-size-base)] transition-colors last:border-b-0 hover:bg-[var(--bg-quaternary)]"
-                        >
-                            <div className="flex flex-col">
-                                <span className="truncate font-medium text-[var(--text-primary)]">
-                                    {r.name}
-                                </span>
-                                {r.description ? (
-                                    <span className="truncate text-[var(--font-size-xs)] text-[var(--text-tertiary)]">
-                                        {r.description}
-                                    </span>
-                                ) : null}
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[var(--font-size-sm)] text-[var(--text-secondary)]">
-                                <span
-                                    className="h-1.5 w-1.5 rounded-full"
-                                    style={{ backgroundColor: triggerBadgeColor(r.trigger.kind) }}
-                                />
-                                <span className="truncate">{describeTrigger(r.trigger)}</span>
-                            </div>
-                            <div
-                                className={`text-[var(--font-size-sm)] ${
-                                    r.status === 'active'
-                                        ? 'text-[var(--text-primary)]'
-                                        : 'text-[var(--text-tertiary)]'
-                                }`}
-                            >
-                                {r.status}
-                            </div>
-                            <div className="text-[var(--font-size-sm)] text-[var(--text-tertiary)]">
-                                {formatRelative(r.updatedAt)}
-                            </div>
-                        </button>
-                    ))
+                    <div className="routines-empty">Calendar view coming soon.</div>
                 )}
             </div>
+
+            <NewRoutineDialog
+                isOpen={dialogOpen}
+                onClose={() => setDialogOpen(false)}
+                api={api ?? null}
+                onCreated={() => {
+                    void qc.invalidateQueries({ queryKey: queryKeys.routines })
+                }}
+            />
         </div>
     )
 }
