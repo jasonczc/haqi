@@ -1021,14 +1021,14 @@ body {
 .cursor-theme .nav-item {
     height: auto !important;
     min-height: 0 !important;
-    padding: 4px 8px !important;
+    padding: 3px 8px !important;
     gap: 6px !important;
-    font-size: 12.5px !important;
+    font-size: 12px !important;
     font-weight: 400 !important;
-    border-radius: 6px !important;
+    border-radius: 5px !important;
     color: var(--cursor-text-primary);
     background: transparent;
-    line-height: 1.35 !important;
+    line-height: 1.3 !important;
 }
 .cursor-theme .nav-item svg { width: 13px !important; height: 13px !important; }
 .cursor-theme .nav-item:hover { background-color: #F3F3F3; }
@@ -1038,12 +1038,12 @@ body {
 
 /* Sidebar section labels — Title Case muted, no chevron, claude-clone style */
 .cursor-theme .section-title {
-    font-size: 12px !important;
+    font-size: 11px !important;
     font-weight: 400 !important;
     letter-spacing: 0 !important;
     color: #9B9B9B !important;
     padding: 2px 8px 1px !important;
-    margin-bottom: 4px !important;
+    margin-bottom: 3px !important;
     text-transform: none !important;
 }
 .cursor-theme .section-title.lowercase-title { text-transform: none !important; }
@@ -1107,13 +1107,13 @@ body {
 .cursor-theme .main-content { background: var(--cursor-bg-app); border: none; border-radius: 0; box-shadow: none; }
 
 /* Main header density */
-.cursor-theme .main-header { height: 56px !important; padding: 0 20px !important; border-bottom: 1px solid #F0F0F0 !important; }
-.cursor-theme .breadcrumb { font-size: 15px !important; gap: 8px !important; color: var(--cursor-text-secondary) !important; font-weight: 400 !important; }
-.cursor-theme .breadcrumb > span[style*="fontWeight"] { color: var(--cursor-text-primary) !important; font-weight: 500 !important; }
-.cursor-theme .btn-share { padding: 5px 12px !important; font-size: 14px !important; border-radius: 6px !important; border: 1px solid #E6E6E6 !important; background: transparent !important; color: var(--cursor-text-primary) !important; font-weight: 400 !important; }
+.cursor-theme .main-header { height: 40px !important; padding: 0 16px !important; border-bottom: none !important; }
+.cursor-theme .breadcrumb { font-size: 13px !important; gap: 6px !important; color: var(--cursor-text-secondary) !important; font-weight: 400 !important; }
+.cursor-theme .breadcrumb > span[style*="fontWeight"] { color: var(--cursor-text-primary) !important; font-weight: 500 !important; font-size: 13px !important; }
+.cursor-theme .btn-share { padding: 3px 10px !important; font-size: 12.5px !important; border-radius: 6px !important; border: 1px solid #E6E6E6 !important; background: transparent !important; color: var(--cursor-text-primary) !important; font-weight: 400 !important; }
 .cursor-theme .btn-share:hover { background-color: #F3F3F3 !important; }
-.cursor-theme .header-actions { gap: 10px !important; }
-.cursor-theme .icon-action-btn { padding: 4px 6px !important; border-radius: 6px !important; color: #6B6B6B !important; }
+.cursor-theme .header-actions { gap: 8px !important; }
+.cursor-theme .icon-action-btn { padding: 3px 5px !important; border-radius: 6px !important; color: #6B6B6B !important; }
 .cursor-theme .icon-action-btn:hover { background-color: #F3F3F3 !important; color: var(--cursor-text-primary) !important; }
 
 /* ============================================================
@@ -1181,17 +1181,31 @@ body {
     margin-left: auto !important;
     margin-right: auto !important;
 }
-.cursor-theme .chat-timeline-viewport { padding-left: 60px !important; padding-right: 60px !important; }
+.cursor-theme .chat-timeline-viewport {
+    padding-left: 60px !important;
+    padding-right: 60px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+}
+/* tighten round gap: user message to user message + first-child spacing */
+.cursor-theme {
+    --chat-timeline-padding-y: 4px !important;
+    --chat-round-gap: 18px !important;
+    --chat-round-gap-internal: 12px !important;
+    --chat-message-gap: 6px !important;
+}
 .cursor-theme .input-container { max-width: 800px !important; margin-left: auto !important; margin-right: auto !important; }
 .cursor-theme .input-area-wrapper {
-    padding: 20px 60px 10px 60px !important;
+    padding: 4px 60px 6px 60px !important;
     position: absolute !important;
     bottom: 0 !important;
     left: 0 !important;
     right: 0 !important;
 }
 .cursor-theme .input-area-wrapper > * { padding-bottom: 0 !important; }
-.cursor-theme .input-footer { padding-top: 4px !important; padding-bottom: 0 !important; }
+.cursor-theme .input-footer { padding-top: 2px !important; padding-bottom: 0 !important; }
+/* kill the huge top-fade overlay that puts ~40px of blank space above composer */
+.cursor-theme .input-area-wrapper::before { display: none !important; }
 .cursor-theme .chat-center { padding-bottom: 0 !important; }
 .cursor-theme .chat-main { padding-bottom: 0 !important; }
 
