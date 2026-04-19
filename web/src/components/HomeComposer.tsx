@@ -341,7 +341,7 @@ export function HomeComposer(props: {
         }
     }, [focusRepoItem])
     const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => lastConfig?.workspaceMode ?? 'ephemeral')
-    const [directory] = useState('')
+    const [directory, setDirectory] = useState('')
 
     // ── Agent / Model state ──
     const initialAgent = lastConfig?.agent ?? loadPreferredAgent()
@@ -574,13 +574,20 @@ export function HomeComposer(props: {
 
     // ── Derived data ──
     const selectableMachines = useMemo(() => {
+        const looksLikeCloud = (m: typeof machines[number]): boolean => {
+            const kind = m.metadata?.executorType
+            if (kind === 'cloud-self-hosted' || kind === 'cloud-managed') return true
+            if (kind === 'local') return false
+            // Stale metadata without executorType — infer from worker-shaped
+            // fields so self-hosted workers can't slip into Local.
+            const md = m.metadata as Record<string, unknown> | undefined
+            return Boolean(md && (md.capabilities || md.resources || md.provider))
+        }
         const byExecutor = executionBackend === 'cloud-self-hosted'
             ? machines.filter(m => m.metadata?.executorType === 'cloud-self-hosted')
             : executionBackend === 'cloud-managed'
                 ? machines.filter(m => m.metadata?.executorType === 'cloud-managed')
-                : machines.filter(m =>
-                    m.metadata?.executorType !== 'cloud-self-hosted' && m.metadata?.executorType !== 'cloud-managed'
-                )
+                : machines.filter(m => !looksLikeCloud(m))
         // Hide inactive machines from the picker — they can't run tasks.
         // Historical records stay visible in Settings → Cloud Workers, where
         // they can be inspected and pruned.
@@ -991,7 +998,22 @@ export function HomeComposer(props: {
                     {/* ── Composer (always visible, submit gated by onboard phase) ── */}
                     {(<>
 
+                    {/* ── Directory selector (Local backend) ── */}
+                    {executionBackend === 'local' ? (
+                        <div className="repo-selector">
+                            <CursorTextField
+                                compact
+                                className="w-[320px] max-w-full"
+                                placeholder="/path/to/project"
+                                value={directory}
+                                onChange={e => setDirectory(e.target.value)}
+                                aria-label="Local working directory"
+                            />
+                        </div>
+                    ) : null}
+
                     {/* ── Repo selector ── */}
+                    {executionBackend !== 'local' ? (
                     <div className={`repo-selector ${showRepoPanel ? 'items-stretch' : ''}`}>
                         {showRepoPanel ? (
                             <div
@@ -1255,6 +1277,7 @@ export function HomeComposer(props: {
                             )
                         })()}
                     </div>
+                    ) : null}
 
                     {/* ── Prompt card ── */}
                     <div className="prompt-container">

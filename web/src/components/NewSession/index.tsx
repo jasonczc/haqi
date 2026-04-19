@@ -83,8 +83,17 @@ import { getCloudInventorySummary, getCloudRuntimeWarning } from './cloudInvento
 const AUTO_CLOUD_MACHINE_ID = 'auto'
 
 function isCloudMachine(machine: Machine): boolean {
-    return machine.metadata?.executorType === 'cloud-self-hosted'
-        || machine.metadata?.executorType === 'cloud-managed'
+    const kind = machine.metadata?.executorType
+    if (kind === 'cloud-self-hosted' || kind === 'cloud-managed') return true
+    if (kind === 'local') return false
+    // Metadata with no executorType but with worker-shaped fields was almost
+    // certainly enrolled as a self-hosted worker against an older hub that
+    // did not persist executorType on re-registration. Treat it as cloud
+    // so it doesn't leak into the Local list. Once the hub upsert lands,
+    // these rows self-heal on next worker heartbeat.
+    const md = machine.metadata as Record<string, unknown> | undefined
+    if (md && (md.capabilities || md.resources || md.provider)) return true
+    return false
 }
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {

@@ -6,7 +6,6 @@ import {
     DialogTitle,
     DialogDescription
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/use-translation'
 
 type ConfirmDialogProps = {
@@ -37,11 +36,8 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
 
     const [error, setError] = useState<string | null>(null)
 
-    // Clear error when dialog opens/closes
     useEffect(() => {
-        if (isOpen) {
-            setError(null)
-        }
+        if (isOpen) setError(null)
     }, [isOpen])
 
     const handleConfirm = async () => {
@@ -60,37 +56,35 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-sm">
+            <DialogContent className="cc-dialog cc-confirm max-w-sm">
                 <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
-                    <DialogDescription className="mt-2">
-                        {description}
-                    </DialogDescription>
+                    <DialogTitle className="cc-dialog-title">{title}</DialogTitle>
+                    <DialogDescription className="cc-dialog-desc">{description}</DialogDescription>
                 </DialogHeader>
 
                 {error ? (
-                    <div className="mt-3 rounded-md border border-[var(--danger)]/20 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
+                    <div className="cc-confirm-error" role="alert">
                         {error}
                     </div>
                 ) : null}
 
-                <div className="mt-4 flex gap-2 justify-end">
-                    <Button
+                <div className="cc-confirm-actions">
+                    <button
                         type="button"
-                        variant="secondary"
+                        className="cc-btn cc-btn-ghost"
                         onClick={onClose}
                         disabled={isPending}
                     >
                         {t('button.cancel')}
-                    </Button>
-                    <Button
+                    </button>
+                    <button
                         type="button"
-                        variant={destructive ? 'destructive' : 'secondary'}
+                        className={destructive ? 'cc-btn cc-btn-danger' : 'cc-btn cc-btn-primary'}
                         onClick={handleConfirm}
                         disabled={isPending}
                     >
                         {isPending ? confirmingLabel : confirmLabel}
-                    </Button>
+                    </button>
                 </div>
             </DialogContent>
         </Dialog>

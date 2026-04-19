@@ -3209,3 +3209,57 @@ html[data-theme="dark"] .cc-icon-btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.06);
     color: #E6E6E6;
 }
+
+/* Confirm dialog variant — tighter padding, inline actions */
+.cc-dialog.cc-confirm { padding: 22px 24px !important; }
+.cc-dialog.cc-confirm .cc-dialog-title { font-size: 17px !important; }
+.cc-dialog.cc-confirm .cc-dialog-desc { margin-top: 6px !important; }
+.cc-confirm-error {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: rgba(220, 38, 38, 0.08);
+    border-radius: 8px;
+    font-size: 13px;
+    color: #C81E45;
+}
+.cc-confirm-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+/* Primary / Danger button variants for cc-btn */
+.cc-btn-primary {
+    background: #1C1C1C;
+    color: #FFFFFF;
+    border: 1px solid #1C1C1C;
+}
+.cc-btn-primary:hover:not(:disabled) { background: #000000; border-color: #000000; }
+.cc-btn-primary:disabled { background: #C9C9C9; border-color: #C9C9C9; color: #FFFFFF; }
+
+.cc-btn-danger {
+    background: #DC2626;
+    color: #FFFFFF;
+    border: 1px solid #DC2626;
+}
+.cc-btn-danger:hover:not(:disabled) { background: #B91C1C; border-color: #B91C1C; }
+.cc-btn-danger:disabled { background: rgba(220, 38, 38, 0.45); border-color: transparent; color: #FFFFFF; }
+
+html[data-theme="dark"] .cc-btn-primary {
+    background: #E6E6E6;
+    color: #1C1C1C;
+    border-color: #E6E6E6;
+}
+html[data-theme="dark"] .cc-btn-primary:hover:not(:disabled) { background: #FFFFFF; border-color: #FFFFFF; }
+html[data-theme="dark"] .cc-btn-primary:disabled { background: rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.45); border-color: transparent; }
+html[data-theme="dark"] .cc-btn-danger {
+    background: #E24B4B;
+    color: #FFFFFF;
+    border-color: #E24B4B;
+}
+html[data-theme="dark"] .cc-btn-danger:hover:not(:disabled) { background: #F47171; border-color: #F47171; }
+html[data-theme="dark"] .cc-confirm-error {
+    background: rgba(248, 113, 113, 0.12);
+    color: #F87171;
+}

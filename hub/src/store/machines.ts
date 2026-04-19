@@ -47,6 +47,29 @@ export function getOrCreateMachine(
         if (stored.namespace !== namespace) {
             throw new Error('Machine namespace mismatch')
         }
+        // Re-enrollment: shallow-merge incoming metadata so fields that the
+        // worker gained after first registration (executorType, provider,
+        // capabilities, resources, …) actually propagate to the DB. The
+        // original logic ignored `metadata` on the existing branch, which
+        // stranded legacy rows with stale metadata and caused workers to
+        // appear under the wrong execution backend.
+        if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+            const incoming = metadata as Record<string, unknown>
+            const current = (stored.metadata ?? {}) as Record<string, unknown>
+            const merged: Record<string, unknown> = { ...current, ...incoming }
+            if (JSON.stringify(merged) !== JSON.stringify(current)) {
+                const result = updateMachineMetadata(db, id, merged, stored.metadataVersion, namespace)
+                if (result.result === 'success') {
+                    return {
+                        ...stored,
+                        metadata: merged,
+                        metadataVersion: result.version,
+                        seq: stored.seq + 1,
+                        updatedAt: Date.now()
+                    }
+                }
+            }
+        }
         return stored
     }
 

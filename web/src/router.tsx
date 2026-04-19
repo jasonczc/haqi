@@ -387,6 +387,8 @@ function SessionsPage() {
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
     const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null)
     const [sessionMenuAnchor, setSessionMenuAnchor] = useState<{ top?: number; bottom?: number; right: number } | null>(null)
+    const [sidebarConfirm, setSidebarConfirm] = useState<{ kind: 'archive' | 'delete'; sessionId: string; name: string } | null>(null)
+    const [sidebarConfirmPending, setSidebarConfirmPending] = useState(false)
 
     useEffect(() => {
         if (!openMenuSessionId) return
@@ -753,7 +755,7 @@ function SessionsPage() {
                                                                         e.stopPropagation()
                                                                         setOpenMenuSessionId(null)
                                                                         setSessionMenuAnchor(null)
-                                                                        void archiveSessionFromSidebar(session.id)
+                                                                        setSidebarConfirm({ kind: 'archive', sessionId: session.id, name: title })
                                                                     }}
                                                                 >
                                                                     Archive
@@ -765,9 +767,7 @@ function SessionsPage() {
                                                                         e.stopPropagation()
                                                                         setOpenMenuSessionId(null)
                                                                         setSessionMenuAnchor(null)
-                                                                        if (window.confirm(`Delete session "${title}"? This removes its container and history.`)) {
-                                                                            void deleteSessionFromSidebar(session.id)
-                                                                        }
+                                                                        setSidebarConfirm({ kind: 'delete', sessionId: session.id, name: title })
                                                                     }}
                                                                 >
                                                                     Delete
@@ -943,6 +943,42 @@ function SessionsPage() {
                     )}
                 </main>
             </div>
+
+            {sidebarConfirm ? (
+                <ConfirmDialog
+                    isOpen={true}
+                    onClose={() => {
+                        if (!sidebarConfirmPending) setSidebarConfirm(null)
+                    }}
+                    title={sidebarConfirm.kind === 'archive'
+                        ? t('dialog.archive.title')
+                        : t('dialog.delete.title')}
+                    description={(sidebarConfirm.kind === 'archive'
+                        ? t('dialog.archive.description', { name: sidebarConfirm.name })
+                        : t('dialog.delete.description', { name: sidebarConfirm.name }))}
+                    confirmLabel={sidebarConfirm.kind === 'archive'
+                        ? t('dialog.archive.confirm')
+                        : t('dialog.delete.confirm')}
+                    confirmingLabel={sidebarConfirm.kind === 'archive'
+                        ? t('dialog.archive.confirming')
+                        : t('dialog.delete.confirming')}
+                    onConfirm={async () => {
+                        setSidebarConfirmPending(true)
+                        try {
+                            if (sidebarConfirm.kind === 'archive') {
+                                await archiveSessionFromSidebar(sidebarConfirm.sessionId)
+                            } else {
+                                await deleteSessionFromSidebar(sidebarConfirm.sessionId)
+                            }
+                            setSidebarConfirm(null)
+                        } finally {
+                            setSidebarConfirmPending(false)
+                        }
+                    }}
+                    isPending={sidebarConfirmPending}
+                    destructive
+                />
+            ) : null}
         </SessionsLayoutContext.Provider>
     )
 }
