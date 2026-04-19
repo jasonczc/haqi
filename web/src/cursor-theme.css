@@ -776,19 +776,63 @@ body {
 
 /* Composer bottom icon row: shrink icon buttons + gap */
 .cursor-theme .composer-icon-btn {
-    height: 26px !important;
-    width: 26px !important;
-    min-width: 26px !important;
+    height: 24px !important;
+    width: 24px !important;
+    min-width: 24px !important;
     color: var(--cursor-text-secondary) !important;
+    padding: 0 !important;
 }
 .cursor-theme .composer-icon-btn svg {
-    width: 15px !important;
-    height: 15px !important;
+    width: 14px !important;
+    height: 14px !important;
 }
 .cursor-theme .composer-icon-btn:hover {
     background: #F0F0F0 !important;
     color: #1F1F1F !important;
 }
+
+/* Compress composer footer row: tighter gap, smaller Plan/Direct chips,
+   nail down model chip so it never truncates on small widths */
+.cursor-theme .input-footer,
+.cursor-theme .chat-input-footer {
+    gap: 4px !important;
+    padding: 6px 2px !important;
+}
+.cursor-theme .left-actions,
+.cursor-theme .footer-left,
+.cursor-theme .chat-input-tools { gap: 2px !important; }
+.cursor-theme .right-info,
+.cursor-theme .footer-right,
+.cursor-theme .chat-input-actions { gap: 4px !important; }
+
+.cursor-theme .mode-chip,
+.cursor-theme .composer-chip {
+    font-size: 12px !important;
+    padding: 2px 6px !important;
+    border-radius: 5px !important;
+    color: var(--cursor-text-secondary) !important;
+    background: transparent !important;
+    border: none !important;
+    font-weight: 400 !important;
+    line-height: 1.2 !important;
+}
+.cursor-theme .mode-chip:hover,
+.cursor-theme .composer-chip:hover {
+    background: #F0F0F0 !important;
+}
+.cursor-theme .mode-chip[data-active],
+.cursor-theme .composer-chip[data-active] {
+    color: var(--cursor-text-primary) !important;
+    background: #EDEDED !important;
+}
+
+.cursor-theme .composer-model-chip {
+    flex-shrink: 0 !important;
+    font-size: 12px !important;
+    padding: 2px 6px !important;
+    color: var(--cursor-text-secondary) !important;
+}
+.cursor-theme .composer-model-chip-label { max-width: none !important; }
 
 /* ====== HOME / SESSIONS INDEX DENSITY ======
    Tighten haqi's home page typography & spacing to match claude-clone's
