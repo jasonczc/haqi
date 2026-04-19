@@ -327,12 +327,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     return (
         <div
             ref={menuRef}
-            className="fixed z-50 min-w-[200px] animate-menu-pop rounded-[10px] border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]"
+            className="session-action-menu fixed z-50 animate-menu-pop"
             style={menuStyle}
         >
             <div
                 id={headingId}
-                className="px-3 pt-2 pb-1 text-[11px] font-medium text-[var(--text-tertiary)]"
+                className="session-action-menu-heading"
             >
                 {t('session.more')}
             </div>
@@ -369,6 +369,8 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                         {workbenchOpen ? 'Hide workbench' : 'Show workbench'}
                     </MenuItem>
                 ) : null}
+
+                <div className="ui-menu-divider" role="separator" aria-hidden="true" />
 
                 {sessionActive ? (
                     <MenuItem icon={<ArchiveIcon />} tone="danger" onClick={handleArchive}>

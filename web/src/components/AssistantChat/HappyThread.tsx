@@ -20,7 +20,8 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="new-messages-indicator absolute bottom-20 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--cursor-button)] px-3.5 py-1.5 text-sm font-medium text-[var(--cursor-button-text)]"
+            className="new-messages-indicator absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--cursor-button)] px-3.5 py-1.5 text-sm font-medium text-[var(--cursor-button-text)]"
+            style={{ bottom: '160px' }}
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')}
             <span aria-hidden className="ml-1 inline-block">↓</span>
