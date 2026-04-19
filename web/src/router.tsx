@@ -647,6 +647,12 @@ function SessionsPage() {
                                                     </button>
                                                     {menuOpen ? (
                                                         <div className="context-menu" data-session-menu-root="true" style={{ position: 'absolute', top: '24px', right: 0, zIndex: 200 }}>
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Pin</button>
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Rename</button>
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Share</button>
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Copy link</button>
+                                                            <div className="menu-divider" />
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Archive</button>
                                                             <button
                                                                 className="menu-action danger"
                                                                 onClick={(e) => {

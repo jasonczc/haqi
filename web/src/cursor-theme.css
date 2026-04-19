@@ -650,6 +650,41 @@ body {
     margin: 4px 6px;
 }
 
+/* ============================================================
+   CONTEXT MENU — claude-clone spec: 12px radius, 14px items,
+   generous padding, full-width divider, deep red Delete.
+   ============================================================ */
+.cursor-theme .context-menu {
+    padding: 6px !important;
+    width: 170px !important;
+    border: 1px solid #E6E6E6 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+    background: #FFFFFF !important;
+}
+.cursor-theme .menu-action {
+    padding: 7px 12px !important;
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+    border-radius: 6px !important;
+    color: #1F1F1F !important;
+    font-weight: 400 !important;
+}
+.cursor-theme .menu-action:hover {
+    background-color: #F3F3F3 !important;
+}
+.cursor-theme .menu-action.danger {
+    color: #D94A3E !important;
+}
+.cursor-theme .menu-action.danger:hover {
+    background-color: #FDECEA !important;
+    color: #D94A3E !important;
+}
+.cursor-theme .context-menu .menu-divider {
+    margin: 4px 0 !important;
+    background-color: #EDEDED !important;
+}
+
 /* ====== HOME / SESSIONS INDEX DENSITY ======
    Tighten haqi's home page typography & spacing to match claude-clone's
    ultra-dense IDE aesthetic. Scoped via .cursor-theme so it only applies
@@ -852,26 +887,34 @@ body {
 .cursor-theme .nav-item.text-item { color: var(--cursor-text-secondary); font-weight: 400; }
 .cursor-theme .nav-item svg { color: inherit; opacity: 0.85; }
 
-/* Sidebar section labels — uppercase muted, no chevron, claude-clone style */
+/* Sidebar section labels — Title Case muted, no chevron, claude-clone style */
 .cursor-theme .section-title {
-    font-size: 10.5px !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.04em !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
     color: #9B9B9B !important;
-    padding: 2px 6px 1px !important;
+    padding: 2px 8px 1px !important;
     margin-bottom: 4px !important;
-    text-transform: uppercase !important;
+    text-transform: none !important;
 }
-.cursor-theme .section-title.lowercase-title { text-transform: uppercase !important; }
+.cursor-theme .section-title.lowercase-title { text-transform: none !important; }
 .cursor-theme .sidebar-section { margin-bottom: 14px; }
 .cursor-theme .sidebar-section-header { height: 22px; padding-right: 6px; margin-bottom: 2px; cursor: default; }
 .cursor-theme .sidebar-section-header .section-action-btn { display: none; }
 .cursor-theme .nav-item-wrapper { padding: 1px 0; }
 
 /* Sidebar chrome */
-.cursor-theme .sidebar { width: 210px; min-width: 210px; background-color: var(--cc-bg-sidebar); border: 1px solid #EAEAEA; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
-.cursor-theme .sidebar-header { padding: 12px 10px 8px; }
-.cursor-theme .sidebar-top-row { margin-bottom: 20px; padding: 0 4px; }
+.cursor-theme .sidebar {
+    width: 210px;
+    min-width: 210px;
+    background-color: var(--cc-bg-sidebar);
+    border: none !important;
+    border-right: 1px solid #EAEAEA !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+.cursor-theme .sidebar-header { padding: 14px 12px 8px; }
+.cursor-theme .sidebar-top-row { margin-bottom: 18px; padding: 0; }
 .cursor-theme .sidebar-content { padding: 0 8px; }
 .cursor-theme .sidebar-footer { padding: 8px 10px; }
 
