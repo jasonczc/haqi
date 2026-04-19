@@ -206,6 +206,17 @@ export function SessionHeader(props: {
     return (
         <>
             <header className="main-header">
+                {props.onToggleSidebar && props.sidebarVisible === false ? (
+                    <button
+                        type="button"
+                        className="header-sidebar-toggle"
+                        onClick={props.onToggleSidebar}
+                        title={t('sessions.sidebar.showDesktop') || 'Show sidebar'}
+                        aria-label="Expand sidebar"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                    </button>
+                ) : null}
                 <div className="breadcrumb">
                     <span className="text-[var(--cursor-text-secondary)]">
                         <CloudBranchIcon />
@@ -283,6 +294,7 @@ export function SessionHeader(props: {
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
+                align="end"
                 menuId={menuId}
             />
 

@@ -47,6 +47,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onArchive,
         onDelete,
         anchorPoint,
+        align = 'center',
         menuId
     } = props
     const menuRef = useRef<HTMLDivElement | null>(null)
@@ -108,14 +109,17 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         const openAbove = spaceBelow < menuRect.height + gap && spaceAbove > spaceBelow
 
         let top = openAbove ? anchorPoint.y - menuRect.height - gap : anchorPoint.y + gap
-        let left = anchorPoint.x - menuRect.width
-        const transformOrigin = openAbove ? 'bottom right' : 'top right'
+        let left = align === 'end' ? anchorPoint.x - menuRect.width : anchorPoint.x - menuRect.width / 2
+        const transformOrigin =
+            align === 'end'
+                ? (openAbove ? 'bottom right' : 'top right')
+                : (openAbove ? 'bottom center' : 'top center')
 
         top = Math.min(Math.max(top, padding), viewportHeight - menuRect.height - padding)
         left = Math.min(Math.max(left, padding), viewportWidth - menuRect.width - padding)
 
         setMenuPosition({ top, left, transformOrigin })
-    }, [anchorPoint])
+    }, [anchorPoint, align])
 
     useLayoutEffect(() => {
         if (!isOpen) return
