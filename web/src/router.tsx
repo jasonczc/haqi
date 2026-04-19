@@ -746,30 +746,33 @@ function SessionsPage() {
                                                                 Share
                                                             </button>
                                                             <div className="menu-divider" />
-                                                            <button
-                                                                className="menu-action"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    setOpenMenuSessionId(null)
-                                                                    setSessionMenuAnchor(null)
-                                                                    void archiveSessionFromSidebar(session.id)
-                                                                }}
-                                                            >
-                                                                Archive
-                                                            </button>
-                                                            <button
-                                                                className="menu-action danger"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    setOpenMenuSessionId(null)
-                                                                    setSessionMenuAnchor(null)
-                                                                    if (window.confirm(`Delete session "${title}"? This stops the agent and removes its container.`)) {
-                                                                        void deleteSessionFromSidebar(session.id)
-                                                                    }
-                                                                }}
-                                                            >
-                                                                Delete
-                                                            </button>
+                                                            {session.active ? (
+                                                                <button
+                                                                    className="menu-action danger"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setOpenMenuSessionId(null)
+                                                                        setSessionMenuAnchor(null)
+                                                                        void archiveSessionFromSidebar(session.id)
+                                                                    }}
+                                                                >
+                                                                    Archive
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    className="menu-action danger"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setOpenMenuSessionId(null)
+                                                                        setSessionMenuAnchor(null)
+                                                                        if (window.confirm(`Delete session "${title}"? This removes its container and history.`)) {
+                                                                            void deleteSessionFromSidebar(session.id)
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     ) : null}
                                                     {childTitle ? (
