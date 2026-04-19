@@ -192,7 +192,7 @@ export function RunWorkbench(props: {
                 onFullscreen={handleFullscreen}
             />
 
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div key={effectiveTab} className="workbench-tab-content flex min-h-0 flex-1 flex-col">
                 {effectiveTab === 'plan' && (
                     <PlanPanel session={props.session} />
                 )}

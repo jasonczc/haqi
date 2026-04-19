@@ -613,27 +613,10 @@ export function ComposerButtons(props: {
                         <span className="composer-model-chip-label truncate">
                             {props.modelChipLabel}
                         </span>
-                        {props.modelChipActive ? (
-                            <svg
-                                className="composer-model-chip-spinner animate-spin"
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                aria-hidden="true"
-                            >
-                                <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                                <path d="M12 2a10 10 0 0 1 10 10" strokeOpacity="0.75" />
-                            </svg>
-                        ) : (
-                            <span
-                                className="composer-model-chip-dot inline-block h-1.5 w-1.5 rounded-full border border-[var(--text-tertiary)]"
-                                aria-hidden="true"
-                            />
-                        )}
+                        <span
+                            className="composer-model-chip-dot inline-block h-1.5 w-1.5 rounded-full border border-[var(--text-tertiary)]"
+                            aria-hidden="true"
+                        />
                     </button>
                 ) : null}
             </div>
