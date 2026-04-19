@@ -1133,7 +1133,7 @@ function SessionPage() {
 
             {/* Right: RunWorkbench (Cursor-style panel) */}
             <div
-                className={`context-panel-wrapper hidden shrink-0 lg:flex ${workbenchOpen ? '' : 'is-collapsed'}`}
+                className={`context-panel-wrapper flex shrink-0 ${workbenchOpen ? '' : 'is-collapsed'}`}
                 aria-hidden={!workbenchOpen}
             >
                 <RunWorkbench

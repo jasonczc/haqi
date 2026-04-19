@@ -218,14 +218,14 @@ export function SessionHeader(props: {
                     </button>
                 ) : null}
                 <div className="breadcrumb">
-                    <span className="text-[var(--cursor-text-secondary)]">
+                    <span className="breadcrumb-icon text-[var(--cursor-text-secondary)]">
                         <CloudBranchIcon />
                     </span>
                     {session.metadata?.repositoryUrl ? (
                         <button
                             type="button"
                             onClick={props.onBack}
-                            className="shrink-0 truncate hover:text-[var(--cursor-text-primary)] transition-colors"
+                            className="breadcrumb-repo min-w-0 truncate hover:text-[var(--cursor-text-primary)] transition-colors"
                         >
                             {extractRepoShortName(session.metadata.repositoryUrl)}
                         </button>
@@ -233,13 +233,13 @@ export function SessionHeader(props: {
                         <button
                             type="button"
                             onClick={props.onBack}
-                            className="shrink-0 truncate hover:text-[var(--cursor-text-primary)] transition-colors"
+                            className="breadcrumb-repo min-w-0 truncate hover:text-[var(--cursor-text-primary)] transition-colors"
                         >
                             Sessions
                         </button>
                     )}
-                    <span className="shrink-0">/</span>
-                    <span className="truncate text-[var(--cursor-text-primary)]" style={{ fontWeight: 600 }}>
+                    <span className="breadcrumb-sep shrink-0">/</span>
+                    <span className="breadcrumb-title min-w-0 truncate text-[var(--cursor-text-primary)]" style={{ fontWeight: 600 }}>
                         &ldquo;{title}&rdquo;
                     </span>
                     <span className="shrink-0 opacity-60" style={{ marginLeft: '2px' }}>
