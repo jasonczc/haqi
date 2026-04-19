@@ -812,7 +812,7 @@ function SessionsPage() {
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
             <div className="app-container cursor-theme">
                 <div
-                    className={`sidebar ${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'}`}
+                    className={`sidebar flex ${showDesktopSidebar ? '' : 'sidebar-collapsed'}`}
                     style={sidebarStyle}
                 >
                     <div className="sidebar-resizer" onMouseDown={startSidebarResize} />

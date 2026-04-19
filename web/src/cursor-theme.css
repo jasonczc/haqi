@@ -1058,6 +1058,10 @@ body {
 .cursor-theme .section-title .section-chevron {
     color: #BDBDBD;
     flex-shrink: 0;
+    transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+.cursor-theme .sidebar-section.collapsed .section-title .section-chevron {
+    transform: rotate(-90deg);
 }
 .cursor-theme .sidebar-section-header { cursor: pointer !important; }
 .cursor-theme .sidebar-section-header:hover .section-title {
@@ -1069,7 +1073,7 @@ body {
 }
 .cursor-theme .sidebar-section-header .section-action-btn {
     display: flex !important;
-    opacity: 0;
+    opacity: 0 !important;
     transition: opacity 0.12s ease, background-color 0.12s ease;
     padding: 3px;
     border-radius: 5px;
@@ -1082,6 +1086,18 @@ body {
     background: #F0F0F0;
     color: #1F1F1F;
 }
+
+/* Section content collapse animation (grid-template-rows trick).
+   Base rule already exists in cursor-theme.css but ensure smooth timing. */
+.cursor-theme .section-content {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.cursor-theme .sidebar-section.collapsed .section-content {
+    grid-template-rows: 0fr;
+}
+.cursor-theme .section-content-inner { overflow: hidden; }
 .cursor-theme .section-title.lowercase-title { text-transform: none !important; }
 .cursor-theme .sidebar-section { margin-bottom: 14px; }
 .cursor-theme .sidebar-section-header { height: 22px; padding-right: 6px; margin-bottom: 2px; cursor: default; }
@@ -1097,7 +1113,16 @@ body {
     border-right: 1px solid #EAEAEA !important;
     border-radius: 0 !important;
     box-shadow: none !important;
+    transition: width 220ms cubic-bezier(0.2, 0, 0, 1), min-width 220ms cubic-bezier(0.2, 0, 0, 1);
+    overflow: hidden;
 }
+.cursor-theme .sidebar.sidebar-collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    border-right-width: 0 !important;
+}
+.cursor-theme .sidebar.sidebar-collapsed > * { opacity: 0; transition: opacity 120ms ease-out; }
+.cursor-theme .sidebar > * { transition: opacity 160ms ease-in 60ms; }
 .cursor-theme .sidebar-header {
     padding: 14px 12px 8px !important;
     display: flex !important;
