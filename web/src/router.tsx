@@ -479,6 +479,20 @@ function SessionsPage() {
     // then delete from the session store. Errors are logged but don't block the UI.
     const sidebarQueryClient = useQueryClient()
 
+    const renameSessionFromSidebar = useCallback(async (sessionId: string, currentName: string) => {
+        if (!api) return
+        const next = window.prompt('Rename session', currentName)
+        if (next === null) return
+        const trimmed = next.trim()
+        if (!trimmed || trimmed === currentName) return
+        try {
+            await api.renameSession(sessionId, trimmed)
+            await sidebarQueryClient.invalidateQueries({ queryKey: queryKeys.sessions })
+        } catch (err) {
+            console.error('Failed to rename session from sidebar:', err)
+        }
+    }, [api, sidebarQueryClient])
+
     const shareSessionFromSidebar = useCallback(async (sessionId: string) => {
         if (typeof window === 'undefined') return
         const url = `${window.location.origin}/sessions/${sessionId}`
@@ -707,6 +721,17 @@ function SessionsPage() {
                                                                 zIndex: 200,
                                                             }}
                                                         >
+                                                            <button
+                                                                className="menu-action"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setOpenMenuSessionId(null)
+                                                                    setSessionMenuAnchor(null)
+                                                                    void renameSessionFromSidebar(session.id, title)
+                                                                }}
+                                                            >
+                                                                Rename
+                                                            </button>
                                                             <button
                                                                 className="menu-action"
                                                                 onClick={(e) => {
