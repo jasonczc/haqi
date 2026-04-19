@@ -1041,7 +1041,7 @@ body {
 .cursor-theme .nav-item.text-item { color: var(--cursor-text-secondary); font-weight: 400; }
 .cursor-theme .nav-item svg { color: inherit; opacity: 0.85; }
 
-/* Sidebar section labels — Title Case muted, no chevron, claude-clone style */
+/* Sidebar section labels — Title Case muted, tiny chevron, hover bolds */
 .cursor-theme .section-title {
     font-size: 11px !important;
     font-weight: 400 !important;
@@ -1050,6 +1050,37 @@ body {
     padding: 2px 8px 1px !important;
     margin-bottom: 3px !important;
     text-transform: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    transition: color 0.12s ease, font-weight 0.12s ease;
+}
+.cursor-theme .section-title .section-chevron {
+    color: #BDBDBD;
+    flex-shrink: 0;
+}
+.cursor-theme .sidebar-section-header { cursor: pointer !important; }
+.cursor-theme .sidebar-section-header:hover .section-title {
+    color: #1F1F1F !important;
+    font-weight: 500 !important;
+}
+.cursor-theme .sidebar-section-header:hover .section-action-btn {
+    opacity: 1 !important;
+}
+.cursor-theme .sidebar-section-header .section-action-btn {
+    display: flex !important;
+    opacity: 0;
+    transition: opacity 0.12s ease, background-color 0.12s ease;
+    padding: 3px;
+    border-radius: 5px;
+    color: #888;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+.cursor-theme .sidebar-section-header .section-action-btn:hover {
+    background: #F0F0F0;
+    color: #1F1F1F;
 }
 .cursor-theme .section-title.lowercase-title { text-transform: none !important; }
 .cursor-theme .sidebar-section { margin-bottom: 14px; }
@@ -1209,8 +1240,36 @@ body {
 }
 .cursor-theme .input-area-wrapper > * { padding-bottom: 0 !important; }
 .cursor-theme .input-footer { padding-top: 2px !important; padding-bottom: 0 !important; }
-/* kill the huge top-fade overlay that puts ~40px of blank space above composer */
-.cursor-theme .input-area-wrapper::before { display: none !important; }
+/* Frosted-glass backdrop: blur chat content that scrolls under the composer,
+   with a short top-fade so the bubble doesn't look pasted onto a hard edge.
+   Replaces the claude-clone gradient (which put ~40px of blank space above). */
+.cursor-theme .input-area-wrapper::before {
+    display: block !important;
+    content: '' !important;
+    position: absolute !important;
+    top: -16px !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0) 0,
+        rgba(255, 255, 255, 0.55) 18px,
+        rgba(255, 255, 255, 0.78) 100%
+    ) !important;
+    backdrop-filter: blur(14px) saturate(125%) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(125%) !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+}
+[data-theme="dark"] .cursor-theme .input-area-wrapper::before {
+    background: linear-gradient(
+        to bottom,
+        rgba(28, 28, 30, 0) 0,
+        rgba(28, 28, 30, 0.55) 18px,
+        rgba(28, 28, 30, 0.78) 100%
+    ) !important;
+}
 .cursor-theme .chat-center { padding-bottom: 0 !important; }
 .cursor-theme .chat-main { padding-bottom: 0 !important; }
 
