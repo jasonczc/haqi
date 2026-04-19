@@ -57,7 +57,7 @@ function HappyNestedBlockList(props: {
         <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
             {props.blocks.map((block) => {
                 if (block.kind === 'user-text') {
-                    const userBubbleClass = 'chat-message-user chat-user-bubble ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--cursor-bg-quiet)] px-3 py-2 text-[var(--text-primary)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
+                    const userBubbleClass = 'chat-message-user chat-user-bubble ml-auto w-fit min-w-0 max-w-[88%] rounded-[10px] bg-[var(--cursor-bg-quiet)] px-3 py-2 text-[var(--text-primary)] sm:max-w-[84%] lg:max-w-[76%]'
                     const status = block.status
                     const canRetry = status === 'failed' && typeof block.localId === 'string' && Boolean(ctx.onRetryMessage)
                     const onRetry = canRetry ? () => ctx.onRetryMessage!(block.localId!) : undefined

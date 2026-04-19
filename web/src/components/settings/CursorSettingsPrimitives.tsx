@@ -96,7 +96,7 @@ export function CursorDialogShell(props: {
     return (
         <div
             className={cn(
-                'overflow-hidden rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] shadow-[0_16px_64px_var(--shadow-tertiary)]',
+                'overflow-hidden rounded-[10px] border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]',
                 props.className
             )}
         >
@@ -365,7 +365,7 @@ export function CursorIconButton(
             className={cn(
                 buttonVariants({ variant, size: 'md' }),
                 'aspect-square px-0',
-                size === 'sm' ? 'h-8 w-8 rounded-md' : 'h-9 w-9 rounded-full',
+                size === 'sm' ? 'h-7 w-7 rounded-md' : 'h-8 w-8 rounded-md',
                 className
             )}
             {...rest}
@@ -417,7 +417,7 @@ export function CursorSelect(
         )}
         >
             <select
-                className="h-9 w-full appearance-none bg-transparent px-3 pr-8 text-[13px] leading-[18px] text-[var(--cursor-text-primary)] focus:outline-none disabled:opacity-50"
+                className="h-8 w-full appearance-none bg-transparent px-3 pr-8 text-[13px] leading-[18px] text-[var(--cursor-text-primary)] focus:outline-none disabled:opacity-50"
                 {...rest}
             >
                 {children}
@@ -604,7 +604,7 @@ export function CursorTabButton(props: {
             type="button"
             onClick={props.onClick}
             className={cn(
-                'relative inline-flex h-9 items-center border-b-2 px-0 text-[13px] font-medium transition-colors',
+                'relative inline-flex h-8 items-center border-b-2 px-0 text-[13px] font-medium transition-colors',
                 props.active
                     ? 'border-[var(--cursor-text-primary)] text-[var(--cursor-text-primary)]'
                     : 'border-transparent text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)]',

@@ -1,0 +1,1026 @@
+/* =========================================
+   CLAUDE-CLONE HIGH DENSITY IDE LAYOUT
+   Ported from /workspace/claude-clone/styles.css
+   Scoped to .cursor-theme so haqi's global zinc
+   palette doesn't bleed into the ported rules.
+   ========================================= */
+
+body {
+    overflow: hidden;
+    font-size: 13.5px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Claude-clone palette — override haqi's zinc vars within this scope only.
+   Note: --cursor-bg-secondary is deliberately NOT overridden here because haqi
+   aliases it to --bg-editor globally (used by chat viewport etc.); we hardcode
+   #FBFCFC directly on .sidebar instead. */
+.cursor-theme {
+    --cursor-bg-app: #FFFFFF;
+    --cursor-bg-card: #FFFFFF;
+    --cursor-stroke-primary: #E2E2E2;
+    --cursor-stroke-secondary: #EFEFEF;
+    --cursor-text-primary: #1C1C1C;
+    --cursor-text-secondary: #555555;
+    --cc-bg-sidebar: #FBFCFC;
+    --cc-icon: #666666;
+    --cc-text-muted: #888888;
+    --cc-accent-hover: #F2F2F2;
+    --cc-accent-active: #EEEEEE;
+
+    /* Chat timeline density — match claude-clone's .chat-viewport
+       (padding 16px 60px) and .markdown-content (max-width 800px). */
+    --chat-content-max: 800px;
+    --chat-timeline-padding-x: 60px;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    background-color: var(--cursor-bg-app, #FFFFFF);
+    position: relative;
+    padding: 12px; /* Uniform padding provides the space for the floating visuals */
+    gap: 8px; /* Space between sidebar panel and main content */
+    box-sizing: border-box;
+}
+
+/* ====== SIDEBAR ====== */
+.sidebar {
+    width: 210px; /* Highly dense sidebar */
+    min-width: 210px;
+    background-color: var(--cc-bg-sidebar);
+    border: 1px solid #EAEAEA;
+    border-radius: 10px; /* visually tighter */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); /* Floating card shadow */
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+/* Sidebar Resizer Handle */
+.sidebar-resizer {
+    position: absolute;
+    top: 0;
+    right: -4px; /* Extends slightly outside the border so edge grab is easier */
+    width: 6px;
+    height: 100%;
+    cursor: ew-resize;
+    z-index: 101;
+    background-color: transparent;
+    transition: background-color 0.2s ease;
+}
+.sidebar-resizer:hover, .sidebar-resizer.active {
+    background-color: var(--cursor-stroke-secondary, #EEEEEE);
+    opacity: 0.8;
+}
+
+.sidebar-header {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 10px 8px 10px;
+}
+
+.sidebar-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 0 4px;
+}
+
+.window-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.mac-dot {
+    width: 11.5px;
+    height: 11.5px;
+    border-radius: 50%;
+}
+.mac-dot.close { background-color: #ED6A5E; }
+.mac-dot.minimize { background-color: #F4BF4F; }
+.mac-dot.maximize { background-color: #61C554; }
+
+.sidebar-tabbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 2px;
+}
+
+.tab-items, .sidebar-top-actions {
+    display: flex;
+    gap: 2px;
+}
+
+.tab-button {
+    background: transparent;
+    border: none;
+    color: var(--cc-icon);
+    font-size: 11.5px; /* Mini text */
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px; /* Tighter gap */
+    padding: 3px 5px; /* Skinnier padding */
+    border-radius: 5px;
+}
+.tab-button .code-icon { stroke-width: 2.5; }
+.tab-button.active {
+    color: var(--cursor-text-primary);
+    background-color: var(--cc-accent-active);
+    padding: 3px 6px;
+}
+
+.icon-button {
+    background: transparent;
+    border: none;
+    color: var(--cc-icon);
+    cursor: pointer;
+    border-radius: 4px;
+    width: 18px; /* Tighter footprint */
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-button:hover {
+    background-color: var(--cc-accent-hover);
+    color: var(--cursor-text-primary);
+}
+.icon-button.border {
+    border: 1px solid var(--cursor-stroke-primary);
+    border-radius: 4px;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px;
+}
+
+.new-session-btn {
+    width: 100%;
+    background-color: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--cursor-text-secondary);
+    font-size: 11.5px; /* Extremely small text */
+    font-weight: 400;
+}
+.new-session-btn .left-content {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.new-session-btn:hover { background-color: var(--cc-accent-hover); color: var(--cursor-text-primary); }
+
+.shortcut {
+    color: var(--cc-text-muted);
+    font-size: 10.5px;
+    font-family: inherit;
+}
+
+.nav-menu-items { margin-bottom: 12px; }
+
+.menu-item {
+    width: 100%;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--cursor-text-secondary);
+    font-size: 11.5px; /* Smallest comfortable text */
+    text-align: left;
+}
+.menu-item:hover { background-color: var(--cc-accent-hover); color: var(--cursor-text-primary); }
+.menu-item.collapse-btn { color: var(--cc-text-muted); }
+
+.sidebar-section { margin-bottom: 8px; }
+.section-title {
+    font-size: 9.5px; /* Microscopic section titles */
+    color: var(--cc-text-muted);
+    font-weight: 600;
+    padding: 2px 6px 1px;
+    margin-bottom: 2px;
+    letter-spacing: 0.2px;
+}
+.section-title.lowercase-title { text-transform: none; }
+
+/* Collapsible sections animation */
+.collapsible-header {
+    cursor: pointer;
+}
+.collapse-chevron {
+    transition: transform 0.2s ease-out;
+}
+.sidebar-section.collapsed .collapse-chevron {
+    transform: rotate(-90deg);
+}
+
+.section-content {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 0.2s ease-out;
+}
+.section-content-inner {
+    overflow: hidden;
+}
+.sidebar-section.collapsed .section-content {
+    grid-template-rows: 0fr;
+}
+
+/* Section Header Hover States */
+.sidebar-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-right: 6px; 
+    height: 20px; /* Tighter headers */
+    margin-bottom: 2px;
+}
+
+.hover-icon {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+.sidebar-section-header:hover .hover-icon,
+.sidebar-section-header:focus-within .hover-icon {
+    opacity: 1;
+}
+
+.section-action-btn {
+    background: transparent;
+    border: none;
+    color: var(--cc-icon);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.section-action-btn:hover {
+    background-color: var(--cc-accent-hover);
+    color: var(--cursor-text-primary);
+}
+
+.empty-state {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--cc-text-muted);
+    font-size: 11.5px;
+    padding: 3px 6px;
+}
+
+.nav-item-wrapper { padding: 1px 0; }
+.nav-item {
+    width: 100%;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px; /* Ultra compact hit targets */
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--cursor-text-primary);
+    font-size: 11.5px; /* Scaled down text */
+    text-align: left;
+}
+.nav-item:hover { background-color: var(--cc-accent-hover); }
+.nav-item.active-item {
+    background-color: var(--cc-accent-active);
+}
+.nav-item.text-item {
+    color: var(--cursor-text-secondary);
+}
+.nav-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.item-actions {
+    opacity: 0;
+    transition: opacity 0.15s;
+    cursor: pointer;
+    color: var(--cursor-text-secondary);
+    padding: 2px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
+.nav-item:hover .item-actions,
+.nav-item:focus-within .item-actions {
+    opacity: 1;
+}
+.item-actions:hover {
+    color: var(--cursor-text-primary);
+}
+
+.sidebar-footer {
+    padding: 8px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.profile-btn {
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--cursor-text-secondary);
+    font-size: 11.5px;
+    cursor: pointer;
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+.profile-btn.outline-blue {
+    border: 1.5px solid #2563EB;
+    background: var(--cursor-bg-app);
+    color: var(--cursor-text-primary);
+}
+.profile-btn:not(.outline-blue):hover {
+    background-color: var(--cc-accent-hover);
+    color: var(--cursor-text-primary);
+}
+
+/* ====== MAIN CONTENT ====== */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background-color: var(--cursor-bg-app);
+    min-width: 0; /* Important for flex children to allow inner truncation */
+}
+
+.main-header {
+    height: 38px; /* Micro header */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--cursor-text-secondary);
+    font-size: 11.5px; /* Downsized font */
+    font-weight: 500;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-share {
+    background: transparent;
+    border: 1px solid var(--cursor-stroke-primary);
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--cursor-text-secondary);
+    cursor: pointer;
+}
+.btn-share:hover { background-color: var(--cc-accent-hover); color: var(--cursor-text-primary); }
+
+.icon-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: transparent;
+    border: none;
+    padding: 2px;
+    color: #888888;
+    cursor: pointer;
+}
+.icon-action-btn:hover {
+    color: var(--cursor-text-primary);
+}
+
+/* Chat Window */
+.chat-viewport {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 60px;
+    padding-bottom: 220px;
+    position: relative;
+}
+
+/* ====== EXACT TARGET INPUT CONTAINER (Image 2 logic) ====== */
+.input-area-wrapper {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 60px 40px 24px 40px; /* Provides top space for gradient tail and fade */
+    pointer-events: none;
+    z-index: 100;
+}
+
+.input-area-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* Smooth fade from transparent to pure white background */
+    background: linear-gradient(
+        to bottom, 
+        rgba(255, 255, 255, 0) 0px, 
+        rgba(255, 255, 255, 0.9) 45px, 
+        rgba(255, 255, 255, 1) 70px
+    );
+    pointer-events: none;
+    z-index: -1;
+}
+[data-theme="dark"] .input-area-wrapper::before {
+    background: linear-gradient(
+        to bottom, 
+        rgba(28, 28, 30, 0) 0px, 
+        rgba(28, 28, 30, 0.9) 45px, 
+        rgba(28, 28, 30, 1) 70px
+    );
+}
+
+.input-container {
+    width: 100%;
+    max-width: 800px;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* The actual bordered text area. Haqi keeps flex-column so StatusBar/attachments/ComposerButtons can stack inside, unlike claude-clone's flat textarea-only row. */
+.input-field-box {
+    background-color: var(--cursor-bg-app);
+    border: 1px solid #D5D5D5;
+    border-radius: 10px; /* Tighter rounding */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px 6px 10px; /* Reduced vertical & horizontal padding */
+    margin-bottom: 6px;
+}
+
+.input-field-box textarea {
+    flex: 1;
+    border: none;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    font-size: 12.5px; /* Very dense user text input size */
+    line-height: 1.5;
+    background: transparent;
+    color: var(--cursor-text-primary);
+    min-height: 18px; /* Tighter base height */
+    max-height: 200px;
+    padding: 0;
+}
+.input-field-box textarea::placeholder {
+    color: #A9A9A9;
+    font-weight: 400;
+}
+
+.submit-btn {
+    background: transparent;
+    border: none;
+    color: #A3A3A3;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 12px;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.submit-btn:hover:not(:disabled) {
+    color: var(--cursor-text-primary);
+}
+.submit-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* The footer section */
+.input-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+}
+
+.left-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-text {
+    color: var(--cursor-text-primary);
+    font-size: 11.5px; /* Shrunk */
+    margin-right: 4px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--cursor-text-secondary);
+    cursor: pointer;
+    width: 20px; /* Downsized icon span */
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+.icon-btn.sq-icon {
+    border: 1px solid var(--cursor-stroke-primary);
+    width: 16px;
+    height: 16px;
+}
+.icon-btn:hover { background-color: var(--cc-accent-hover); color: var(--cursor-text-primary); }
+
+.right-info { 
+    display: flex; 
+    align-items: center; 
+}
+
+.model-select {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px; /* Tiny indicator */
+    color: var(--cursor-text-primary);
+    cursor: pointer;
+}
+
+/* ====== CONTEXT MENU / DROPDOWN ====== */
+.context-menu {
+    position: absolute;
+    top: 32px;
+    right: -20px;
+    background: var(--cursor-bg-app, #FFFFFF);
+    border: 1px solid var(--cursor-stroke-primary, #E5E5E5);
+    border-radius: 10px;
+    padding: 6px;
+    width: 170px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    z-index: 200;
+}
+
+.menu-action {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--cursor-text-primary);
+    cursor: pointer;
+}
+.menu-action:hover, .menu-action.highlight {
+    background-color: var(--cc-accent-active);
+}
+.menu-action.danger { color: #EF4444; }
+.menu-action.danger:hover { background-color: #FEF2F2; }
+
+.menu-action.flex-between {
+    justify-content: space-between;
+}
+.action-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.menu-icon { color: var(--cc-text-muted); }
+.menu-shortcut { color: var(--cc-text-muted); font-size: 11px; }
+.menu-label {
+    padding: 4px 10px;
+    font-size: 11px;
+    color: var(--cursor-text-secondary);
+    margin-bottom: 2px;
+}
+.menu-val {
+    color: var(--cc-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+}
+.menu-val.blue { color: #2563EB; }
+
+.menu-divider {
+    height: 1px;
+    background-color: #EAEAEA;
+    margin: 4px 6px;
+}
+
+/* ====== HOME / SESSIONS INDEX DENSITY ======
+   Tighten haqi's home page typography & spacing to match claude-clone's
+   ultra-dense IDE aesthetic. Scoped via .cursor-theme so it only applies
+   inside SessionsPage. */
+.cursor-theme .home-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: var(--cc-text-muted);
+    text-transform: uppercase;
+}
+.cursor-theme .home-section-meta {
+    font-size: 10.5px;
+    color: var(--cc-text-muted);
+}
+.cursor-theme .agent-row {
+    padding: 6px 10px;
+    gap: 10px;
+    border-radius: 6px;
+}
+.cursor-theme .agent-row:hover {
+    background-color: var(--cc-accent-hover);
+}
+.cursor-theme .agent-title {
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.35;
+}
+.cursor-theme .agent-subtitle {
+    font-size: 11px;
+    color: var(--cursor-text-secondary);
+    margin-top: 1px;
+    gap: 4px;
+}
+
+/* ====== MARKDOWN / INLINE CODE ======
+   Claude-clone inline code is a pinkish chip with maroon text. Haqi's
+   markdown renderer uses .aui-md-code + --cursor-inline-code-bg.
+   Override both so it reads as a code chip, not a gray pill. */
+.cursor-theme {
+    --cursor-inline-code-bg: #FCF4F4;
+}
+.cursor-theme code.aui-md-code,
+.cursor-theme :not(pre) > code.aui-md-code {
+    background-color: #FCF4F4;
+    color: #D64545;
+    padding: 1.5px 4px;
+    border-radius: 4px;
+    font-size: 11.5px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    white-space: nowrap;
+}
+
+/* ====== SETTINGS PAGES DENSITY ======
+   Tighten claude-clone IDE feel inside /settings/*. */
+.cursor-theme .settings-sidebar {
+    width: 210px;
+    background-color: var(--cc-bg-sidebar);
+}
+.cursor-theme .settings-content {
+    padding: 24px 32px 40px;
+}
+.cursor-theme .settings-header {
+    margin-bottom: 24px;
+}
+.cursor-theme .settings-header h1 {
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    margin-bottom: 4px;
+}
+.cursor-theme .settings-header p {
+    font-size: 12px;
+}
+.cursor-theme .settings-section {
+    margin-bottom: 20px;
+}
+.cursor-theme .settings-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: var(--cc-text-muted);
+    text-transform: uppercase;
+}
+.cursor-theme .settings-section-subtitle {
+    font-size: 12px;
+}
+.cursor-theme .settings-row {
+    padding: 10px 12px;
+    gap: 10px;
+}
+.cursor-theme .settings-row-title {
+    font-size: 12.5px;
+}
+.cursor-theme .settings-row-desc {
+    font-size: 11.5px;
+}
+
+/* ====== RUNWORKBENCH DROPDOWN ======
+   Tighten to claude-clone's context-menu (10px) / menu-action (4px) geometry. */
+.cursor-theme .dropdown-menu {
+    border-radius: 10px;
+    border-color: var(--cursor-stroke-primary);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+    padding: 6px;
+    min-width: 170px;
+}
+.cursor-theme .dropdown-item {
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--cursor-text-primary);
+    margin: 0 2px;
+}
+.cursor-theme .dropdown-item:hover {
+    background-color: var(--cc-accent-active);
+    color: var(--cursor-text-primary);
+}
+.cursor-theme .dropdown-item-danger {
+    color: #EF4444;
+}
+.cursor-theme .dropdown-item-danger:hover {
+    background-color: #FEF2F2;
+    color: #EF4444;
+}
+
+/* ====== HOME COMPOSER SHELL ======
+   Pull HomeComposer's .prompt-card into claude-clone's visual language
+   (radius 10px, #D5D5D5 border, subtle shadow, 12.5px textarea). */
+.cursor-theme .prompt-card {
+    border-radius: 10px;
+    border-color: #D5D5D5;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+.cursor-theme .prompt-card:focus-within {
+    border-color: #B0B0B0;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08), 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+.cursor-theme .prompt-input {
+    font-size: 12.5px;
+    line-height: 1.5;
+    padding: 10px 12px 8px;
+}
+.cursor-theme .prompt-input::placeholder {
+    color: #A9A9A9;
+}
+.cursor-theme .prompt-footer {
+    padding: 0 4px 8px;
+    gap: 6px;
+}
+
+/* ====== GENERATING INDICATOR ======
+   Claude-clone's "thinking" affordance — a pulsing sparkle icon below the
+   last message, centered in the 800px content column. */
+.generating-indicator {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+    padding-top: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--cursor-text-secondary);
+    font-size: 12px;
+}
+.generating-indicator .sparkle-icon {
+    width: 20px;
+    height: 20px;
+    animation: cc-pulse 1.5s infinite;
+}
+@keyframes cc-pulse {
+    0%   { opacity: 0.6; transform: scale(0.95); }
+    50%  { opacity: 1;   transform: scale(1.05); }
+    100% { opacity: 0.6; transform: scale(0.95); }
+}
+
+/* =========================================================
+   HIGH-SPECIFICITY CLAUDE-CLONE ENFORCEMENT
+   cursor-theme-v2.css has 3875 lines of haqi's zinc-theme
+   rules. To guarantee claude-clone's IDE density wins, all
+   critical surfaces are re-declared below under .cursor-theme
+   scope (specificity 0,2,0) so they beat v2's plain rules.
+   ========================================================= */
+
+/* Sidebar nav density — !important to beat cursor-theme-v2.css:643 */
+.cursor-theme .nav-item {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 3px 6px !important;
+    gap: 6px !important;
+    font-size: 11.5px !important;
+    font-weight: 400 !important;
+    border-radius: 5px !important;
+    color: var(--cursor-text-primary);
+    background: transparent;
+}
+.cursor-theme .nav-item svg { width: 13px !important; height: 13px !important; }
+.cursor-theme .nav-item:hover { background-color: var(--cc-accent-hover); }
+.cursor-theme .nav-item.active-item { background-color: var(--cc-accent-active); }
+.cursor-theme .nav-item.text-item { color: var(--cursor-text-secondary); font-weight: 400; }
+.cursor-theme .nav-item svg { color: inherit; opacity: 0.85; }
+
+/* Sidebar section labels */
+.cursor-theme .section-title {
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: var(--cc-text-muted);
+    padding: 2px 6px 1px;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+}
+.cursor-theme .section-title.lowercase-title { text-transform: none; }
+.cursor-theme .sidebar-section { margin-bottom: 8px; }
+.cursor-theme .sidebar-section-header { height: 20px; padding-right: 6px; margin-bottom: 2px; }
+.cursor-theme .nav-item-wrapper { padding: 1px 0; }
+
+/* Sidebar chrome */
+.cursor-theme .sidebar { width: 210px; min-width: 210px; background-color: var(--cc-bg-sidebar); border: 1px solid #EAEAEA; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+.cursor-theme .sidebar-header { padding: 12px 10px 8px; }
+.cursor-theme .sidebar-top-row { margin-bottom: 20px; padding: 0 4px; }
+.cursor-theme .sidebar-content { padding: 0 8px; }
+.cursor-theme .sidebar-footer { padding: 8px 10px; }
+
+/* Home hero */
+.cursor-theme .home-hero { padding-top: 20px; }
+.cursor-theme .home-title { font-size: 16px; font-weight: 600; line-height: 1.2; margin: 0 0 4px; letter-spacing: -0.01em; }
+.cursor-theme .home-subtitle { font-size: 12px; line-height: 1.5; margin: 0 0 16px; }
+
+/* Agent list (recent runs) — repeat here with higher specificity */
+.cursor-theme .agent-row { padding: 6px 10px; gap: 10px; border-radius: 6px; }
+.cursor-theme .agent-title { font-size: 12.5px; font-weight: 500; line-height: 1.35; }
+.cursor-theme .agent-subtitle { font-size: 11px; gap: 4px; margin-top: 1px; color: var(--cursor-text-secondary); }
+
+/* Body text baseline in the scope */
+.cursor-theme { font-size: 13px; }
+
+/* main-content wrapper: no floating-card chrome */
+.cursor-theme .main-content { background: var(--cursor-bg-app); border: none; border-radius: 0; box-shadow: none; }
+
+/* Main header density */
+.cursor-theme .main-header { height: 38px; padding: 0 16px; }
+.cursor-theme .breadcrumb { font-size: 11.5px; gap: 4px; color: var(--cursor-text-secondary); }
+.cursor-theme .btn-share { padding: 3px 6px; font-size: 12.5px; border-radius: 4px; border: 1px solid var(--cursor-stroke-primary); background: transparent; color: var(--cursor-text-secondary); }
+
+/* ============================================================
+   COMPOSER — force claude-clone's short thin input shape.
+   Haqi's default textarea is 3-4 rows tall + heavy border.
+   ============================================================ */
+.cursor-theme .input-field-box {
+    border: 1px solid #D5D5D5 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04) !important;
+    padding: 4px 8px 4px 12px !important;
+    background: #FFFFFF !important;
+    min-height: 0 !important;
+}
+.cursor-theme .chat-input-row {
+    padding: 0 !important;
+    min-height: 0 !important;
+    gap: 6px !important;
+}
+.cursor-theme .chat-input-field,
+.cursor-theme .input-field-box textarea {
+    min-height: 20px !important;
+    max-height: 140px !important;
+    padding: 4px 0 !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+    border: none !important;
+    background: transparent !important;
+    resize: none !important;
+}
+.cursor-theme .input-footer,
+.cursor-theme .chat-input-footer {
+    margin-top: 4px !important;
+    padding: 0 2px !important;
+    gap: 6px !important;
+}
+.cursor-theme .left-actions,
+.cursor-theme .footer-left,
+.cursor-theme .chat-input-tools,
+.cursor-theme .right-info,
+.cursor-theme .footer-right,
+.cursor-theme .chat-input-actions {
+    gap: 4px !important;
+}
+/* Shrink every composer icon button */
+.cursor-theme .composer-icon-btn,
+.cursor-theme .composer-attachment-btn,
+.cursor-theme .composer-more-btn {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 4px !important;
+}
+.cursor-theme .composer-icon-btn svg { width: 14px !important; height: 14px !important; }
+
+/* ============================================================
+   VERTICAL RHYTHM + WIDTH (claude-clone chat column)
+   ============================================================ */
+
+/* Content column: 800px max, 60px horizontal gutter on viewport */
+.cursor-theme .chat-timeline-inner {
+    max-width: 800px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+.cursor-theme .chat-timeline-viewport { padding-left: 60px !important; padding-right: 60px !important; }
+.cursor-theme .input-container { max-width: 800px !important; margin-left: auto !important; margin-right: auto !important; }
+.cursor-theme .input-area-wrapper {
+    padding: 40px 60px 8px 60px !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+}
+.cursor-theme .chat-center { padding-bottom: 0 !important; }
+.cursor-theme .chat-main { padding-bottom: 0 !important; }
+
+/* Message spacing — claude-clone keeps rows TIGHT. Kill huge gaps between
+   Reasoning / Ran ToolSearch / assistant text. Default Tailwind typography
+   margins are too generous for dense chat. */
+.cursor-theme .chat-message-agent,
+.cursor-theme .chat-message-agent-body,
+.cursor-theme .chat-message-agent-tools { margin: 0 !important; padding: 0 !important; }
+.cursor-theme [data-happy-message-id] { margin-top: 6px !important; margin-bottom: 0 !important; }
+.cursor-theme [data-happy-message-id]:first-child { margin-top: 0 !important; }
+
+/* Tool card: single-line row, no extra padding/margin */
+.cursor-theme .tool-card { margin: 0 !important; padding: 0 !important; }
+.cursor-theme .tool-card .tool-card-header { padding: 3px 0 !important; margin: 0 !important; }
+.cursor-theme .tool-card .tool-card-header > button { width: 100% !important; }
+
+/* Reasoning collapsed row: no border, no padding, tight height */
+.cursor-theme .chat-reasoning-group { margin: 3px 0 !important; padding: 0 !important; border: none !important; }
+.cursor-theme .chat-reasoning-toggle { padding: 0 !important; height: auto !important; }
+
+/* Assistant text body typography - claude-clone uses 13.5px with line-height 1.6 */
+.cursor-theme .chat-message-agent .aui-md,
+.cursor-theme .chat-message-agent-body .aui-md {
+    font-size: 13.5px !important;
+    line-height: 1.6 !important;
+}
+.cursor-theme .chat-message-agent p { margin: 0 !important; }
+.cursor-theme .chat-message-agent p + p { margin-top: 8px !important; }
+
+/* Tool card — flatten to inline log-line style (vs claude-clone plain markdown).
+   Kill the boxy card aesthetic: no border, no shadow, no card background,
+   near-zero padding, small title/subtitle. Result reads like a list entry. */
+.cursor-theme .tool-card {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    overflow: visible !important;
+}
+.cursor-theme .tool-card .tool-card-header {
+    padding: 4px 0 !important;
+}
+.cursor-theme .tool-card .tool-card-title {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: var(--cursor-text-primary) !important;
+}
+.cursor-theme .tool-card .tool-card-subtitle {
+    font-size: 11.5px !important;
+    opacity: 1 !important;
+    color: var(--cursor-text-secondary) !important;
+}
+.cursor-theme .tool-card .tool-card-status-badge {
+    padding: 1px 5px !important;
+    font-size: 10px !important;
+}

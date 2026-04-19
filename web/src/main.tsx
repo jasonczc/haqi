@@ -6,6 +6,8 @@ import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
 import './index.css'
 import './styles/cursor-theme.css'
 import './styles/cursor-theme-v2.css'
+// claude-clone port loads last so its rules win over haqi's cursor-theme-v2.css
+import './cursor-theme.css'
 import { registerSW } from 'virtual:pwa-register'
 import { initializeFontScale } from '@/hooks/useFontScale'
 import { getTelegramWebApp, isTelegramEnvironment, loadTelegramSdk } from './hooks/useTelegram'

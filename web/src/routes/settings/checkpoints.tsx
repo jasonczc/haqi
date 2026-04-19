@@ -225,7 +225,7 @@ function CheckpointTreeCard(props: {
                 </>
             ) : null}
 
-            <CursorSettingsCard className="px-4 py-4 shadow-[0_8px_24px_var(--shadow-primary)]">
+            <CursorSettingsCard className="px-3 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">

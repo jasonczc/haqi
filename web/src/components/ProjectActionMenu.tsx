@@ -176,7 +176,7 @@ export function ProjectActionMenu(props: ProjectActionMenuProps) {
     return (
         <div
             ref={menuRef}
-            className="fixed z-50 min-w-[220px] animate-menu-pop rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-1 shadow-lg"
+            className="fixed z-50 min-w-[220px] animate-menu-pop rounded-[10px] border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]"
             style={menuStyle}
         >
             <div

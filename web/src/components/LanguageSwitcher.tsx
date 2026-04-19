@@ -101,7 +101,7 @@ export function LanguageSwitcher() {
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full z-50 mt-1 min-w-[140px] overflow-hidden rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1 min-w-[140px] overflow-hidden rounded-[10px] border border-[var(--border-secondary)] bg-[var(--bg-editor)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]"
           role="listbox"
           aria-label={t('language.title')}
         >

@@ -175,13 +175,13 @@ export function StatusBar(props: {
         && Boolean(maxContextSize)
         && (props.contextSize / (maxContextSize || 1)) >= 0.5
     const hasMultipleAgents = runningAgents.length > 1
+    // Idle = null. The permission-mode / plan-mode badges are not "content";
+    // they're quiet preferences. Don't keep a status bar resident just to show them.
     const hasContent = Boolean(props.thinking)
         || hasPermissionRequests
         || hasVoiceActivity
         || hasContextWarning
         || hasMultipleAgents
-        || Boolean(displayPermissionMode)
-        || Boolean(isCodexPlanMode)
 
     if (!hasContent) {
         return null

@@ -119,7 +119,7 @@ export default function SettingsOverviewPage() {
                         </div>
                     </div>
 
-                    <div style={{ fontSize: 40, fontWeight: 600, marginBottom: 8, color: 'var(--cursor-text-primary)' }}>
+                    <div style={{ fontSize: 24, fontWeight: 600, marginBottom: 6, color: 'var(--cursor-text-primary)', letterSpacing: '-0.01em' }}>
                         {sessions.length.toLocaleString()}
                     </div>
 

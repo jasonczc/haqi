@@ -426,11 +426,8 @@ export function ComposerButtons(props: {
     const closeMore = useCallback(() => setShowMore(false), [])
 
     return (
-        <div
-            className="chat-input-footer flex items-center justify-between gap-2"
-            style={{ marginTop: '4px' }}
-        >
-            <div className="footer-left chat-input-tools flex items-center gap-1">
+        <div className="input-footer chat-input-footer flex items-center justify-between gap-2">
+            <div className="left-actions footer-left chat-input-tools flex items-center gap-1">
                 <ComposerPrimitive.AddAttachment
                     aria-label={t('composer.attach')}
                     title={t('composer.attach')}
@@ -547,7 +544,7 @@ export function ComposerButtons(props: {
             </div>
 
             <div
-                className="footer-right chat-input-actions flex items-center gap-1.5"
+                className="right-info footer-right chat-input-actions flex items-center gap-1.5"
                 title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
             >
                 {props.showPlanModeToggle ? (

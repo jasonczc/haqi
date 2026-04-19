@@ -165,8 +165,8 @@ body {
 }
 
 .app-scrollbar::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 
 .app-scrollbar::-webkit-scrollbar-track {
@@ -175,7 +175,7 @@ body {
 
 .app-scrollbar::-webkit-scrollbar-thumb {
     border-radius: 999px;
-    border: 2px solid transparent;
+    border: 1px solid transparent;
     background-clip: padding-box;
     background-color: var(--scrollbar-thumb);
 }
@@ -358,23 +358,20 @@ html[data-theme="dark"] .shiki span {
   animation: spin 1s linear infinite;
 }
 
-/* New messages indicator bounce animation */
+/* New messages indicator — simple fade-in without scale overshoot */
 @keyframes bounce-in {
   0% {
-    transform: translateX(-50%) scale(0.8);
+    transform: translateX(-50%) translateY(4px);
     opacity: 0;
   }
-  50% {
-    transform: translateX(-50%) scale(1.05);
-  }
   100% {
-    transform: translateX(-50%) scale(1);
+    transform: translateX(-50%) translateY(0);
     opacity: 1;
   }
 }
 
 .animate-bounce-in {
-  animation: bounce-in 0.3s ease-out;
+  animation: bounce-in 0.2s ease-out;
 }
 
 /* ReactQueryDevtools button - move to middle-right to avoid blocking UI */

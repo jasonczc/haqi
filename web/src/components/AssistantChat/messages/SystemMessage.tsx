@@ -25,7 +25,7 @@ function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }
             : null
 
     return (
-        <div className={`system-event-card mx-auto max-w-[88%] rounded-xl border sm:max-w-[84%] lg:max-w-[76%] ${borderClass}`}>
+        <div className={`system-event-card mx-auto max-w-[88%] rounded-[10px] border sm:max-w-[84%] lg:max-w-[76%] ${borderClass}`}>
             <div className={`system-event-icon ${isError ? 'is-error' : 'is-warning'}`} aria-hidden>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     {isError ? (

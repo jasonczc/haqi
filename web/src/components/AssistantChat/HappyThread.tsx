@@ -31,10 +31,10 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
 function MessageSkeleton() {
     const { t } = useTranslation()
     const rows = [
-        { align: 'end', width: 'w-2/3', height: 'h-10' },
-        { align: 'start', width: 'w-3/4', height: 'h-12' },
-        { align: 'end', width: 'w-1/2', height: 'h-9' },
-        { align: 'start', width: 'w-5/6', height: 'h-14' }
+        { align: 'end', width: 'w-2/3', height: 'h-7' },
+        { align: 'start', width: 'w-3/4', height: 'h-8' },
+        { align: 'end', width: 'w-1/2', height: 'h-6' },
+        { align: 'start', width: 'w-5/6', height: 'h-9' }
     ]
 
     return (
@@ -43,7 +43,7 @@ function MessageSkeleton() {
             <div className="space-y-3">
                 {rows.map((row, index) => (
                     <div key={`skeleton-${index}`} className={row.align === 'end' ? 'flex justify-end' : 'flex justify-start'}>
-                        <div className={`skeleton ${row.height} ${row.width} rounded-xl`} />
+                        <div className={`skeleton ${row.height} ${row.width} rounded-[10px]`} />
                     </div>
                 ))}
             </div>
@@ -191,6 +191,34 @@ export function HappyThread(props: {
                             </>
                         )}
                         <ThreadMessagesList />
+                        {(() => {
+                            const agents = props.agentState?.runningAgents ?? []
+                            const running = agents.length > 0 || Boolean(props.agentState?.runningAgent)
+                            if (!running) return null
+                            const label = props.agentState?.runningAgent?.task
+                                || props.agentState?.runningAgent?.name
+                                || agents[0]?.task
+                                || agents[0]?.name
+                                || 'Thinking…'
+                            return (
+                                <div className="generating-indicator" role="status" aria-live="polite">
+                                    <svg
+                                        className="sparkle-icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.6"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        aria-hidden
+                                    >
+                                        <path d="M12 3l1.9 4.8L18.8 10 13.9 12l-1.9 4.8L10 12 5.2 10l4.8-2.2z" />
+                                        <path d="M19 15l.8 2 2 .8-2 .8L19 21l-.8-2-2-.8 2-.8z" />
+                                    </svg>
+                                    <span>{label}</span>
+                                </div>
+                            )
+                        })()}
                         <div className="chat-timeline-spacer" style={{ height: '120px' }} />
                     </div>
                 </ThreadPrimitive.Viewport>

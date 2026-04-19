@@ -258,7 +258,7 @@ export function AskUserQuestionFooter(props: {
     }
 
     return (
-        <div className="mt-3 rounded-lg border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] p-3">
+        <div className="mt-3 rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] p-2.5">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">

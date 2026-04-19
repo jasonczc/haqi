@@ -73,18 +73,13 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
     }, [isStreaming])
 
     return (
-        <div
-            className="aui-reasoning-group chat-reasoning-group my-2 border border-[var(--border-tertiary)]"
-            style={{ borderRadius: 'var(--secondary-card-radius)', padding: 'var(--secondary-card-padding)' }}
-        >
+        <div className="aui-reasoning-group chat-reasoning-group my-1">
             <button
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
                     'chat-reasoning-toggle',
-                    'flex items-center gap-1.5 font-medium',
-                    'text-[length:var(--font-size-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-                    'transition-colors cursor-pointer select-none w-full'
+                    'flex items-center gap-1 text-[13px] text-[var(--cursor-text-secondary)] hover:text-[var(--cursor-text-primary)] transition-colors cursor-pointer select-none'
                 )}
             >
                 <ChevronIcon open={isOpen} />
@@ -96,19 +91,11 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                 )}
             </button>
 
-            <div
-                className={cn(
-                    'chat-reasoning-panel',
-                    'overflow-hidden transition-all duration-200 ease-in-out',
-                    isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
-                )}
-            >
-                <div
-                    className="chat-reasoning-body ml-0.5 border-l-2 border-[var(--border-tertiary)] pl-4 pt-2 text-[length:var(--font-size-base)] leading-[var(--line-height-base)] text-[var(--text-secondary)]"
-                >
+            {isOpen ? (
+                <div className="chat-reasoning-body mt-1 pl-4 text-[13px] leading-[1.55] text-[var(--cursor-text-secondary)]">
                     {children}
                 </div>
-            </div>
+            ) : null}
         </div>
     )
 }

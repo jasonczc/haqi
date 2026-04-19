@@ -367,7 +367,7 @@ export default function FilePage() {
             ) : null}
 
             <div className="flex-1 overflow-y-auto">
-                <div className="mx-auto w-full max-w-content p-4">
+                <div className="mx-auto w-full max-w-content p-3">
                     {diffErrorMessage ? (
                         <div className="mb-3 rounded-md bg-[var(--cursor-warning-bg)] p-2 text-xs text-[var(--cursor-warning)]">
                             {diffErrorMessage}

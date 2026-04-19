@@ -647,7 +647,7 @@ export function HappyComposer(props: {
     const { enterBehavior } = useEnterBehavior()
     const { isStandalone, isIOS } = usePWAInstall()
     const isIOSPWA = isIOS && isStandalone
-    const bottomPaddingClass = isIOSPWA ? 'pb-0' : 'pb-3'
+    const bottomPaddingClass = isIOSPWA ? 'pb-0' : 'pb-0'
     const activeWord = useActiveWord(inputState.text, inputState.selection, autocompletePrefixes)
     const [suggestions, selectedIndex, moveUp, moveDown, clearSuggestions] = useActiveSuggestions(
         activeWord,
@@ -1278,21 +1278,9 @@ export function HappyComposer(props: {
 
     return (
         <div
-            className={`chat-input-wrapper ${isIOSPWA ? 'chat-input-wrapper-ios-pwa' : ''} ${cliMode ? 'cli-composer' : ''}`}
-            style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                padding: `0 var(--chat-timeline-padding-x) var(--chat-timeline-padding-x)`,
-                background: `linear-gradient(to top, var(--chrome) 70%, transparent)`,
-                pointerEvents: 'none',
-            }}
+            className={`input-area-wrapper ${isIOSPWA ? 'chat-input-wrapper-ios-pwa' : ''} ${cliMode ? 'cli-composer' : ''}`}
         >
-            <div
-                className={`chat-input-shell mx-auto w-full ${bottomPaddingClass}`}
-                style={{ pointerEvents: 'auto', maxWidth: 'var(--chat-content-max)' }}
-            >
+            <div className={`input-container mx-auto w-full ${bottomPaddingClass}`}>
                 <ComposerPrimitive.Root className="relative" onSubmit={handleSubmit}>
                     {overlays}
 
@@ -1301,14 +1289,7 @@ export function HappyComposer(props: {
                         disabled={controlsDisabled}
                     >
                         <div
-                            className="chat-input-box overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--focus)]"
-                            style={{
-                                background: cliMode ? 'transparent' : 'var(--editor)',
-                                border: `1px solid var(--border-quaternary)`,
-                                borderRadius: cliMode ? '4px' : 'var(--composer-radius)',
-                                padding: `var(--composer-padding-top) var(--composer-padding-right) var(--composer-padding-bottom) var(--composer-padding-left)`,
-                                boxShadow: cliMode ? 'none' : '0 4px 12px rgba(0,0,0,0.05)',
-                            }}
+                            className="input-field-box transition-[border-color,box-shadow] data-[dragging=true]:border-[var(--focus)] data-[dragging=true]:ring-1 data-[dragging=true]:ring-[var(--focus)]"
                         >
                             <StatusBar
                                 active={active}
@@ -1435,7 +1416,7 @@ export function HappyComposer(props: {
                                 </div>
                             ) : null}
 
-                            <div className={`chat-input-row flex items-center ${cliMode ? 'px-2 py-1.5' : 'py-1'}`}>
+                            <div className={`chat-input-row flex items-center w-full ${cliMode ? 'px-2 py-1.5' : 'py-1'}`}>
                                 {cliMode && (
                                     <span className="chat-cli-prompt mr-1.5 shrink-0 select-none text-[var(--accent)] font-semibold text-sm">{'❯'}</span>
                                 )}
@@ -1453,52 +1434,64 @@ export function HappyComposer(props: {
                                     onPaste={handlePaste}
                                     className={`chat-input-field flex-1 resize-none bg-transparent leading-snug text-[var(--cursor-text-primary)] placeholder-[var(--cursor-text-secondary)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[length:var(--font-size-base)]' : 'text-base'}`}
                                 />
+                                {!cliMode ? (
+                                    <button
+                                        type="button"
+                                        className="submit-btn"
+                                        onClick={() => { void sendComposerNow() }}
+                                        disabled={!canSend || controlsDisabled}
+                                        aria-label={t('composer.send') || 'Send'}
+                                        title={t('composer.send') || 'Send'}
+                                    >
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+                                    </button>
+                                ) : null}
                             </div>
-
-                            <ComposerButtons
-                                canSend={canSend}
-                                controlsDisabled={controlsDisabled}
-                                showSettingsButton={showSettingsButton}
-                                onSettingsToggle={handleSettingsToggle}
-                                showTerminalButton={showTerminalButton}
-                                terminalDisabled={controlsDisabled}
-                                onTerminal={onTerminal ?? (() => {})}
-                                showStatusButton={showStatusButton}
-                                statusDisabled={controlsDisabled || threadIsRunning}
-                                onStatus={handleCodexStatus}
-                                showQueueButton={showQueueButton}
-                                queueActive={codexQueueDialogOpen}
-                                queueDisabled={controlsDisabled}
-                                queuePendingCount={Math.max(0, codexQueuePendingCount)}
-                                onQueue={handleCodexQueueOpen}
-                                showPlanModeToggle={supportsQueueControls && Boolean(onCodexPlanModeChange)}
-                                planModeEnabled={isCodexPlanMode}
-                                planModeDisabled={controlsDisabled || !onCodexPlanModeChange}
-                                onPlanModeToggle={handleCodexPlanModeToggle}
-                                showSendModeToggle={supportsQueueControls}
-                                sendMode={codexSendMode}
-                                sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
-                                onSendModeChange={handleCodexSendModeChange}
-                                showAbortButton={showAbortButton}
-                                abortDisabled={abortDisabled}
-                                isAborting={isAborting}
-                                onAbort={handleAbort}
-                                showSwitchButton={showSwitchButton}
-                                switchDisabled={switchDisabled}
-                                isSwitching={isSwitching}
-                                onSwitch={handleSwitch}
-                                voiceEnabled={voiceEnabled}
-                                voiceStatus={voiceStatus}
-                                voiceMicMuted={voiceMicMuted}
-                                onVoiceToggle={onVoiceToggle ?? (() => {})}
-                                onVoiceMicToggle={onVoiceMicToggle}
-                                onSend={() => { void sendComposerNow() }}
-                                modelChipLabel={modelChipLabel}
-                                modelChipActive={active || thinking}
-                                onModelChipClick={showModelSettings ? handleSettingsToggle : undefined}
-                            />
                         </div>
                     </ComposerPrimitive.AttachmentDropzone>
+
+                    <ComposerButtons
+                        canSend={canSend}
+                        controlsDisabled={controlsDisabled}
+                        showSettingsButton={showSettingsButton}
+                        onSettingsToggle={handleSettingsToggle}
+                        showTerminalButton={showTerminalButton}
+                        terminalDisabled={controlsDisabled}
+                        onTerminal={onTerminal ?? (() => {})}
+                        showStatusButton={showStatusButton}
+                        statusDisabled={controlsDisabled || threadIsRunning}
+                        onStatus={handleCodexStatus}
+                        showQueueButton={showQueueButton}
+                        queueActive={codexQueueDialogOpen}
+                        queueDisabled={controlsDisabled}
+                        queuePendingCount={Math.max(0, codexQueuePendingCount)}
+                        onQueue={handleCodexQueueOpen}
+                        showPlanModeToggle={supportsQueueControls && Boolean(onCodexPlanModeChange)}
+                        planModeEnabled={isCodexPlanMode}
+                        planModeDisabled={controlsDisabled || !onCodexPlanModeChange}
+                        onPlanModeToggle={handleCodexPlanModeToggle}
+                        showSendModeToggle={supportsQueueControls}
+                        sendMode={codexSendMode}
+                        sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
+                        onSendModeChange={handleCodexSendModeChange}
+                        showAbortButton={showAbortButton}
+                        abortDisabled={abortDisabled}
+                        isAborting={isAborting}
+                        onAbort={handleAbort}
+                        showSwitchButton={showSwitchButton}
+                        switchDisabled={switchDisabled}
+                        isSwitching={isSwitching}
+                        onSwitch={handleSwitch}
+                        voiceEnabled={voiceEnabled}
+                        voiceStatus={voiceStatus}
+                        voiceMicMuted={voiceMicMuted}
+                        onVoiceToggle={onVoiceToggle ?? (() => {})}
+                        onVoiceMicToggle={onVoiceMicToggle}
+                        onSend={() => { void sendComposerNow() }}
+                        modelChipLabel={modelChipLabel}
+                        modelChipActive={active || thinking}
+                        onModelChipClick={showModelSettings ? handleSettingsToggle : undefined}
+                    />
                 </ComposerPrimitive.Root>
             </div>
         </div>

@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils'
  *   - disabled at 50% opacity
  */
 const buttonVariants = cva(
-    'ui-btn-base inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[7px] text-sm font-medium transition-[background-color,border-color,color,box-shadow,transform,filter] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cursor-info,#2563eb)] focus-visible:ring-offset-2 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50',
+    'ui-btn-base inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[6px] text-[13px] font-medium transition-[background-color,border-color,color,box-shadow,transform,filter] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cursor-info,#2563eb)] focus-visible:ring-offset-1 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50',
     {
         variants: {
             variant: {
@@ -35,11 +35,11 @@ const buttonVariants = cva(
                 success: 'border font-semibold bg-[color-mix(in_srgb,var(--cursor-success,#16a34a)_8%,transparent)] text-[var(--cursor-success,#16a34a)] border-[color-mix(in_srgb,var(--cursor-success,#16a34a)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--cursor-success,#16a34a)_14%,transparent)] hover:border-[color-mix(in_srgb,var(--cursor-success,#16a34a)_36%,transparent)]'
             },
             size: {
-                default: 'h-9 px-4 py-2',
+                default: 'h-8 px-3 py-1.5',
                 xs: 'h-[26px] rounded-md px-2 text-[12.5px] gap-1',
                 sm: 'h-8 rounded-md px-3 text-[12px]',
                 md: 'h-[30px] rounded-[7px] px-3 text-[13px]',
-                lg: 'h-10 rounded-md px-6'
+                lg: 'h-9 rounded-md px-5'
             }
         },
         defaultVariants: {
@@ -61,11 +61,11 @@ export interface ButtonProps
 
 /** Tailwind class that squares the button and removes horizontal padding per size. */
 const ICON_ONLY_SIZE_CLASS: Record<NonNullable<VariantProps<typeof buttonVariants>['size']>, string> = {
-    default: 'w-9 !px-0',
+    default: 'w-8 !px-0',
     xs: 'w-[26px] !px-0',
     sm: 'w-8 !px-0',
     md: 'w-[30px] !px-0',
-    lg: 'w-10 !px-0',
+    lg: 'w-9 !px-0',
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(

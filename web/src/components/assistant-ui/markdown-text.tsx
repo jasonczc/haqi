@@ -1,4 +1,5 @@
 import type { ComponentPropsWithoutRef } from 'react'
+import { useAssistantState } from '@assistant-ui/react'
 import {
     MarkdownTextPrimitive,
     unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
@@ -111,11 +112,11 @@ function Blockquote(props: ComponentPropsWithoutRef<'blockquote'>) {
 }
 
 function UnorderedList(props: ComponentPropsWithoutRef<'ul'>) {
-    return <ul {...props} className={cn('aui-md-ul list-disc pl-6', props.className)} />
+    return <ul {...props} className={cn('aui-md-ul list-disc pl-4 mt-1.5 space-y-1', props.className)} />
 }
 
 function OrderedList(props: ComponentPropsWithoutRef<'ol'>) {
-    return <ol {...props} className={cn('aui-md-ol list-decimal pl-6', props.className)} />
+    return <ol {...props} className={cn('aui-md-ol list-decimal pl-[18px] mb-3.5 space-y-3', props.className)} />
 }
 
 function ListItem(props: ComponentPropsWithoutRef<'li'>) {
@@ -229,12 +230,50 @@ export const defaultComponents = memoizeMarkdownComponents({
     img: Image,
 } as const)
 
+/**
+ * Detect haqi protocol envelope messages that the agent occasionally emits
+ * as plain text (rate_limit_event, system_event, etc.). These JSON envelopes
+ * carry telemetry, not user-facing content, and render as ugly raw JSON blobs.
+ */
+function looksLikeProtocolEnvelope(text: string): boolean {
+    const trimmed = text.trim()
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false
+    if (trimmed.length > 4000) return false
+    try {
+        const parsed = JSON.parse(trimmed)
+        if (!parsed || typeof parsed !== 'object') return false
+        // Envelope shape: { type: "output" | "event" | "rate_limit_event", data: {...} }
+        if (typeof parsed.type === 'string') {
+            const envelopeTypes = ['output', 'event', 'rate_limit_event', 'system_event']
+            if (envelopeTypes.includes(parsed.type) && parsed.data) return true
+        }
+        // Nested shape: { data: { type: "rate_limit_event" | ... } }
+        if (parsed.data && typeof parsed.data === 'object' && typeof parsed.data.type === 'string') {
+            const innerTypes = ['rate_limit_event', 'system_event', 'telemetry']
+            if (innerTypes.includes(parsed.data.type)) return true
+        }
+    } catch {
+        return false
+    }
+    return false
+}
+
 export function MarkdownText() {
+    const text = useAssistantState((ctx: { part?: { type?: string; text?: string } }) => {
+        const part = ctx.part
+        if (!part || part.type !== 'text') return ''
+        return typeof part.text === 'string' ? part.text : ''
+    })
+
+    if (text && looksLikeProtocolEnvelope(text)) {
+        return null
+    }
+
     return (
         <MarkdownTextPrimitive
             remarkPlugins={MARKDOWN_PLUGINS}
             components={defaultComponents}
-            className={cn('aui-md min-w-0 max-w-full break-words text-base')}
+            className={cn('aui-md min-w-0 max-w-full break-words text-[13.5px] leading-[1.55]')}
         />
     )
 }

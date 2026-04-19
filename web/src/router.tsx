@@ -27,8 +27,6 @@ import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
 import { HomeComposer } from '@/components/HomeComposer'
-import { Button } from '@/components/ui/button'
-import { NavItem } from '@/components/ui/NavItem'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
@@ -288,10 +286,21 @@ function formatHomeTime(updatedAt: number): string {
 }
 
 function getSessionDisplayTitle(session: SessionSummary): string {
-    return session.metadata?.name
-        || session.metadata?.summary?.text
-        || session.metadata?.path?.split('/').filter(Boolean).pop()
-        || session.id.slice(0, 8)
+    const name = session.metadata?.name?.trim()
+    if (name) return name
+    const summary = session.metadata?.summary?.text?.trim()
+    if (summary) return summary
+    // Skip generic folder leaves like "repo" / "workspace" that every haqi
+    // cloud session shares — they collapse the whole list into duplicates.
+    const pathParts = (session.metadata?.path ?? '').split('/').filter(Boolean)
+    const leaf = pathParts[pathParts.length - 1]
+    if (leaf && leaf !== 'repo' && leaf !== 'workspace') return leaf
+    const repoUrl = (session.metadata as { repositoryUrl?: string } | undefined)?.repositoryUrl
+    if (repoUrl) {
+        const m = repoUrl.match(/([^/]+\/[^/.]+?)(?:\.git)?$/)
+        if (m) return m[1]
+    }
+    return session.id.slice(0, 8)
 }
 
 function getSessionHistoryState(session: SessionSummary): 'draft' | 'merged' | 'open' {
@@ -370,10 +379,32 @@ function SessionsPage() {
     const { t } = useTranslation()
     const { sessions, isLoading, error } = useSessions(api)
     const { density } = useSessionListDensity()
-    const { sidebarWidth } = useSessionSidebarWidth()
+    const { sidebarWidth, startSidebarResize } = useSessionSidebarWidth()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const [sessionSearchQuery] = useState('')
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
+    const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (!openMenuSessionId) return
+        const onDocDown = (e: MouseEvent) => {
+            const target = e.target as HTMLElement | null
+            if (target && target.closest('[data-session-menu-root]')) return
+            setOpenMenuSessionId(null)
+        }
+        document.addEventListener('mousedown', onDocDown)
+        return () => document.removeEventListener('mousedown', onDocDown)
+    }, [openMenuSessionId])
+
+    const toggleGroup = useCallback((label: string) => {
+        setCollapsedGroups(prev => {
+            const next = new Set(prev)
+            if (next.has(label)) next.delete(label)
+            else next.add(label)
+            return next
+        })
+    }, [])
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
     const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
     const selectedSessionId = sessionMatch ? sessionMatch.sessionId : null
@@ -477,169 +508,192 @@ function SessionsPage() {
 
         return (
             <>
-                <div className="sidebar bg-[var(--bg-chrome)] pt-[env(safe-area-inset-top)]">
-                    {/* Top bar */}
-                    <div className="sidebar-header flex items-center gap-1 px-2 pt-2 pb-0.5">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            iconOnly
-                            className="sidebar-icon-btn"
-                            title="Search agents (⌘K)"
-                            leadingIcon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>}
-                        />
-                    </div>
-                    {/* Cursor-style nav */}
-                    <nav className="sidebar-nav flex flex-col gap-0.5 px-2 pt-2 pb-1">
-                        <NavItem
-                            onClick={() => openNewSession()}
-                            icon={<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>}
-                        >
-                            New Agent
-                        </NavItem>
-                        <NavItem
-                            onClick={() => navigate({ to: '/settings/automations' })}
-                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
-                        >
-                            Automations
-                        </NavItem>
-                        <NavItem
-                            onClick={() => navigate({ to: '/settings/overview' })}
-                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>}
-                        >
-                            Dashboard
-                        </NavItem>
-                        <NavItem
-                            icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>}
-                        >
-                            Bugbot
-                        </NavItem>
-                    </nav>
-                    {inDrawer && onClose ? (
-                        <div className="flex justify-end px-2 py-1">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                iconOnly
-                                className="sidebar-icon-btn"
-                                onClick={onClose}
-                                title={t('sessions.sidebar.close')}
-                                aria-label={t('sessions.sidebar.close')}
-                                leadingIcon={<CloseIcon className="h-4 w-4" />}
-                            />
+                <div className="sidebar-header">
+                    <div className="sidebar-top-row">
+                        <div className="window-controls">
+                            <div className="mac-dot close"></div>
+                            <div className="mac-dot minimize"></div>
+                            <div className="mac-dot maximize"></div>
                         </div>
+                        <div className="sidebar-top-actions">
+                            {inDrawer && onClose ? (
+                                <button className="icon-button" onClick={onClose} title={t('sessions.sidebar.close')}>
+                                    <CloseIcon className="h-4 w-4" />
+                                </button>
+                            ) : (
+                                <button className="icon-button" onClick={toggleDesktopSidebar} title={t('sessions.sidebar.hideDesktop')} aria-label="Toggle Sidebar">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                                </button>
+                            )}
+                            <button className="icon-button" title="Search agents (⌘K)" aria-label="Search">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="sidebar-tabbar">
+                        <div className="tab-items">
+                            <button className="icon-button" style={{ width: '26px' }} aria-label="Chat">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            </button>
+                            <button className="icon-button" style={{ width: '26px' }} aria-label="Sliders">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                            </button>
+                            <button className="tab-button active">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                                Code
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="sidebar-content app-scrollbar">
+                    <nav className="nav-menu-items">
+                        <button className="nav-item" onClick={() => openNewSession()}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                            <span className="nav-text">New Agent</span>
+                        </button>
+                        <button className="nav-item" onClick={() => navigate({ to: '/settings/automations' })}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            <span className="nav-text">Automations</span>
+                        </button>
+                        <button className="nav-item" onClick={() => navigate({ to: '/settings/overview' })}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            <span className="nav-text">Dashboard</span>
+                        </button>
+                        <button className="nav-item text-item">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
+                            <span className="nav-text">Bugbot</span>
+                        </button>
+                    </nav>
+
+                    {error ? (
+                        <div className="empty-state" style={{ color: '#EF4444' }}>{error}</div>
+                    ) : null}
+
+                    {groupSessionsByRepo(visibleSessions.slice(0, 40)).map(group => {
+                        const collapsed = collapsedGroups.has(group.label)
+                        return (
+                            <div key={group.label} className={`sidebar-section ${collapsed ? 'collapsed' : ''}`}>
+                                <div
+                                    className="sidebar-section-header collapsible-header"
+                                    onClick={() => toggleGroup(group.label)}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleGroup(group.label) } }}
+                                >
+                                    <div className="section-title lowercase-title" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <svg className="collapse-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                        {group.label}
+                                    </div>
+                                    <button
+                                        className="section-action-btn hover-icon"
+                                        onClick={(e) => e.stopPropagation()}
+                                        title="Filter"
+                                        aria-label="Filter"
+                                    >
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                                    </button>
+                                </div>
+
+                                <div className="section-content">
+                                    <div className="section-content-inner">
+                                        {group.sessions.map((session) => {
+                                            const title = getSessionDisplayTitle(session)
+                                            const selected = selectedSessionId === session.id
+                                            const meta = session.metadata as any
+                                            const childTitle = typeof meta?.summary?.text === 'string' && meta.summary.text !== title
+                                                ? meta.summary.text
+                                                : undefined
+                                            const menuOpen = openMenuSessionId === session.id
+                                            return (
+                                                <div key={session.id} className="nav-item-wrapper" data-session-menu-root={menuOpen ? 'true' : undefined} style={{ position: 'relative' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => selectSession(session.id)}
+                                                        className={`nav-item ${selected ? 'active-item' : 'text-item'}`}
+                                                    >
+                                                        <svg
+                                                            className="dotted-circle"
+                                                            width="13"
+                                                            height="13"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            strokeWidth="1.5"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeDasharray="2 3"
+                                                        >
+                                                            <circle cx="12" cy="12" r="10" />
+                                                        </svg>
+                                                        <span className="nav-text" style={{ flex: 1, textAlign: 'left' }}>{title}</span>
+                                                        <span
+                                                            className="item-actions"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setOpenMenuSessionId(prev => prev === session.id ? null : session.id)
+                                                            }}
+                                                            title="More"
+                                                            role="button"
+                                                            aria-haspopup="menu"
+                                                            aria-expanded={menuOpen}
+                                                        >
+                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                                                                <circle cx="12" cy="6" r="1.5" />
+                                                                <circle cx="12" cy="12" r="1.5" />
+                                                                <circle cx="12" cy="18" r="1.5" />
+                                                            </svg>
+                                                        </span>
+                                                    </button>
+                                                    {menuOpen ? (
+                                                        <div className="context-menu" data-session-menu-root="true" style={{ position: 'absolute', top: '24px', right: 0, zIndex: 200 }}>
+                                                            <button
+                                                                className="menu-action danger"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setOpenMenuSessionId(null)
+                                                                    if (window.confirm(`Delete session "${title}"? This stops the agent and removes its container.`)) {
+                                                                        void deleteSessionFromSidebar(session.id)
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
+                                                    ) : null}
+                                                    {childTitle ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => selectSession(session.id)}
+                                                            className="nav-item text-item"
+                                                            style={{ paddingLeft: '22px' }}
+                                                        >
+                                                            <span className="nav-text">{childTitle}</span>
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })}
+
+                    {visibleSessions.length === 0 && !isLoading ? (
+                        <div className="empty-state">No sessions yet.</div>
                     ) : null}
                 </div>
 
-                <div className="flex min-h-0 flex-1 flex-col">
-                    {error ? (
-                        <div className="mx-auto w-full max-w-content px-3 py-2">
-                            <div className="text-sm text-red-600">{error}</div>
-                        </div>
-                    ) : null}
-                    <div className="sidebar-section min-h-0 flex-1 overflow-y-auto">
-                        {groupSessionsByRepo(visibleSessions.slice(0, 40)).map(group => (
-                            <div key={group.label}>
-                                <div
-                                    className="section-title"
-                                    style={{
-                                        padding: '12px 8px 4px',
-                                        fontSize: 'var(--font-size-sm)',
-                                        fontWeight: 'var(--font-weight-semibold)',
-                                        color: 'var(--text-tertiary)',
-                                    }}
-                                >
-                                    {group.label}
-                                </div>
-                                {group.sessions.map((session) => {
-                                    const state = getSessionHistoryState(session)
-                                    const title = getSessionDisplayTitle(session)
-                                    const selected = selectedSessionId === session.id
-                                    const meta = session.metadata as any
-                                    const additions = meta?.prAdditions as number | undefined
-                                    const deletions = meta?.prDeletions as number | undefined
-                                    const childTitle = typeof meta?.summary?.text === 'string' && meta.summary.text !== title
-                                        ? meta.summary.text
-                                        : undefined
-                                    return (
-                                        <div key={session.id} className="history-item-group">
-                                            <button
-                                                type="button"
-                                                onClick={() => selectSession(session.id)}
-                                                className={`history-item w-[calc(100%-20px)] text-left ${selected ? 'active' : ''}`}
-                                            >
-                                                <div className="history-item-left">
-                                                    {/* Hollow-circle status icon — cursor style */}
-                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={`history-icon ${state === 'open' ? 'green' : state === 'merged' ? 'purple' : 'gray'}`} style={{ opacity: 0.7 }}>
-                                                        <circle cx="12" cy="12" r="8" />
-                                                    </svg>
-                                                    <span className="history-title">{title}</span>
-                                                </div>
-                                                {/* Diff stats only when meaningful — cursor hides the time badge */}
-                                                {additions || deletions ? (
-                                                    <span className="history-stats">
-                                                        {additions ? `+${additions}` : ''}
-                                                        {deletions ? <span style={{ color: 'var(--danger)' }}> -{deletions}</span> : null}
-                                                    </span>
-                                                ) : null}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    if (window.confirm(`Delete session "${title}"? This stops the agent and removes its container.`)) {
-                                                        void deleteSessionFromSidebar(session.id)
-                                                    }
-                                                }}
-                                                className="history-item-delete"
-                                                title="Delete session"
-                                                aria-label="Delete session"
-                                            >
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                    <polyline points="3 6 5 6 21 6" />
-                                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                                                    <path d="M10 11v6" />
-                                                    <path d="M14 11v6" />
-                                                </svg>
-                                            </button>
-                                            {childTitle ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => selectSession(session.id)}
-                                                    className="history-sub-item w-[calc(100%-20px)] text-left"
-                                                >
-                                                    {childTitle}
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    )
-                                })}
-                            </div>
-                        ))}
-                        {visibleSessions.length === 0 && !isLoading ? (
-                            <div className="px-4 py-3 text-[12px] text-[var(--text-tertiary)]">No sessions yet.</div>
-                        ) : null}
-                    </div>
-                </div>
-                {/* User card — bottom of sidebar */}
                 <div className="sidebar-footer">
-                    <div className="user-profile cursor-sidebar-user-profile" style={{ padding: '6px 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div
-                            className="flex shrink-0 items-center justify-center rounded-full bg-[var(--bg-tertiary)] text-[var(--font-size-xs)] font-[var(--font-weight-semibold)] text-[var(--text-secondary)]"
-                            style={{ width: '20px', height: '20px' }}
-                        >
-                            H
-                        </div>
-                        <div className="min-w-0 flex-1 truncate text-[var(--font-size-sm)] text-[var(--text-primary)]">haqi</div>
-                        <button
-                            type="button"
-                            onClick={() => navigate({ to: '/settings' })}
-                            className="rounded-[4px] p-1 text-[var(--text-quaternary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                            title="Settings"
-                        >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                        </button>
-                    </div>
+                    <button className="profile-btn outline-blue" onClick={() => navigate({ to: '/settings' })} title="Settings">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        haqi
+                    </button>
+                    <button className="icon-button" title="Theme" aria-label="Theme">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    </button>
                 </div>
             </>
         )
@@ -647,11 +701,12 @@ function SessionsPage() {
 
     return (
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
-            <div className="cursor-theme flex h-full min-h-0">
+            <div className="app-container cursor-theme">
                 <div
-                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} shrink-0 flex-col bg-[var(--bg-chrome)]`}
+                    className={`sidebar ${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'}`}
                     style={sidebarStyle}
                 >
+                    <div className="sidebar-resizer" onMouseDown={startSidebarResize} />
                     {renderSidebarContent()}
                 </div>
 
@@ -687,13 +742,13 @@ function SessionsPage() {
                             className="absolute inset-0 bg-black/35"
                             aria-label={t('sessions.sidebar.close')}
                         />
-                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl">
+                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cc-bg-sidebar)] shadow-xl">
                             {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
                         </div>
                     </div>
                 ) : null}
 
-                <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-editor)]">
+                <main className="main-content">
                     {isSessionsIndex ? (
                         <HomeComposer
                             api={api}
@@ -773,11 +828,9 @@ function SessionsPage() {
                             )}
                         />
                     ) : (
-                        <div className="flex-1 min-h-0">
-                            <Outlet />
-                        </div>
+                        <Outlet />
                     )}
-                </div>
+                </main>
             </div>
         </SessionsLayoutContext.Provider>
     )
@@ -1484,7 +1537,7 @@ function GroupsLayout() {
                         onClick={closeSidebarOnMobile}
                         aria-label={t('sessions.sidebar.close')}
                     />
-                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl">
+                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cc-bg-sidebar)] shadow-xl">
                         {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
                     </div>
                 </div>
@@ -1493,7 +1546,7 @@ function GroupsLayout() {
             {/* Create group modal */}
             {showCreateModal ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-sm rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-4 shadow-xl">
+                    <div className="w-full max-w-sm rounded-[10px] border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]">
                         <div className="mb-3 font-semibold text-[var(--cursor-text-primary)]">New Group</div>
                         <input
                             autoFocus
@@ -1549,7 +1602,7 @@ function GroupsLayout() {
 
             {renameModalOpen && actionTarget ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-sm rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-4 shadow-xl">
+                    <div className="w-full max-w-sm rounded-[10px] border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] p-4 shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]">
                         <div className="mb-3 font-semibold text-[var(--cursor-text-primary)]">Rename Group</div>
                         <input
                             autoFocus
@@ -1992,7 +2045,7 @@ function ReviewLoopsLayout() {
                         onClick={closeSidebarOnMobile}
                         aria-label={t('sessions.sidebar.close')}
                     />
-                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl">
+                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cc-bg-sidebar)] shadow-xl">
                         {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
                     </div>
                 </div>

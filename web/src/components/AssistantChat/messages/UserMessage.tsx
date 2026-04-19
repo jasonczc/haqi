@@ -113,13 +113,12 @@ export function HappyUserMessage() {
             data-happy-message-id={messageId}
         >
             <div
-                className="user-prompt relative text-[length:var(--font-size-base)] text-[var(--text-primary)]"
+                className="user-prompt relative w-fit max-w-[85%] self-end text-[13.5px] leading-[1.55] text-[var(--cursor-text-primary)]"
                 style={{
                     background: 'var(--user-card-bg)',
-                    border: '1px solid var(--border-tertiary)',
+                    border: 'none',
                     borderRadius: 'var(--user-card-radius)',
                     padding: 'var(--user-card-padding-y) var(--user-card-padding-x)',
-                    boxShadow: 'var(--user-card-shadow)',
                 }}
             >
                 <div className={`user-prompt-body min-w-0 ${onRetry ? 'pr-8' : ''}`}>

@@ -253,7 +253,7 @@ export default function CloudContainersPage() {
                                     return (
                                         <div
                                             key={c.id}
-                                            className="flex items-start justify-between gap-3 border-b border-[var(--border-tertiary)] px-4 py-4 last:border-b-0"
+                                            className="flex items-start justify-between gap-3 border-b border-[var(--border-tertiary)] px-3 py-3 last:border-b-0"
                                         >
                                             <div className="flex min-w-0 flex-col">
                                                 <div className="flex items-center gap-2">

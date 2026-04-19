@@ -746,7 +746,7 @@ function AddMemberModal(props: {
     if (mode === 'create') {
         return (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--cursor-bg-app)]/80 p-4">
-                <div className="flex w-full max-w-lg flex-col rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl" style={{ maxHeight: '90vh' }}>
+                <div className="flex w-full max-w-lg flex-col rounded-[10px] border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]" style={{ maxHeight: '90vh' }}>
                     <div className="flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] px-4 py-3">
                         <div className="flex items-center gap-2">
                             <button
@@ -781,7 +781,7 @@ function AddMemberModal(props: {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--cursor-bg-app)]/80 p-4">
-            <div className="flex w-full max-w-sm flex-col rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl" style={{ maxHeight: '80vh' }}>
+            <div className="flex w-full max-w-sm flex-col rounded-[10px] border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]" style={{ maxHeight: '80vh' }}>
                 <div className="flex items-center justify-between border-b border-[var(--cursor-stroke-secondary)] px-4 py-3">
                     <div className="font-semibold text-sm text-[var(--cursor-text-primary)]">Add Member</div>
                     <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-quiet)] hover:text-[var(--cursor-text-primary)]">
@@ -883,7 +883,7 @@ function MemberPill(props: {
             style={{ WebkitTouchCallout: 'none' }}
             aria-label={tooltipText}
         >
-            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] px-2.5 py-2 text-xs text-[var(--cursor-text-primary)] shadow-lg group-hover:block group-focus-visible:block">
+            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-md border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] px-2.5 py-2 text-xs text-[var(--cursor-text-primary)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)] group-hover:block group-focus-visible:block">
                 <div className="space-y-0.5">
                     <div className="font-medium">{title}</div>
                     {tooltipLines.map((line) => (
@@ -1012,7 +1012,7 @@ function MemberActionMenu(props: MemberActionMenuProps) {
         <div
             ref={menuRef}
             role="menu"
-            className="fixed z-50 min-w-[180px] rounded-lg border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-1 shadow-lg animate-menu-pop"
+            className="fixed z-50 min-w-[180px] rounded-[10px] border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-app)] p-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)] animate-menu-pop"
             style={menuStyle}
         >
             <button
@@ -1054,7 +1054,7 @@ function PendingRequestsQuickModal(props: {
             }}
         >
             <div
-                className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-xl"
+                className="flex w-full max-w-2xl flex-col overflow-hidden rounded-[10px] border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]"
                 style={{ maxHeight: '85vh' }}
                 onClick={(event) => event.stopPropagation()}
             >
@@ -1315,10 +1315,10 @@ function TimelineBubble(props: {
                     </div>
                 </div>
                 <div
-                    className={`rounded-2xl px-3 py-2 text-sm ${
+                    className={`rounded-[10px] px-3 py-2 text-[13px] ${
                         isUser
-                            ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)] rounded-br-sm'
-                            : 'bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] rounded-bl-sm'
+                            ? 'bg-[var(--cursor-button)] text-[var(--cursor-button-text)] rounded-br-[4px]'
+                            : 'bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] rounded-bl-[4px]'
                     } ${isCommand
                         ? 'font-mono text-xs whitespace-pre-wrap break-words'
                         : isUser
@@ -1961,10 +1961,10 @@ function GroupBriefTurnList(props: {
                                 <div className="px-3 pb-3">
                                     <div className="space-y-2">
                                         <div className={`flex ${initiatorIsUser ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[92%] rounded-2xl border px-3 py-2 text-sm ${
+                                            <div className={`max-w-[92%] rounded-[10px] border px-3 py-2 text-[13px] ${
                                                 initiatorIsUser
-                                                    ? 'rounded-br-sm bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
-                                                    : 'rounded-bl-sm bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] border-[var(--cursor-stroke-primary)]'
+                                                    ? 'rounded-br-[4px] bg-[var(--cursor-button)] text-[var(--cursor-button-text)]'
+                                                    : 'rounded-bl-[4px] bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] border-[var(--cursor-stroke-primary)]'
                                             }`}>
                                                 <BriefCardMarkdownPreview content={initiatorPreview} />
                                             </div>
@@ -1972,9 +1972,9 @@ function GroupBriefTurnList(props: {
 
                                         <div className="flex justify-start">
                                             {turn.status === 'open' ? (
-                                                <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--cursor-bg-app)] px-3 py-2 ${
+                                                <div className={`relative w-full max-w-[92%] rounded-[10px] rounded-bl-[4px] border bg-[var(--cursor-bg-app)] px-3 py-2 ${
                                                     turn.status === 'open'
-                                                        ? 'border-[var(--accent)]/40 shadow-[0_0_0_1px_color-mix(in_srgb,var(--accent)_20%,transparent)]'
+                                                        ? 'border-[var(--accent)]/40'
                                                         : 'border-[var(--cursor-stroke-primary)]'
                                                 }`}>
                                                     <button

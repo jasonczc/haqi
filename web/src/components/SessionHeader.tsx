@@ -8,7 +8,6 @@ import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -29,23 +28,6 @@ function getSessionTitle(session: Session): string {
         return parts.length > 0 ? parts[parts.length - 1] : session.id.slice(0, 8)
     }
     return session.id.slice(0, 8)
-}
-
-function MoreVerticalIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className={props.className}
-        >
-            <circle cx="12" cy="5" r="2" />
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="12" cy="19" r="2" />
-        </svg>
-    )
 }
 
 function CloudBranchIcon(props: { className?: string }) {
@@ -223,73 +205,70 @@ export function SessionHeader(props: {
 
     return (
         <>
-            <div className="chat-header bg-[var(--chrome)] pt-[env(safe-area-inset-top)]">
-                <div
-                    className="flex items-center border-b border-[var(--border-tertiary)] px-4"
-                    style={{ height: 'var(--navbar-height)', gap: 'var(--context-tab-gap)' }}
-                >
-                    {/* Cursor-style breadcrumb: [cloud] repo / "title" ▾ */}
-                    <div className="chat-breadcrumb flex min-w-0 flex-1 items-center gap-1.5">
-                        <span className="chat-breadcrumb-icon text-[var(--text-tertiary)]">
-                            <CloudBranchIcon />
-                        </span>
-                        {session.metadata?.repositoryUrl ? (
-                            <button
-                                type="button"
-                                onClick={props.onBack}
-                                className="chat-breadcrumb-repo shrink-0 truncate text-[length:var(--font-size-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                            >
-                                {extractRepoShortName(session.metadata.repositoryUrl)}
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={props.onBack}
-                                className="chat-breadcrumb-repo shrink-0 truncate text-[length:var(--font-size-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                            >
-                                Sessions
-                            </button>
-                        )}
-                        <span className="chat-breadcrumb-sep shrink-0 text-[length:var(--font-size-sm)] text-[var(--text-tertiary)]">
-                            /
-                        </span>
-                        <h2
-                            className="chat-breadcrumb-title truncate text-[length:var(--font-size-base)] text-[var(--text-primary)]"
-                            style={{ fontWeight: 'var(--font-weight-semibold)' }}
-                        >
-                            &ldquo;{title}&rdquo;
-                        </h2>
-                        <span className="chat-breadcrumb-chevron shrink-0 text-[var(--text-tertiary)]">
-                            <ChevronDownIcon />
-                        </span>
-                    </div>
-
-                    {/* Right-side cluster: Share + More */}
-                    <div className="chat-header-controls flex items-center gap-1">
+            <header className="main-header">
+                <div className="breadcrumb">
+                    <span className="text-[var(--cursor-text-secondary)]">
+                        <CloudBranchIcon />
+                    </span>
+                    {session.metadata?.repositoryUrl ? (
                         <button
                             type="button"
-                            onClick={handleShare}
-                            className="share-link px-2 py-1 text-[length:var(--font-size-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                            onClick={props.onBack}
+                            className="shrink-0 truncate hover:text-[var(--cursor-text-primary)] transition-colors"
                         >
-                            Share
+                            {extractRepoShortName(session.metadata.repositoryUrl)}
                         </button>
-
-                        <Button
-                            ref={menuAnchorRef}
-                            variant="ghost"
-                            size="sm"
-                            iconOnly
-                            onClick={handleMenuToggle}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            aria-haspopup="menu"
-                            aria-expanded={menuOpen}
-                            aria-controls={menuOpen ? menuId : undefined}
-                            title={t('session.more')}
-                            leadingIcon={<MoreVerticalIcon />}
-                        />
-                    </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={props.onBack}
+                            className="shrink-0 truncate hover:text-[var(--cursor-text-primary)] transition-colors"
+                        >
+                            Sessions
+                        </button>
+                    )}
+                    <span className="shrink-0">/</span>
+                    <span className="truncate text-[var(--cursor-text-primary)]" style={{ fontWeight: 600 }}>
+                        &ldquo;{title}&rdquo;
+                    </span>
+                    <span className="shrink-0 opacity-60" style={{ marginLeft: '2px' }}>
+                        <ChevronDownIcon />
+                    </span>
                 </div>
-            </div>
+
+                <div className="header-actions">
+                    <button type="button" onClick={handleShare} className="btn-share">
+                        Share
+                    </button>
+
+                    <button
+                        ref={menuAnchorRef}
+                        type="button"
+                        className="icon-action-btn"
+                        onClick={handleMenuToggle}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpen}
+                        aria-controls={menuOpen ? menuId : undefined}
+                        title={t('session.more')}
+                        style={{ padding: '2px 4px', gap: '4px' }}
+                    >
+                        <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '11px', marginRight: '4px' }}>&gt;_</span>
+                        <span
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                background: 'var(--cursor-bg-soft, #EFEFEF)',
+                                padding: '1px 3px',
+                                borderRadius: '4px',
+                            }}
+                        >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="3" x2="16" y2="21"/></svg>
+                            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '2px' }}><polyline points="6 9 12 15 18 9"/></svg>
+                        </span>
+                    </button>
+                </div>
+            </header>
 
             <SessionActionMenu
                 isOpen={menuOpen}

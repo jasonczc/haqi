@@ -55,7 +55,7 @@ function StatCard(props: { label: string; value: string | number; link?: boolean
         <CursorSettingsCard className="border-[var(--border-secondary)] px-4 py-3 shadow-none">
             <div className="text-[12px] leading-4 text-[var(--text-secondary)]">{props.label}</div>
             <div className="mt-0.5 flex items-center gap-1">
-                <span className="text-xl font-semibold text-[var(--text-primary)]">{props.value}</span>
+                <span className="text-[16px] font-semibold text-[var(--text-primary)]">{props.value}</span>
                 {props.link && (
                     <span className="text-[var(--text-secondary)]">→</span>
                 )}
@@ -69,9 +69,9 @@ function TemplateCard(props: { template: AutomationTemplate; onClick: () => void
         <button
             type="button"
             onClick={props.onClick}
-            className="flex flex-col gap-2 rounded-lg border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-4 text-left transition-colors hover:bg-[var(--bg-quaternary)] hover:border-[var(--border-secondary)]"
+            className="flex flex-col gap-2 rounded-[10px] border border-[var(--border-secondary)] bg-[var(--bg-editor)] p-3 text-left transition-colors hover:bg-[var(--bg-quaternary)] hover:border-[var(--border-secondary)]"
         >
-            <span className="text-lg">{props.template.icon}</span>
+            <span className="text-[16px]">{props.template.icon}</span>
             <div>
                 <div className="text-[13px] font-semibold text-[var(--text-primary)]">{props.template.title}</div>
                 <div className="mt-0.5 text-[12px] leading-relaxed text-[var(--text-secondary)]">

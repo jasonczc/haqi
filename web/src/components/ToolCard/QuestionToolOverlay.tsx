@@ -343,7 +343,7 @@ export function QuestionToolOverlay(props: {
     if (isMinimized) {
         return (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[70] flex justify-end p-3 sm:p-4">
-                <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] shadow-2xl">
+                <div className="pointer-events-auto w-full max-w-sm rounded-[10px] border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]">
                     <div className="px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
@@ -406,7 +406,7 @@ export function QuestionToolOverlay(props: {
         <div className="absolute inset-0 z-[70]">
             <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
             <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6">
-                <div className="w-full max-w-2xl rounded-2xl border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] shadow-2xl">
+                <div className="w-full max-w-2xl rounded-[10px] border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]">
                     <div className="border-b border-[var(--cursor-stroke-primary)] px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
