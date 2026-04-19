@@ -385,6 +385,7 @@ function SessionsPage() {
     const [sessionSearchQuery] = useState('')
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
     const [openMenuSessionId, setOpenMenuSessionId] = useState<string | null>(null)
+    const [sessionMenuAnchor, setSessionMenuAnchor] = useState<{ top: number; right: number } | null>(null)
 
     useEffect(() => {
         if (!openMenuSessionId) return
@@ -392,9 +393,20 @@ function SessionsPage() {
             const target = e.target as HTMLElement | null
             if (target && target.closest('[data-session-menu-root]')) return
             setOpenMenuSessionId(null)
+            setSessionMenuAnchor(null)
+        }
+        const onReflow = () => {
+            setOpenMenuSessionId(null)
+            setSessionMenuAnchor(null)
         }
         document.addEventListener('mousedown', onDocDown)
-        return () => document.removeEventListener('mousedown', onDocDown)
+        window.addEventListener('resize', onReflow)
+        window.addEventListener('scroll', onReflow, true)
+        return () => {
+            document.removeEventListener('mousedown', onDocDown)
+            window.removeEventListener('resize', onReflow)
+            window.removeEventListener('scroll', onReflow, true)
+        }
     }, [openMenuSessionId])
 
     const toggleGroup = useCallback((label: string) => {
@@ -631,7 +643,18 @@ function SessionsPage() {
                                                             className="item-actions"
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
-                                                                setOpenMenuSessionId(prev => prev === session.id ? null : session.id)
+                                                                const nextOpen = openMenuSessionId !== session.id
+                                                                if (nextOpen) {
+                                                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                                                                    setSessionMenuAnchor({
+                                                                        top: rect.bottom + 4,
+                                                                        right: window.innerWidth - rect.right,
+                                                                    })
+                                                                    setOpenMenuSessionId(session.id)
+                                                                } else {
+                                                                    setOpenMenuSessionId(null)
+                                                                    setSessionMenuAnchor(null)
+                                                                }
                                                             }}
                                                             title="More"
                                                             role="button"
@@ -645,19 +668,29 @@ function SessionsPage() {
                                                             </svg>
                                                         </span>
                                                     </button>
-                                                    {menuOpen ? (
-                                                        <div className="context-menu" data-session-menu-root="true" style={{ position: 'absolute', top: '24px', right: 0, zIndex: 200 }}>
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Pin</button>
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Rename</button>
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Share</button>
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Copy link</button>
+                                                    {menuOpen && sessionMenuAnchor ? (
+                                                        <div
+                                                            className="context-menu"
+                                                            data-session-menu-root="true"
+                                                            style={{
+                                                                position: 'fixed',
+                                                                top: sessionMenuAnchor.top,
+                                                                right: sessionMenuAnchor.right,
+                                                                zIndex: 200,
+                                                            }}
+                                                        >
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Pin</button>
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Rename</button>
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Share</button>
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Copy link</button>
                                                             <div className="menu-divider" />
-                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null) }}>Archive</button>
+                                                            <button className="menu-action" onClick={(e) => { e.stopPropagation(); setOpenMenuSessionId(null); setSessionMenuAnchor(null) }}>Archive</button>
                                                             <button
                                                                 className="menu-action danger"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
                                                                     setOpenMenuSessionId(null)
+                                                                    setSessionMenuAnchor(null)
                                                                     if (window.confirm(`Delete session "${title}"? This stops the agent and removes its container.`)) {
                                                                         void deleteSessionFromSidebar(session.id)
                                                                     }

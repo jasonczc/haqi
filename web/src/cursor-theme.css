@@ -1020,16 +1020,21 @@ body {
 /* Sidebar nav density — !important to beat cursor-theme-v2.css:643 */
 .cursor-theme .nav-item {
     height: auto !important;
-    min-height: 0 !important;
-    padding: 3px 8px !important;
-    gap: 6px !important;
-    font-size: 12px !important;
+    min-height: 28px !important;
+    padding: 5px 8px !important;
+    gap: 8px !important;
+    font-size: 13px !important;
     font-weight: 400 !important;
-    border-radius: 5px !important;
+    border-radius: 6px !important;
     color: var(--cursor-text-primary);
     background: transparent;
     line-height: 1.3 !important;
+    box-sizing: border-box !important;
 }
+.cursor-theme .nav-menu-items { margin-bottom: 12px; padding: 0; }
+.cursor-theme .nav-menu-items .nav-item,
+.cursor-theme .nav-item-wrapper .nav-item { min-height: 28px !important; }
+.cursor-theme .nav-item-wrapper { padding: 0 !important; }
 .cursor-theme .nav-item svg { width: 13px !important; height: 13px !important; }
 .cursor-theme .nav-item:hover { background-color: #F3F3F3; }
 .cursor-theme .nav-item.active-item { background-color: #F0F0F0; font-weight: 500 !important; }
