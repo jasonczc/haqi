@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { execFile, spawn } from 'node:child_process'
-import { resolve } from 'node:path'
-import { readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { readFileSync, unlinkSync, existsSync } from 'node:fs'
 import os from 'node:os'
 import { promisify } from 'node:util'
+import { configuration } from '../../configuration'
 import { CLOUD_PROVIDER_NAMES } from '../../cloud/provider'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
@@ -23,6 +24,75 @@ function isPidAlive(pid: number): boolean {
     } catch {
         return false
     }
+}
+
+/**
+ * Evict whatever holds the hub's own worker.lock.
+ *
+ * Background: a worker process enrolls, then periodically heartbeats the
+ * hub. If the hub restarts or a network hiccup drops heartbeats for long
+ * enough, the worker is marked inactive in the machine registry —
+ * invisible in the UI — but the underlying bun process is usually still
+ * running and still holding `worker.lock`. Any subsequent
+ * `start-local-worker` spawns enroll fine, then exit instantly with
+ * "Another worker is already running" and the caller sees empty lists.
+ *
+ * Since the lock file always lives under the hub's HAPI_HOME, we own
+ * that pid end-to-end — it can only belong to a worker we previously
+ * spawned. SIGTERM it and unlink the lock. Idempotent: no-op if the
+ * lock doesn't exist or the holder is already dead.
+ *
+ * Returns the pid we evicted (if any), for surfacing in the response.
+ */
+function evictStaleWorkerLock(): { evictedPid?: number } {
+    const lockPath = join(configuration.dataDir, 'worker.lock')
+    if (!existsSync(lockPath)) return {}
+    let pid: number | undefined
+    try {
+        const raw = readFileSync(lockPath, 'utf8').trim()
+        const parsed = Number(raw)
+        if (Number.isInteger(parsed) && parsed > 0) pid = parsed
+    } catch {
+        // corrupt lock — just unlink
+    }
+    if (pid && isPidAlive(pid)) {
+        try { process.kill(pid, 'SIGTERM') } catch { /* already gone */ }
+    }
+    try { unlinkSync(lockPath) } catch { /* already unlinked */ }
+    return { evictedPid: pid }
+}
+
+/**
+ * Wait up to timeoutMs for the spawned worker to either:
+ *   - exit (failure — exitCode set), or
+ *   - log that it's past enrollment + lock acquisition
+ *     ("Worker starting..." is the first line runRunnerLoop prints).
+ *
+ * Polls every 100ms. Returns the final liveness snapshot so the caller
+ * can decide whether to tell the client "started" or "failed".
+ */
+async function awaitWorkerReady(
+    proc: { pid: number; exitCode: number | null; logs: string[] },
+    timeoutMs: number
+): Promise<{ ready: boolean; reason?: string }> {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+        if (proc.exitCode !== null) {
+            // Known-failure signatures we want to surface cleanly.
+            const stuckOnLock = proc.logs.some((l) => l.includes('Another worker is already running'))
+            return {
+                ready: false,
+                reason: stuckOnLock ? 'worker_lock_conflict' : 'worker_exited'
+            }
+        }
+        if (proc.logs.some((l) => l.includes('Worker starting...'))) {
+            return { ready: true }
+        }
+        await new Promise((r) => setTimeout(r, 100))
+    }
+    // Timed out without exit AND without the "starting" marker — treat
+    // as provisional ready (the child may still be enrolling).
+    return { ready: true }
 }
 
 const execFileAsync = promisify(execFile)
@@ -662,6 +732,18 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
             }
         }
 
+        // Evict any orphan worker that still holds the per-HAPI_HOME
+        // worker.lock. Without this the spawn below enrolls cleanly but
+        // exits immediately with "Another worker is already running"
+        // whenever a previous worker lost heartbeats without exiting.
+        const evicted = evictStaleWorkerLock()
+        if (evicted.evictedPid) {
+            appendTrackedWorkerLog(`[hub] Evicted stale worker.lock holder pid=${evicted.evictedPid}`)
+            // Give it a moment to release file handles before we spawn
+            // the replacement.
+            await new Promise((r) => setTimeout(r, 300))
+        }
+
         // Create enrollment token
         const tokenResult = engine.createCloudWorkerEnrollmentToken({
             namespace,
@@ -727,10 +809,29 @@ export function createCloudRoutes(getSyncEngine: () => SyncEngine | null, hubUrl
         })
         child.unref()
 
+        // Don't lie to the caller: wait a few seconds for the child to
+        // either (a) cross the "Worker starting..." log line (enrollment
+        // succeeded, runner loop entered) or (b) exit. Returning
+        // `started: true` when the child dies 800ms later to a lock
+        // conflict is what sent users hunting in empty worker lists.
+        const readiness = await awaitWorkerReady(localWorkerProcess, 4000)
+        if (!readiness.ready) {
+            return c.json({
+                started: false,
+                reason: readiness.reason ?? 'worker_failed_to_start',
+                pid: child.pid,
+                startedAt: localWorkerProcess.startedAt,
+                exitCode: localWorkerProcess.exitCode,
+                evictedPid: evicted.evictedPid,
+                logs: localWorkerProcess.logs.slice(-10)
+            }, 500)
+        }
+
         return c.json({
             started: true,
             pid: child.pid,
-            startedAt: localWorkerProcess.startedAt
+            startedAt: localWorkerProcess.startedAt,
+            evictedPid: evicted.evictedPid
         })
     })
 
