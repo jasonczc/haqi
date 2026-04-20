@@ -96,7 +96,7 @@ export default {
   'dialog.archive.confirm': 'Archive',
   'dialog.archive.confirming': 'Archiving…',
   'dialog.delete.title': 'Delete Session',
-  'dialog.delete.description': 'Are you sure you want to delete "{name}"? This action cannot be undone.',
+  'dialog.delete.description': 'Are you sure you want to delete "{name}"? This removes the container, its checkpoint image and anonymous volumes. This action cannot be undone.',
   'dialog.delete.confirm': 'Delete',
   'dialog.delete.confirming': 'Deleting…',
   'dialog.error.default': 'Operation failed. Please try again.',

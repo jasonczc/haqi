@@ -1288,9 +1288,12 @@ export class SyncEngine {
         if (!session) {
             return { cleaned: false, skipped: 'session-not-found' }
         }
-        const metadata = session.metadata as { containerId?: string } | undefined
+        const metadata = session.metadata as
+            | { containerId?: string; checkpointId?: string }
+            | undefined
         const containerId = metadata?.containerId
-        if (!containerId) {
+        const checkpointId = metadata?.checkpointId
+        if (!containerId && !checkpointId) {
             return { cleaned: false, skipped: 'no-container' }
         }
 
@@ -1303,11 +1306,25 @@ export class SyncEngine {
         }
 
         try {
-            // Stop first (best-effort — container may already be stopped),
-            // then remove so it disappears from docker ps and Settings →
-            // Containers.
-            await this.rpcGateway.containerStop(cloudWorker.id, containerId).catch(() => undefined)
-            await this.rpcGateway.containerRemove(cloudWorker.id, containerId)
+            if (containerId) {
+                // Stop first (best-effort — container may already be
+                // stopped), then remove. `docker rm -f -v` on the worker
+                // side also reaps anonymous volumes the container owned.
+                await this.rpcGateway.containerStop(cloudWorker.id, containerId).catch(() => undefined)
+                await this.rpcGateway.containerRemove(cloudWorker.id, containerId)
+            }
+            if (checkpointId) {
+                // Reap the checkpoint image so deleted sessions don't
+                // orphan multi-GB image layers on the worker.
+                await this.rpcGateway.checkpointDelete(cloudWorker.id, {
+                    checkpointId,
+                    dockerImage: `haqi-checkpoint:${checkpointId}`
+                }).catch((err) => {
+                    // Swallow — image may already be gone or never created.
+                    // Deletion should still succeed from the user's POV.
+                    void err
+                })
+            }
             return { cleaned: true }
         } catch (error) {
             return {

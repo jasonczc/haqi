@@ -559,6 +559,12 @@ export const MetadataSchema = z.object({
     containerId: z.string().optional(),
     containerUser: z.string().optional(),
     containerHome: z.string().optional(),
+    // Disk resources the session owns on the worker host. Populated at
+    // spawn time so the hub can send targeted cleanup RPCs when the
+    // session is deleted (bind-mount workspace dirs, named volumes that
+    // survive container rm even with -v).
+    cleanupPaths: z.array(z.string()).optional(),
+    cleanupVolumeNames: z.array(z.string()).optional(),
     noVncPort: z.number().optional(),
     workspaceSource: WorkspaceSourceSchema.optional(),
     workspaceMode: WorkspaceModeSchema.optional(),

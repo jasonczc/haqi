@@ -197,7 +197,17 @@ export async function ensureWorkspaceContainer(params: {
         labels: {
             'haqi.runtime': params.daemonMode ? 'daemon-session' : 'docker-session',
             'haqi.workspace_id': params.workspace.workspaceId,
-            ...(params.checkpointId ? { 'haqi.checkpoint_id': params.checkpointId } : {})
+            ...(params.checkpointId ? { 'haqi.checkpoint_id': params.checkpointId } : {}),
+            // Cleanup manifest — the `container-remove` RPC reads these
+            // labels back via `docker inspect` so disk resources the
+            // container owned are reclaimed on delete without needing
+            // the worker to keep in-memory state.
+            ...(params.workspace.cleanupPaths.length > 0
+                ? { 'haqi.cleanup.paths': JSON.stringify(params.workspace.cleanupPaths) }
+                : {}),
+            ...(params.workspace.cleanupVolumeNames && params.workspace.cleanupVolumeNames.length > 0
+                ? { 'haqi.cleanup.volumes': JSON.stringify(params.workspace.cleanupVolumeNames) }
+                : {})
         },
         detach: true
     }

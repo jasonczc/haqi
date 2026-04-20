@@ -748,19 +748,18 @@ function SessionsPage() {
                                                                 Share
                                                             </button>
                                                             <div className="menu-divider" />
-                                                            {session.active ? (
-                                                                <button
-                                                                    className="menu-action danger"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation()
-                                                                        setOpenMenuSessionId(null)
-                                                                        setSessionMenuAnchor(null)
-                                                                        setSidebarConfirm({ kind: 'archive', sessionId: session.id, name: title })
-                                                                    }}
-                                                                >
-                                                                    Archive
-                                                                </button>
-                                                            ) : (
+                                                            <button
+                                                                className="menu-action danger"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setOpenMenuSessionId(null)
+                                                                    setSessionMenuAnchor(null)
+                                                                    setSidebarConfirm({ kind: 'archive', sessionId: session.id, name: title })
+                                                                }}
+                                                            >
+                                                                Archive
+                                                            </button>
+                                                            {!session.active ? (
                                                                 <button
                                                                     className="menu-action danger"
                                                                     onClick={(e) => {
@@ -772,7 +771,7 @@ function SessionsPage() {
                                                                 >
                                                                     Delete
                                                                 </button>
-                                                            )}
+                                                            ) : null}
                                                         </div>
                                                     ) : null}
                                                     {childTitle ? (

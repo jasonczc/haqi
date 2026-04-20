@@ -328,7 +328,61 @@ export class DockerCliRuntime {
     }
 
     async remove(containerId: string): Promise<void> {
-        await runDockerCommand(['rm', '-f', containerId])
+        // Read the cleanup manifest stored in container labels BEFORE the
+        // container is gone. Anything else runs best-effort — failure
+        // must not prevent the docker rm.
+        let cleanupPaths: string[] = []
+        let cleanupVolumeNames: string[] = []
+        try {
+            const inspect = await runDockerCommand([
+                'inspect',
+                '--format',
+                '{{json .Config.Labels}}',
+                containerId
+            ])
+            const raw = inspect.stdout.trim()
+            if (raw && raw !== 'null') {
+                const labels = JSON.parse(raw) as Record<string, string>
+                const pathsJson = labels['haqi.cleanup.paths']
+                const volumesJson = labels['haqi.cleanup.volumes']
+                if (pathsJson) {
+                    try {
+                        const parsed = JSON.parse(pathsJson)
+                        if (Array.isArray(parsed)) cleanupPaths = parsed.filter((x) => typeof x === 'string')
+                    } catch {
+                        /* malformed label — skip */
+                    }
+                }
+                if (volumesJson) {
+                    try {
+                        const parsed = JSON.parse(volumesJson)
+                        if (Array.isArray(parsed)) cleanupVolumeNames = parsed.filter((x) => typeof x === 'string')
+                    } catch {
+                        /* malformed label — skip */
+                    }
+                }
+            }
+        } catch {
+            /* container might already be gone — continue */
+        }
+        // -v also reaps anonymous volumes attached only to this container.
+        await runDockerCommand(['rm', '-f', '-v', containerId])
+        for (const p of cleanupPaths) {
+            if (!p || !path.isAbsolute(p)) continue
+            try {
+                await fs.rm(p, { recursive: true, force: true })
+            } catch {
+                /* best-effort */
+            }
+        }
+        for (const name of cleanupVolumeNames) {
+            if (!name) continue
+            try {
+                await runDockerCommand(['volume', 'rm', '-f', name])
+            } catch {
+                /* best-effort */
+            }
+        }
     }
 
     async removeVolume(volumeName: string): Promise<void> {

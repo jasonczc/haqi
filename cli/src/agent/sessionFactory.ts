@@ -103,6 +103,8 @@ export function buildSessionMetadata(options: {
     terminalDescriptors?: Metadata['terminalDescriptors']
     setupStatus?: Metadata['setupStatus']
     previewUrls?: Metadata['previewUrls']
+    cleanupPaths?: string[]
+    cleanupVolumeNames?: string[]
 }): Metadata {
     const happyLibDir = runtimePath()
     const worktreeInfo = readWorktreeEnv()
@@ -153,6 +155,8 @@ export function buildSessionMetadata(options: {
         terminalDescriptors: options.terminalDescriptors,
         setupStatus: options.setupStatus,
         previewUrls: options.previewUrls,
+        cleanupPaths: options.cleanupPaths && options.cleanupPaths.length > 0 ? options.cleanupPaths : undefined,
+        cleanupVolumeNames: options.cleanupVolumeNames && options.cleanupVolumeNames.length > 0 ? options.cleanupVolumeNames : undefined,
         sessionType: (process.env.HAPI_SESSION_TYPE as 'simple' | 'worktree' | 'setup' | undefined) || undefined,
         initialPrompt: process.env.HAPI_INITIAL_PROMPT || undefined
     }

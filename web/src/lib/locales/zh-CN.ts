@@ -98,7 +98,7 @@ export default {
   'dialog.archive.confirming': '归档中…',
 
   'dialog.delete.title': '删除会话',
-  'dialog.delete.description': '确定要删除 "{name}" 吗？此操作无法撤销。',
+  'dialog.delete.description': '确定要删除 "{name}" 吗？这会移除容器、checkpoint 镜像和匿名卷，此操作无法撤销。',
   'dialog.delete.confirm': '删除',
   'dialog.delete.confirming': '删除中…',
   'dialog.error.default': '操作失败，请重试。',
