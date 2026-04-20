@@ -1249,9 +1249,28 @@ export class SyncEngine {
         return await this.rpcGateway.stopAndFlushCodexQueue(sessionId)
     }
 
-    async archiveSession(sessionId: string): Promise<void> {
+    /**
+     * Archive a session: kill its agent, mark it inactive, and tear down
+     * any daemon-session container + checkpoint image it was holding.
+     *
+     * We stop + remove the container (rather than stop-only) because
+     * "archive" here is a one-way terminal in the UX — there's no
+     * resume-from-archived path, so a paused container would just leak
+     * disk + CPU until delete. Container cleanup failures don't block
+     * archive (the session still flips to inactive); failures are
+     * returned so the caller can surface them in the API response.
+     *
+     * `namespace` is required to look up the session's worker for the
+     * RPC cleanup call. Pass the route's `c.get('namespace')`.
+     */
+    async archiveSession(
+        sessionId: string,
+        namespace: string
+    ): Promise<{ containerCleanup: { cleaned: boolean; skipped?: string; error?: string } }> {
         await this.rpcGateway.killSession(sessionId)
+        const containerCleanup = await this.cleanupSessionContainer(sessionId, namespace)
         this.handleSessionEnd({ sid: sessionId, time: Date.now() })
+        return { containerCleanup }
     }
 
     async switchSession(sessionId: string, to: 'remote' | 'local'): Promise<void> {

@@ -670,7 +670,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
                 await engine.rpcContainerStopSession(selectedMachineId, metadata.containerId)
                 engine.handleSessionEnd({ sid: sessionResult.sessionId, time: Date.now() })
             } else {
-                await engine.archiveSession(sessionResult.sessionId)
+                await engine.archiveSession(sessionResult.sessionId, c.get('namespace'))
             }
         } else if (!sessionResult.session.active) {
             return c.json({ error: 'Session is inactive' }, 409)
@@ -691,8 +691,11 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return sessionResult
         }
 
-        await engine.archiveSession(sessionResult.sessionId)
-        return c.json({ ok: true })
+        // Archive returns a containerCleanup report so the UI can surface
+        // "container still running, worker offline" without the user
+        // having to guess why disk usage didn't drop.
+        const result = await engine.archiveSession(sessionResult.sessionId, c.get('namespace'))
+        return c.json({ ok: true, ...result })
     })
 
     // Worker-initiated crash report: the runnerLoop POSTs here whenever a
