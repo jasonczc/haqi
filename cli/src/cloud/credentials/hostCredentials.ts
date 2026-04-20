@@ -241,14 +241,26 @@ async function injectGitConfig(containerId: string, user?: string): Promise<void
         for (const target of getContainerHomeTargets(user)) {
             await runDockerCommand(['cp', gitconfig, `${containerId}:${target.home}/.gitconfig`])
             await runDockerExec(containerId, ['chown', target.owner, `${target.home}/.gitconfig`], { user: 'root' }).catch(() => undefined)
-            // Override credential.helper to "store" so the container reads from
-            // the injected .git-credentials instead of host-only helpers.
+            // Strip the host operator's `[user]` section from the copied
+            // gitconfig. Otherwise when the agent commits in a repo that
+            // has no local user.* set (e.g. a sub-repo the agent cloned
+            // itself, or a fresh init), git falls back to global — which
+            // would attribute the commit to whoever owns the hub host
+            // rather than the user who configured identity in the web
+            // settings UI. `configureGitIdentity` writes the correct
+            // values to --global immediately after this injection.
             await runDockerExec(containerId, [
                 'sh', '-c',
-                `HOME=${target.home} git config --global --unset-all credential.helper 2>/dev/null; HOME=${target.home} git config --global credential.helper store`
+                `HOME=${target.home} git config --global --unset-all user.name 2>/dev/null; ` +
+                `HOME=${target.home} git config --global --unset-all user.email 2>/dev/null; ` +
+                `HOME=${target.home} git config --global --unset-all user.signingkey 2>/dev/null; ` +
+                // Override credential.helper to "store" so the container reads from
+                // the injected .git-credentials instead of host-only helpers.
+                `HOME=${target.home} git config --global --unset-all credential.helper 2>/dev/null; ` +
+                `HOME=${target.home} git config --global credential.helper store`
             ], { user: 'root' }).catch(() => undefined)
         }
-        logger.debug('[host-creds] Injected .gitconfig')
+        logger.debug('[host-creds] Injected .gitconfig (stripped host [user] section)')
     } catch (err) {
         logger.debug('[host-creds] Failed to inject .gitconfig:', err)
     }

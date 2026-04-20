@@ -129,16 +129,35 @@ async function configureGitIdentity(params: {
     const name = params.identity?.name?.trim()
     const email = params.identity?.email?.trim()
     if (!name && !email) {
+        // Surface this in runner logs — otherwise a commit that ends up
+        // attributed to whatever the hub host's ~/.gitconfig carries
+        // looks like a mystery to the user. With host-side [user]
+        // stripped by injectGitConfig, the agent would instead fail
+        // commit with "Please tell me who you are" until identity is
+        // set; loud is better than silently wrong.
+        console.warn('[configureGitIdentity] no gitIdentity provided — commits will fail until git user.{name,email} is set')
         return
     }
-    const commands = [
-        'if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then',
+    // Write to BOTH --global and local:
+    //   --global: every repo the agent touches in this container picks
+    //             up the user's identity — clones, inits, submodules,
+    //             monorepo sub-packages. This replaces what used to leak
+    //             from the hub host's ~/.gitconfig.
+    //   local (inside cwd if it's a git repo): explicit priority win
+    //             over any leftover ~/.gitconfig surprises; belt-and-
+    //             suspenders.
+    const globalCmd = [
+        ...(name ? [`git config --global user.name ${JSON.stringify(name)}`] : []),
+        ...(email ? [`git config --global user.email ${JSON.stringify(email)}`] : [])
+    ].join(' && ')
+    const localCmd = [
+        'if git -C "$PWD" rev-parse --is-inside-work-tree >/dev/null 2>&1; then',
         ...(name ? [`  git config user.name ${JSON.stringify(name)}`] : []),
         ...(email ? [`  git config user.email ${JSON.stringify(email)}`] : []),
         'fi'
-    ]
+    ].join('\n')
     await params.client.prepare({
-        commands: [commands.join('\n')],
+        commands: [[globalCmd, localCmd].filter(Boolean).join('\n')],
         cwd: params.cwd,
         env: params.env
     })
