@@ -103,11 +103,15 @@ function buildRepositorySyncScript(params: {
         'echo "[haqi-sync] repoRoot=$REPO_ROOT workspaceBranch=$WORKSPACE_BRANCH baseBranch=$BASE_BRANCH target=$TARGET_LABEL" >&2',
         // Fresh-clone contract: nuke whatever the previous session left
         // behind so sticky branch state never survives across opens.
-        'if [ -d "$REPO_ROOT" ]; then',
-        '  echo "[haqi-sync] removing existing $REPO_ROOT for fresh clone" >&2',
-        '  rm -rf "$REPO_ROOT"',
-        'fi',
+        // NOTE: `$REPO_ROOT` in daemon-session containers is the volume
+        // mount point (typically `/workspace`) — you can't `rm` the
+        // directory itself, only its contents. `find -mindepth 1`
+        // deletes everything inside while leaving the mount intact.
         'mkdir -p "$REPO_ROOT"',
+        'if [ -n "$(ls -A "$REPO_ROOT" 2>/dev/null)" ]; then',
+        '  echo "[haqi-sync] wiping contents of $REPO_ROOT for fresh clone" >&2',
+        '  find "$REPO_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf {} +',
+        'fi',
         `git clone ${params.repository.cloneDepth ? `--depth ${params.repository.cloneDepth} ` : ''}"$AUTH_REMOTE_URL" "$REPO_ROOT"`
     ]
 
