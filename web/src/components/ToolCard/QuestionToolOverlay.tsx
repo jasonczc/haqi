@@ -342,7 +342,7 @@ export function QuestionToolOverlay(props: {
 
     if (isMinimized) {
         return (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[70] flex justify-end p-3 sm:p-4">
+            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-end p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4">
                 <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl">
                     <div className="px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
@@ -403,11 +403,11 @@ export function QuestionToolOverlay(props: {
     }
 
     return (
-        <div className="absolute inset-0 z-[70]">
+        <div className="fixed inset-0 z-[70]">
             <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
-            <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6">
-                <div className="w-full max-w-2xl rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl">
-                    <div className="border-b border-[var(--app-border)] px-4 py-3">
+            <div className="absolute inset-0 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:flex sm:items-center sm:justify-center sm:p-6">
+                <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl sm:max-h-[min(88vh,860px)]">
+                    <div className="shrink-0 border-b border-[var(--app-border)] px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
@@ -443,7 +443,7 @@ export function QuestionToolOverlay(props: {
                         </div>
                     </div>
 
-                    <div className="max-h-[min(78vh,720px)] overflow-y-auto px-4 py-4">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                         {error ? (
                             <div className="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
                                 {error}
@@ -518,52 +518,54 @@ export function QuestionToolOverlay(props: {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 border-t border-[var(--app-border)] px-4 py-3">
-                        <div className="flex items-center gap-2">
-                            {total > 1 ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={props.disabled || loading || clampedStep === 0}
-                                    onClick={prev}
-                                >
-                                    {t('tool.prev')}
-                                </Button>
-                            ) : null}
-                        </div>
+                    <div className="shrink-0 border-t border-[var(--app-border)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-3">
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                {total > 1 ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={props.disabled || loading || clampedStep === 0}
+                                        onClick={prev}
+                                    >
+                                        {t('tool.prev')}
+                                    </Button>
+                                ) : null}
+                            </div>
 
-                        <div className="flex items-center gap-2">
-                            {total > 1 && clampedStep < total - 1 ? (
-                                <Button
-                                    type="button"
-                                    variant="default"
-                                    size="sm"
-                                    disabled={props.disabled || loading}
-                                    onClick={next}
-                                >
-                                    {t('tool.next')}
-                                </Button>
-                            ) : (
-                                <Button
-                                    type="button"
-                                    variant="default"
-                                    size="sm"
-                                    disabled={props.disabled || loading}
-                                    onClick={() => void submit()}
-                                    aria-busy={loading}
-                                    className="gap-2"
-                                >
-                                    {loading ? (
-                                        <>
-                                            <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
-                                            {t('tool.submitting')}
-                                        </>
-                                    ) : (
-                                        t('tool.submit')
-                                    )}
-                                </Button>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {total > 1 && clampedStep < total - 1 ? (
+                                    <Button
+                                        type="button"
+                                        variant="default"
+                                        size="sm"
+                                        disabled={props.disabled || loading}
+                                        onClick={next}
+                                    >
+                                        {t('tool.next')}
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        variant="default"
+                                        size="sm"
+                                        disabled={props.disabled || loading}
+                                        onClick={() => void submit()}
+                                        aria-busy={loading}
+                                        className="gap-2"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
+                                                {t('tool.submitting')}
+                                            </>
+                                        ) : (
+                                            t('tool.submit')
+                                        )}
+                                    </Button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

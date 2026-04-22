@@ -182,6 +182,30 @@ describe('QuestionToolOverlay', () => {
         expect(screen.getByText('How should we proceed?')).toBeInTheDocument()
     })
 
+    it('uses viewport-fixed layout so the dialog stays inside the screen', () => {
+        const api = {
+            approvePermission: vi.fn(),
+            denyPermission: vi.fn()
+        } as unknown as ApiClient
+
+        const { container } = renderWithProviders(
+            <QuestionToolOverlay
+                api={api}
+                sessionId="session-1"
+                tool={makeTool()}
+                disabled={false}
+                onDone={vi.fn()}
+            />
+        )
+
+        expect(container.firstElementChild).toHaveClass('fixed', 'inset-0')
+        expect(container.querySelector('.max-h-\\[calc\\(100dvh-env\\(safe-area-inset-top\\)-env\\(safe-area-inset-bottom\\)-1\\.5rem\\)\\]')).toHaveClass(
+            'max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)]',
+            'flex',
+            'flex-col'
+        )
+    })
+
     it('restores draft answers after unmount and remount', async () => {
         const approvePermission = vi.fn(async () => undefined)
         const api = {
