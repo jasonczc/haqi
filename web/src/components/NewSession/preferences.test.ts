@@ -88,7 +88,7 @@ describe('NewSession preferences', () => {
         savePreferredSessionType('worktree')
         savePreferredThinkEffort('codex', 'high')
         savePreferredServiceTier('codex', 'flex')
-        savePreferredModel('codex', 'gpt-5.4')
+        savePreferredModel('codex', 'gpt-5.5')
         savePreferredCustomModel('codex', 'my-custom-model')
 
         expect(localStorage.getItem('hapi:newSession:agent')).toBe('gemini')
@@ -101,7 +101,7 @@ describe('NewSession preferences', () => {
             codex: 'flex'
         }))
         expect(localStorage.getItem('hapi:newSession:modelByAgent')).toBe(JSON.stringify({
-            codex: 'gpt-5.4'
+            codex: 'gpt-5.5'
         }))
         expect(localStorage.getItem('hapi:newSession:customModelByAgent')).toBe(JSON.stringify({
             codex: 'my-custom-model'

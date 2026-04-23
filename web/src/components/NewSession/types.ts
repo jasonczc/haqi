@@ -49,6 +49,7 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
     ],
     codex: [
         { value: 'auto', label: 'Auto' },
+        { value: 'gpt-5.5', label: 'GPT-5.5' },
         { value: 'gpt-5.4', label: 'GPT-5.4' },
         { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
         { value: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
