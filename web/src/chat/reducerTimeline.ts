@@ -4,6 +4,16 @@ import { createCliOutputBlock, isCliOutputText, mergeCliOutputBlocks } from '@/c
 import { parseMessageAsEvent } from '@/chat/reducerEvents'
 import { ensureToolBlock, extractTitleFromChangeTitleInput, isChangeTitleToolName, type PermissionEntry } from '@/chat/reducerTools'
 
+type PlanUpdateEvent = { type: 'plan-update'; explanation?: string; plan: Array<{ step: string; status: 'pending' | 'in_progress' | 'completed' }> }
+
+function isPlanUpdateEvent(value: unknown): value is PlanUpdateEvent {
+    if (!value || typeof value !== 'object') {
+        return false
+    }
+    const candidate = value as Record<string, unknown>
+    return candidate.type === 'plan-update' && Array.isArray(candidate.plan)
+}
+
 function formatPlanUpdateText(event: { explanation?: string; plan: Array<{ step: string; status: 'pending' | 'in_progress' | 'completed' }> }): string | null {
     const lines: string[] = []
     const explanation = typeof event.explanation === 'string' ? event.explanation.trim() : ''
@@ -42,7 +52,7 @@ export function reduceTimeline(
                 hasReadyEvent = true
                 continue
             }
-            if (msg.content.type === 'plan-update') {
+            if (isPlanUpdateEvent(msg.content)) {
                 const text = formatPlanUpdateText(msg.content)
                 if (text) {
                     blocks.push({
