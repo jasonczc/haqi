@@ -436,7 +436,9 @@ export async function startDaemonSessionExecutor(params: {
         sessionLabel: params.sessionLabel,
         daemonMode: {
             daemonPort: DAEMON_PORT,
-            authToken
+            authToken,
+            runnerCallbackUrl: callbackUrl,
+            runnerCallbackToken: params.callbackToken
         }
     })
     containerId = container.containerId

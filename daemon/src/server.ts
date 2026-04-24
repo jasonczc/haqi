@@ -18,8 +18,10 @@ export async function startServer(options: ServerOptions) {
     const startedAt = Date.now()
     const processManager = new ProcessManager()
     const outputBuffer = new OutputBuffer()
-    const runnerCallbackUrl = process.env.HAPI_RUNNER_CALLBACK_URL
-    const runnerCallbackToken = process.env.HAPI_RUNNER_CALLBACK_TOKEN
+    // Mutable so a reused container across worker restarts can be updated via
+    // each /process/spawn request env, not just at daemon boot.
+    let runnerCallbackUrl: string | undefined = process.env.HAPI_RUNNER_CALLBACK_URL
+    let runnerCallbackToken: string | undefined = process.env.HAPI_RUNNER_CALLBACK_TOKEN
 
     const postRunnerCallback = async (path: string, body: Record<string, unknown>) => {
         if (!runnerCallbackUrl) {
@@ -81,6 +83,13 @@ export async function startServer(options: ServerOptions) {
         if (!parsed.success) {
             return c.json({ error: 'Invalid request', details: parsed.error.format() }, 400)
         }
+        // Refresh callback URL from each spawn env: a reused container may
+        // outlive the worker that created it (e.g., worker restart), and the
+        // freshly issued callback URL rides in with the spawn request.
+        const envUrl = parsed.data.env?.HAPI_RUNNER_CALLBACK_URL
+        const envToken = parsed.data.env?.HAPI_RUNNER_CALLBACK_TOKEN
+        if (envUrl) runnerCallbackUrl = envUrl
+        if (envToken) runnerCallbackToken = envToken
         const result = await processManager.spawn(parsed.data)
         return c.json(result)
     })
@@ -92,6 +101,12 @@ export async function startServer(options: ServerOptions) {
 
     app.get('/process/status', (c) => {
         return c.json(processManager.status())
+    })
+
+    app.get('/process/output', (c) => {
+        const countParam = c.req.query('count')
+        const count = countParam ? Math.max(1, Math.min(1000, parseInt(countParam, 10) || 100)) : 100
+        return c.json({ chunks: outputBuffer.recent(count) })
     })
 
     app.post('/checkpoint/save', async (c) => {

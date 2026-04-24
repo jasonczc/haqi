@@ -80,6 +80,8 @@ export async function ensureWorkspaceContainer(params: {
     daemonMode?: {
         daemonPort: number
         authToken: string
+        runnerCallbackUrl?: string
+        runnerCallbackToken?: string
     }
 }): Promise<{
     containerId: string
@@ -159,6 +161,12 @@ export async function ensureWorkspaceContainer(params: {
             `HAPI_INNER_DOCKER_SOCKET=${innerDockerSocketPath()}`,
             `HAPI_INNER_DOCKER_STATE_DIR=${containerHome}/.local/share/docker`
         )
+        if (params.daemonMode.runnerCallbackUrl) {
+            envVars.push(`HAPI_RUNNER_CALLBACK_URL=${params.daemonMode.runnerCallbackUrl}`)
+        }
+        if (params.daemonMode.runnerCallbackToken) {
+            envVars.push(`HAPI_RUNNER_CALLBACK_TOKEN=${params.daemonMode.runnerCallbackToken}`)
+        }
         if (useBootstrapWrapper) {
             envVars.push(
                 `HAPI_RUNTIME_UID=${process.getuid?.() ?? 1000}`,

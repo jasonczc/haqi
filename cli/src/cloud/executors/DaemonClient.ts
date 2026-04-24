@@ -25,6 +25,16 @@ type HealthResponse = {
     uptimeMs: number
 }
 
+type OutputChunk = {
+    type: 'stdout' | 'stderr'
+    data: string
+    timestamp: number
+}
+
+type OutputResponse = {
+    chunks: OutputChunk[]
+}
+
 type PortInfo = {
     port: number
     pid?: number
@@ -81,6 +91,10 @@ export class DaemonClient {
 
     async status(): Promise<ProcessStatus> {
         return this.request('/process/status')
+    }
+
+    async output(count = 100): Promise<OutputResponse> {
+        return this.request(`/process/output?count=${encodeURIComponent(String(count))}`)
     }
 
     async prepare(req: PrepareRequest): Promise<PrepareResponse> {

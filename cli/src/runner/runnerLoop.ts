@@ -95,6 +95,11 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     const pidToErrorAwaiter = new Map<number, (errorMessage: string) => void>();
     const requestIdToAwaiter = new Map<string, (session: TrackedSession) => void>();
     const requestIdToErrorAwaiter = new Map<string, (errorMessage: string) => void>();
+    // Daemon-session only: held so we can fetch in-container stderr on exit.
+    // Without this the runner has only {pid, exitCode, signal} from the daemon
+    // callback and failures like "bad --flag" show up as exit code 1 with no
+    // hint of what went wrong.
+    const pidToDaemonClient = new Map<number, import('@/cloud/executors/DaemonClient').DaemonClient>();
     type SpawnFailureDetails = {
       message: string
       pid?: number
@@ -226,18 +231,42 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
       }
     };
 
-    const onDaemonProcessExited = (pid: number, exitCode?: number | null, signal?: string | null) => {
+    const onDaemonProcessExited = async (pid: number, exitCode?: number | null, signal?: string | null) => {
       logger.debug(`[RUNNER RUN] Daemon reported process exit for PID ${pid} (exitCode=${exitCode ?? 'null'}, signal=${signal ?? 'null'})`);
       const errorAwaiter = pidToErrorAwaiter.get(pid);
       if (errorAwaiter) {
         pidToErrorAwaiter.delete(pid);
         pidToAwaiter.delete(pid);
+
+        let stderrSuffix = '';
+        const daemonClient = pidToDaemonClient.get(pid);
+        if (daemonClient) {
+          try {
+            const output = await Promise.race([
+              daemonClient.output(200),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), 3_000))
+            ]);
+            const stderrChunks = output && 'chunks' in output
+              ? output.chunks.filter((c) => c.type === 'stderr').map((c) => c.data).join('').trim()
+              : '';
+            if (stderrChunks) {
+              const compact = stderrChunks.replace(/\s+/g, ' ');
+              const tail = compact.length > 800 ? compact.slice(-800) : compact;
+              stderrSuffix = `. stderr: ${tail}`;
+            }
+          } catch {
+            // Output fetch failed — proceed with exit-code-only error.
+          }
+        }
+
         errorAwaiter(
           `Session process exited before webhook for PID ${pid}`
           + (typeof exitCode === 'number' ? ` (exit code ${exitCode})` : '')
           + (!exitCode && signal ? ` (signal ${signal})` : '')
+          + stderrSuffix
         );
       }
+      pidToDaemonClient.delete(pid);
       onChildExited(pid);
     };
 
@@ -1124,6 +1153,9 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
         applyPreparedMetadata(trackedSession);
 
         pidToTrackedSession.set(pid, trackedSession);
+        if (execution.runtimeKind === 'daemon-session' && 'daemonClient' in execution && execution.daemonClient) {
+          pidToDaemonClient.set(pid, execution.daemonClient);
+        }
         syncCloudRunnerState({
           currentSessionId: spawnRequestId,
           lifecycle: 'busy',
@@ -1470,6 +1502,7 @@ export async function runRunnerLoop(options: RunnerLoopOptions): Promise<void> {
     // Handle child process exit
     const onChildExited = (pid: number) => {
       logger.debug(`[RUNNER RUN] Removing exited process PID ${pid} from tracking`);
+      pidToDaemonClient.delete(pid);
       const tracked = pidToTrackedSession.get(pid);
       if (tracked?.containerId) {
         // Stop first — `docker rm` on a running container returns an error that we'd
