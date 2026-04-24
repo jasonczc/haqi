@@ -802,6 +802,44 @@ export const CodexCredentialActivateRequestSchema = z.object({
 
 export type CodexCredentialActivateRequest = z.infer<typeof CodexCredentialActivateRequestSchema>
 
+export const HostCredentialKindSchema = z.enum([
+    'claude', 'codex', 'gitconfig', 'gitcreds', 'gh', 'ssh'
+])
+
+export type HostCredentialKind = z.infer<typeof HostCredentialKindSchema>
+
+export const HostCredentialStatusSchema = z.object({
+    kind: HostCredentialKindSchema,
+    present: z.boolean(),
+    sources: z.array(z.string()),
+    expiresAt: z.number().optional(),
+    note: z.string().optional()
+})
+
+export type HostCredentialStatus = z.infer<typeof HostCredentialStatusSchema>
+
+export const HostCredentialsStateResponseSchema = z.object({
+    statuses: z.array(HostCredentialStatusSchema)
+})
+
+export type HostCredentialsStateResponse = z.infer<typeof HostCredentialsStateResponseSchema>
+
+export const HostCredentialsReinjectRequestSchema = z.object({
+    kinds: z.array(HostCredentialKindSchema).min(1).optional()
+})
+
+export type HostCredentialsReinjectRequest = z.infer<typeof HostCredentialsReinjectRequestSchema>
+
+export const HostCredentialsReinjectResponseSchema = z.object({
+    injected: z.array(HostCredentialKindSchema),
+    failed: z.array(z.object({
+        kind: HostCredentialKindSchema,
+        error: z.string()
+    }))
+})
+
+export type HostCredentialsReinjectResponse = z.infer<typeof HostCredentialsReinjectResponseSchema>
+
 export const DecryptedMessageSchema = z.object({
     id: z.string(),
     seq: z.number().nullable(),

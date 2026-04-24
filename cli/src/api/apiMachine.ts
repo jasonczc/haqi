@@ -15,6 +15,12 @@ import {
     importCodexCredentials,
     saveCurrentCodexCredentials
 } from '@/codex/credentials'
+import {
+    CREDENTIAL_KINDS,
+    getHostCredentialStatuses,
+    injectHostCredentialByKind,
+    type CredentialKind
+} from '@/cloud/credentials/hostCredentials'
 import type { RunnerState, Machine, MachineMetadata } from './types'
 import { RunnerStateSchema, MachineMetadataSchema } from './types'
 import { backoff } from '@/utils/time'
@@ -167,6 +173,35 @@ export class ApiMachineClient {
                 throw new Error('profileId is required')
             }
             return await deleteCodexCredential(params.profileId)
+        })
+
+        this.rpcHandlerManager.registerHandler('host-credentials-status', async () => {
+            return { statuses: await getHostCredentialStatuses() }
+        })
+
+        this.rpcHandlerManager.registerHandler('host-credentials-reinject', async (params: any) => {
+            const containerId = typeof params?.containerId === 'string' ? params.containerId.trim() : ''
+            if (!containerId) {
+                throw new Error('containerId is required')
+            }
+            const user = typeof params?.user === 'string' && params.user.trim()
+                ? params.user.trim()
+                : undefined
+            const kinds: CredentialKind[] = Array.isArray(params?.kinds) && params.kinds.length > 0
+                ? params.kinds.filter((k: unknown): k is CredentialKind => typeof k === 'string' && (CREDENTIAL_KINDS as readonly string[]).includes(k))
+                : [...CREDENTIAL_KINDS]
+
+            const injected: CredentialKind[] = []
+            const failed: Array<{ kind: CredentialKind; error: string }> = []
+            for (const kind of kinds) {
+                try {
+                    await injectHostCredentialByKind(containerId, kind, user)
+                    injected.push(kind)
+                } catch (err) {
+                    failed.push({ kind, error: err instanceof Error ? err.message : String(err) })
+                }
+            }
+            return { injected, failed }
         })
     }
 

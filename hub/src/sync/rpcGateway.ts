@@ -1,6 +1,9 @@
 import type {
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
+    HostCredentialsStateResponse,
+    HostCredentialsReinjectRequest,
+    HostCredentialsReinjectResponse,
     MachineSpawnRequest,
     ModelMode,
     SpawnResponse,
@@ -55,6 +58,9 @@ export type RpcPathExistsResponse = {
 
 export type RpcCodexCredentialStateResponse = CodexCredentialStateResponse
 export type RpcCodexCredentialExportRpcResponse = CodexCredentialExportResponse
+
+export type RpcHostCredentialsStateResponse = HostCredentialsStateResponse
+export type RpcHostCredentialsReinjectResponse = HostCredentialsReinjectResponse
 
 export type RpcCodexStatusResponse = {
     success: boolean
@@ -311,6 +317,25 @@ export class RpcGateway {
             throw new Error('Unexpected codex-credentials-delete result')
         }
         return result as RpcCodexCredentialStateResponse
+    }
+
+    async getMachineHostCredentialsStatus(machineId: string): Promise<RpcHostCredentialsStateResponse> {
+        const result = await this.machineRpc(machineId, 'host-credentials-status', {}) as RpcHostCredentialsStateResponse | unknown
+        if (!result || typeof result !== 'object' || !Array.isArray((result as any).statuses)) {
+            throw new Error('Unexpected host-credentials-status result')
+        }
+        return result as RpcHostCredentialsStateResponse
+    }
+
+    async reinjectHostCredentials(
+        machineId: string,
+        params: { containerId: string; kinds?: HostCredentialsReinjectRequest['kinds']; user?: string }
+    ): Promise<RpcHostCredentialsReinjectResponse> {
+        const result = await this.machineRpc(machineId, 'host-credentials-reinject', params) as RpcHostCredentialsReinjectResponse | unknown
+        if (!result || typeof result !== 'object' || !Array.isArray((result as any).injected)) {
+            throw new Error('Unexpected host-credentials-reinject result')
+        }
+        return result as RpcHostCredentialsReinjectResponse
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {

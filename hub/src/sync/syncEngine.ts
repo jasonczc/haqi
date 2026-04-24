@@ -38,6 +38,8 @@ import {
     type RpcCodexQueueState,
     type RpcCodexQueueResponse,
     type RpcCodexStatusResponse,
+    type RpcHostCredentialsStateResponse,
+    type RpcHostCredentialsReinjectResponse,
     type RpcMcpServersResponse,
     RpcGateway,
     type RpcCommandResponse,
@@ -71,6 +73,8 @@ export type {
     RpcCodexStatusResponse,
     RpcCommandResponse,
     RpcDeleteUploadResponse,
+    RpcHostCredentialsStateResponse,
+    RpcHostCredentialsReinjectResponse,
     RpcMcpServersResponse,
     RpcListDirectoryResponse,
     RpcPathExistsResponse,
@@ -2735,6 +2739,55 @@ ${note.content}
         profileId: string
     ): Promise<RpcCodexCredentialStateResponse> {
         return await this.rpcGateway.deleteMachineCodexCredential(machineId, profileId)
+    }
+
+    async getMachineHostCredentialsStatus(machineId: string): Promise<RpcHostCredentialsStateResponse> {
+        return await this.rpcGateway.getMachineHostCredentialsStatus(machineId)
+    }
+
+    /**
+     * Re-inject host credentials into a running session's container. Resolves
+     * the session's machineId + containerId from metadata, so the caller only
+     * needs the session id.
+     */
+    async reinjectSessionHostCredentials(
+        sessionId: string,
+        namespace: string,
+        options: { kinds?: RpcHostCredentialsReinjectResponse['injected'] } = {}
+    ): Promise<RpcHostCredentialsReinjectResponse> {
+        const access = this.resolveSessionAccess(sessionId, namespace)
+        if (!access.ok) {
+            throw new Error(access.reason === 'access-denied' ? 'Session access denied' : 'Session not found')
+        }
+        const metadata = access.session.metadata as {
+            machineId?: string
+            containerId?: string
+            runtimeKind?: string
+        } | null
+        if (!metadata?.machineId) {
+            throw new Error('Session has no machine association')
+        }
+        if (!metadata?.containerId) {
+            throw new Error('Session has no container (credential reinjection only applies to docker/daemon sessions)')
+        }
+        if (metadata.runtimeKind !== 'daemon-session' && metadata.runtimeKind !== 'docker-session') {
+            throw new Error(`Credential reinjection not supported for runtime: ${metadata.runtimeKind}`)
+        }
+        // For cloud-backed sessions the machineId in metadata is the *owning*
+        // desktop machine, not the worker that actually holds the container.
+        // resolveDesktopSession in the web server performs that remap; we do
+        // the equivalent here by preferring a cloud worker in the same
+        // namespace when the runtime is cloud-hosted.
+        let targetMachineId = metadata.machineId
+        const cloudWorkers = this.getOnlineMachinesByNamespace(namespace)
+            .filter(m => m.metadata?.executorType === 'cloud-self-hosted' || m.metadata?.executorType === 'cloud-managed')
+        if (cloudWorkers.length > 0) {
+            targetMachineId = cloudWorkers[0].id
+        }
+        return await this.rpcGateway.reinjectHostCredentials(targetMachineId, {
+            containerId: metadata.containerId,
+            kinds: options.kinds,
+        })
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {

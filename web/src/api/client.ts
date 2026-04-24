@@ -15,6 +15,9 @@ import type {
     LocalRuntimeStatus,
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
+    HostCredentialKind,
+    HostCredentialsStateResponse,
+    HostCredentialsReinjectResponse,
     QueueResponse,
     SessionUsageResponse,
     QueueStatusResponse,
@@ -1239,6 +1242,25 @@ export class ApiClient {
             `/api/machines/${encodeURIComponent(machineId)}/codex-credentials/${encodeURIComponent(profileId)}`,
             {
                 method: 'DELETE'
+            }
+        )
+    }
+
+    async getMachineHostCredentials(machineId: string): Promise<HostCredentialsStateResponse> {
+        return await this.request<HostCredentialsStateResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/host-credentials`
+        )
+    }
+
+    async reinjectSessionHostCredentials(
+        sessionId: string,
+        payload: { kinds?: HostCredentialKind[] } = {}
+    ): Promise<HostCredentialsReinjectResponse> {
+        return await this.request<HostCredentialsReinjectResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/host-credentials/reinject`,
+            {
+                method: 'POST',
+                body: JSON.stringify(payload)
             }
         )
     }

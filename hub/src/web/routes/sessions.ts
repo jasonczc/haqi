@@ -1,5 +1,5 @@
 import { getPermissionModesForFlavor, isModelModeAllowedForFlavor, isPermissionModeAllowedForFlavor, toSessionSummary } from '@hapi/protocol'
-import { ArchiveDetailSchema, ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
+import { ArchiveDetailSchema, HostCredentialsReinjectRequestSchema, ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
 import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import type { SyncEngine, Session } from '../../sync/syncEngine'
@@ -1072,6 +1072,34 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
                 success: false,
                 error: error instanceof Error ? error.message : 'Failed to list skills'
             })
+        }
+    })
+
+    app.post('/sessions/:id/host-credentials/reinject', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => ({}))
+        const parsed = HostCredentialsReinjectRequestSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        const namespace = c.get('namespace')
+        try {
+            const result = await engine.reinjectSessionHostCredentials(sessionResult.sessionId, namespace, {
+                kinds: parsed.data.kinds,
+            })
+            return c.json(result)
+        } catch (error) {
+            return c.json({ error: error instanceof Error ? error.message : 'Failed to reinject credentials' }, 500)
         }
     })
 

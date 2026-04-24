@@ -16,7 +16,14 @@ import {
 import { useAppContext } from '@/lib/app-context'
 import { useMemory } from '@/hooks/queries/useMemory'
 import { useMachines } from '@/hooks/queries/useMachines'
-import type { CodexCredentialProfile, CodexCredentialStateResponse } from '@/types/api'
+import { useSessions } from '@/hooks/queries/useSessions'
+import type {
+    CodexCredentialProfile,
+    CodexCredentialStateResponse,
+    HostCredentialKind,
+    HostCredentialStatus,
+    SessionSummary,
+} from '@/types/api'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 
 function formatDateTime(value: number | string | null | undefined): string {
@@ -24,6 +31,17 @@ function formatDateTime(value: number | string | null | undefined): string {
     const date = new Date(value)
     if (Number.isNaN(date.getTime())) return '—'
     return date.toLocaleString()
+}
+
+function formatHostCredExpiry(expiresAt: number | undefined): string {
+    if (expiresAt === undefined) return 'no expiry info'
+    const remaining = expiresAt - Date.now()
+    if (remaining <= 0) return `expired ${new Date(expiresAt).toLocaleString()}`
+    const minutes = remaining / 60_000
+    if (minutes < 60) return `expires in ${Math.round(minutes)}m`
+    const hours = minutes / 60
+    if (hours < 24) return `expires in ${hours.toFixed(1)}h`
+    return `expires in ${(hours / 24).toFixed(1)}d`
 }
 
 function summarizeCodex(summary: CodexCredentialStateResponse['current']['summary'] | null | undefined): string[] {
@@ -58,6 +76,15 @@ export default function SettingsAdvancedPage() {
     const [codexStatus, setCodexStatus] = useState<string | null>(null)
     const [codexNameDraft, setCodexNameDraft] = useState('')
     const [codexImportDraft, setCodexImportDraft] = useState('')
+
+    // ── Host credentials (claude/codex/git/gh/ssh filesystem state) ──
+    const [hostCredsReloadNonce, setHostCredsReloadNonce] = useState(0)
+    const [hostCredStatuses, setHostCredStatuses] = useState<HostCredentialStatus[] | null>(null)
+    const [hostCredsLoading, setHostCredsLoading] = useState(false)
+    const [hostCredsError, setHostCredsError] = useState<string | null>(null)
+    const [pushingSessionId, setPushingSessionId] = useState<string | null>(null)
+    const [pushStatus, setPushStatus] = useState<string | null>(null)
+    const { sessions } = useSessions(api)
     const [codexActionPendingId, setCodexActionPendingId] = useState<string | null>(null)
     const [experimentalClaudeLoginShellEnabled, setExperimentalClaudeLoginShellEnabled] = useState(false)
     const [experimentalStatus, setExperimentalStatus] = useState<string | null>(null)
@@ -146,6 +173,40 @@ export default function SettingsAdvancedPage() {
             cancelled = true
         }
     }, [api, selectedMachineId, codexReloadNonce])
+
+    useEffect(() => {
+        if (!api || !selectedMachineId) {
+            setHostCredStatuses(null)
+            return
+        }
+        let cancelled = false
+        setHostCredsLoading(true)
+        setHostCredsError(null)
+        ;(async () => {
+            try {
+                const result = await api.getMachineHostCredentials(selectedMachineId)
+                if (!cancelled) setHostCredStatuses(result.statuses)
+            } catch (error) {
+                if (!cancelled) {
+                    setHostCredsError(error instanceof Error ? error.message : 'Failed to load host credentials')
+                    setHostCredStatuses(null)
+                }
+            } finally {
+                if (!cancelled) setHostCredsLoading(false)
+            }
+        })()
+        return () => { cancelled = true }
+    }, [api, selectedMachineId, hostCredsReloadNonce])
+
+    const sessionsOnSelectedMachine: SessionSummary[] = useMemo(() => {
+        if (!selectedMachineId) return []
+        return sessions.filter((session: SessionSummary) => {
+            const meta = session.metadata as { machineId?: string; containerId?: string; runtimeKind?: string } | null
+            if (!meta?.containerId) return false
+            if (meta.runtimeKind !== 'daemon-session' && meta.runtimeKind !== 'docker-session') return false
+            return meta.machineId === selectedMachineId
+        })
+    }, [sessions, selectedMachineId])
 
     const saveMemoryMutation = useMutation({
         mutationFn: async (content: string) => {
@@ -613,6 +674,110 @@ export default function SettingsAdvancedPage() {
                                 )}
                             </CursorSettingsCard>
                         </CursorSettingsSection>
+                    </div>
+                )}
+            </CursorSettingsSection>
+
+            <CursorSettingsSection title="Host Credentials">
+                {activeMachines.length === 0 ? (
+                    <CursorEmptyState
+                        title="No connected machines"
+                        description="Connect a machine to inspect host credential state (Claude OAuth, Codex, git, gh, ssh)."
+                    />
+                ) : (
+                    <div className="space-y-4">
+                        <CursorSettingsCard>
+                            <CursorSettingsRow
+                                title="Target machine"
+                                description="Credentials are scraped from this machine's home directory and written into each session's container."
+                                control={(
+                                    <CursorSelect value={selectedMachineId} onChange={(event) => setSelectedMachineId(event.target.value)}>
+                                        {activeMachines.map((machine) => (
+                                            <option key={machine.id} value={machine.id}>
+                                                {machine.metadata?.displayName ?? machine.metadata?.host ?? machine.id}
+                                            </option>
+                                        ))}
+                                    </CursorSelect>
+                                )}
+                            />
+                            <CursorSettingsRow
+                                description={hostCredsError ?? pushStatus ?? (hostCredsLoading ? 'Loading host credentials…' : 'Credential state loaded')}
+                                control={(
+                                    <CursorButton
+                                        variant="outline"
+                                        type="button"
+                                        size="sm"
+                                        disabled={!selectedMachineId || hostCredsLoading}
+                                        onClick={() => setHostCredsReloadNonce((value) => value + 1)}
+                                    >
+                                        Refresh
+                                    </CursorButton>
+                                )}
+                            />
+                        </CursorSettingsCard>
+
+                        <CursorSettingsCard>
+                            {hostCredStatuses && hostCredStatuses.length > 0 ? hostCredStatuses.map((status) => (
+                                <CursorSettingsRow
+                                    key={status.kind}
+                                    title={status.kind}
+                                    description={
+                                        status.present
+                                            ? `${formatHostCredExpiry(status.expiresAt)}${status.sources.length ? ' · ' + status.sources.join(', ') : ''}${status.note ? ' · ' + status.note : ''}`
+                                            : 'not found on host'
+                                    }
+                                    control={<CursorSettingsBadge>{status.present ? 'present' : 'missing'}</CursorSettingsBadge>}
+                                />
+                            )) : (
+                                <CursorSettingsRow description={hostCredsLoading ? 'Loading…' : 'No host credential data.'} />
+                            )}
+                        </CursorSettingsCard>
+
+                        <CursorSettingsCard>
+                            <CursorSettingsRow
+                                title="Active containerized sessions"
+                                description="Push current host credentials into a running session's container. Useful after rotating a token or when a session's Claude access token has expired."
+                            />
+                            {sessionsOnSelectedMachine.length === 0 ? (
+                                <CursorSettingsRow description="No docker-session / daemon-session sessions on this machine." />
+                            ) : sessionsOnSelectedMachine.map((session) => {
+                                const meta = session.metadata as { containerId?: string } | null
+                                const busy = pushingSessionId === session.id
+                                return (
+                                    <CursorSettingsRow
+                                        key={session.id}
+                                        title={session.metadata?.name ?? session.id.slice(0, 8)}
+                                        description={meta?.containerId ? `container ${meta.containerId.slice(0, 12)}` : '—'}
+                                        control={(
+                                            <CursorButton
+                                                type="button"
+                                                size="sm"
+                                                disabled={busy}
+                                                onClick={async () => {
+                                                    if (!api) return
+                                                    setPushingSessionId(session.id)
+                                                    setPushStatus(null)
+                                                    setHostCredsError(null)
+                                                    try {
+                                                        const result = await api.reinjectSessionHostCredentials(session.id)
+                                                        const parts: string[] = []
+                                                        if (result.injected.length) parts.push(`pushed: ${result.injected.join(', ')}`)
+                                                        if (result.failed.length) parts.push(`failed: ${result.failed.map((f: { kind: HostCredentialKind; error: string }) => `${f.kind}(${f.error})`).join(', ')}`)
+                                                        setPushStatus(parts.join(' · ') || 'nothing to push')
+                                                    } catch (error) {
+                                                        setHostCredsError(error instanceof Error ? error.message : 'Push failed')
+                                                    } finally {
+                                                        setPushingSessionId(null)
+                                                    }
+                                                }}
+                                            >
+                                                {busy ? 'Pushing…' : 'Push'}
+                                            </CursorButton>
+                                        )}
+                                    />
+                                )
+                            })}
+                        </CursorSettingsCard>
                     </div>
                 )}
             </CursorSettingsSection>
