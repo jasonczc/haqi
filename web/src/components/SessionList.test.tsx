@@ -289,6 +289,47 @@ describe('SessionList project quick-create action', () => {
         expect(offlineToggle).toHaveAttribute('aria-expanded', 'true')
     })
 
+
+    it('wakes an offline session from the list', async () => {
+        const resumeSession = vi.fn(async () => 'resumed-session')
+        const onSelect = vi.fn()
+
+        renderWithProviders(
+            <SessionList
+                sessions={[
+                    createSession({
+                        id: 'offline-1',
+                        active: false,
+                        metadata: {
+                            path: '/repo/demo',
+                            name: 'Offline Session',
+                            flavor: 'codex'
+                        }
+                    })
+                ]}
+                onSelect={onSelect}
+                onNewSession={vi.fn()}
+                onRefresh={vi.fn()}
+                isLoading={false}
+                renderHeader={false}
+                api={{
+                    resumeSession,
+                    getProjectOfflineSettings: vi.fn(async () => ({ directories: [] })),
+                    updateProjectOfflineSettings: vi.fn(async ({ directories }: { directories: string[] }) => ({ directories }))
+                } as any}
+            />
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: /repo\/demo/i }))
+        await waitFor(() => expect(screen.getByText('Offline Session')).toBeInTheDocument())
+        fireEvent.click(screen.getByRole('button', { name: 'Wake' }))
+
+        await waitFor(() => {
+            expect(resumeSession).toHaveBeenCalledWith('offline-1')
+            expect(onSelect).toHaveBeenCalledWith('resumed-session')
+        })
+    })
+
     it('can mark project offline and pull it back by creating a new session', () => {
         const onNewSession = vi.fn()
         renderWithProviders(

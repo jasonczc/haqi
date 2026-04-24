@@ -500,7 +500,9 @@ export function SessionChat(props: {
         setModel,
         setThinkEffort,
         setServiceTier,
-        setCollaborationMode
+        setCollaborationMode,
+        resumeSession,
+        isPending
     } = useSessionActions(
         props.api,
         props.session.id,
@@ -1278,6 +1280,28 @@ export function SessionChat(props: {
         return () => window.clearInterval(timer)
     }, [supportsQueueControls, isCodexQueueDialogOpen, dialogQueuePollIntervalMs, refreshCodexQueue])
 
+    const handleResumeSession = useCallback(async () => {
+        try {
+            const resumedSessionId = await resumeSession()
+            props.onRefresh()
+            if (resumedSessionId !== props.session.id) {
+                navigate({
+                    to: '/sessions/$sessionId',
+                    params: { sessionId: resumedSessionId },
+                    replace: true
+                })
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Resume failed'
+            addToast({
+                title: t('session.resumeFailed'),
+                body: message,
+                sessionId: props.session.id,
+                url: `/sessions/${props.session.id}`
+            })
+        }
+    }, [addToast, navigate, props, resumeSession, t])
+
     const attachmentAdapter = useMemo(() => {
         if (!props.session.active) {
             return undefined
@@ -1336,8 +1360,16 @@ export function SessionChat(props: {
 
             {sessionInactive ? (
                 <div className="px-3 pt-3">
-                    <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
-                        Session is inactive. Sending will resume it automatically.
+                    <div className="mx-auto flex w-full max-w-content flex-wrap items-center justify-between gap-3 rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
+                        <span>{t('session.inactiveMessage')}</span>
+                        <button
+                            type="button"
+                            onClick={() => void handleResumeSession()}
+                            disabled={!props.api || isPending}
+                            className="rounded-full bg-[var(--app-button)] px-3 py-1.5 text-xs font-semibold text-[var(--app-button-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {isPending ? t('session.waking') : t('session.wake')}
+                        </button>
                     </div>
                 </div>
             ) : null}

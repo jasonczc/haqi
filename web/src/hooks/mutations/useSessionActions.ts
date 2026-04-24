@@ -27,6 +27,7 @@ export function useSessionActions(
     deleteSession: () => Promise<void>
     spawnSameConfigSession: () => Promise<string>
     duplicateSession: () => Promise<string>
+    resumeSession: () => Promise<string>
     isPending: boolean
 } {
     const queryClient = useQueryClient()
@@ -158,6 +159,25 @@ export function useSessionActions(
         },
     })
 
+    const resumeMutation = useMutation({
+        mutationFn: async () => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            return await api.resumeSession(sessionId)
+        },
+        onSuccess: async (resumedSessionId) => {
+            if (!sessionId) return
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: queryKeys.session(sessionId) }),
+                resumedSessionId === sessionId
+                    ? Promise.resolve()
+                    : queryClient.invalidateQueries({ queryKey: queryKeys.session(resumedSessionId) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+            ])
+        },
+    })
+
     const spawnFromExistingMutation = useMutation({
         mutationFn: async (inheritHistory: boolean) => {
             if (!api || !sessionId) {
@@ -192,6 +212,7 @@ export function useSessionActions(
         deleteSession: deleteMutation.mutateAsync,
         spawnSameConfigSession: async () => await spawnFromExistingSession(false),
         duplicateSession: async () => await spawnFromExistingSession(true),
+        resumeSession: resumeMutation.mutateAsync,
         isPending: abortMutation.isPending
             || stopAndPreserveCodexQueueMutation.isPending
             || archiveMutation.isPending
@@ -203,6 +224,7 @@ export function useSessionActions(
             || collaborationModeMutation.isPending
             || renameMutation.isPending
             || deleteMutation.isPending
+            || resumeMutation.isPending
             || spawnFromExistingMutation.isPending,
     }
 }

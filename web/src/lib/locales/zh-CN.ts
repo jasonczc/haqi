@@ -74,6 +74,10 @@ export default {
   // Session header
   'session.title': '文件',
   'session.mcpStatus': 'MCP 状态',
+  'session.inactiveMessage': '会话已离线。发送消息会自动唤醒它。',
+  'session.resumeFailed': '唤醒失败',
+  'session.wake': '唤醒',
+  'session.waking': '唤醒中…',
   'session.more': '更多操作',
 
   // Session actions

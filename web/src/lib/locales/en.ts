@@ -74,6 +74,10 @@ export default {
   // Session header
   'session.title': 'Files',
   'session.mcpStatus': 'MCP status',
+  'session.inactiveMessage': 'Session is offline. Sending a message will wake it automatically.',
+  'session.resumeFailed': 'Resume failed',
+  'session.wake': 'Wake',
+  'session.waking': 'Waking…',
   'session.more': 'More actions',
 
   // Session actions
