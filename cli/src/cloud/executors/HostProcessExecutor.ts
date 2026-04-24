@@ -99,7 +99,15 @@ export function buildSpawnArgs(options: SpawnSessionOptions): string[] {
     if (options.model && agent !== 'opencode') {
         args.push('--model', options.model)
     }
-    if (agent === 'codex' && options.thinkEffort) {
+    if (
+        agent === 'codex'
+        && options.thinkEffort
+        && (options.thinkEffort === 'auto'
+            || options.thinkEffort === 'low'
+            || options.thinkEffort === 'medium'
+            || options.thinkEffort === 'high'
+            || options.thinkEffort === 'xhigh')
+    ) {
         args.push('--effort', options.thinkEffort)
     }
     if (agent === 'codex' && options.serviceTier) {
