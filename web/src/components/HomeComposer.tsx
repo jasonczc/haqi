@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import type { ApiClient } from '@/api/client'
@@ -17,7 +17,13 @@ import { useMachines } from '@/hooks/queries/useMachines'
 import { useCloudWorkers } from '@/hooks/queries/useCloudWorkers'
 import { useCloudEnvironments } from '@/hooks/queries/useCloudEnvironments'
 import { useCloudCheckpoints } from '@/hooks/queries/useCloudCheckpoints'
+import { useSessions } from '@/hooks/queries/useSessions'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
+import { useRecentPaths } from '@/hooks/useRecentPaths'
+import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
+import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
+import { Autocomplete } from '@/components/ChatInput/Autocomplete'
+import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { queryKeys } from '@/lib/query-keys'
 import {
     ChipPopover,
@@ -253,8 +259,8 @@ export function HomeComposer(props: {
     const [repoBranch, setRepoBranch] = useState(() => lastConfig?.repositoryBranch ?? '')
     const [repoSearch, setRepoSearch] = useState('')
     const [repoBranchMode, setRepoBranchMode] = useState<'create' | 'reuse' | 'detached'>(() => lastConfig?.repositoryBranchMode ?? 'create')
-    const [repoBranchPrefix, setRepoBranchPrefix] = useState(() => lastConfig?.repositoryBranchPrefix ?? 'haqi/')
-    const [repoBranchName, setRepoBranchName] = useState(() => lastConfig?.repositoryBranchName ?? '')
+    const [repoBranchPrefix, setRepoBranchPrefix] = useState('haqi/')
+    const [repoBranchName, setRepoBranchName] = useState('')
     // Git identity is a global setting (Settings → Cloud Agents → Git identity).
     // Derived from the cloud agent settings query below — no per-launch state.
     const [showRepoPanel, setShowRepoPanel] = useState(false)
@@ -399,10 +405,15 @@ export function HomeComposer(props: {
     const queryClient = useQueryClient()
     const { spawnSession, isPending } = useSpawnSession(props.api)
     const { machines } = useMachines(props.api, true)
+    const { sessions } = useSessions(props.api)
+    const { getRecentPaths, addRecentPath } = useRecentPaths()
     const isCloud = isCloudBackend(executionBackend)
     const { workers: allWorkers } = useCloudWorkers(props.api, true, undefined, 3000) // always enabled for phase detection
     const { environments: cloudEnvironments } = useCloudEnvironments(props.api, isCloud)
     const { checkpoints: cloudCheckpoints } = useCloudCheckpoints(props.api, true) // always enabled for phase detection
+    const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
+    const [suppressSuggestions, setSuppressSuggestions] = useState(false)
+    const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
     const cloudAgentSettingsQuery = useQuery({
         queryKey: queryKeys.cloudAgentSettings,
         enabled: Boolean(props.api),
@@ -682,6 +693,105 @@ export function HomeComposer(props: {
         setCheckpointSearch('')
     }, [])
 
+    // ── Local directory memory + autocomplete ──
+    const machineIdForPathQueries = useMemo(() => {
+        if (isCloud) return null
+        if (!machineId || machineId === AUTO_CLOUD_MACHINE_ID) return null
+        return selectableMachines.some(m => m.id === machineId) ? machineId : null
+    }, [isCloud, machineId, selectableMachines])
+
+    const recentPaths = useMemo(
+        () => getRecentPaths(machineIdForPathQueries),
+        [getRecentPaths, machineIdForPathQueries]
+    )
+
+    const allPaths = useDirectorySuggestions(machineIdForPathQueries, sessions, recentPaths)
+
+    const pathsToCheck = useMemo(
+        () => Array.from(new Set(allPaths)).slice(0, 1000),
+        [allPaths]
+    )
+
+    useEffect(() => {
+        let cancelled = false
+
+        if (!machineIdForPathQueries || pathsToCheck.length === 0 || !props.api) {
+            setPathExistence(prev => Object.keys(prev).length === 0 ? prev : {})
+            return () => { cancelled = true }
+        }
+
+        void props.api.checkMachinePathsExists(machineIdForPathQueries, pathsToCheck)
+            .then((result) => {
+                if (cancelled) return
+                setPathExistence(result.exists ?? {})
+            })
+            .catch(() => {
+                if (cancelled) return
+                setPathExistence({})
+            })
+
+        return () => { cancelled = true }
+    }, [machineIdForPathQueries, pathsToCheck, props.api])
+
+    const verifiedPaths = useMemo(
+        () => allPaths.filter(p => pathExistence[p]),
+        [allPaths, pathExistence]
+    )
+
+    const getDirectorySuggestions = useCallback(async (query: string): Promise<Suggestion[]> => {
+        const lowered = query.toLowerCase()
+        return verifiedPaths
+            .filter(p => p.toLowerCase().includes(lowered))
+            .slice(0, 8)
+            .map(p => ({ key: p, text: p, label: p }))
+    }, [verifiedPaths])
+
+    const activeDirectoryQuery = (!isDirectoryFocused || suppressSuggestions || executionBackend !== 'local')
+        ? null
+        : directory
+
+    const [dirSuggestions, dirSelectedIndex, dirMoveUp, dirMoveDown, dirClear] = useActiveSuggestions(
+        activeDirectoryQuery,
+        getDirectorySuggestions,
+        { allowEmptyQuery: true, autoSelectFirst: false }
+    )
+
+    const handleDirectoryChange = useCallback((value: string) => {
+        setSuppressSuggestions(false)
+        setDirectory(value)
+    }, [])
+    const handleDirectoryFocus = useCallback(() => {
+        setSuppressSuggestions(false)
+        setIsDirectoryFocused(true)
+    }, [])
+    const handleDirectoryBlur = useCallback(() => {
+        setIsDirectoryFocused(false)
+    }, [])
+    const handleDirectorySuggestionSelect = useCallback((index: number) => {
+        const s = dirSuggestions[index]
+        if (s) {
+            setDirectory(s.text)
+            dirClear()
+            setSuppressSuggestions(true)
+        }
+    }, [dirSuggestions, dirClear])
+    const handleRecentPathClick = useCallback((path: string) => {
+        setDirectory(path)
+    }, [])
+    const handleDirectoryKeyDown = useCallback((event: ReactKeyboardEvent<HTMLInputElement>) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') return
+        if (dirSuggestions.length === 0) return
+        if (event.key === 'ArrowUp') { event.preventDefault(); dirMoveUp() }
+        if (event.key === 'ArrowDown') { event.preventDefault(); dirMoveDown() }
+        if (event.key === 'Enter' || event.key === 'Tab') {
+            if (dirSelectedIndex >= 0) {
+                event.preventDefault()
+                handleDirectorySuggestionSelect(dirSelectedIndex)
+            }
+        }
+        if (event.key === 'Escape') dirClear()
+    }, [dirSuggestions, dirSelectedIndex, dirMoveUp, dirMoveDown, dirClear, handleDirectorySuggestionSelect])
+
     // ── Submit ──
     const handleSubmit = useCallback(async () => {
         const trimmedPrompt = prompt.trim()
@@ -801,6 +911,9 @@ export function HomeComposer(props: {
                 savePreferredSessionType(sessionType)
                 savePreferredExecutionBackend(executionBackend)
                 savePreferredRuntimeKind(runtimeKind)
+                if (!isCloud && machineIdForPathQueries && spawnDirectory) {
+                    addRecentPath(machineIdForPathQueries, spawnDirectory)
+                }
                 saveLastSessionConfig({
                     agent,
                     model,
@@ -819,8 +932,6 @@ export function HomeComposer(props: {
                     repositoryUrl: trimmedRepoUrl,
                     repositoryBranch: repoBranch.trim(),
                     repositoryBranchMode: repoBranchMode,
-                    repositoryBranchPrefix: repoBranchPrefix.trim(),
-                    repositoryBranchName: repoBranchName.trim(),
                     workspaceMode,
                     networkPolicy,
                     ttlMinutes: ttlMinutes.trim(),
@@ -846,6 +957,9 @@ export function HomeComposer(props: {
                 savePreferredSessionType(sessionType)
                 savePreferredExecutionBackend(executionBackend)
                 savePreferredRuntimeKind(runtimeKind)
+                if (!isCloud && machineIdForPathQueries && spawnDirectory) {
+                    addRecentPath(machineIdForPathQueries, spawnDirectory)
+                }
                 saveLastSessionConfig({
                     agent,
                     model,
@@ -864,8 +978,6 @@ export function HomeComposer(props: {
                     repositoryUrl: trimmedRepoUrl,
                     repositoryBranch: repoBranch.trim(),
                     repositoryBranchMode: repoBranchMode,
-                    repositoryBranchPrefix: repoBranchPrefix.trim(),
-                    repositoryBranchName: repoBranchName.trim(),
                     workspaceMode,
                     networkPolicy,
                     ttlMinutes: ttlMinutes.trim(),
@@ -895,7 +1007,7 @@ export function HomeComposer(props: {
         sessionType, worktreeName, previewUrl, repoUrl, repoBranch, repoBranchMode, repoBranchPrefix, repoBranchName, effectiveGitName, effectiveGitEmail, checkpointId,
         workspaceMode, directory, ttlMinutes, environmentId, runtimeKind, yolo,
         executionBackend, launchMode, previewAutoDetect, spawnSession, props, navigate, cloudAgentSettingsQuery.data?.settings.githubUsername,
-        computerUse,
+        computerUse, machineIdForPathQueries, addRecentPath,
     ])
 
     // ── Keyboard handler for textarea ──
@@ -1000,15 +1112,46 @@ export function HomeComposer(props: {
 
                     {/* ── Directory selector (Local backend) ── */}
                     {executionBackend === 'local' ? (
-                        <div className="repo-selector">
-                            <CursorTextField
-                                compact
-                                className="w-[320px] max-w-full"
-                                placeholder="/path/to/project"
-                                value={directory}
-                                onChange={e => setDirectory(e.target.value)}
-                                aria-label="Local working directory"
-                            />
+                        <div className="repo-selector flex-col items-start gap-1.5">
+                            <div className="relative w-[320px] max-w-full">
+                                <CursorTextField
+                                    compact
+                                    className="w-full"
+                                    placeholder="/path/to/project"
+                                    value={directory}
+                                    onChange={e => handleDirectoryChange(e.target.value)}
+                                    onFocus={handleDirectoryFocus}
+                                    onBlur={handleDirectoryBlur}
+                                    onKeyDown={handleDirectoryKeyDown}
+                                    aria-label="Local working directory"
+                                />
+                                {dirSuggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 z-10 mt-1">
+                                        <FloatingOverlay maxHeight={200}>
+                                            <Autocomplete
+                                                suggestions={dirSuggestions}
+                                                selectedIndex={dirSelectedIndex}
+                                                onSelect={handleDirectorySuggestionSelect}
+                                            />
+                                        </FloatingOverlay>
+                                    </div>
+                                )}
+                            </div>
+                            {recentPaths.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                    {recentPaths.map((path) => (
+                                        <button
+                                            key={path}
+                                            type="button"
+                                            onClick={() => handleRecentPathClick(path)}
+                                            className="rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] transition-colors truncate max-w-[200px]"
+                                            title={path}
+                                        >
+                                            {path}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : null}
 

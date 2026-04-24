@@ -167,8 +167,8 @@ export function NewSession(props: {
     const [repositoryUrl, setRepositoryUrl] = useState(() => lastSessionConfig?.repositoryUrl ?? '')
     const [repositoryBranch, setRepositoryBranch] = useState(() => lastSessionConfig?.repositoryBranch ?? '')
     const [repositoryBranchMode, setRepositoryBranchMode] = useState<'create' | 'reuse' | 'detached'>(() => lastSessionConfig?.repositoryBranchMode ?? 'create')
-    const [repositoryBranchPrefix, setRepositoryBranchPrefix] = useState(() => lastSessionConfig?.repositoryBranchPrefix ?? 'haqi/')
-    const [repositoryBranchName, setRepositoryBranchName] = useState(() => lastSessionConfig?.repositoryBranchName ?? '')
+    const [repositoryBranchPrefix, setRepositoryBranchPrefix] = useState('haqi/')
+    const [repositoryBranchName, setRepositoryBranchName] = useState('')
     const [gitName, setGitName] = useState(() => lastSessionConfig?.gitName ?? '')
     const [gitEmail, setGitEmail] = useState(() => lastSessionConfig?.gitEmail ?? '')
     const [workspaceMode, setWorkspaceMode] = useState<'ephemeral' | 'persistent' | 'snapshot-derived'>(() => lastSessionConfig?.workspaceMode ?? 'ephemeral')
@@ -649,8 +649,6 @@ export function NewSession(props: {
                     repositoryUrl: trimmedRepositoryUrl,
                     repositoryBranch: repositoryBranch.trim(),
                     repositoryBranchMode,
-                    repositoryBranchPrefix: repositoryBranchPrefix.trim(),
-                    repositoryBranchName: repositoryBranchName.trim(),
                     gitName: gitName.trim(),
                     gitEmail: gitEmail.trim(),
                     workspaceMode,
