@@ -101,6 +101,7 @@ export function SessionHeader(props: {
     const [checkpointDialogOpen, setCheckpointDialogOpen] = useState(false)
     const [checkpointName, setCheckpointName] = useState('')
     const [checkpointSaving, setCheckpointSaving] = useState(false)
+    const [pushCredsPending, setPushCredsPending] = useState(false)
     const { addToast } = useToast()
 
     const {
@@ -177,6 +178,32 @@ export function SessionHeader(props: {
     }, [api, session.id, checkpointName, addToast])
 
 
+
+    const handlePushCredentials = useCallback(async () => {
+        if (!api || pushCredsPending) return
+        setPushCredsPending(true)
+        try {
+            const result = await api.reinjectSessionHostCredentials(session.id)
+            const parts: string[] = []
+            if (result.injected.length) parts.push(`pushed ${result.injected.join(', ')}`)
+            if (result.failed.length) parts.push(`failed ${result.failed.map(f => f.kind).join(', ')}`)
+            addToast({
+                title: result.failed.length ? 'Credentials push partial' : 'Credentials pushed',
+                body: parts.join(' · ') || 'Nothing to push',
+                sessionId: session.id,
+                url: '',
+            })
+        } catch (err) {
+            addToast({
+                title: 'Push failed',
+                body: err instanceof Error ? err.message : 'Failed to push credentials',
+                sessionId: session.id,
+                url: '',
+            })
+        } finally {
+            setPushCredsPending(false)
+        }
+    }, [api, session.id, pushCredsPending, addToast])
 
     const handleSpawnSameConfig = () => {
         void spawnSameConfigSession()
@@ -297,6 +324,8 @@ export function SessionHeader(props: {
                 onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
                 onSaveCheckpoint={session.metadata?.containerId ? () => setCheckpointDialogOpen(true) : undefined}
+                onPushCredentials={session.metadata?.containerId ? handlePushCredentials : undefined}
+                pushCredentialsPending={pushCredsPending}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}

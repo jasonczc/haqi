@@ -17,6 +17,8 @@ type SessionActionMenuProps = {
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
     onSaveCheckpoint?: () => void
+    onPushCredentials?: () => void
+    pushCredentialsPending?: boolean
     onArchive: () => void
     onDelete: () => void
     anchorPoint: { x: number; y: number }
@@ -40,6 +42,8 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onSpawnSameConfig,
         onDuplicate,
         onSaveCheckpoint,
+        onPushCredentials,
+        pushCredentialsPending,
         onArchive,
         onDelete,
         anchorPoint,
@@ -77,6 +81,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         if (!onSaveCheckpoint) return
         onClose()
         onSaveCheckpoint()
+    }
+
+    const handlePushCredentials = () => {
+        if (!onPushCredentials) return
+        onClose()
+        onPushCredentials()
     }
 
     const handleDelete = () => {
@@ -202,6 +212,18 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             {onSaveCheckpoint ? (
                 <button type="button" role="menuitem" className="menu-action" onClick={handleSaveCheckpoint}>
                     Save checkpoint
+                </button>
+            ) : null}
+
+            {onPushCredentials ? (
+                <button
+                    type="button"
+                    role="menuitem"
+                    className="menu-action"
+                    onClick={handlePushCredentials}
+                    disabled={pushCredentialsPending}
+                >
+                    {pushCredentialsPending ? 'Pushing credentials…' : 'Push host credentials'}
                 </button>
             ) : null}
 
