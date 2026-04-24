@@ -9,6 +9,7 @@ import { syncPathWorkspaceInContainer } from '@/cloud/workspace/syncPathWorkspac
 import { DaemonClient } from './DaemonClient'
 import { buildSpawnArgs } from './HostProcessExecutor'
 import { updateAgentCliInContainer } from './updateAgentCliInContainer'
+import { syncHaqiCliIntoContainer } from './syncHaqiCliIntoContainer'
 import { collectHostCredentials } from '@/cloud/credentials/hostCredentials'
 import { getContainerHomeTargets, resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
 import { mergePreviewTargets } from '@/cloud/preview/previewReporter'
@@ -366,6 +367,7 @@ export async function startDaemonSessionExecutor(params: {
                         // before spawn. Failure / timeout falls back to the
                         // existing version; this never blocks the session.
                         await updateAgentCliInContainer(params.runtime, containerId, params.options.agent ?? 'claude')
+                        await syncHaqiCliIntoContainer(params.runtime, containerId)
 
                         // Spawn new agent in existing container
                         const spawnArgs = buildSpawnArgs(params.options)
@@ -574,6 +576,7 @@ export async function startDaemonSessionExecutor(params: {
         // the fresh-container path. Failure / timeout falls back to the
         // existing version; this never blocks the session.
         await updateAgentCliInContainer(params.runtime, containerId, params.options.agent ?? 'claude')
+        await syncHaqiCliIntoContainer(params.runtime, containerId)
 
         const spawnArgs = buildSpawnArgs(params.options)
         const hostCreds = collectHostCredentials()

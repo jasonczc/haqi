@@ -6,6 +6,7 @@ import { runDockerCommand } from '@/cloud/docker/dockerCli'
 import type { PreparedWorkspace, ResolvedEnvironmentTemplate } from '@/cloud/types'
 import { buildSpawnArgs } from '@/cloud/executors/HostProcessExecutor'
 import { updateAgentCliInContainer } from './updateAgentCliInContainer'
+import { syncHaqiCliIntoContainer } from './syncHaqiCliIntoContainer'
 import { collectHostCredentials, injectHostCredentialsIntoContainer } from '@/cloud/credentials/hostCredentials'
 import { ensureWorkspaceContainer } from './WorkspaceContainerManager'
 import { resolveContainerHome, resolveContainerUser } from '@/cloud/containerUser'
@@ -174,6 +175,7 @@ export async function startDockerSessionExecutor(params: {
     // Failure / timeout falls back to the existing version; this never
     // blocks the session.
     await updateAgentCliInContainer(params.runtime, container.containerId, params.options.agent ?? 'claude')
+    await syncHaqiCliIntoContainer(params.runtime, container.containerId)
 
     const childProcess = params.runtime.spawnExec({
         containerId: container.containerId,
