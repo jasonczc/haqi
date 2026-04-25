@@ -348,7 +348,6 @@ function SessionItem(props: {
         deleteSession,
         spawnSameConfigSession,
         duplicateSession,
-        resumeSession,
         isPending
     } = useSessionActions(
         api,
@@ -379,7 +378,6 @@ function SessionItem(props: {
         ? (effectiveThinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
         : 'bg-[var(--app-hint)]'
     const isCompact = density === 'compact'
-    const canWake = !effectiveActive && !forceOffline
 
     const handleArchive = () => {
         if (!skipArchiveConfirmation) {
@@ -408,16 +406,6 @@ function SessionItem(props: {
             })
     }
 
-    const handleResume = (event: ReactMouseEvent<HTMLButtonElement>) => {
-        event.preventDefault()
-        event.stopPropagation()
-        void resumeSession()
-            .then((resumedSessionId) => onSelect(resumedSessionId))
-            .catch((error) => {
-                console.error('Failed to wake session', error)
-            })
-    }
-
     return (
         <>
             <div
@@ -437,7 +425,7 @@ function SessionItem(props: {
                 <button
                     type="button"
                     {...longPressHandlers}
-                    className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''} ${canWake ? 'pr-24' : ''}`}
+                    className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
                     style={{ WebkitTouchCallout: 'none' }}
                     aria-current={selected ? 'page' : undefined}
                 >
@@ -501,21 +489,8 @@ function SessionItem(props: {
                     ) : null}
                 </button>
 
-                {canWake ? (
-                    <button
-                        type="button"
-                        onClick={handleResume}
-                        disabled={isPending || !api}
-                        className={`absolute right-3 rounded-full bg-[var(--app-button)] px-2.5 py-1 text-[11px] font-semibold text-[var(--app-button-text)] shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 ${isCompact ? 'top-1.5' : 'top-2.5'}`}
-                        title={t('session.wake')}
-                        aria-label={t('session.wake')}
-                    >
-                        {isPending ? t('session.waking') : t('session.wake')}
-                    </button>
-                ) : null}
-
                 <SessionQuickArchiveButton
-                    enabled={sessionQuickArchiveEnabled && !canWake}
+                    enabled={sessionQuickArchiveEnabled}
                     visible={isQuickArchiveVisible}
                     isPending={isPending}
                     compact={isCompact}

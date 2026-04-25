@@ -1325,8 +1325,7 @@ export function SessionChat(props: {
         isSending: props.isSending,
         onSendMessage: handleSend,
         onAbort: handleAbort,
-        attachmentAdapter,
-        allowSendWhenInactive: true
+        attachmentAdapter
     })
 
     return (
@@ -1357,22 +1356,6 @@ export function SessionChat(props: {
                     onControl={handleTeamControl}
                 />
             )}
-
-            {sessionInactive ? (
-                <div className="px-3 pt-3">
-                    <div className="mx-auto flex w-full max-w-content flex-wrap items-center justify-between gap-3 rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
-                        <span>{t('session.inactiveMessage')}</span>
-                        <button
-                            type="button"
-                            onClick={() => void handleResumeSession()}
-                            disabled={!props.api || isPending}
-                            className="rounded-full bg-[var(--app-button)] px-3 py-1.5 text-xs font-semibold text-[var(--app-button-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {isPending ? t('session.waking') : t('session.wake')}
-                        </button>
-                    </div>
-                </div>
-            ) : null}
 
             <AssistantRuntimeProvider runtime={runtime}>
                 <div className={`relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
@@ -1552,7 +1535,6 @@ export function SessionChat(props: {
                         codexCollaborationMode={codexCollaborationMode}
                         agentFlavor={agentFlavor}
                         active={props.session.active}
-                        allowSendWhenInactive
                         thinking={props.session.thinking}
                         agentState={props.session.agentState}
                         contextSize={reduced.latestUsage?.contextSize}
@@ -1586,6 +1568,11 @@ export function SessionChat(props: {
                         voiceMicMuted={voice?.micMuted}
                         onVoiceToggle={voice ? handleVoiceToggle : undefined}
                         onVoiceMicToggle={voice ? handleVoiceMicToggle : undefined}
+                        offlineWakeMessage={t('session.inactiveMessage')}
+                        offlineWakeLabel={t('session.wake')}
+                        offlineWakingLabel={t('session.waking')}
+                        offlineWakePending={isPending}
+                        onOfflineWake={props.api ? () => void handleResumeSession() : undefined}
                     />
 
                     <QuestionToolOverlay

@@ -355,6 +355,11 @@ export function HappyComposer(props: {
     voiceMicMuted?: boolean
     onVoiceToggle?: () => void
     onVoiceMicToggle?: () => void
+    offlineWakeMessage?: string
+    offlineWakeLabel?: string
+    offlineWakingLabel?: string
+    offlineWakePending?: boolean
+    onOfflineWake?: () => void
 }) {
     const { t } = useTranslation()
     const {
@@ -401,7 +406,12 @@ export function HappyComposer(props: {
         voiceStatus = 'disconnected',
         voiceMicMuted = false,
         onVoiceToggle,
-        onVoiceMicToggle
+        onVoiceMicToggle,
+        offlineWakeMessage,
+        offlineWakeLabel,
+        offlineWakingLabel,
+        offlineWakePending = false,
+        onOfflineWake
     } = props
 
     // Use ?? so missing values fall back to default (destructuring defaults only handle undefined)
@@ -1288,7 +1298,25 @@ export function HappyComposer(props: {
                         asChild
                         disabled={controlsDisabled}
                     >
-                        <div className={`overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
+                        <div className={`relative overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
+                            {!active ? (
+                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--app-secondary-bg)]/95 px-4 py-3 backdrop-blur-[1px]">
+                                    <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--app-bg)]/80 px-3 py-2 text-sm text-[var(--app-hint)] shadow-sm ring-1 ring-[var(--app-border)]">
+                                        <span>{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
+                                        <button
+                                            type="button"
+                                            onClick={onOfflineWake}
+                                            disabled={!onOfflineWake || offlineWakePending}
+                                            className="rounded-full bg-[var(--app-button)] px-3 py-1.5 text-xs font-semibold text-[var(--app-button-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {offlineWakePending
+                                                ? (offlineWakingLabel ?? t('session.waking'))
+                                                : (offlineWakeLabel ?? t('session.wake'))}
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : null}
+
                             {showInlineQueuePanel ? (
                                 <div className={`border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2 ${hideEmptyInlineQueuePanelOnMobile ? 'hidden sm:block' : ''}`}>
                                     <div className="flex flex-wrap items-center gap-2">
