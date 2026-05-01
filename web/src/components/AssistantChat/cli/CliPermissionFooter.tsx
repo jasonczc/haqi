@@ -20,10 +20,10 @@ function CliBtn(props: {
     onClick: () => void
 }) {
     const color = props.tone === 'allow'
-        ? 'text-emerald-500 border-emerald-500/40 hover:bg-emerald-500/10'
+        ? 'text-[var(--success)] border-[var(--success)]/40 hover:bg-[var(--success)]/10'
         : props.tone === 'deny'
             ? 'text-red-400 border-red-400/40 hover:bg-red-400/10'
-            : 'text-[var(--app-link)] border-[var(--app-border)] hover:bg-[var(--app-subtle-bg)]'
+            : 'text-[var(--cursor-link)] border-[var(--cursor-stroke-primary)] hover:bg-[var(--cursor-bg-hover)]'
 
     return (
         <button
@@ -117,7 +117,7 @@ export const CliPermission = memo(function CliPermission(props: {
 
     return (
         <div className="ml-5 mt-1 flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-[var(--app-badge-warning-text)]">permission required</span>
+            <span className="text-xs text-[var(--warn)]">permission required</span>
             {codex ? (
                 <>
                     <CliBtn label="yes" tone="allow" loading={loading === 'approved'} disabled={busy} onClick={() => codexApprove('approved')} />
@@ -224,10 +224,10 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
     }
 
     return (
-        <div className="ml-5 mt-1 border-l border-[var(--app-divider)] pl-3 space-y-1">
+        <div className="ml-5 mt-1 border-l border-[var(--cursor-stroke-primary)] pl-3 space-y-1">
             {questions.length === 0 ? (
                 <div className="space-y-1">
-                    <span className="text-xs text-[var(--app-badge-info-text)]">? Input requested</span>
+                    <span className="text-xs text-[var(--accent)]">? Input requested</span>
                     <input
                         type="text"
                         value={fallbackText}
@@ -235,14 +235,14 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                         onKeyDown={e => { if (e.key === 'Enter') submit() }}
                         disabled={props.disabled || loading}
                         placeholder="Type your answer…"
-                        className="block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                        className="block w-full max-w-md rounded border border-[var(--cursor-stroke-primary)] bg-transparent px-2 py-1 text-xs text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] focus:outline-none focus:border-[var(--cursor-link)]"
                     />
                 </div>
             ) : (
                 questions.map((q, qIdx) => (
                     <div key={qIdx} className="space-y-0.5">
-                        {q.header && <span className="text-xs font-semibold text-[var(--app-fg)]">{q.header}</span>}
-                        {q.question && <div className="text-xs text-[var(--app-fg)]">{q.question}</div>}
+                        {q.header && <span className="text-xs font-semibold text-[var(--cursor-text-primary)]">{q.header}</span>}
+                        {q.question && <div className="text-xs text-[var(--cursor-text-primary)]">{q.question}</div>}
                         <div className="flex flex-wrap gap-1 mt-0.5">
                             {q.options.map((opt, optIdx) => {
                                 const selected = (selectedByQ[qIdx] ?? []).includes(optIdx)
@@ -253,8 +253,8 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                                         onClick={() => toggle(qIdx, optIdx)}
                                         disabled={props.disabled || loading}
                                         className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${selected
-                                            ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
-                                            : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                                            ? 'border-[var(--cursor-link)] bg-[var(--cursor-link)]/10 text-[var(--cursor-link)]'
+                                            : 'border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         title={opt.description ?? undefined}
                                     >
@@ -268,8 +268,8 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                                 onClick={() => toggleOther(qIdx)}
                                 disabled={props.disabled || loading}
                                 className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${otherSelectedByQ[qIdx]
-                                    ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
-                                    : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                                    ? 'border-[var(--cursor-link)] bg-[var(--cursor-link)]/10 text-[var(--cursor-link)]'
+                                    : 'border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'
                                 }`}
                             >
                                 other
@@ -282,7 +282,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                                 onChange={e => setOtherTextByQ(prev => { const n = prev.slice(); n[qIdx] = e.target.value; return n })}
                                 disabled={props.disabled || loading}
                                 placeholder="Type your answer…"
-                                className="mt-0.5 block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                                className="mt-0.5 block w-full max-w-md rounded border border-[var(--cursor-stroke-primary)] bg-transparent px-2 py-1 text-xs text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] focus:outline-none focus:border-[var(--cursor-link)]"
                             />
                         )}
                     </div>
@@ -350,12 +350,12 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
     }
 
     return (
-        <div className="ml-5 mt-1 border-l border-[var(--app-divider)] pl-3 space-y-1">
+        <div className="ml-5 mt-1 border-l border-[var(--cursor-stroke-primary)] pl-3 space-y-1">
             {questions.map(q => {
                 const state = stateByQ[q.id]
                 return (
                     <div key={q.id} className="space-y-0.5">
-                        {q.question && <div className="text-xs text-[var(--app-fg)]">{q.question}</div>}
+                        {q.question && <div className="text-xs text-[var(--cursor-text-primary)]">{q.question}</div>}
                         {q.options.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
                                 {q.options.map((opt, i) => {
@@ -367,8 +367,8 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
                                             onClick={() => select(q.id, opt.label)}
                                             disabled={props.disabled || loading}
                                             className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${selected
-                                                ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
-                                                : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                                                ? 'border-[var(--cursor-link)] bg-[var(--cursor-link)]/10 text-[var(--cursor-link)]'
+                                                : 'border-[var(--cursor-stroke-primary)] text-[var(--cursor-text-tertiary)] hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-hover)]'
                                             }`}
                                             title={opt.description ?? undefined}
                                         >
@@ -385,7 +385,7 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
                             onKeyDown={e => { if (e.key === 'Enter') submit() }}
                             disabled={props.disabled || loading}
                             placeholder={q.options.length > 0 ? 'Additional note (optional)…' : 'Type your answer…'}
-                            className="mt-0.5 block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                            className="mt-0.5 block w-full max-w-md rounded border border-[var(--cursor-stroke-primary)] bg-transparent px-2 py-1 text-xs text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-tertiary)] focus:outline-none focus:border-[var(--cursor-link)]"
                         />
                     </div>
                 )

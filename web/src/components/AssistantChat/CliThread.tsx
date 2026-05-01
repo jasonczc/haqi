@@ -40,7 +40,8 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className="new-messages-indicator absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--cursor-button)] px-3 py-1.5 text-sm font-medium text-[var(--cursor-button-text)] shadow-lg animate-bounce-in"
+            style={{ bottom: 'calc(var(--chat-composer-clearance, 144px) + 16px)' }}
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
         </button>
@@ -52,7 +53,8 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
     const {
         isNearBottom,
         showJumpToLatest,
-        scrollToBottom
+        scrollToBottom,
+        loadOlderPreservingViewport
     } = useSessionViewportScroll({
         sessionId: props.sessionId,
         viewMode: 'cli',
@@ -86,21 +88,21 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
             <div className="relative flex min-h-0 flex-1 flex-col">
                 <div
                     ref={scrollRef}
-                    className="cli-thread flex-1 overflow-y-auto app-scrollbar px-4 py-3"
+                    className="cli-thread flex-1 overflow-y-auto app-scrollbar px-3 py-2"
                 >
                     <div className="mx-auto max-w-content space-y-0.5">
                         {(props.hasMoreMessages || props.isLoadingMoreMessages) && (
                             <div className="flex justify-center py-2">
                                 {props.isLoadingMoreMessages ? (
-                                    <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)] shadow-sm">
+                                    <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-transparent bg-[var(--cursor-button)] text-[var(--cursor-button-text)] shadow-sm">
                                         <Spinner size="sm" label={null} className="text-current" />
                                         Loading…
                                     </div>
                                 ) : (
                                     <button
                                         type="button"
-                                        onClick={props.onLoadMore}
-                                        className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] shadow-sm transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                        onClick={loadOlderPreservingViewport}
+                                        className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-card)] text-[var(--cursor-text-primary)] shadow-sm transition-colors hover:bg-[var(--cursor-bg-soft)]"
                                     >
                                         Load older
                                     </button>
@@ -115,14 +117,17 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
                         )}
 
                         {props.messagesWarning && (
-                            <div className="text-xs text-[var(--app-badge-warning-text)] italic py-1">
+                            <div className="text-xs text-[var(--warn)] italic py-1">
                                 — {props.messagesWarning}
                             </div>
                         )}
 
                         {props.blocks.map((block) => (
-                            <CliBlockRenderer key={block.id} block={block} />
+                            <div key={block.id} data-happy-message-id={block.id}>
+                                <CliBlockRenderer block={block} />
+                            </div>
                         ))}
+                        <div className="chat-timeline-spacer" />
                     </div>
                 </div>
                 <NewMessagesIndicator

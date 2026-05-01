@@ -18,6 +18,49 @@ const LOAD_OLDER_COOLDOWN_MS = 300
 type PendingRestoreState = {
     scrollTop: number
     scrollHeight: number
+    anchorId: string | null
+    anchorTop: number | null
+}
+
+function findTopVisibleMessageAnchor(viewport: HTMLElement): { id: string; top: number } | null {
+    const viewportTop = viewport.getBoundingClientRect().top
+    const nodes = viewport.querySelectorAll<HTMLElement>('[data-happy-message-id]')
+    let best: { id: string; top: number } | null = null
+    let bestDistance = Number.POSITIVE_INFINITY
+
+    for (const node of nodes) {
+        const id = node.dataset.happyMessageId
+        if (!id) continue
+        const rect = node.getBoundingClientRect()
+        if (rect.bottom <= viewportTop) continue
+        const distance = Math.abs(rect.top - viewportTop)
+        if (distance < bestDistance) {
+            best = { id, top: rect.top }
+            bestDistance = distance
+        }
+        if (rect.top >= viewportTop) {
+            break
+        }
+    }
+
+    return best
+}
+
+function restoreViewportToAnchor(viewport: HTMLElement, pendingRestore: PendingRestoreState): number {
+    if (pendingRestore.anchorId && pendingRestore.anchorTop !== null) {
+        const selector = `[data-happy-message-id="${CSS.escape(pendingRestore.anchorId)}"]`
+        const anchor = viewport.querySelector<HTMLElement>(selector)
+        if (anchor) {
+            const nextTop = anchor.getBoundingClientRect().top
+            return Math.max(0, viewport.scrollTop + (nextTop - pendingRestore.anchorTop))
+        }
+    }
+
+    return restoreScrollTopByDelta({
+        previousScrollTop: pendingRestore.scrollTop,
+        previousScrollHeight: pendingRestore.scrollHeight,
+        nextScrollHeight: viewport.scrollHeight
+    })
 }
 
 export function useSessionViewportScroll(params: {
@@ -80,6 +123,29 @@ export function useSessionViewportScroll(params: {
         persistSnapshot()
     }, [params.onFlushPending, persistSnapshot, resolveViewport])
 
+    const loadOlderPreservingViewport = useCallback(() => {
+        if (params.isLoading || params.isLoadingMore || !params.hasMore) {
+            return
+        }
+        const viewport = resolveViewport()
+        if (viewport) {
+            const anchor = findTopVisibleMessageAnchor(viewport)
+            pendingRestoreRef.current = {
+                scrollTop: viewport.scrollTop,
+                scrollHeight: viewport.scrollHeight,
+                anchorId: anchor?.id ?? null,
+                anchorTop: anchor?.top ?? null
+            }
+        }
+        void params.onLoadMore()
+    }, [
+        params.hasMore,
+        params.isLoading,
+        params.isLoadingMore,
+        params.onLoadMore,
+        resolveViewport
+    ])
+
     useEffect(() => {
         latestKeyRef.current = params.latestKey
     }, [params.latestKey])
@@ -136,11 +202,7 @@ export function useSessionViewportScroll(params: {
             })) {
                 loadMoreArmedRef.current = false
                 lastLoadTriggerAtRef.current = Date.now()
-                pendingRestoreRef.current = {
-                    scrollTop: viewport.scrollTop,
-                    scrollHeight: viewport.scrollHeight
-                }
-                void params.onLoadMore()
+                loadOlderPreservingViewport()
             }
 
             previousScrollTopRef.current = currentScrollTop
@@ -157,7 +219,7 @@ export function useSessionViewportScroll(params: {
         params.isLoading,
         params.isLoadingMore,
         params.onFlushPending,
-        params.onLoadMore,
+        loadOlderPreservingViewport,
         persistSnapshot,
         resolveViewport
     ])
@@ -170,11 +232,7 @@ export function useSessionViewportScroll(params: {
 
         const pendingRestore = pendingRestoreRef.current
         if (pendingRestore) {
-            viewport.scrollTop = restoreScrollTopByDelta({
-                previousScrollTop: pendingRestore.scrollTop,
-                previousScrollHeight: pendingRestore.scrollHeight,
-                nextScrollHeight: viewport.scrollHeight
-            })
+            viewport.scrollTop = restoreViewportToAnchor(viewport, pendingRestore)
             previousScrollTopRef.current = viewport.scrollTop
             pendingRestoreRef.current = null
             return
@@ -234,6 +292,7 @@ export function useSessionViewportScroll(params: {
         isNearBottom,
         showJumpToLatest: params.pendingCount > 0 || !isNearBottom,
         scrollToBottom: () => jumpToBottom('smooth'),
+        loadOlderPreservingViewport,
         persistSnapshot
     }
 }

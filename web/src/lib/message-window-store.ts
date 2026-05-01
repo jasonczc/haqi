@@ -23,7 +23,7 @@ export const VISIBLE_WINDOW_SIZE = 400
 // still scroll back down to recent messages after multiple "load older" actions.
 export const PREPEND_WINDOW_SIZE = 2000
 export const PENDING_WINDOW_SIZE = 200
-const PAGE_SIZE = 50
+const PAGE_SIZE = 120
 const PENDING_OVERFLOW_WARNING = 'New messages arrived while you were away. Scroll to bottom to refresh.'
 
 type InternalState = MessageWindowState & {

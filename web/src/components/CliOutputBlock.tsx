@@ -107,25 +107,23 @@ export function CliOutputBlock(props: { text: string }) {
     const commandName = useMemo(() => extractCommandName(props.text), [props.text])
 
     return (
-        <Card className="min-w-0 max-w-full overflow-hidden shadow-sm">
-            <CardHeader className="p-3 space-y-0">
+        <Card className="cli-output-card min-w-0 max-w-full overflow-hidden">
+            <CardHeader className="cli-output-header space-y-0">
                 <Dialog>
                     <DialogTrigger asChild>
-                        <button type="button" className="w-full text-left">
-                            <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="min-w-0 flex items-center gap-2">
-                                        <div className="shrink-0 flex h-4 w-4 items-center justify-center text-[var(--app-hint)] leading-none">
-                                            <CliIcon />
-                                        </div>
-                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
-                                            {commandName ?? t('terminal.commandName')}
-                                        </CardTitle>
-                                    </div>
-                                    <span className="text-[var(--app-hint)]">
-                                        <DetailsIcon />
+                        <button type="button" className="cli-output-trigger w-full text-left">
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="cli-output-command min-w-0 flex items-center gap-2">
+                                    <span className="cli-output-chip">
+                                        <CliIcon />
                                     </span>
+                                    <CardTitle className="cli-output-title min-w-0 font-mono">
+                                        {commandName ?? t('terminal.commandName')}
+                                    </CardTitle>
                                 </div>
+                                <span className="cli-output-chevron">
+                                    <DetailsIcon />
+                                </span>
                             </div>
                         </button>
                     </DialogTrigger>
@@ -135,7 +133,7 @@ export function CliOutputBlock(props: { text: string }) {
                         </DialogHeader>
                         <div className="mt-3 max-h-[75vh] overflow-auto">
                             <div className="min-w-0 max-w-full overflow-x-auto overflow-y-hidden">
-                                <pre className="m-0 w-max min-w-full bg-[var(--app-code-bg)] p-2 text-xs font-mono">
+                                <pre className="m-0 w-max min-w-full bg-[var(--cursor-bg-card)] p-2 text-xs font-mono">
                                     {content}
                                 </pre>
                             </div>

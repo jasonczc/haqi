@@ -1,12 +1,11 @@
 import { getPermissionModeLabel, getPermissionModeTone, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
 import type { PermissionModeTone } from '@hapi/protocol'
 import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import type { AgentState, ModelMode, PermissionMode } from '@/types/api'
 import type { ConversationStatus } from '@/realtime/types'
 import { getContextBudgetTokens } from '@/chat/modelConfig'
 import { useTranslation } from '@/lib/use-translation'
-import { UsagePanel } from './UsagePanel'
 
 // Vibing messages for thinking state
 const VIBING_MESSAGES = [
@@ -162,23 +161,6 @@ export function StatusBar(props: {
         ? (isCodexPlanMode ? t('codex.mode.plan') : t('codex.mode.normal'))
         : null
 
-    const [usageOpen, setUsageOpen] = useState(false)
-    const usageRef = useRef<HTMLDivElement | null>(null)
-    useEffect(() => {
-        if (!usageOpen) return
-        const handler = (event: MouseEvent) => {
-            if (!usageRef.current) return
-            if (!usageRef.current.contains(event.target as Node)) {
-                setUsageOpen(false)
-            }
-        }
-        document.addEventListener('mousedown', handler)
-        return () => document.removeEventListener('mousedown', handler)
-    }, [usageOpen])
-
-    const showUsageButton = props.agentFlavor === 'claude'
-        && (typeof props.contextSize === 'number' || Boolean(props.rateLimitSnapshot))
-
     // When session is inactive, let the standalone 'Session is inactive' banner
     // own that communication — don't duplicate it inside the composer.
     if (!props.active) {
@@ -200,9 +182,7 @@ export function StatusBar(props: {
     const hasContent = Boolean(props.thinking)
         || hasPermissionRequests
         || hasVoiceActivity
-        || hasContextWarning
         || hasMultipleAgents
-        || showUsageButton
 
     if (!hasContent) {
         return null
@@ -260,31 +240,6 @@ export function StatusBar(props: {
                     <span className={`composer-status-permission text-xs ${permissionModeColor}`}>
                         {permissionModeLabel}
                     </span>
-                ) : null}
-                {showUsageButton ? (
-                    <div ref={usageRef} className="relative">
-                        <button
-                            type="button"
-                            onClick={() => setUsageOpen((prev) => !prev)}
-                            aria-label="Show usage"
-                            className="composer-status-usage flex h-5 w-5 items-center justify-center rounded text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-soft)] hover:text-[var(--cursor-text-primary)]"
-                        >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                <line x1="18" y1="20" x2="18" y2="10" />
-                                <line x1="12" y1="20" x2="12" y2="4" />
-                                <line x1="6" y1="20" x2="6" y2="14" />
-                            </svg>
-                        </button>
-                        {usageOpen ? (
-                            <div className="absolute right-0 bottom-full z-50 mb-2">
-                                <UsagePanel
-                                    contextSize={props.contextSize}
-                                    contextWindowTokens={maxContextSize ?? undefined}
-                                    rateLimitSnapshot={props.rateLimitSnapshot}
-                                />
-                            </div>
-                        ) : null}
-                    </div>
                 ) : null}
             </div>
         </div>

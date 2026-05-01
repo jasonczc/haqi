@@ -9,6 +9,7 @@ import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
+import type { ChatViewMode } from '@/hooks/useChatViewMode'
 
 export function extractRepoShortName(url: string): string {
     const match = url.match(/([^/]+\/[^/.]+?)(?:\.git)?$/)
@@ -81,6 +82,8 @@ export function SessionHeader(props: {
     onViewTerminal?: () => void
     onViewFiles?: () => void
     onViewMcpStatus?: () => void
+    viewMode?: ChatViewMode
+    onViewModeChange?: (mode: ChatViewMode) => void
     onToggleWorkbench?: () => void
     workbenchOpen?: boolean
     api: ApiClient | null
@@ -264,6 +267,8 @@ export function SessionHeader(props: {
                 onRename={() => setRenameOpen(true)}
                 onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
+                viewMode={props.viewMode}
+                onViewModeChange={props.onViewModeChange}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ComposerPrimitive } from '@assistant-ui/react'
+import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
 import type { ConversationStatus } from '@/realtime/types'
 import { useTranslation } from '@/lib/use-translation'
 import { ComposerIconButton } from '@/components/AssistantChat/ComposerIconButton'
+import { UsagePanel } from '@/components/AssistantChat/UsagePanel'
 
 function MoreDotsIcon() {
     return (
@@ -188,6 +190,27 @@ function QueueIcon() {
     )
 }
 
+function UsageIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <line x1="18" y1="20" x2="18" y2="10" />
+            <line x1="12" y1="20" x2="12" y2="4" />
+            <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+    )
+}
+
 function AttachmentIcon() {
     return (
         <svg
@@ -360,6 +383,8 @@ function UnifiedButton(props: {
 }
 
 export function ComposerButtons(props: {
+    active: boolean
+    thinking: boolean
     canSend: boolean
     controlsDisabled: boolean
     showSettingsButton: boolean
@@ -397,14 +422,22 @@ export function ComposerButtons(props: {
     onVoiceToggle: () => void
     onVoiceMicToggle?: () => void
     onSend: () => void
+    permissionChipLabel?: string
+    onPermissionChipClick?: () => void
+    contextSize?: number
+    contextWindowTokens?: number
+    rateLimitSnapshot?: ClaudeRateLimitSnapshot
     modelChipLabel?: string
     modelChipActive?: boolean
     onModelChipClick?: () => void
 }) {
     const { t } = useTranslation()
     const isVoiceConnected = props.voiceStatus === 'connected'
+    const [statusExpanded, setStatusExpanded] = useState(true)
     const [showMore, setShowMore] = useState(false)
+    const [usageOpen, setUsageOpen] = useState(false)
     const moreWrapperRef = useRef<HTMLDivElement>(null)
+    const usageWrapperRef = useRef<HTMLDivElement>(null)
 
     const moreCount = (props.showSettingsButton ? 1 : 0)
         + (props.showTerminalButton ? 1 : 0)
@@ -423,11 +456,60 @@ export function ComposerButtons(props: {
         return () => document.removeEventListener('mousedown', handleDocMouseDown)
     }, [showMore])
 
+    useEffect(() => {
+        if (!usageOpen) return
+        const handleDocMouseDown = (event: MouseEvent) => {
+            const el = usageWrapperRef.current
+            if (!el) return
+            if (el.contains(event.target as Node)) return
+            setUsageOpen(false)
+        }
+        document.addEventListener('mousedown', handleDocMouseDown)
+        return () => document.removeEventListener('mousedown', handleDocMouseDown)
+    }, [usageOpen])
+
     const closeMore = useCallback(() => setShowMore(false), [])
+    const contextRemainingPercent = useMemo(() => {
+        if (typeof props.contextSize !== 'number'
+            || typeof props.contextWindowTokens !== 'number'
+            || props.contextWindowTokens <= 0) {
+            return null
+        }
+        const usedPercent = (props.contextSize / props.contextWindowTokens) * 100
+        return Math.max(0, Math.round(100 - usedPercent))
+    }, [props.contextSize, props.contextWindowTokens])
+    const showUsageChip = props.contextSize !== undefined || Boolean(props.rateLimitSnapshot)
+    const usageLabel = contextRemainingPercent === null
+        ? t('usage.label')
+        : `${contextRemainingPercent}%`
+    const usageTitle = contextRemainingPercent === null
+        ? t('usage.tooltip')
+        : t('misc.percentLeft', { percent: contextRemainingPercent })
+    const connectionLabel = props.active ? t('misc.online') : t('misc.offline')
+    const connectionTitle = props.active
+        ? t('misc.online')
+        : t('session.inactiveMessage')
 
     return (
         <div className="input-footer chat-input-footer flex items-center justify-between gap-2">
             <div className="left-actions footer-left chat-input-tools flex items-center gap-1">
+                <button
+                    type="button"
+                    className="composer-connection-chip"
+                    data-state={props.active ? 'online' : 'offline'}
+                    data-collapsed={statusExpanded ? undefined : ''}
+                    onClick={() => setStatusExpanded((prev) => !prev)}
+                    title={connectionTitle}
+                    aria-label={connectionTitle}
+                    aria-expanded={statusExpanded}
+                >
+                    <span
+                        className={`composer-connection-dot ${props.thinking ? 'is-pulsing' : ''}`}
+                        aria-hidden="true"
+                    />
+                    <span className="composer-connection-label">{connectionLabel}</span>
+                </button>
+
                 <ComposerPrimitive.AddAttachment
                     aria-label={t('composer.attach')}
                     title={t('composer.attach')}
@@ -547,6 +629,44 @@ export function ComposerButtons(props: {
                 className="right-info footer-right chat-input-actions flex items-center gap-1.5"
                 title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
             >
+                {showUsageChip ? (
+                    <div ref={usageWrapperRef} className="composer-usage-chip-wrapper relative">
+                        <button
+                            type="button"
+                            onClick={() => setUsageOpen((prev) => !prev)}
+                            data-warning={contextRemainingPercent !== null && contextRemainingPercent <= 10 ? '' : undefined}
+                            className="composer-meta-chip composer-usage-chip"
+                            title={usageTitle}
+                            aria-label={usageTitle}
+                        >
+                            <UsageIcon />
+                            <span>{usageLabel}</span>
+                        </button>
+                        {usageOpen ? (
+                            <div className="composer-usage-popover absolute right-0 bottom-[calc(100%+8px)] z-50">
+                                <UsagePanel
+                                    contextSize={props.contextSize}
+                                    contextWindowTokens={props.contextWindowTokens}
+                                    rateLimitSnapshot={props.rateLimitSnapshot}
+                                />
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
+                {props.permissionChipLabel ? (
+                    <button
+                        type="button"
+                        onClick={props.onPermissionChipClick}
+                        disabled={!props.onPermissionChipClick}
+                        className="composer-meta-chip composer-permission-chip"
+                        title={props.permissionChipLabel}
+                        aria-label={props.permissionChipLabel}
+                    >
+                        {props.permissionChipLabel}
+                    </button>
+                ) : null}
+
                 {props.showPlanModeToggle ? (
                     <button
                         type="button"

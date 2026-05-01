@@ -32,11 +32,11 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useEnterBehavior } from '@/hooks/useEnterBehavior'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { isClaudeFlavor, supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
+import { getContextBudgetTokens } from '@/chat/modelConfig'
 import { markSkillUsed } from '@/lib/recent-skills'
 import { preserveUploadPathsForQueue } from '@/lib/attachmentAdapter'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
-import { StatusBar } from '@/components/AssistantChat/StatusBar'
 import { ComposerButtons } from '@/components/AssistantChat/ComposerButtons'
 import { AttachmentItem } from '@/components/AssistantChat/AttachmentItem'
 import { useTranslation } from '@/lib/use-translation'
@@ -51,6 +51,14 @@ export type CodexSendMode = 'direct' | 'queue'
 type QueueEnqueuePayload = {
     text: string
     attachments?: AttachmentMetadata[]
+}
+
+function compactQueuePreview(text: string): string {
+    return text
+        .replace(/@(?:file:\/\/)?\/\S+\/([^/\s]+\.(?:png|jpe?g|webp|gif|svg|pdf|txt|md|json|csv|tsv|log|zip|tar|gz))/gi, '@$1')
+        .replace(/(?:file:\/\/)?\/\S+\/([^/\s]+\.(?:png|jpe?g|webp|gif|svg|pdf|txt|md|json|csv|tsv|log|zip|tar|gz))/gi, '$1')
+        .replace(/\s+/g, ' ')
+        .trim()
 }
 
 type ComposerModelOption = {
@@ -359,11 +367,6 @@ export function HappyComposer(props: {
     voiceMicMuted?: boolean
     onVoiceToggle?: () => void
     onVoiceMicToggle?: () => void
-    offlineWakeMessage?: string
-    offlineWakeLabel?: string
-    offlineWakingLabel?: string
-    offlineWakePending?: boolean
-    onOfflineWake?: () => void
 }) {
     const { t } = useTranslation()
     const {
@@ -411,12 +414,7 @@ export function HappyComposer(props: {
         voiceStatus = 'disconnected',
         voiceMicMuted = false,
         onVoiceToggle,
-        onVoiceMicToggle,
-        offlineWakeMessage,
-        offlineWakeLabel,
-        offlineWakingLabel,
-        offlineWakePending = false,
-        onOfflineWake
+        onVoiceMicToggle
     } = props
 
     // Use ?? so missing values fall back to default (destructuring defaults only handle undefined)
@@ -492,20 +490,11 @@ export function HappyComposer(props: {
         && codexSendMode === 'queue'
         && codexQueueInlinePanelMode !== 'off'
         && hasQueueContent
-    const inlineQueueNextPreview = codexQueueSummary?.nextPreview?.trim() ?? ''
-    const inlineQueueHeadline = useMemo(() => {
-        if (inlineQueueNextPreview.length > 0) {
-            return `${t('queue.inline.next')}: ${inlineQueueNextPreview}`
-        }
-        const firstEntryPreview = codexQueueEntries[0]?.preview?.trim()
-        if (firstEntryPreview) {
-            return `${t('queue.inline.next')}: ${firstEntryPreview}`
-        }
-        if (inlineQueuePendingCount > 0) {
-            return t('queue.inline.pending', { count: inlineQueuePendingCount })
-        }
-        return t('queue.inline.empty')
-    }, [inlineQueueNextPreview, codexQueueEntries, inlineQueuePendingCount, t])
+    const inlineQueueStateLabel = inlineQueueTaskRunning
+        ? t('queue.inline.running')
+        : inlineQueueInQueue
+            ? t('queue.summary.inQueue')
+            : null
     const trimmed = composerText.trim()
     const hasText = trimmed.length > 0
     const hasRuntimeAttachments = attachments.length > 0
@@ -553,6 +542,7 @@ export function HappyComposer(props: {
     const [showContinueHint, setShowContinueHint] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const wrapperRef = useRef<HTMLDivElement | null>(null)
     const prevControlledByUser = useRef(controlledByUser)
     const pendingDraftRestoreRef = useRef<{
         sessionId: string
@@ -1070,6 +1060,19 @@ export function HappyComposer(props: {
         return 'Default'
     }, [agentFlavor, modelOptions, currentModelValue, model])
 
+    const maxContextSize = useMemo(
+        () => contextWindowTokens ?? getContextBudgetTokens(modelMode),
+        [contextWindowTokens, modelMode]
+    )
+
+    const permissionChipLabel = useMemo(() => {
+        if (permissionMode === 'default') {
+            return undefined
+        }
+        const match = permissionModeOptions.find((option) => option.mode === permissionMode)
+        return match?.label ?? permissionMode
+    }, [permissionMode, permissionModeOptions])
+
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
     const showModelSettings = Boolean(onModelChange && isClaudeFlavor(agentFlavor) && modelOptions.length > 0)
     const showThinkEffortSettings = Boolean(onThinkEffortChange && thinkEffortOptions.length > 0)
@@ -1289,8 +1292,34 @@ export function HappyComposer(props: {
         handleSuggestionSelect
     ])
 
+    useEffect(() => {
+        const wrapper = wrapperRef.current
+        const chatCenter = wrapper?.closest<HTMLElement>('.chat-center')
+        if (!wrapper || !chatCenter) {
+            return
+        }
+
+        const updateClearance = () => {
+            const height = Math.ceil(wrapper.getBoundingClientRect().height)
+            chatCenter.style.setProperty('--chat-composer-clearance', `${Math.max(128, height + 24)}px`)
+        }
+
+        updateClearance()
+
+        const observer = new ResizeObserver(updateClearance)
+        observer.observe(wrapper)
+        window.addEventListener('resize', updateClearance)
+
+        return () => {
+            observer.disconnect()
+            window.removeEventListener('resize', updateClearance)
+            chatCenter.style.removeProperty('--chat-composer-clearance')
+        }
+    }, [])
+
     return (
         <div
+            ref={wrapperRef}
             className={`input-area-wrapper ${isIOSPWA ? 'chat-input-wrapper-ios-pwa' : ''} ${cliMode ? 'cli-composer' : ''}`}
         >
             <div className={`input-container mx-auto w-full ${bottomPaddingClass}`}>
@@ -1302,68 +1331,28 @@ export function HappyComposer(props: {
                         disabled={controlsDisabled}
                     >
                         <div
-                            className="input-field-box relative transition-[border-color,box-shadow] data-[dragging=true]:border-[var(--focus)] data-[dragging=true]:ring-1 data-[dragging=true]:ring-[var(--focus)]"
+                            className="input-field-box transition-[border-color,box-shadow] data-[dragging=true]:border-[var(--focus)] data-[dragging=true]:ring-1 data-[dragging=true]:ring-[var(--focus)]"
                         >
-                            {!active ? (
-                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--cursor-bg-secondary)]/95 px-4 py-3 backdrop-blur-[1px]">
-                                    <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--cursor-bg-app)]/80 px-3 py-2 text-sm text-[var(--cursor-text-secondary)] shadow-sm ring-1 ring-[var(--cursor-stroke-primary)]">
-                                        <span>{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
-                                        <button
-                                            type="button"
-                                            onClick={onOfflineWake}
-                                            disabled={!onOfflineWake || offlineWakePending}
-                                            className="rounded-full bg-[var(--cursor-button)] px-3 py-1.5 text-xs font-semibold text-[var(--cursor-button-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            {offlineWakePending
-                                                ? (offlineWakingLabel ?? t('session.waking'))
-                                                : (offlineWakeLabel ?? t('session.wake'))}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-                            <StatusBar
-                                active={active}
-                                thinking={thinking}
-                                agentState={agentState}
-                                contextSize={contextSize}
-                                contextWindowTokens={contextWindowTokens}
-                                rateLimitSnapshot={rateLimitSnapshot}
-                                modelMode={modelMode}
-                                permissionMode={permissionMode}
-                                agentFlavor={agentFlavor}
-                                collaborationMode={codexCollaborationMode}
-                                voiceStatus={voiceStatus}
-                            />
                             {showInlineQueuePanel ? (
                                 <div
                                     className="chat-inline-queue"
-                                    style={{ borderBottom: '1px solid var(--border-tertiary)', padding: '8px 12px' }}
                                 >
-                                    <div className="chat-inline-queue-row flex flex-wrap items-center gap-2">
-                                        <span className="chat-inline-queue-label text-[length:var(--font-size-sm)] font-medium text-[var(--cursor-text-secondary)]">
+                                    <div className="chat-inline-queue-row flex items-center gap-1.5">
+                                        <span className="chat-inline-queue-label text-[length:var(--font-size-sm)] font-medium text-[var(--cursor-text-primary)]">
                                             {t('queue.dialog.title')}
                                         </span>
-                                        <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-xs text-[var(--cursor-text-primary)]">
+                                        <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-xs text-[var(--cursor-text-secondary)]">
                                             {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                         </span>
-                                        {inlineQueueTaskRunning ? (
+                                        {inlineQueueStateLabel ? (
                                             <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-xs text-[var(--accent)]">
-                                                {t('queue.inline.running')}
+                                                {inlineQueueStateLabel}
                                             </span>
                                         ) : null}
-                                        {inlineQueueInQueue ? (
-                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--success)]/10 px-2 py-0.5 text-xs text-[var(--success)]">
-                                                {t('queue.summary.inQueue')}
-                                            </span>
-                                        ) : null}
-                                        <span
-                                            className="chat-inline-queue-headline min-w-0 flex-1 break-all text-xs text-[var(--cursor-text-secondary)]"
-                                        >
-                                            {inlineQueueHeadline}
-                                        </span>
+                                        <span className="min-w-0 flex-1" aria-hidden="true" />
                                         <button
                                             type="button"
-                                            className="chat-inline-queue-open rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="chat-inline-queue-open rounded-md px-2 py-1 text-xs text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                                             onClick={handleCodexQueueOpen}
                                             disabled={controlsDisabled || !onCodexQueueOpen}
                                         >
@@ -1375,8 +1364,9 @@ export function HappyComposer(props: {
                                         <div className="chat-inline-queue-list mt-2 space-y-1">
                                             {codexQueueEntries.length > 0 ? (
                                                 <>
-                                                    {codexQueueEntries.slice(0, 5).map((entry, index) => {
+                                                    {codexQueueEntries.slice(0, 3).map((entry, index) => {
                                                         const previewText = entry.preview || t('queue.dialog.emptyMessage')
+                                                        const compactPreviewText = compactQueuePreview(previewText)
 
                                                         return (
                                                             <div
@@ -1384,12 +1374,13 @@ export function HappyComposer(props: {
                                                                 className="chat-inline-queue-entry flex items-center gap-2 rounded-md bg-[var(--cursor-bg-quiet)] px-2 py-1.5"
                                                             >
                                                                 <span className="chat-inline-queue-index text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
-                                                                    #{index + 1}
+                                                                    {index === 0 ? t('queue.inline.next') : `#${index + 1}`}
                                                                 </span>
                                                                 <span
                                                                     className="chat-inline-queue-preview block min-w-0 flex-1 truncate text-xs text-[var(--cursor-text-primary)]"
+                                                                    title={previewText}
                                                                 >
-                                                                    {previewText}
+                                                                    {compactPreviewText}
                                                                 </span>
                                                                 <span className="chat-inline-queue-time shrink-0 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                                                     {new Date(entry.enqueuedAt).toLocaleTimeString([], {
@@ -1400,9 +1391,9 @@ export function HappyComposer(props: {
                                                             </div>
                                                         )
                                                     })}
-                                                    {codexQueueEntries.length > 5 ? (
+                                                    {codexQueueEntries.length > 3 ? (
                                                         <div className="px-1 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
-                                                            +{codexQueueEntries.length - 5}
+                                                            +{codexQueueEntries.length - 3}
                                                         </div>
                                                     ) : null}
                                                 </>
@@ -1498,6 +1489,8 @@ export function HappyComposer(props: {
                     </ComposerPrimitive.AttachmentDropzone>
 
                     <ComposerButtons
+                        active={active}
+                        thinking={thinking}
                         canSend={canSend}
                         controlsDisabled={controlsDisabled}
                         showSettingsButton={showSettingsButton}
@@ -1535,6 +1528,11 @@ export function HappyComposer(props: {
                         onVoiceToggle={onVoiceToggle ?? (() => {})}
                         onVoiceMicToggle={onVoiceMicToggle}
                         onSend={() => { void sendComposerNow() }}
+                        permissionChipLabel={permissionChipLabel}
+                        onPermissionChipClick={showPermissionSettings ? handleSettingsToggle : undefined}
+                        contextSize={contextSize}
+                        contextWindowTokens={maxContextSize ?? undefined}
+                        rateLimitSnapshot={rateLimitSnapshot}
                         modelChipLabel={modelChipLabel}
                         modelChipActive={active || thinking}
                         onModelChipClick={showModelSettings ? handleSettingsToggle : undefined}

@@ -46,9 +46,9 @@ function formatResetsIn(resetsAtSeconds: number, now: number, t: (key: string, p
 }
 
 function utilizationToColorClass(utilization: number, status: ClaudeRateLimitEntry['status']): string {
-    if (status === 'rejected') return 'bg-red-500'
-    if (utilization >= 0.85 || status === 'allowed_warning') return 'bg-amber-500'
-    return 'bg-blue-500'
+    if (status === 'rejected') return 'bg-[var(--danger)]'
+    if (utilization >= 0.85 || status === 'allowed_warning') return 'bg-[var(--warn)]'
+    return 'bg-[var(--accent)]'
 }
 
 function ProgressRow(props: {
@@ -61,13 +61,13 @@ function ProgressRow(props: {
     return (
         <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-[var(--app-text)]">{props.label}</span>
-                <span className="shrink-0 text-[var(--app-hint)]">
+                <span className="text-[var(--cursor-text-primary)]">{props.label}</span>
+                <span className="shrink-0 text-[var(--cursor-text-tertiary)]">
                     {props.percentage === null ? '—' : `${Math.round(props.percentage)}%`}
                     {props.secondaryText ? <span className="ml-2">· {props.secondaryText}</span> : null}
                 </span>
             </div>
-            <div className="h-1 w-full rounded-full bg-[var(--app-subtle-bg)]">
+            <div className="h-1 w-full rounded-full bg-[var(--cursor-bg-hover)]">
                 {props.percentage === null ? null : (
                     <div
                         className={`h-1 rounded-full transition-[width] ${props.color}`}
@@ -100,25 +100,25 @@ export function UsagePanel(props: UsagePanelProps) {
     }, [props.rateLimitSnapshot])
 
     return (
-        <div className="flex w-72 flex-col gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3 shadow-lg">
+        <div className="flex w-72 flex-col gap-3 rounded-[10px] border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] p-3 shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]">
             <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-[var(--app-text)]">{t('usage.contextWindow')}</span>
+                    <span className="text-[var(--cursor-text-primary)]">{t('usage.contextWindow')}</span>
                     {contextRow ? (
-                        <span className="text-[var(--app-hint)]">
+                        <span className="text-[var(--cursor-text-tertiary)]">
                             {contextRow.text} ({Math.round(contextRow.percentage)}%)
                         </span>
                     ) : (
-                        <span className="text-[var(--app-hint)]">—</span>
+                        <span className="text-[var(--cursor-text-tertiary)]">—</span>
                     )}
                 </div>
-                <div className="h-1 w-full rounded-full bg-[var(--app-subtle-bg)]">
+                <div className="h-1 w-full rounded-full bg-[var(--cursor-bg-hover)]">
                     {contextRow ? (
                         <div
                             className={`h-1 rounded-full transition-[width] ${
-                                contextRow.percentage >= 90 ? 'bg-red-500'
-                                    : contextRow.percentage >= 70 ? 'bg-amber-500'
-                                        : 'bg-blue-500'
+                                contextRow.percentage >= 90 ? 'bg-[var(--danger)]'
+                                    : contextRow.percentage >= 70 ? 'bg-[var(--warn)]'
+                                        : 'bg-[var(--accent)]'
                             }`}
                             style={{ width: `${Math.min(100, contextRow.percentage)}%` }}
                         />
@@ -127,12 +127,12 @@ export function UsagePanel(props: UsagePanelProps) {
             </div>
 
             <div className="flex flex-col gap-2">
-                <div className="text-xs font-medium text-[var(--app-text)]">
+                <div className="text-xs font-medium text-[var(--cursor-text-primary)]">
                     {t('usage.planUsage')}
                 </div>
 
                 {!hasAnyRateLimit ? (
-                    <div className="text-[10px] text-[var(--app-hint)]">{t('usage.noRateLimitData')}</div>
+                    <div className="text-[10px] text-[var(--cursor-text-tertiary)]">{t('usage.noRateLimitData')}</div>
                 ) : (
                     RATE_LIMIT_ROWS.map(({ key, labelKey }) => {
                         const entry = props.rateLimitSnapshot?.[key]
@@ -143,7 +143,7 @@ export function UsagePanel(props: UsagePanelProps) {
                                     key={key}
                                     label={label}
                                     percentage={null}
-                                    color="bg-blue-500"
+                                    color="bg-[var(--accent)]"
                                 />
                             )
                         }

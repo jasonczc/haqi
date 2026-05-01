@@ -1473,6 +1473,37 @@ function ComposerAttachmentList(props: {
 
 const TIMELINE_FIRST_ITEM_INDEX_BASE = 1_000_000
 
+function usePrependStableFirstItemIndex<T>(items: readonly T[], getId: (item: T) => string, resetKey?: string): number {
+    const previousIdsRef = useRef<string[]>([])
+    const [firstItemIndex, setFirstItemIndex] = useState(TIMELINE_FIRST_ITEM_INDEX_BASE)
+
+    useEffect(() => {
+        setFirstItemIndex(TIMELINE_FIRST_ITEM_INDEX_BASE)
+        previousIdsRef.current = []
+    }, [resetKey])
+
+    useLayoutEffect(() => {
+        const nextIds = items.map(getId)
+        const previousIds = previousIdsRef.current
+        if (previousIds.length === 0) {
+            previousIdsRef.current = nextIds
+            return
+        }
+
+        const previousFirstId = previousIds[0]
+        if (previousFirstId) {
+            const preservedIndex = nextIds.indexOf(previousFirstId)
+            if (preservedIndex > 0) {
+                setFirstItemIndex((value) => value - preservedIndex)
+            }
+        }
+
+        previousIdsRef.current = nextIds
+    }, [getId, items])
+
+    return firstItemIndex
+}
+
 const TimelineScroller = forwardRef<HTMLDivElement, ComponentProps<'div'>>(
     function TimelineScroller(props, ref) {
         return (
@@ -1585,6 +1616,7 @@ function GroupBriefTurnDetailList(props: {
 }) {
     const listRef = useRef<VirtuosoHandle | null>(null)
     const initialBottomDoneRef = useRef(false)
+    const getMessageId = useCallback((message: GroupTimelineMessage) => message.id, [])
 
     const taskStateMap = useMemo(() => {
         const map = new Map<string, Map<string, GroupTimelineMessage>>()
@@ -1605,6 +1637,7 @@ function GroupBriefTurnDetailList(props: {
         () => props.messages.filter((message) => message.type !== 'task_state'),
         [props.messages]
     )
+    const firstItemIndex = usePrependStableFirstItemIndex(visibleMessages, getMessageId)
 
     useEffect(() => {
         if (visibleMessages.length === 0) {
@@ -1628,7 +1661,9 @@ function GroupBriefTurnDetailList(props: {
             ref={listRef}
             data={visibleMessages}
             style={{ height: '100%' }}
+            firstItemIndex={firstItemIndex}
             increaseViewportBy={{ top: 400, bottom: 400 }}
+            computeItemKey={(_index, message) => message.id}
             startReached={() => {
                 if (!props.hasMore || props.isLoadingMore) {
                     return
@@ -1683,6 +1718,8 @@ function GroupBriefTurnList(props: {
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
     const isAtBottomRef = useRef(true)
+    const getTurnId = useCallback((turn: GroupConversationTurn) => turn.id, [])
+    const firstItemIndex = usePrependStableFirstItemIndex(props.turns, getTurnId, props.groupId)
     const [activeTurnId, setActiveTurnId] = useState<string | null>(null)
     const [turnDetailStateById, setTurnDetailStateById] = useState<GroupTurnDetailStateMap>({})
     const [isMobileViewport, setIsMobileViewport] = useState(() => (
@@ -1909,7 +1946,9 @@ function GroupBriefTurnList(props: {
                         ref={listRef}
                         data={props.turns}
                         style={{ height: '100%' }}
+                        firstItemIndex={firstItemIndex}
                         increaseViewportBy={{ top: 320, bottom: 320 }}
+                        computeItemKey={(_index, turn) => turn.id}
                         atBottomStateChange={(isAtBottom) => {
                             isAtBottomRef.current = isAtBottom
                         }}
@@ -3223,6 +3262,7 @@ export default function GroupDetailPage() {
                             style={{ height: '100%' }}
                             firstItemIndex={timelineFirstItemIndex}
                             increaseViewportBy={{ top: 400, bottom: 400 }}
+                            computeItemKey={(_index, message) => message.id}
                             startReached={() => {
                                 handleLoadOlderMessages()
                             }}

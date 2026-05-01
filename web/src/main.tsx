@@ -14,6 +14,7 @@ import { getTelegramWebApp, isTelegramEnvironment, loadTelegramSdk } from './hoo
 import { queryClient } from './lib/query-client'
 import { createAppRouter } from './router'
 import { I18nProvider } from './lib/i18n-context'
+import { isElectronEnvironment } from './lib/runtimeEnvironment'
 
 function isSafariEngine(): boolean {
     const ua = window.navigator.userAgent
@@ -30,7 +31,7 @@ function isSafariEngine(): boolean {
     return isSafariDesktop
 }
 
-async function disableServiceWorkerForSafari(): Promise<void> {
+async function disableServiceWorkerAndCaches(): Promise<void> {
     if (!('serviceWorker' in navigator)) {
         return
     }
@@ -84,9 +85,9 @@ async function bootstrap() {
         await loadTelegramSdk()
     }
 
-    if (isSafariEngine()) {
-        // Hard disable SW on Safari/WebKit to avoid auto-refresh loops.
-        await disableServiceWorkerForSafari()
+    if (isSafariEngine() || isElectronEnvironment()) {
+        // Hard disable SW on Safari/WebKit and Electron to avoid auto-refresh loops.
+        await disableServiceWorkerAndCaches()
     } else {
         const updateSW = registerSW({
             onNeedRefresh() {

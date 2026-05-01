@@ -12,11 +12,11 @@ function isProminentEvent(event: AgentEvent | undefined): event is AgentEvent {
 function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }) {
     const isError = event.type === 'api-error'
     const borderClass = isError
-        ? 'border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)]'
-        : 'border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)]'
+        ? 'border-[var(--cursor-badge-error-border)] bg-[var(--cursor-badge-error-bg)]'
+        : 'border-[var(--cursor-badge-warning-border)] bg-[var(--cursor-badge-warning-bg)]'
     const textClass = isError
-        ? 'text-[var(--app-badge-error-text)]'
-        : 'text-[var(--app-badge-warning-text)]'
+        ? 'text-[var(--cursor-badge-error-text)]'
+        : 'text-[var(--cursor-badge-warning-text)]'
 
     const resetsAt = 'resetsAt' in event && typeof event.resetsAt === 'number' && event.resetsAt > 0
         ? event.resetsAt
@@ -25,16 +25,32 @@ function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }
             : null
 
     return (
-        <div className={`mx-auto max-w-[88%] rounded-lg border px-3 py-2 sm:max-w-[84%] lg:max-w-[76%] ${borderClass}`}>
-            <div className={`flex items-center gap-2 text-xs font-medium ${textClass}`}>
-                <span className="shrink-0">⚠️</span>
-                <span>{text}</span>
+        <div className={`system-event-card mx-auto max-w-[88%] rounded-[10px] border sm:max-w-[84%] lg:max-w-[76%] ${borderClass}`}>
+            <div className={`system-event-icon ${isError ? 'is-error' : 'is-warning'}`} aria-hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {isError ? (
+                        <>
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </>
+                    ) : (
+                        <>
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                            <line x1="12" y1="9" x2="12" y2="13" />
+                            <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </>
+                    )}
+                </svg>
             </div>
-            {resetsAt ? (
-                <div className={`mt-1 text-[11px] opacity-75 ${textClass}`}>
-                    Resets at {formatUnixTimestamp(resetsAt)}
-                </div>
-            ) : null}
+            <div className="system-event-body min-w-0 flex-1">
+                <div className={`system-event-text ${textClass}`}>{text}</div>
+                {resetsAt ? (
+                    <div className={`system-event-meta ${textClass}`}>
+                        Resets at {formatUnixTimestamp(resetsAt)}
+                    </div>
+                ) : null}
+            </div>
         </div>
     )
 }
@@ -68,7 +84,7 @@ export function HappySystemMessage() {
 
     return (
         <div className="py-1" data-happy-message-id={messageId}>
-            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
+            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--cursor-text-secondary)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
                 <span className="inline-flex items-center gap-1">
                     {icon ? <span aria-hidden="true">{icon}</span> : null}
                     <span>{text}</span>

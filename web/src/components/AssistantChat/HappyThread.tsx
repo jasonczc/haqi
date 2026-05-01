@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { ThreadPrimitive } from '@assistant-ui/react'
+import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types/api'
 import { HappyChatProvider } from '@/components/AssistantChat/context'
@@ -21,7 +21,7 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
         <button
             onClick={props.onClick}
             className="new-messages-indicator absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--cursor-button)] px-3.5 py-1.5 text-sm font-medium text-[var(--cursor-button-text)]"
-            style={{ bottom: '160px' }}
+            style={{ bottom: 'calc(var(--chat-composer-clearance, 144px) + 16px)' }}
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')}
             <span aria-hidden className="ml-1 inline-block">↓</span>
@@ -90,7 +90,18 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
 }
 
 function ThreadMessagesList() {
-    return <ThreadPrimitive.Messages components={THREAD_MESSAGE_COMPONENTS} />
+    const messages = useAssistantState(({ thread }) => thread.messages)
+    if (messages.length === 0) {
+        return null
+    }
+
+    return messages.map((message, index) => (
+        <ThreadPrimitive.MessageByIndex
+            key={message.id}
+            index={index}
+            components={THREAD_MESSAGE_COMPONENTS}
+        />
+    ))
 }
 
 const THREAD_MESSAGE_COMPONENTS = {
@@ -125,7 +136,8 @@ export function HappyThread(props: {
     const {
         isNearBottom,
         showJumpToLatest,
-        scrollToBottom
+        scrollToBottom,
+        loadOlderPreservingViewport
     } = useSessionViewportScroll({
         sessionId: props.sessionId,
         viewMode: 'normal',
@@ -181,7 +193,7 @@ export function HappyThread(props: {
                                 <HistoryLoadMoreControl
                                     loading={props.isLoadingMoreMessages}
                                     hasMore={props.hasMoreMessages}
-                                    onLoadMore={props.onLoadMore}
+                                    onLoadMore={loadOlderPreservingViewport}
                                 />
 
                                 {props.messagesWarning ? (
@@ -220,7 +232,7 @@ export function HappyThread(props: {
                                 </div>
                             )
                         })()}
-                        <div className="chat-timeline-spacer" style={{ height: '120px' }} />
+                        <div className="chat-timeline-spacer" />
                     </div>
                 </ThreadPrimitive.Viewport>
                 <NewMessagesIndicator

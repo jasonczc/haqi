@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     Navigate,
@@ -14,18 +14,7 @@ import {
 } from '@tanstack/react-router'
 import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
-import { SessionList, type NewSessionPreset } from '@/components/SessionList'
 import { NewSession } from '@/components/NewSession'
-import {
-    loadLastSessionConfig,
-    loadPreferredAgent,
-    loadPreferredCustomModel,
-    loadPreferredModel,
-    loadPreferredServiceTier,
-    loadPreferredThinkEffort,
-    loadPreferredYoloMode
-} from '@/components/NewSession/preferences'
-import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
@@ -39,6 +28,7 @@ import { useSlashCommands } from '@/hooks/queries/useSlashCommands'
 import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
+import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
 import { queryKeys } from '@/lib/query-keys'
 import { useToast } from '@/lib/toast-context'
@@ -47,14 +37,32 @@ import { fetchLatestMessages, seedMessageWindowFromSession } from '@/lib/message
 import { useSessionListDensity, type SessionListDensity } from '@/hooks/useSessionListDensity'
 import { useSessionSidebarWidth } from '@/hooks/useSessionSidebarWidth'
 import { useSessionSidebarVisibility } from '@/hooks/useSessionSidebarVisibility'
+import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
+import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
+import { useSessionQuickArchive } from '@/hooks/useSessionQuickArchive'
+import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
+import { ProjectActionMenu } from '@/components/ProjectActionMenu'
+import { RenameSessionDialog } from '@/components/RenameSessionDialog'
+import { SessionQuickArchiveButton } from '@/components/SessionQuickArchiveButton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Button } from '@/components/ui/button'
-import type { GroupDetail } from '@/types/api'
+import type { GroupDetail, SessionSummary } from '@/types/api'
+import { ThemeFooterButton } from '@/components/ThemeFooterButton'
 import { filterSessionsBySearch } from '@/lib/session-search'
+import {
+    loadLastSessionConfig,
+    loadPreferredAgent,
+    loadPreferredCustomModel,
+    loadPreferredModel,
+    loadPreferredServiceTier,
+    loadPreferredThinkEffort,
+    loadPreferredYoloMode
+} from '@/components/NewSession/preferences'
+import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
@@ -216,6 +224,15 @@ type NewSessionSearch = {
     machineId?: string
 }
 
+type NewSessionPreset = NewSessionSearch
+
+type SidebarSessionGroup = {
+    label: string
+    directory: string
+    machineId?: string
+    sessions: SessionSummary[]
+}
+
 type SessionsLayoutContextValue = {
     toggleSidebarFromHeader: () => void
     showDesktopSidebar: boolean
@@ -229,9 +246,9 @@ function useSessionsLayoutContext() {
 }
 
 function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
-    const directory = preset?.directory
-    const machineId = preset?.machineId
     const next: NewSessionSearch = {}
+    const directory = preset?.directory?.trim()
+    const machineId = preset?.machineId?.trim()
     if (directory) {
         next.directory = directory
     }
@@ -241,68 +258,378 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
     return next
 }
 
+function getSessionDisplayTitle(session: SessionSummary): string {
+    const name = session.metadata?.name?.trim()
+    if (name) return name
+    const summary = session.metadata?.summary?.text?.trim()
+    if (summary) return summary
+    const pathParts = (session.metadata?.path ?? '').split('/').filter(Boolean)
+    const leaf = pathParts[pathParts.length - 1]
+    if (leaf && leaf !== 'repo' && leaf !== 'workspace') return leaf
+    const repoUrl = (session.metadata as { repositoryUrl?: string } | undefined)?.repositoryUrl
+    if (repoUrl) {
+        const m = repoUrl.match(/([^/]+\/[^/.]+?)(?:\.git)?$/)
+        if (m) return m[1]
+    }
+    return session.id.slice(0, 8)
+}
+
+function extractRepoFromSession(session: SessionSummary): string {
+    const url = (session.metadata as { repositoryUrl?: string } | undefined)?.repositoryUrl
+    if (url) {
+        const match = url.match(/([^/]+\/[^/.]+?)(?:\.git)?$/)
+        if (match) {
+            const parts = match[1].split('/')
+            return parts[parts.length - 1]
+        }
+    }
+    const path = (session.metadata as { path?: string } | undefined)?.path
+    if (path) {
+        const parts = path.split('/').filter(Boolean)
+        if (parts.length > 0) return parts[parts.length - 1]
+    }
+    return 'Other'
+}
+
+function getSessionProjectDirectory(session: SessionSummary): string {
+    return session.metadata?.worktree?.basePath?.trim()
+        || session.metadata?.path?.trim()
+        || ''
+}
+
+function getSessionMachineId(session: SessionSummary): string | undefined {
+    const machineId = session.metadata?.machineId?.trim()
+    return machineId || undefined
+}
+
+function groupSessionsByRepo(sessions: SessionSummary[]): SidebarSessionGroup[] {
+    const map = new Map<string, { directory: string; machineId?: string; sessions: SessionSummary[] }>()
+    for (const session of sessions) {
+        const label = extractRepoFromSession(session)
+        const existing = map.get(label)
+        if (existing) {
+            existing.sessions.push(session)
+            if (!existing.directory) {
+                existing.directory = getSessionProjectDirectory(session)
+            }
+            if (!existing.machineId) {
+                existing.machineId = getSessionMachineId(session)
+            }
+            continue
+        }
+
+        map.set(label, {
+            directory: getSessionProjectDirectory(session),
+            machineId: getSessionMachineId(session),
+            sessions: [session]
+        })
+    }
+    const entries = Array.from(map.entries()).map(([label, group]) => {
+        const mostRecent = Math.max(...group.sessions.map(s => s.updatedAt))
+        const hasActive = group.sessions.some(s => s.active && s.pendingRequestsCount > 0)
+        return { label, ...group, mostRecent, hasActive }
+    })
+    entries.sort((a, b) => {
+        if (a.label === 'Other') return 1
+        if (b.label === 'Other') return -1
+        if (a.hasActive !== b.hasActive) return a.hasActive ? -1 : 1
+        return b.mostRecent - a.mostRecent
+    })
+    return entries.map(e => ({
+        label: e.label,
+        directory: e.directory,
+        machineId: e.machineId,
+        sessions: e.sessions
+    }))
+}
+
+function SidebarSessionItem(props: {
+    session: SessionSummary
+    selected: boolean
+    api: ReturnType<typeof useAppContext>['api']
+    onSelect: (sessionId: string) => void
+    onDeleted: (sessionId: string) => void
+}) {
+    const { session, selected, api, onSelect, onDeleted } = props
+    const { t } = useTranslation()
+    const { haptic } = usePlatform()
+    const { addToast } = useToast()
+    const itemRef = useRef<HTMLDivElement | null>(null)
+    const [menuOpen, setMenuOpen] = useState(false)
+    const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+    const [renameOpen, setRenameOpen] = useState(false)
+    const [archiveOpen, setArchiveOpen] = useState(false)
+    const [deleteOpen, setDeleteOpen] = useState(false)
+    const [quickArchiveVisible, setQuickArchiveVisible] = useState(false)
+    const title = getSessionDisplayTitle(session)
+    const meta = session.metadata as { summary?: { text?: string } } | undefined
+    const childTitle = typeof meta?.summary?.text === 'string' && meta.summary.text !== title
+        ? meta.summary.text
+        : undefined
+    const {
+        archiveSession,
+        renameSession,
+        deleteSession,
+        spawnSameConfigSession,
+        duplicateSession,
+        isPending
+    } = useSessionActions(api, session.id, session.metadata?.flavor ?? null)
+    const { skipArchiveConfirmation } = useArchiveConfirmation()
+    const { sessionQuickArchiveEnabled } = useSessionQuickArchive()
+
+    const openMenuAt = useCallback((point: { x: number; y: number }) => {
+        setMenuAnchorPoint(point)
+        setMenuOpen(true)
+    }, [])
+
+    const longPressHandlers = useLongPress({
+        onLongPress: (point) => {
+            haptic.impact('medium')
+            openMenuAt(point)
+        },
+        onClick: () => {
+            if (!menuOpen) {
+                onSelect(session.id)
+            }
+        },
+        threshold: 500
+    })
+
+    const handleArchive = useCallback(() => {
+        if (!skipArchiveConfirmation) {
+            setArchiveOpen(true)
+            return
+        }
+        void archiveSession().catch((error) => {
+            console.error('Failed to archive session from sidebar:', error)
+        })
+    }, [archiveSession, skipArchiveConfirmation])
+
+    const handleDelete = useCallback(async () => {
+        await deleteSession()
+        onDeleted(session.id)
+    }, [deleteSession, onDeleted, session.id])
+
+    const handleSpawnSameConfig = useCallback(() => {
+        void spawnSameConfigSession()
+            .then((newSessionId) => onSelect(newSessionId))
+            .catch((error) => {
+                console.error('Failed to create same-config session from sidebar:', error)
+            })
+    }, [onSelect, spawnSameConfigSession])
+
+    const handleDuplicate = useCallback(() => {
+        void duplicateSession()
+            .then((newSessionId) => onSelect(newSessionId))
+            .catch((error) => {
+                console.error('Failed to duplicate session from sidebar:', error)
+            })
+    }, [duplicateSession, onSelect])
+
+    const copyText = useCallback(async (text: string, toastTitle: string) => {
+        try {
+            if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text)
+            }
+        } catch {
+            /* still show the value so it can be copied manually */
+        }
+        addToast({ title: toastTitle, body: text, sessionId: session.id, url: '' })
+    }, [addToast, session.id])
+
+    const handleShare = useCallback(() => {
+        if (typeof window === 'undefined') return
+        void copyText(`${window.location.origin}/sessions/${session.id}`, 'Link copied')
+    }, [copyText, session.id])
+
+    const handleCopySessionId = useCallback(() => {
+        void copyText(session.id, t('session.action.copyId'))
+    }, [copyText, session.id, t])
+
+    return (
+        <>
+            <div
+                ref={itemRef}
+                className="nav-item-wrapper"
+                data-session-menu-root={menuOpen ? 'true' : undefined}
+                style={{ position: 'relative' }}
+                onMouseEnter={() => setQuickArchiveVisible(true)}
+                onMouseLeave={() => setQuickArchiveVisible(false)}
+                onFocusCapture={() => setQuickArchiveVisible(true)}
+                onBlurCapture={(event) => {
+                    const nextTarget = event.relatedTarget
+                    if (nextTarget instanceof Node && itemRef.current?.contains(nextTarget)) {
+                        return
+                    }
+                    setQuickArchiveVisible(false)
+                }}
+            >
+                <button
+                    type="button"
+                    {...longPressHandlers}
+                    onContextMenu={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        openMenuAt({ x: event.clientX, y: event.clientY })
+                    }}
+                    className={`nav-item ${selected ? 'active-item' : 'text-item'}`}
+                >
+                    <svg
+                        className="dotted-circle"
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeDasharray="2 3"
+                    >
+                        <circle cx="12" cy="12" r="10" />
+                    </svg>
+                    <span className="nav-text" style={{ flex: 1, minWidth: 0, paddingRight: quickArchiveVisible ? 28 : 0, textAlign: 'left' }}>{title}</span>
+                </button>
+
+                <SessionQuickArchiveButton
+                    enabled={sessionQuickArchiveEnabled}
+                    visible={quickArchiveVisible}
+                    isPending={isPending}
+                    compact
+                    onArchive={archiveSession}
+                />
+
+                {childTitle ? (
+                    <button
+                        type="button"
+                        onClick={() => onSelect(session.id)}
+                        className="nav-item text-item"
+                        style={{ paddingLeft: '22px' }}
+                    >
+                        <span className="nav-text">{childTitle}</span>
+                    </button>
+                ) : null}
+            </div>
+
+            <SessionActionMenu
+                isOpen={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                sessionActive={session.active}
+                onRename={() => setRenameOpen(true)}
+                onShare={handleShare}
+                onSpawnSameConfig={handleSpawnSameConfig}
+                onDuplicate={handleDuplicate}
+                onCopySessionId={handleCopySessionId}
+                onArchive={handleArchive}
+                onDelete={() => setDeleteOpen(true)}
+                anchorPoint={menuAnchorPoint}
+                align="end"
+            />
+
+            <RenameSessionDialog
+                isOpen={renameOpen}
+                onClose={() => setRenameOpen(false)}
+                currentName={title}
+                onRename={renameSession}
+                isPending={isPending}
+            />
+
+            <ConfirmDialog
+                isOpen={archiveOpen}
+                onClose={() => setArchiveOpen(false)}
+                title={t('dialog.archive.title')}
+                description={t('dialog.archive.description', { name: title })}
+                confirmLabel={t('dialog.archive.confirm')}
+                confirmingLabel={t('dialog.archive.confirming')}
+                onConfirm={archiveSession}
+                isPending={isPending}
+                destructive
+            />
+
+            <ConfirmDialog
+                isOpen={deleteOpen}
+                onClose={() => setDeleteOpen(false)}
+                title={t('dialog.delete.title')}
+                description={t('dialog.delete.description', { name: title })}
+                confirmLabel={t('dialog.delete.confirm')}
+                confirmingLabel={t('dialog.delete.confirming')}
+                onConfirm={handleDelete}
+                isPending={isPending}
+                destructive
+            />
+        </>
+    )
+}
+
 function SessionsPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
-    const queryClient = useQueryClient()
     const pathname = useLocation({ select: location => location.pathname })
     const matchRoute = useMatchRoute()
     const { t } = useTranslation()
     const { addToast } = useToast()
-    const { sessions, isLoading, error, refetch } = useSessions(api)
+    const { sessions, isLoading, error } = useSessions(api)
     const { spawnSession, isPending: isQuickCreatingSession } = useSpawnSession(api)
-    const { density, toggleDensity } = useSessionListDensity()
+    const { density } = useSessionListDensity()
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
+    const { projectQuickCreateEnabled } = useProjectQuickCreate()
+    const {
+        projectOfflineDirectories,
+        setProjectOfflineDirectories
+    } = useProjectOfflineDirectories(api)
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-    const [sessionSearchQuery, setSessionSearchQuery] = useState('')
+    const [sessionSearchQuery] = useState('')
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
+    const [projectMenu, setProjectMenu] = useState<{ group: SidebarSessionGroup; anchorPoint: { x: number; y: number } } | null>(null)
+    const [isOfflineProjectsCollapsed, setIsOfflineProjectsCollapsed] = useState(true)
+    const queryClient = useQueryClient()
+
+    const toggleGroup = useCallback((label: string) => {
+        setCollapsedGroups(prev => {
+            const next = new Set(prev)
+            if (next.has(label)) next.delete(label)
+            else next.add(label)
+            return next
+        })
+    }, [])
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
     const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
-    const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
-
-    const selectedSessionPreset = useMemo<NewSessionPreset | undefined>(() => {
-        if (!selectedSessionId) {
-            return undefined
-        }
-        const selected = sessions.find((session) => session.id === selectedSessionId)
-        if (!selected) {
-            return undefined
-        }
-
-        const directory = selected.metadata?.path?.trim()
-        const machineId = selected.metadata?.machineId?.trim()
-        if (!directory && !machineId) {
-            return undefined
-        }
-        return {
-            directory: directory || undefined,
-            machineId: machineId || undefined
-        }
-    }, [selectedSessionId, sessions])
+    const selectedSessionId = sessionMatch ? sessionMatch.sessionId : null
 
     const visibleSessions = useMemo(
         () => filterSessionsBySearch(sessions, sessionSearchQuery),
         [sessions, sessionSearchQuery]
     )
-
-    const handleRefresh = useCallback(() => {
-        void refetch()
-    }, [refetch])
+    const sidebarGroups = useMemo(
+        () => groupSessionsByRepo(visibleSessions.slice(0, 40)),
+        [visibleSessions]
+    )
+    const isProjectOffline = useCallback((group: SidebarSessionGroup) => (
+        Boolean(group.directory && projectOfflineDirectories.has(group.directory))
+    ), [projectOfflineDirectories])
+    const activeSidebarGroups = useMemo(
+        () => sidebarGroups.filter(group => !isProjectOffline(group)),
+        [isProjectOffline, sidebarGroups]
+    )
+    const offlineSidebarGroups = useMemo(
+        () => sidebarGroups.filter(isProjectOffline),
+        [isProjectOffline, sidebarGroups]
+    )
 
     const openNewSession = useCallback((preset?: NewSessionPreset) => {
-        const resolvedPreset = preset ?? selectedSessionPreset
         setMobileSidebarOpen(false)
         navigate({
             to: '/sessions/new',
-            search: toNewSessionSearch(resolvedPreset)
+            search: toNewSessionSearch(preset)
         })
-    }, [navigate, selectedSessionPreset])
+    }, [navigate])
 
     const quickCreateInProject = useCallback(async (preset?: NewSessionPreset) => {
         if (isQuickCreatingSession) {
             return
         }
-        if (!preset?.directory || !preset.machineId) {
+        if (!projectQuickCreateEnabled || !preset?.directory || !preset.machineId) {
             openNewSession(preset)
             return
         }
@@ -317,20 +644,14 @@ function SessionsPage() {
             const quickServiceTier = lastConfig?.serviceTier ?? loadPreferredServiceTier(quickCreateAgent) ?? 'auto'
             const quickYolo = lastConfig?.yoloMode ?? loadPreferredYoloMode()
             const quickPreviewUrl = lastConfig?.previewUrl ?? ''
-
-            const resolvedModel = resolveSpawnModel(quickCreateAgent, quickModel, quickCustomModel)
-            const resolvedThinkEffort = resolveSpawnThinkEffort(quickCreateAgent, quickThinkEffort)
-            const resolvedServiceTier = resolveSpawnServiceTier(quickCreateAgent, quickServiceTier)
-            // Project-level quick create should stay in the clicked project directory.
-            // Force simple mode so worktree preferences don't move cwd unexpectedly.
             const sessionSettings = resolveSpawnSessionSettings('simple', '', quickPreviewUrl)
             const result = await spawnSession({
                 machineId: preset.machineId,
                 directory: preset.directory,
                 agent: quickCreateAgent,
-                model: resolvedModel,
-                thinkEffort: resolvedThinkEffort,
-                serviceTier: resolvedServiceTier,
+                model: resolveSpawnModel(quickCreateAgent, quickModel, quickCustomModel),
+                thinkEffort: resolveSpawnThinkEffort(quickCreateAgent, quickThinkEffort),
+                serviceTier: resolveSpawnServiceTier(quickCreateAgent, quickServiceTier),
                 yolo: quickYolo,
                 sessionType: sessionSettings.sessionType,
                 worktreeName: sessionSettings.worktreeName,
@@ -365,21 +686,15 @@ function SessionsPage() {
         isQuickCreatingSession,
         navigate,
         openNewSession,
+        projectQuickCreateEnabled,
         queryClient,
         spawnSession,
         t
     ])
 
-    const projectCount = new Set(visibleSessions.map(s => s.metadata?.worktree?.basePath ?? s.metadata?.path ?? 'Other')).size
-    const isSessionChatRoute = Boolean(chatRouteMatch && chatRouteMatch.sessionId !== 'new')
+    const isSessionChatRoute = Boolean(chatRouteMatch)
     const isSessionsIndex = pathname === '/sessions' || pathname === '/sessions/'
     const showDesktopSidebar = isSessionsIndex || !desktopSidebarHidden
-    const toggleDensityLabel = density === 'comfortable'
-        ? t('sessions.display.toggleToCompact')
-        : t('sessions.display.toggleToComfortable')
-    const desktopSidebarToggleLabel = showDesktopSidebar
-        ? t('sessions.sidebar.hideDesktop')
-        : t('sessions.sidebar.showDesktop')
     const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
 
     useEffect(() => {
@@ -420,6 +735,74 @@ function SessionsPage() {
         })
     }, [navigate])
 
+    const handleDeletedSidebarSession = useCallback((sessionId: string) => {
+        if (selectedSessionId === sessionId) {
+            navigate({ to: '/sessions' })
+        }
+    }, [navigate, selectedSessionId])
+
+    const openProjectMenu = useCallback((
+        group: SidebarSessionGroup,
+        event: { preventDefault: () => void; stopPropagation: () => void; clientX: number; clientY: number }
+    ) => {
+        event.preventDefault()
+        event.stopPropagation()
+        setProjectMenu({
+            group,
+            anchorPoint: { x: event.clientX, y: event.clientY }
+        })
+    }, [])
+
+    const createInProject = useCallback((group: SidebarSessionGroup, quick = false) => {
+        const preset: NewSessionPreset | undefined = group.directory
+            ? { directory: group.directory, machineId: group.machineId }
+            : undefined
+
+        if (group.directory) {
+            setProjectOfflineDirectories(prev => {
+                if (!prev.has(group.directory)) return prev
+                const next = new Set(prev)
+                next.delete(group.directory)
+                return next
+            })
+        }
+
+        if (quick && projectQuickCreateEnabled) {
+            void quickCreateInProject(preset)
+            return
+        }
+        openNewSession(preset)
+    }, [openNewSession, projectQuickCreateEnabled, quickCreateInProject, setProjectOfflineDirectories])
+
+    const toggleProjectOffline = useCallback((group: SidebarSessionGroup) => {
+        if (!group.directory) return
+        setProjectOfflineDirectories(prev => {
+            const next = new Set(prev)
+            if (next.has(group.directory)) {
+                next.delete(group.directory)
+            } else {
+                next.add(group.directory)
+            }
+            return next
+        })
+    }, [setProjectOfflineDirectories])
+
+    const copyProjectPath = useCallback(async (group: SidebarSessionGroup) => {
+        if (!group.directory) return
+        try {
+            if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(group.directory)
+            }
+        } catch {
+            /* still surface the path in the toast */
+        }
+        addToast({ title: t('sessions.copyProjectPath'), body: group.directory, sessionId: '', url: '' })
+    }, [addToast, t])
+
+    const bringAllProjectsOnline = useCallback(() => {
+        setProjectOfflineDirectories(new Set())
+    }, [setProjectOfflineDirectories])
+
     const openSidebarOnMobile = useCallback(() => {
         setMobileSidebarOpen(true)
     }, [])
@@ -436,125 +819,185 @@ function SessionsPage() {
         setMobileSidebarOpen(true)
     }, [toggleDesktopSidebar])
 
+    const renderSidebarGroup = useCallback((group: SidebarSessionGroup) => {
+        const collapsed = collapsedGroups.has(group.label)
+        const toggleCurrentGroup = () => toggleGroup(group.label)
+
+        return (
+            <div key={group.label} className={`sidebar-section ${collapsed ? 'collapsed' : ''}`}>
+                <div
+                    className="sidebar-section-header collapsible-header"
+                    onClick={toggleCurrentGroup}
+                    onContextMenu={(event) => openProjectMenu(group, event)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            toggleCurrentGroup()
+                        }
+                    }}
+                >
+                    <div className="section-title">
+                        <span className="section-title-text">{group.label}</span>
+                        <svg className="section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <button
+                        className="section-action-btn hover-icon"
+                        onClick={(event) => {
+                            event.stopPropagation()
+                            createInProject(group, true)
+                        }}
+                        onContextMenu={(event) => openProjectMenu(group, event)}
+                        title={t('sessions.newInProject')}
+                        aria-label={t('sessions.newInProject')}
+                    >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    </button>
+                </div>
+
+                <div className="section-content">
+                    <div className="section-content-inner">
+                        {group.sessions.map((session) => (
+                            <SidebarSessionItem
+                                key={session.id}
+                                session={session}
+                                selected={selectedSessionId === session.id}
+                                api={api}
+                                onSelect={selectSession}
+                                onDeleted={handleDeletedSidebarSession}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )
+    }, [
+        api,
+        collapsedGroups,
+        createInProject,
+        handleDeletedSidebarSession,
+        openProjectMenu,
+        selectSession,
+        selectedSessionId,
+        t,
+        toggleGroup
+    ])
+
     const renderSidebarContent = (options?: { inDrawer?: boolean; onClose?: () => void }) => {
         const inDrawer = options?.inDrawer === true
         const onClose = options?.onClose
 
         return (
             <>
-                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                    {/* Tab switcher row */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
-                        <div className="flex items-center gap-1">
-                            <button
-                                type="button"
-                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
-                            >
-                                Sessions
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/groups' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Groups
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/review-loops' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Loops
-                            </button>
+                <div className="sidebar-header">
+                    <div className="sidebar-top-row">
+                        <div className="window-controls">
+                            <div className="mac-dot close"></div>
+                            <div className="mac-dot minimize"></div>
+                            <div className="mac-dot maximize"></div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                            {!isSessionsIndex ? (
-                                <button
-                                    type="button"
-                                    onClick={toggleDesktopSidebar}
-                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                    title={desktopSidebarToggleLabel}
-                                    aria-label={desktopSidebarToggleLabel}
-                                >
-                                    <SidebarIcon className="h-4 w-4" />
-                                </button>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={toggleDensity}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={toggleDensityLabel}
-                                aria-label={toggleDensityLabel}
-                            >
-                                <DensityIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/settings' })}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={t('settings.title')}
-                            >
-                                <SettingsIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => openNewSession()}
-                                className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
-                                title={t('sessions.new')}
-                            >
-                                <PlusIcon className="h-5 w-5" />
-                            </button>
+                        <div className="sidebar-top-actions">
                             {inDrawer && onClose ? (
-                                <>
-                                    <span className="mx-0.5 h-5 w-px bg-[var(--app-divider)]" aria-hidden="true" />
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                        title={t('sessions.sidebar.close')}
-                                        aria-label={t('sessions.sidebar.close')}
-                                    >
-                                        <CloseIcon className="h-4 w-4" />
-                                    </button>
-                                </>
-                            ) : null}
+                                <button className="icon-button" onClick={onClose} title={t('sessions.sidebar.close')}>
+                                    <CloseIcon className="h-4 w-4" />
+                                </button>
+                            ) : (
+                                <button className="icon-button" onClick={toggleDesktopSidebar} title={t('sessions.sidebar.hideDesktop')} aria-label="Toggle Sidebar">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                                </button>
+                            )}
+                            <button className="icon-button" title="Search agents (⌘K)" aria-label="Search">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            </button>
                         </div>
                     </div>
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
-                        <div className="text-xs text-[var(--app-hint)]">
-                            {t('sessions.count', { n: visibleSessions.length, m: projectCount })}
+
+                    <div className="sidebar-tabbar">
+                        <div className="tab-items">
+                            <button className="tab-button active">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                                Code
+                            </button>
                         </div>
-                    </div>
-                    <div className="mx-auto w-full max-w-content px-3 pb-2">
-                        <input
-                            value={sessionSearchQuery}
-                            onChange={(e) => setSessionSearchQuery(e.target.value)}
-                            placeholder={t('sessions.search.placeholder')}
-                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
-                        />
                     </div>
                 </div>
 
-                <div className="flex min-h-0 flex-1 flex-col">
+                <div className="sidebar-content app-scrollbar">
+                    <nav className="nav-menu-items">
+                        <button className="nav-item" onClick={() => openNewSession()}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                            <span className="nav-text">New Agent</span>
+                        </button>
+                        <button className="nav-item" onClick={() => navigate({ to: '/settings' })}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <span className="nav-text">Routines</span>
+                        </button>
+                        <button className="nav-item" onClick={() => navigate({ to: '/settings' })}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                            <span className="nav-text">Dashboard</span>
+                        </button>
+                        <button className="nav-item text-item">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
+                            <span className="nav-text">Bugbot</span>
+                        </button>
+                    </nav>
+
                     {error ? (
-                        <div className="mx-auto w-full max-w-content px-3 py-2">
-                            <div className="text-sm text-red-600">{error}</div>
+                        <div className="empty-state" style={{ color: '#EF4444' }}>{error}</div>
+                    ) : null}
+
+                    {activeSidebarGroups.map(renderSidebarGroup)}
+
+                    {offlineSidebarGroups.length > 0 ? (
+                        <div className={`sidebar-section ${isOfflineProjectsCollapsed ? 'collapsed' : ''}`}>
+                            <div
+                                className="sidebar-section-header collapsible-header"
+                                onClick={() => setIsOfflineProjectsCollapsed(prev => !prev)}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault()
+                                        setIsOfflineProjectsCollapsed(prev => !prev)
+                                    }
+                                }}
+                            >
+                                <div className="section-title">
+                                    <span className="section-title-text">{t('sessions.projectOffline.section')}</span>
+                                    <svg className="section-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                                </div>
+                                <button
+                                    className="section-action-btn hover-icon"
+                                    onClick={(event) => {
+                                        event.stopPropagation()
+                                        bringAllProjectsOnline()
+                                    }}
+                                    title={t('sessions.projectOffline.bringAllOnline')}
+                                    aria-label={t('sessions.projectOffline.bringAllOnline')}
+                                >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12c.6.6 1 1.2 1 2h6c0-.8.4-1.4 1-2a7 7 0 0 0-4-12Z"/></svg>
+                                </button>
+                            </div>
+                            <div className="section-content">
+                                <div className="section-content-inner">
+                                    {offlineSidebarGroups.map(renderSidebarGroup)}
+                                </div>
+                            </div>
                         </div>
                     ) : null}
-                    <div className="min-h-0 flex-1">
-                        <SessionList
-                            sessions={visibleSessions}
-                            selectedSessionId={selectedSessionId}
-                            onSelect={selectSession}
-                            onNewSession={openNewSession}
-                            onQuickCreateInProject={quickCreateInProject}
-                            onRefresh={handleRefresh}
-                            isLoading={isLoading}
-                            renderHeader={false}
-                            api={api}
-                            density={density}
-                        />
-                    </div>
+
+                    {visibleSessions.length === 0 && !isLoading ? (
+                        <div className="empty-state">No sessions yet.</div>
+                    ) : null}
+                </div>
+
+                <div className="sidebar-footer">
+                    <button className="profile-btn" onClick={() => navigate({ to: '/settings' })} title="Settings">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        haqi
+                    </button>
+                    <ThemeFooterButton />
                 </div>
             </>
         )
@@ -562,32 +1005,20 @@ function SessionsPage() {
 
     return (
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
-            <div className="flex h-full min-h-0">
+            <div className="app-container cursor-theme">
                 <div
-                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--app-bg)] lg:border-r lg:border-[var(--app-divider)]`}
+                    className={`sidebar flex ${showDesktopSidebar ? '' : 'sidebar-collapsed'}`}
                     style={sidebarStyle}
                 >
+                    <div className={`sidebar-resizer ${isResizing ? 'active' : ''}`} onPointerDown={startSidebarResize} />
                     {renderSidebarContent()}
-                </div>
-
-                <div
-                    className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label={t('sessions.sidebar.resize')}
-                    title={t('sessions.sidebar.resize')}
-                    onPointerDown={startSidebarResize}
-                >
-                    <div
-                        className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
-                    />
                 </div>
 
                 {!isSessionsIndex && !showDesktopSidebar && !isSessionChatRoute ? (
                     <button
                         type="button"
                         onClick={toggleDesktopSidebar}
-                        className="fixed left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 hidden h-10 w-10 items-center justify-center rounded-full border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] shadow-sm transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:flex"
+                        className="fixed left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 hidden h-10 w-10 items-center justify-center rounded-full border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] text-[var(--cursor-text-secondary)] shadow-sm transition-colors hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-secondary)] lg:flex"
                         title={t('sessions.sidebar.showDesktop')}
                         aria-label={t('sessions.sidebar.showDesktop')}
                     >
@@ -599,7 +1030,7 @@ function SessionsPage() {
                     <button
                         type="button"
                         onClick={openSidebarOnMobile}
-                        className="fixed left-3 top-[calc(4rem+env(safe-area-inset-top))] z-30 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] shadow-sm transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:hidden"
+                        className="fixed left-3 top-[calc(4rem+env(safe-area-inset-top))] z-30 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] text-[var(--cursor-text-secondary)] shadow-sm transition-colors hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-secondary)] lg:hidden"
                         title={t('sessions.sidebar.open')}
                         aria-label={t('sessions.sidebar.open')}
                     >
@@ -615,17 +1046,30 @@ function SessionsPage() {
                             className="absolute inset-0 bg-black/35"
                             aria-label={t('sessions.sidebar.close')}
                         />
-                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
+                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cc-bg-sidebar)] shadow-xl">
                             {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
                         </div>
                     </div>
                 ) : null}
 
-                <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
-                    <div className="flex-1 min-h-0">
-                        <Outlet />
-                    </div>
-                </div>
+                <main className="main-content">
+                    <Outlet />
+                </main>
+
+                {projectMenu ? (
+                    <ProjectActionMenu
+                        isOpen={true}
+                        onClose={() => setProjectMenu(null)}
+                        anchorPoint={projectMenu.anchorPoint}
+                        isProjectOffline={isProjectOffline(projectMenu.group)}
+                        canCreateInProject={Boolean(projectMenu.group.directory)}
+                        onToggleProjectOffline={() => toggleProjectOffline(projectMenu.group)}
+                        onCreateInProject={() => createInProject(projectMenu.group)}
+                        onCopyProjectPath={projectMenu.group.directory
+                            ? () => void copyProjectPath(projectMenu.group)
+                            : undefined}
+                    />
+                ) : null}
             </div>
         </SessionsLayoutContext.Provider>
     )
@@ -766,38 +1210,42 @@ function SessionPage() {
     }
 
     return (
-        <SessionChat
-            api={api}
-            session={session}
-            messages={messages}
-            messagesWarning={messagesWarning}
-            hasMoreMessages={messagesHasMore}
-            isLoadingMessages={messagesLoading}
-            isLoadingMoreMessages={messagesLoadingMore}
-            turns={turns}
-            turnsWarning={turnsWarning}
-            hasMoreTurns={turnsHasMore}
-            isLoadingTurns={turnsLoading}
-            isLoadingMoreTurns={turnsLoadingMore}
-            isSending={isSending}
-            pendingCount={pendingCount}
-            newestMessageSeq={newestSeq}
-            messagesVersion={messagesVersion}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            onBack={goBack}
-            onRefresh={refreshSelectedSession}
-            onLoadMore={loadMoreMessages}
-            onLoadMoreTurns={loadMoreTurns}
-            onSend={sendMessage}
-            onFlushPending={flushPending}
-            onAtBottomChange={setAtBottom}
-            onRetryMessage={retryMessage}
-            autocompleteSuggestions={getAutocompleteSuggestions}
-            onToggleSidebar={sessionsLayout?.toggleSidebarFromHeader}
-            sidebarVisible={sessionsLayout?.showDesktopSidebar ?? false}
-            density={density}
-        />
+        <div className="cursor-theme chat-layout flex min-h-0 flex-1 overflow-hidden bg-[var(--bg-editor)]">
+            <div className="chat-main flex min-w-0 min-h-0 flex-1 flex-col w-full">
+                <SessionChat
+                    api={api}
+                    session={session}
+                    messages={messages}
+                    messagesWarning={messagesWarning}
+                    hasMoreMessages={messagesHasMore}
+                    isLoadingMessages={messagesLoading}
+                    isLoadingMoreMessages={messagesLoadingMore}
+                    turns={turns}
+                    turnsWarning={turnsWarning}
+                    hasMoreTurns={turnsHasMore}
+                    isLoadingTurns={turnsLoading}
+                    isLoadingMoreTurns={turnsLoadingMore}
+                    isSending={isSending}
+                    pendingCount={pendingCount}
+                    newestMessageSeq={newestSeq}
+                    messagesVersion={messagesVersion}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                    onBack={goBack}
+                    onRefresh={refreshSelectedSession}
+                    onLoadMore={loadMoreMessages}
+                    onLoadMoreTurns={loadMoreTurns}
+                    onSend={sendMessage}
+                    onFlushPending={flushPending}
+                    onAtBottomChange={setAtBottom}
+                    onRetryMessage={retryMessage}
+                    autocompleteSuggestions={getAutocompleteSuggestions}
+                    onToggleSidebar={sessionsLayout?.toggleSidebarFromHeader}
+                    sidebarVisible={sessionsLayout?.showDesktopSidebar ?? false}
+                    density={density}
+                />
+            </div>
+        </div>
     )
 }
 

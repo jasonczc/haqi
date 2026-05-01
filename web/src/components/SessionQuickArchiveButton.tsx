@@ -94,16 +94,16 @@ export function SessionQuickArchiveButton(props: {
                 }
             }}
             disabled={isPending}
-            className={`absolute z-10 inline-flex items-center justify-center rounded-md border shadow-sm transition-all disabled:cursor-not-allowed ${confirming ? 'border-[var(--app-danger,#ef4444)] bg-[var(--app-danger,#ef4444)] text-white' : 'border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-danger,#ef4444)]'} ${compact ? 'right-2.5 top-1 h-7 w-7' : 'right-3 top-2 h-8 w-8'}`}
+            className={`session-quick-archive-button ${compact ? 'session-quick-archive-button--compact' : ''} ${confirming ? 'is-confirming' : ''}`}
             aria-label={confirming ? t('session.action.confirmArchive') : t('session.action.archive')}
             title={confirming ? t('session.action.confirmArchive') : t('session.action.archive')}
         >
             {isPending ? (
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
+                <span className="session-quick-archive-spinner animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
             ) : confirming ? (
-                <CheckIcon className="h-4 w-4" />
+                <CheckIcon className="session-quick-archive-icon" />
             ) : (
-                <TrashIcon className="h-4 w-4" />
+                <TrashIcon className="session-quick-archive-icon" />
             )}
         </button>
     )

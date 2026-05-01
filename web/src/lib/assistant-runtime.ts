@@ -16,9 +16,63 @@ export type HappyChatMessageMetadata = {
     event?: AgentEvent
     source?: CliOutputBlock['source']
     attachments?: AttachmentMetadata[]
+    turnDurationMs?: number | null
 }
 
-function toThreadMessageLike(block: ChatBlock): ThreadMessageLike {
+function closeInferredTurn(
+    durations: Map<string, number | null>,
+    userId: string | null,
+    userCreatedAt: number | null,
+    latestActivityAt: number | null,
+    stillRunning: boolean
+): void {
+    if (userId === null || durations.has(userId)) return
+    if (stillRunning) {
+        durations.set(userId, null)
+        return
+    }
+    const durationMs = userCreatedAt !== null && latestActivityAt !== null
+        ? Math.max(0, latestActivityAt - userCreatedAt)
+        : 0
+    durations.set(userId, durationMs)
+}
+
+function indexTurnDurations(blocks: ChatBlock[], sessionThinking: boolean): Map<string, number | null> {
+    const durations = new Map<string, number | null>()
+    let lastUserId: string | null = null
+    let lastUserCreatedAt: number | null = null
+    let latestActivityAt: number | null = null
+    let lastUserClosed = false
+
+    for (const block of blocks) {
+        if (block.kind === 'user-text') {
+            closeInferredTurn(durations, lastUserId, lastUserCreatedAt, latestActivityAt, false)
+            lastUserId = block.id
+            lastUserCreatedAt = block.createdAt
+            latestActivityAt = null
+            lastUserClosed = false
+            continue
+        }
+
+        if (block.kind === 'agent-event' && block.event.type === 'turn-duration' && lastUserId) {
+            const durationMs = typeof block.event.durationMs === 'number' ? block.event.durationMs : null
+            durations.set(lastUserId, durationMs)
+            lastUserClosed = true
+            latestActivityAt = block.createdAt
+            continue
+        }
+
+        if (lastUserId !== null && !lastUserClosed) {
+            latestActivityAt = Math.max(latestActivityAt ?? block.createdAt, block.createdAt)
+        }
+    }
+
+    closeInferredTurn(durations, lastUserId, lastUserCreatedAt, latestActivityAt, sessionThinking)
+
+    return durations
+}
+
+function toThreadMessageLike(block: ChatBlock, turnDurations: Map<string, number | null>): ThreadMessageLike {
     if (block.kind === 'user-text') {
         const messageId = `user:${block.id}`
         return {
@@ -32,7 +86,8 @@ function toThreadMessageLike(block: ChatBlock): ThreadMessageLike {
                     status: block.status,
                     localId: block.localId,
                     originalText: block.originalText,
-                    attachments: block.attachments
+                    attachments: block.attachments,
+                    turnDurationMs: turnDurations.get(block.id) ?? null
                 } satisfies HappyChatMessageMetadata
             }
         }
@@ -177,10 +232,19 @@ export function useHappyRuntime(props: {
     attachmentAdapter?: AttachmentAdapter
     allowSendWhenInactive?: boolean
 }) {
+    const turnDurations = useMemo(
+        () => indexTurnDurations(props.blocks as ChatBlock[], props.session.thinking),
+        [props.blocks, props.session.thinking]
+    )
+    const convertCallback = useCallback(
+        (block: ChatBlock) => toThreadMessageLike(block, turnDurations),
+        [turnDurations]
+    )
+
     // Use cached message converter for performance optimization
     // This prevents re-converting all messages on every render
     const convertedMessages = useExternalMessageConverter<ChatBlock>({
-        callback: toThreadMessageLike,
+        callback: convertCallback,
         messages: props.blocks as ChatBlock[],
         isRunning: props.session.thinking,
     })

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessagePrimitive, useAssistantState } from '@assistant-ui/react'
 import { LazyRainbowText } from '@/components/LazyRainbowText'
 import { useHappyChatContext } from '@/components/AssistantChat/context'
@@ -5,6 +6,64 @@ import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
 import { MessageStatusIndicator } from '@/components/AssistantChat/messages/MessageStatusIndicator'
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
 import { CliOutputBlock } from '@/components/CliOutputBlock'
+import type { MessageStatus as HappyMessageStatus } from '@/types/api'
+
+function formatDuration(ms: number): string {
+    const totalSec = Math.floor(ms / 1000)
+    if (totalSec < 60) return `${totalSec}s`
+    const minutes = Math.floor(totalSec / 60)
+    const seconds = totalSec % 60
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`
+}
+
+function UserPromptStatusLine(props: {
+    status: HappyMessageStatus | undefined
+    turnDurationMs: number | null
+    createdAt: number | null
+}) {
+    const { status, turnDurationMs, createdAt } = props
+    const [now, setNow] = useState<number>(() => Date.now())
+    const isOpen = turnDurationMs === null && (status === 'sent' || status === undefined)
+    const openedAtRef = useRef<number | null>(null)
+
+    const effectiveCreatedAt = useMemo(() => {
+        if (createdAt === null) {
+            return null
+        }
+        const currentNow = Date.now()
+        return createdAt > currentNow ? currentNow : createdAt
+    }, [createdAt])
+
+    useEffect(() => {
+        if (!isOpen) {
+            openedAtRef.current = null
+            return
+        }
+        openedAtRef.current = effectiveCreatedAt ?? Date.now()
+        const tick = () => setNow(Date.now())
+        tick()
+        const intervalId = window.setInterval(tick, 500)
+        return () => window.clearInterval(intervalId)
+    }, [effectiveCreatedAt, isOpen])
+
+    let text = ''
+    if (status === 'sending') text = 'Sending...'
+    else if (status === 'failed') text = 'Failed'
+    else if (turnDurationMs !== null) text = `Worked for ${formatDuration(turnDurationMs)}`
+    else if (isOpen) {
+        const openedAt = openedAtRef.current ?? effectiveCreatedAt
+        if (openedAt !== null) {
+            text = `Working for ${formatDuration(Math.max(0, now - openedAt))}`
+        }
+    }
+
+    if (!text) return null
+    return (
+        <div className="agent-status text-[length:var(--font-size-sm)] text-[var(--text-secondary)]" style={{ paddingLeft: '4px' }}>
+            {text}
+        </div>
+    )
+}
 
 export function HappyUserMessage() {
     const ctx = useHappyChatContext()
@@ -29,6 +88,18 @@ export function HappyUserMessage() {
         const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
         return custom?.attachments
     })
+    const turnDurationMs = useAssistantState(({ message }) => {
+        if (message.role !== 'user') return null
+        const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
+        return custom?.turnDurationMs ?? null
+    })
+    const createdAt = useAssistantState(({ message }) => {
+        if (message.role !== 'user') return null
+        const raw = message.createdAt as unknown as Date | number | undefined
+        if (raw instanceof Date) return raw.getTime()
+        if (typeof raw === 'number') return raw
+        return null
+    })
     const isCliOutput = useAssistantState(({ message }) => {
         const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
         return custom?.kind === 'cli-output'
@@ -43,14 +114,10 @@ export function HappyUserMessage() {
     const canRetry = status === 'failed' && typeof localId === 'string' && Boolean(ctx.onRetryMessage)
     const onRetry = canRetry ? () => ctx.onRetryMessage!(localId) : undefined
 
-    const userBubbleClass = 'ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
-
     if (isCliOutput) {
         return (
-            <MessagePrimitive.Root className="px-1 min-w-0 max-w-full overflow-x-hidden" data-happy-message-id={messageId}>
-                <div className="ml-auto w-full max-w-[88%] sm:max-w-[84%] lg:max-w-[76%]">
-                    <CliOutputBlock text={cliText} />
-                </div>
+            <MessagePrimitive.Root className="chat-message-user px-1 min-w-0 max-w-full overflow-x-hidden" data-happy-message-id={messageId}>
+                <CliOutputBlock text={cliText} />
             </MessagePrimitive.Root>
         )
     }
@@ -59,18 +126,31 @@ export function HappyUserMessage() {
     const hasAttachments = attachments && attachments.length > 0
 
     return (
-        <MessagePrimitive.Root className={userBubbleClass} data-happy-message-id={messageId}>
-            <div className="flex items-end gap-2">
-                <div className="flex-1 min-w-0">
+        <MessagePrimitive.Root
+            className="chat-message-user flex flex-col"
+            style={{ gap: 'var(--chat-message-gap)' }}
+            data-happy-message-id={messageId}
+        >
+            <div
+                className="user-prompt relative w-fit max-w-[85%] self-end text-[13.5px] leading-[1.55] text-[var(--cursor-text-primary)]"
+                style={{
+                    background: 'var(--user-card-bg)',
+                    border: 'none',
+                    borderRadius: 'var(--user-card-radius)',
+                    padding: 'var(--user-card-padding-y) var(--user-card-padding-x)',
+                }}
+            >
+                <div className={`user-prompt-body min-w-0 ${onRetry ? 'pr-8' : ''}`}>
                     {hasText && <LazyRainbowText text={text} />}
                     {hasAttachments && <MessageAttachments attachments={attachments} />}
                 </div>
-                {status ? (
-                    <div className="shrink-0 self-end pb-0.5">
-                        <MessageStatusIndicator status={status} onRetry={onRetry} />
+                {onRetry ? (
+                    <div className="user-prompt-retry absolute right-2 top-2">
+                        <MessageStatusIndicator status={status!} onRetry={onRetry} />
                     </div>
                 ) : null}
             </div>
+            <UserPromptStatusLine status={status} turnDurationMs={turnDurationMs} createdAt={createdAt} />
         </MessagePrimitive.Root>
     )
 }

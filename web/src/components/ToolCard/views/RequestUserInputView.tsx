@@ -43,32 +43,32 @@ export function RequestUserInputView(props: ToolViewProps) {
                 const isPureTextQuestion = q.options.length === 0
 
                 return (
-                    <div key={q.id} className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+                    <div key={q.id} className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] p-3">
                         {q.header ? (
-                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
                                 {q.header}
                             </div>
                         ) : null}
 
                         {q.question ? (
-                            <div className="text-sm text-[var(--app-fg)] break-words">
+                            <div className="text-sm text-[var(--cursor-text-primary)] break-words">
                                 {q.question}
                             </div>
                         ) : null}
 
                         {answer?.isSkipped ? (
-                            <div className="mt-3 rounded-md border border-[var(--app-border)] px-2 py-2 text-sm text-[var(--app-hint)]">
+                            <div className="mt-3 rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-2 text-sm text-[var(--cursor-text-tertiary)]">
                                 {t('tool.questionOverlay.skippedValue')}
                             </div>
                         ) : isPureTextQuestion ? (
                             // Pure text question - show the answer directly
                             hasAnswers && (answer?.otherAnswer || answer?.userNote) ? (
                                 <div className="mt-3">
-                                    <div className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2">
+                                    <div className="rounded-md border border-[var(--success)] bg-[var(--success)]/10 px-2 py-2">
                                         <div className="flex items-start gap-2">
-                                            <span className="shrink-0 text-sm text-emerald-600">●</span>
+                                            <span className="shrink-0 text-sm text-[var(--success)]">●</span>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-sm text-emerald-700 dark:text-emerald-300 font-medium break-words">
+                                                <div className="text-sm text-[var(--success)] font-medium break-words">
                                                     {q.isSecret
                                                         ? maskSecretValue(answer.otherAnswer ?? answer.userNote ?? '')
                                                         : (answer.otherAnswer ?? answer.userNote)}
@@ -90,8 +90,8 @@ export function RequestUserInputView(props: ToolViewProps) {
                                             className={cn(
                                                 "rounded-md border px-2 py-2",
                                                 isSelected
-                                                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
-                                                    : "border-[var(--app-border)]"
+                                                    ? "border-[var(--success)] bg-[var(--success)]/10"
+                                                    : "border-[var(--cursor-stroke-primary)]"
                                             )}
                                         >
                                             <div className="flex items-start gap-2">
@@ -99,8 +99,8 @@ export function RequestUserInputView(props: ToolViewProps) {
                                                     <span className={cn(
                                                         "shrink-0 text-sm",
                                                         isSelected
-                                                            ? "text-emerald-600"
-                                                            : "text-[var(--app-hint)]"
+                                                            ? "text-[var(--success)]"
+                                                            : "text-[var(--cursor-text-tertiary)]"
                                                     )}>
                                                         {getSelectionMark(isSelected)}
                                                     </span>
@@ -109,13 +109,13 @@ export function RequestUserInputView(props: ToolViewProps) {
                                                     <div className={cn(
                                                         "text-sm break-words",
                                                         isSelected
-                                                            ? "text-emerald-700 dark:text-emerald-300 font-medium"
-                                                            : "text-[var(--app-fg)]"
+                                                            ? "text-[var(--success)] font-medium"
+                                                            : "text-[var(--cursor-text-primary)]"
                                                     )}>
                                                         {opt.label}
                                                     </div>
                                                     {opt.description ? (
-                                                        <div className="mt-0.5 text-xs text-[var(--app-hint)] break-words">
+                                                        <div className="mt-0.5 text-xs text-[var(--cursor-text-tertiary)] break-words">
                                                             {opt.description}
                                                         </div>
                                                     ) : null}
@@ -127,12 +127,12 @@ export function RequestUserInputView(props: ToolViewProps) {
 
                                 {/* Show user note if present */}
                                 {hasAnswers && answer?.userNote ? (
-                                    <div className="mt-2 rounded-md border border-blue-300 bg-blue-50 dark:bg-blue-950/30 px-2 py-2">
+                                    <div className="mt-2 rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/10 px-2 py-2">
                                         <div className="flex items-start gap-2">
-                                            <span className="shrink-0 text-xs text-blue-500">📝</span>
+                                            <span className="shrink-0 text-xs text-[var(--accent)]">📝</span>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-xs text-[var(--app-hint)]">{t('tool.questionOverlay.noteValueLabel')}</div>
-                                                <div className="text-sm text-blue-700 dark:text-blue-300 break-words">
+                                                <div className="text-xs text-[var(--cursor-text-tertiary)]">{t('tool.questionOverlay.noteValueLabel')}</div>
+                                                <div className="text-sm text-[var(--accent)] break-words">
                                                     {answer.userNote}
                                                 </div>
                                             </div>
@@ -141,12 +141,12 @@ export function RequestUserInputView(props: ToolViewProps) {
                                 ) : null}
 
                                 {hasAnswers && answer?.otherAnswer ? (
-                                    <div className="mt-2 rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2">
+                                    <div className="mt-2 rounded-md border border-[var(--success)] bg-[var(--success)]/10 px-2 py-2">
                                         <div className="flex items-start gap-2">
-                                            <span className="shrink-0 text-sm text-emerald-600">●</span>
+                                            <span className="shrink-0 text-sm text-[var(--success)]">●</span>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-xs text-[var(--app-hint)]">{t('tool.questionOverlay.otherValueLabel')}</div>
-                                                <div className="text-sm text-emerald-700 dark:text-emerald-300 font-medium break-words">
+                                                <div className="text-xs text-[var(--cursor-text-tertiary)]">{t('tool.questionOverlay.otherValueLabel')}</div>
+                                                <div className="text-sm text-[var(--success)] font-medium break-words">
                                                     {q.isSecret ? maskSecretValue(answer.otherAnswer) : answer.otherAnswer}
                                                 </div>
                                             </div>

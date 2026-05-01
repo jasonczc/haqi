@@ -465,12 +465,12 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [clampListWidth])
 
     const renderFileList = () => (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)]">
-            <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs font-medium text-[var(--app-hint)]">
+        <div className="overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)]">
+            <div className="border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)] px-2 py-1.5 text-xs font-medium text-[var(--cursor-text-tertiary)]">
                 Files ({files.length})
             </div>
             {files.length === 0 ? (
-                <div className="px-2 py-3 text-xs text-[var(--app-hint)]">
+                <div className="px-2 py-3 text-xs text-[var(--cursor-text-tertiary)]">
                     No code change in this turn.
                 </div>
             ) : (
@@ -489,12 +489,12 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                                     }
                                 }}
                                 onClick={() => openFileDetails(file.path)}
-                                className={`w-full border-b border-[var(--app-divider)] px-2 py-2 text-left transition-colors last:border-b-0 ${selected ? 'bg-[var(--app-subtle-bg)]' : 'hover:bg-[var(--app-subtle-bg)]'}`}
+                                className={`w-full border-b border-[var(--cursor-stroke-primary)] px-2 py-2 text-left transition-colors last:border-b-0 ${selected ? 'bg-[var(--cursor-bg-hover)]' : 'hover:bg-[var(--cursor-bg-hover)]'}`}
                             >
-                                <div className="font-mono text-xs text-[var(--app-fg)] break-all">
+                                <div className="font-mono text-xs text-[var(--cursor-text-primary)] break-all">
                                     {file.displayPath}
                                 </div>
-                                <div className="mt-0.5 text-[11px] text-[var(--app-hint)]">
+                                <div className="mt-0.5 text-[11px] text-[var(--cursor-text-tertiary)]">
                                     +{file.additions} / -{file.deletions}
                                 </div>
                             </button>
@@ -506,15 +506,15 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     )
 
     const renderDiffPanel = (mobile: boolean) => (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)]">
+        <div className="overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)]">
             {selectedFile ? (
                 <>
-                    <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5">
+                    <div className="border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)] px-2 py-1.5">
                         <div className="flex items-center justify-between gap-2">
-                            <div className="min-w-0 font-mono text-xs text-[var(--app-fg)] break-all">
+                            <div className="min-w-0 font-mono text-xs text-[var(--cursor-text-primary)] break-all">
                                 {selectedFile.displayPath}
                             </div>
-                            <div className="shrink-0 text-[11px] text-[var(--app-hint)]">
+                            <div className="shrink-0 text-[11px] text-[var(--cursor-text-tertiary)]">
                                 +{selectedFile.additions} / -{selectedFile.deletions}
                             </div>
                         </div>
@@ -528,24 +528,24 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                                 variant="inline"
                             />
                         ) : (
-                            <div className="text-xs text-[var(--app-hint)]">
+                            <div className="text-xs text-[var(--cursor-text-tertiary)]">
                                 No diff snapshot for this file (patch event only).
                             </div>
                         )}
                     </div>
                 </>
             ) : (
-                <div className="px-2 py-3 text-xs text-[var(--app-hint)]">
+                <div className="px-2 py-3 text-xs text-[var(--cursor-text-tertiary)]">
                     No file selected.
                 </div>
             )}
 
             {mobile ? (
-                <div className="border-t border-[var(--app-border)] px-2 py-2 md:hidden">
+                <div className="border-t border-[var(--cursor-stroke-primary)] px-2 py-2 md:hidden">
                     <button
                         type="button"
                         onClick={handleBackToFileList}
-                        className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
+                        className="rounded border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-tertiary)] hover:bg-[var(--cursor-bg-hover)]"
                     >
                         Back to files
                     </button>
@@ -559,7 +559,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     return (
         <div className="flex flex-col gap-2" onKeyDown={handleNavigationKeyDown}>
             {showTopSummary ? (
-                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs text-[var(--app-hint)]">
+                <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)] px-2 py-1.5 text-xs text-[var(--cursor-text-tertiary)]">
                     <div>{statusLabel(summary.status)}</div>
                     <div>Files: {summary.files.length}</div>
                     <div>Patch apply: {summary.patchTotal} ({summary.patchSuccess} success, {summary.patchFailed} failed)</div>
@@ -594,7 +594,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     onPointerDown={handleResizeStart}
                     className="flex w-3 shrink-0 cursor-col-resize touch-none select-none items-stretch justify-center"
                 >
-                    <div className={`w-px transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-[var(--app-border)] hover:bg-[var(--app-link)]'}`} />
+                    <div className={`w-px transition-colors ${isResizing ? 'bg-[var(--cursor-link)]' : 'bg-[var(--cursor-stroke-primary)] hover:bg-[var(--cursor-link)]'}`} />
                 </div>
 
                 <div className="min-w-0 flex-1 pl-2">

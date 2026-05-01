@@ -75,7 +75,7 @@ function ResultPanel(props: {
     const displayText = expanded ? resultText : truncatedText
 
     return (
-        <div className="ml-5 mt-0.5 border-l border-[var(--app-divider)] pl-3 text-xs text-[var(--app-hint)]">
+        <div className="ml-5 mt-0.5 border-l border-[var(--cursor-stroke-primary)] pl-3 text-xs text-[var(--cursor-text-tertiary)]">
             <pre className="whitespace-pre-wrap break-words leading-relaxed">
                 {displayText}
             </pre>
@@ -83,13 +83,13 @@ function ResultPanel(props: {
                 <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onExpand() }}
-                    className="text-[var(--app-link)] hover:underline mt-0.5"
+                    className="text-[var(--cursor-link)] hover:underline mt-0.5"
                 >
                     show more…
                 </button>
             )}
             {isError && (
-                <div className="text-[var(--app-badge-error-text)] mt-0.5">
+                <div className="text-[var(--danger)] mt-0.5">
                     error
                 </div>
             )}
@@ -120,12 +120,12 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
     const showResult = expanded || isRunning || isError
 
     const stateColor = isError
-        ? 'text-[var(--app-badge-error-text)]'
+        ? 'text-[var(--danger)]'
         : isPending
-            ? 'text-[var(--app-badge-warning-text)]'
+            ? 'text-[var(--warn)]'
             : isRunning
-                ? 'text-[var(--app-hint)]'
-                : 'text-[var(--app-hint)] opacity-60'
+                ? 'text-[var(--cursor-text-tertiary)]'
+                : 'text-[var(--cursor-text-tertiary)] opacity-60'
 
     return (
         <div className="py-0.5">
@@ -133,7 +133,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
             <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className={`flex items-center gap-1.5 text-xs rounded px-1 -mx-1 w-full text-left transition-colors ${hasResult ? 'hover:bg-[var(--app-subtle-bg)] cursor-pointer' : 'cursor-default'}`}
+                className={`flex items-center gap-1.5 text-xs rounded px-1 -mx-1 w-full text-left transition-colors ${hasResult ? 'hover:bg-[var(--cursor-bg-hover)] cursor-pointer' : 'cursor-default'}`}
             >
                 {/* Status indicator */}
                 <span className={`shrink-0 w-3.5 text-center ${stateColor}`}>
@@ -152,20 +152,20 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
                 <span className="shrink-0 text-[var(--cli-tool-icon-color)]">{prefix}</span>
 
                 {/* Title */}
-                <span className={`shrink-0 ${isRunning ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}>
+                <span className={`shrink-0 ${isRunning ? 'text-[var(--cursor-text-primary)]' : 'text-[var(--cursor-text-tertiary)]'}`}>
                     {pres.title}
                 </span>
 
                 {/* Subtitle / key param */}
                 {pres.subtitle && (
-                    <span className="text-[var(--app-hint)] truncate opacity-70">
+                    <span className="text-[var(--cursor-text-tertiary)] truncate opacity-70">
                         {pres.subtitle}
                     </span>
                 )}
 
                 {/* Duration */}
                 {block.tool.completedAt && block.tool.startedAt && (
-                    <span className="ml-auto shrink-0 text-[var(--app-hint)] opacity-50">
+                    <span className="ml-auto shrink-0 text-[var(--cursor-text-tertiary)] opacity-50">
                         {((block.tool.completedAt - block.tool.startedAt) / 1000).toFixed(1)}s
                     </span>
                 )}
@@ -183,7 +183,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
 
             {/* Nested children (sub-tasks, sub-tools) */}
             {block.children.length > 0 && (
-                <div className="ml-5 border-l border-[var(--app-divider)] pl-2">
+                <div className="ml-5 border-l border-[var(--cursor-stroke-primary)] pl-2">
                     {block.children.map(child => (
                         <CliBlockRenderer key={child.id} block={child} />
                     ))}

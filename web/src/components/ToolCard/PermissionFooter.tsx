@@ -4,6 +4,8 @@ import type { SessionMetadataSummary } from '@/types/api'
 import type { ChatToolCall, ToolPermission } from '@/chat/types'
 import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
+import { Button, type ButtonVariant } from '@/components/ui/button'
+import { StatusDot } from '@/components/ui/StatusDot'
 import { isCodexFamilyFlavor } from '@/lib/agentFlavorUtils'
 import { isExitPlanToolName } from '@/components/ToolCard/exitPlanMode'
 import { getInputStringAny } from '@/lib/toolInputUtils'
@@ -71,6 +73,12 @@ function formatPermissionSummary(permission: ToolPermission, toolName: string, t
     return t('tool.allow')
 }
 
+const PERMISSION_TONE_TO_VARIANT = {
+    allow: 'success',
+    deny: 'danger',
+    neutral: 'secondary',
+} as const satisfies Record<'allow' | 'deny' | 'neutral', ButtonVariant>
+
 function PermissionRowButton(props: {
     label: string
     tone: 'allow' | 'deny' | 'neutral'
@@ -78,28 +86,18 @@ function PermissionRowButton(props: {
     disabled: boolean
     onClick: () => void
 }) {
-    const base = 'flex w-full items-center justify-between rounded-md px-2 py-2 text-sm text-left transition-colors disabled:pointer-events-none disabled:opacity-50 hover:bg-[var(--app-subtle-bg)]'
-    const tone = props.tone === 'allow'
-        ? 'text-emerald-600'
-        : props.tone === 'deny'
-            ? 'text-red-600'
-            : 'text-[var(--app-link)]'
-
     return (
-        <button
-            type="button"
-            className={`${base} ${tone}`}
+        <Button
+            variant={PERMISSION_TONE_TO_VARIANT[props.tone]}
+            size="md"
+            className="permission-btn-row justify-between text-left"
             disabled={props.disabled}
             aria-busy={props.loading === true}
             onClick={props.onClick}
+            trailingIcon={props.loading ? <Spinner size="sm" label={null} className="text-current" /> : undefined}
         >
             <span className="flex-1">{props.label}</span>
-            {props.loading ? (
-                <span className="ml-2 shrink-0">
-                    <Spinner size="sm" label={null} className="text-current" />
-                </span>
-            ) : null}
-        </button>
+        </Button>
     )
 }
 
@@ -225,25 +223,33 @@ export function PermissionFooter(props: {
         if (!permission.reason) return null
 
         return (
-            <div className="mt-2 text-xs text-red-600">
+            <div className="mt-2 text-xs text-[var(--danger)]">
                 {permission.reason}
             </div>
         )
     }
 
     return (
-        <div className="mt-2">
-            <div className="text-xs text-[var(--app-hint)]">{summary}</div>
+        <div className="permission-footer mt-2">
+            <div className="permission-header">
+                <StatusDot tone="warning" size={8} pulse className="permission-header-dot" />
+                <span className="permission-header-label">{summary}</span>
+            </div>
 
             {error ? (
-                <div className="mt-2 text-xs text-red-600">
-                    {error}
+                <div className="permission-error mt-2" role="alert">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>{error}</span>
                 </div>
             ) : null}
 
             {isPlanTool ? (
                 <div className="mt-2">
-                    <div className="mb-1 text-xs text-[var(--app-hint)]">
+                    <div className="mb-1 text-xs text-[var(--cursor-text-secondary)]">
                         {t('tool.planNoteLabel')}
                     </div>
                     <textarea
@@ -252,7 +258,7 @@ export function PermissionFooter(props: {
                         disabled={props.disabled || loading !== null || loadingForSession}
                         placeholder={t('tool.planNotePlaceholder')}
                         aria-label={t('tool.planNoteLabel')}
-                        className="w-full min-h-[72px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] disabled:opacity-50"
+                        className="w-full min-h-[72px] resize-y rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-sm text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-secondary)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--cursor-button)] disabled:opacity-50"
                     />
                 </div>
             ) : null}

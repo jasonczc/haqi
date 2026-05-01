@@ -5,14 +5,14 @@ export type SessionListDensity = 'comfortable' | 'compact'
 const STORAGE_KEY = 'hapi:sessionListDensity'
 
 function normalizeDensity(value: string | null): SessionListDensity {
-    return value === 'compact' ? 'compact' : 'comfortable'
+    return value === 'comfortable' ? 'comfortable' : 'compact'
 }
 
 function loadDensity(): SessionListDensity {
     try {
         return normalizeDensity(localStorage.getItem(STORAGE_KEY))
     } catch {
-        return 'comfortable'
+        return 'compact'
     }
 }
 

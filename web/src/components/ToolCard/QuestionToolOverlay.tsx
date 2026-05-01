@@ -70,7 +70,7 @@ function SelectionMark(props: { checked: boolean; mode: 'single' | 'multi' }) {
         ? (props.checked ? '☑' : '☐')
         : (props.checked ? '●' : '○')
     return (
-        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--app-hint)]">
+        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--cursor-text-tertiary)]">
             {mark}
         </span>
     )
@@ -88,17 +88,17 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
-                props.checked ? 'bg-[var(--app-subtle-bg)]' : null
+                'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:pointer-events-none disabled:opacity-50',
+                props.checked ? 'bg-[var(--cursor-bg-hover)]' : null
             )}
             disabled={props.disabled}
             onClick={props.onClick}
         >
             <SelectionMark checked={props.checked} mode={props.mode} />
             <span className="min-w-0 flex-1">
-                <div className="font-medium text-[var(--app-fg)] break-words">{props.title}</div>
+                <div className="font-medium text-[var(--cursor-text-primary)] break-words">{props.title}</div>
                 {props.description ? (
-                    <div className="mt-0.5 text-xs text-[var(--app-hint)] break-words">
+                    <div className="mt-0.5 text-xs text-[var(--cursor-text-tertiary)] break-words">
                         {props.description}
                     </div>
                 ) : null}
@@ -342,25 +342,25 @@ export function QuestionToolOverlay(props: {
 
     if (isMinimized) {
         return (
-            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-end p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4">
-                <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[70] flex justify-end p-3 sm:p-4">
+                <div className="pointer-events-auto w-full max-w-sm rounded-[10px] border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]">
                     <div className="px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                     <Badge variant="default">{t('tool.questionOverlay.title')}</Badge>
-                                    <span className="font-mono text-xs text-[var(--app-hint)]">
+                                    <span className="font-mono text-xs text-[var(--cursor-text-secondary)]">
                                         [{clampedStep + 1}/{total}]
                                     </span>
                                 </div>
-                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                <div className="mt-1 text-xs text-[var(--cursor-text-secondary)]">
                                     {t('tool.questionOverlay.minimizedDescription', {
                                         answeredCount,
                                         total
                                     })}
                                 </div>
                                 {currentQuestion.header ? (
-                                    <div className="mt-2 text-sm font-medium text-[var(--app-fg)] break-words">
+                                    <div className="mt-2 text-sm font-medium text-[var(--cursor-text-primary)] break-words">
                                         {currentQuestion.header}
                                     </div>
                                 ) : null}
@@ -379,14 +379,14 @@ export function QuestionToolOverlay(props: {
                     </div>
 
                     {error ? (
-                        <div className="border-t border-[var(--app-border)] px-4 py-3">
-                            <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        <div className="border-t border-[var(--cursor-stroke-primary)] px-4 py-3">
+                            <div className="rounded-md border border-[var(--danger)]/20 bg-[var(--danger)]/10 px-3 py-2 text-xs text-[var(--danger)]">
                                 {error}
                             </div>
                         </div>
                     ) : null}
 
-                    <div className="flex items-center justify-end gap-2 border-t border-[var(--app-border)] px-4 py-3">
+                    <div className="flex items-center justify-end gap-2 border-t border-[var(--cursor-stroke-primary)] px-4 py-3">
                         <Button
                             type="button"
                             variant="outline"
@@ -403,20 +403,20 @@ export function QuestionToolOverlay(props: {
     }
 
     return (
-        <div className="fixed inset-0 z-[70]">
+        <div className="absolute inset-0 z-[70]">
             <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
-            <div className="absolute inset-0 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:flex sm:items-center sm:justify-center sm:p-6">
-                <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl sm:max-h-[min(88vh,860px)]">
-                    <div className="shrink-0 border-b border-[var(--app-border)] px-4 py-3">
+            <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6">
+                <div className="w-full max-w-2xl rounded-[10px] border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] shadow-[0_4px_20px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.04)]">
+                    <div className="border-b border-[var(--cursor-stroke-primary)] px-4 py-3">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                     <Badge variant="default">{t('tool.questionOverlay.title')}</Badge>
-                                    <span className="font-mono text-xs text-[var(--app-hint)]">
+                                    <span className="font-mono text-xs text-[var(--cursor-text-secondary)]">
                                         [{clampedStep + 1}/{total}]
                                     </span>
                                 </div>
-                                <div className="mt-1 text-sm text-[var(--app-hint)]">
+                                <div className="mt-1 text-sm text-[var(--cursor-text-secondary)]">
                                     {t('tool.questionOverlay.description')}
                                 </div>
                             </div>
@@ -443,9 +443,9 @@ export function QuestionToolOverlay(props: {
                         </div>
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                    <div className="max-h-[min(78vh,720px)] overflow-y-auto px-4 py-4">
                         {error ? (
-                            <div className="mb-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
+                            <div className="mb-3 rounded-md border border-[var(--danger)]/20 bg-[var(--danger)]/10 px-3 py-2 text-xs text-[var(--danger)]">
                                 {error}
                             </div>
                         ) : null}
@@ -457,7 +457,7 @@ export function QuestionToolOverlay(props: {
                         ) : null}
 
                         {currentQuestion.question ? (
-                            <div className="text-sm text-[var(--app-fg)] break-words">
+                            <div className="text-sm text-[var(--cursor-text-primary)] break-words">
                                 {currentQuestion.question}
                             </div>
                         ) : null}
@@ -483,7 +483,7 @@ export function QuestionToolOverlay(props: {
 
                         {noteVisible ? (
                             <div className="mt-4">
-                                <div className="mb-1 text-xs text-[var(--app-hint)]">
+                                <div className="mb-1 text-xs text-[var(--cursor-text-secondary)]">
                                     {currentQuestion.supportsNotes
                                         ? t('tool.questionOverlay.noteLabel')
                                         : t('tool.questionOverlay.answerLabel')}
@@ -496,7 +496,7 @@ export function QuestionToolOverlay(props: {
                                         placeholder={currentQuestion.supportsNotes
                                             ? t('tool.questionOverlay.notePlaceholder')
                                             : t('tool.questionOverlay.answerPlaceholder')}
-                                        className="w-full min-h-[88px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] disabled:opacity-50"
+                                        className="w-full min-h-[88px] resize-y rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-sm text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-secondary)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--cursor-button)] disabled:opacity-50"
                                     />
                                 ) : (
                                     <input
@@ -505,20 +505,20 @@ export function QuestionToolOverlay(props: {
                                         onChange={(event) => updateNote(currentQuestion.id, event.target.value)}
                                         disabled={props.disabled || loading}
                                         placeholder={t('tool.questionOverlay.secretPlaceholder')}
-                                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] disabled:opacity-50"
+                                        className="w-full rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-card)] px-3 py-2 text-sm text-[var(--cursor-text-primary)] placeholder:text-[var(--cursor-text-secondary)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--cursor-button)] disabled:opacity-50"
                                     />
                                 )}
                             </div>
                         ) : null}
 
-                        <div className="mt-3 text-xs text-[var(--app-hint)]">
+                        <div className="mt-3 text-xs text-[var(--cursor-text-secondary)]">
                             {questionAnswered
                                 ? t('tool.questionOverlay.readyHint')
                                 : t('tool.questionOverlay.skippedHint')}
                         </div>
                     </div>
 
-                    <div className="shrink-0 border-t border-[var(--app-border)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-3">
+                    <div className="flex items-center justify-between gap-2 border-t border-[var(--cursor-stroke-primary)] px-4 py-3">
                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                 {total > 1 ? (
@@ -557,7 +557,7 @@ export function QuestionToolOverlay(props: {
                                     >
                                         {loading ? (
                                             <>
-                                                <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
+                                                <Spinner size="sm" label={null} className="text-[var(--cursor-button-text)]" />
                                                 {t('tool.submitting')}
                                             </>
                                         ) : (

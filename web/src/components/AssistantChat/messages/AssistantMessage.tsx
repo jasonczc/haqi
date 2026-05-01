@@ -33,19 +33,19 @@ export function HappyAssistantMessage() {
         return parts.length > 0 && parts.every((part) => part.type === 'tool-call')
     })
     const rootClass = toolOnly
-        ? 'py-1 min-w-0 max-w-full overflow-x-hidden'
-        : 'px-1 min-w-0 max-w-full overflow-x-hidden'
+        ? 'chat-message-agent-tools min-w-0 max-w-full overflow-x-hidden'
+        : 'chat-message-agent-body min-w-0 max-w-full overflow-x-hidden'
 
     if (isCliOutput) {
         return (
-            <MessagePrimitive.Root className="px-1 min-w-0 max-w-full overflow-x-hidden" data-happy-message-id={messageId}>
+            <MessagePrimitive.Root className="chat-message-agent px-1 min-w-0 max-w-full overflow-x-hidden" data-happy-message-id={messageId}>
                 <CliOutputBlock text={cliText} />
             </MessagePrimitive.Root>
         )
     }
 
     return (
-        <MessagePrimitive.Root className={rootClass} data-happy-message-id={messageId}>
+        <MessagePrimitive.Root className={`chat-message-agent ${rootClass}`} data-happy-message-id={messageId}>
             <MessagePrimitive.Content components={MESSAGE_PART_COMPONENTS} />
         </MessagePrimitive.Root>
     )

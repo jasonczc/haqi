@@ -88,6 +88,7 @@ ${chalk.bold('hapi')} - Claude Code On the Go
 ${chalk.bold('Usage:')}
   hapi [options]         Start Claude with Telegram control (direct-connect)
   hapi auth              Manage authentication
+  hapi app [path]        Open HAQI Desktop for a workspace
   hapi codex             Start Codex mode
   hapi cursor            Start Cursor Agent mode
   hapi gemini            Start Gemini ACP mode
@@ -105,6 +106,7 @@ ${chalk.bold('Usage:')}
 ${chalk.bold('Examples:')}
   hapi                    Start session (will prompt for token if not set)
   hapi auth login         Configure CLI_API_TOKEN interactively
+  hapi app .              Open this workspace in HAQI Desktop
   hapi --yolo             Start with bypassing permissions
                             hapi sugar for --dangerously-skip-permissions
   hapi auth status        Show direct-connect status

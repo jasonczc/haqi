@@ -1,4 +1,5 @@
 import { authCommand } from './auth'
+import { appCommand } from './app'
 import { claudeCommand } from './claude'
 import { codexCommand } from './codex'
 import { cursorCommand } from './cursor'
@@ -14,6 +15,7 @@ import { hubCommand } from './hub'
 import type { CommandContext, CommandDefinition } from './types'
 
 const COMMANDS: CommandDefinition[] = [
+    appCommand,
     authCommand,
     connectCommand,
     codexCommand,

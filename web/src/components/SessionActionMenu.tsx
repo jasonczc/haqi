@@ -8,16 +8,20 @@ import {
     type CSSProperties
 } from 'react'
 import { useTranslation } from '@/lib/use-translation'
+import type { ChatViewMode } from '@/hooks/useChatViewMode'
 
 type SessionActionMenuProps = {
     isOpen: boolean
     onClose: () => void
     sessionActive: boolean
     onRename: () => void
+    onShare?: () => void
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
     onSaveCheckpoint?: () => void
     onCopySessionId?: () => void
+    viewMode?: ChatViewMode
+    onViewModeChange?: (mode: ChatViewMode) => void
     onArchive: () => void
     onDelete: () => void
     anchorPoint: { x: number; y: number }
@@ -38,10 +42,13 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onClose,
         sessionActive,
         onRename,
+        onShare,
         onSpawnSameConfig,
         onDuplicate,
         onSaveCheckpoint,
         onCopySessionId,
+        viewMode,
+        onViewModeChange,
         onArchive,
         onDelete,
         anchorPoint,
@@ -61,6 +68,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const handleArchive = () => {
         onClose()
         onArchive()
+    }
+
+    const handleShare = () => {
+        if (!onShare) return
+        onClose()
+        onShare()
     }
 
     const handleSpawnSameConfig = () => {
@@ -85,6 +98,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         if (!onCopySessionId) return
         onClose()
         onCopySessionId()
+    }
+
+    const handleViewModeChange = (mode: ChatViewMode) => {
+        if (!onViewModeChange) return
+        onClose()
+        onViewModeChange(mode)
     }
 
     const handleDelete = () => {
@@ -195,6 +214,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 {t('session.action.rename')}
             </button>
 
+            {onShare ? (
+                <button type="button" role="menuitem" className="menu-action" onClick={handleShare}>
+                    Share
+                </button>
+            ) : null}
+
             {onSpawnSameConfig ? (
                 <button type="button" role="menuitem" className="menu-action" onClick={handleSpawnSameConfig}>
                     {t('session.action.newSameConfig')}
@@ -217,6 +242,34 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 <button type="button" role="menuitem" className="menu-action" onClick={handleCopySessionId}>
                     {t('session.action.copyId')}
                 </button>
+            ) : null}
+
+            {onViewModeChange && viewMode ? (
+                <>
+                    <div className="menu-divider" role="separator" aria-hidden="true" />
+                    <div className="menu-section-label" aria-hidden="true">
+                        Display mode
+                    </div>
+                    {([
+                        ['normal', 'Normal'],
+                        ['brief', 'Brief'],
+                        ['cli', 'CLI']
+                    ] as const).map(([mode, label]) => (
+                        <button
+                            key={mode}
+                            type="button"
+                            role="menuitemradio"
+                            aria-checked={viewMode === mode}
+                            className="menu-action"
+                            onClick={() => handleViewModeChange(mode)}
+                        >
+                            <span className="menu-checkmark" aria-hidden="true">
+                                {viewMode === mode ? '✓' : ''}
+                            </span>
+                            <span className={mode === 'cli' ? 'font-mono' : undefined}>{label}</span>
+                        </button>
+                    ))}
+                </>
             ) : null}
 
             <div className="menu-divider" role="separator" aria-hidden="true" />

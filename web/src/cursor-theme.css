@@ -372,6 +372,8 @@ body {
     position: relative;
     background-color: var(--cursor-bg-app);
     min-width: 0; /* Important for flex children to allow inner truncation */
+    min-height: 0;
+    overflow: hidden;
 }
 
 .main-header {
@@ -624,6 +626,18 @@ body {
 .menu-action.flex-between {
     justify-content: space-between;
 }
+.menu-section-label {
+    padding: 4px 10px 2px;
+    font-size: 11px;
+    color: var(--cursor-text-secondary);
+}
+.menu-checkmark {
+    display: inline-flex;
+    width: 14px;
+    flex: 0 0 14px;
+    justify-content: center;
+    color: var(--cursor-text-secondary);
+}
 .action-left {
     display: flex;
     align-items: center;
@@ -674,6 +688,15 @@ body {
     font-weight: 400 !important;
     min-height: 0 !important;
     height: auto !important;
+    gap: 6px !important;
+}
+.cursor-theme .menu-section-label {
+    padding: 3px 10px 2px !important;
+    font-size: 11px !important;
+    color: #9B9B9B !important;
+}
+.cursor-theme .menu-checkmark {
+    color: #6B6B6B !important;
 }
 .cursor-theme .menu-action:hover {
     background-color: #F3F3F3 !important;
@@ -979,16 +1002,17 @@ html[data-theme="dark"] .cursor-theme .composer-send-btn:hover:not(:disabled) { 
 }
 
 /* ====== MARKDOWN / INLINE CODE ======
-   Claude-clone inline code is a pinkish chip with maroon text. Haqi's
-   markdown renderer uses .aui-md-code + --cursor-inline-code-bg.
-   Override both so it reads as a code chip, not a gray pill. */
+   Reference/Cursor-style inline code is a neutral gray chip. Do not use the
+   danger palette here: file paths, branch names, commands and other inline
+   references are informational, not errors. */
 .cursor-theme {
-    --cursor-inline-code-bg: #FCF4F4;
+    --cursor-inline-code-bg: #F2F2F2;
 }
 .cursor-theme code.aui-md-code,
 .cursor-theme :not(pre) > code.aui-md-code {
-    background-color: #FCF4F4;
-    color: #D64545;
+    background-color: #F2F2F2;
+    border: 1px solid #E9E9E9;
+    color: #1F1F1F;
     padding: 1.5px 4px;
     border-radius: 4px;
     font-size: 11.5px;
@@ -1149,6 +1173,60 @@ html[data-theme="dark"] .cursor-theme .composer-send-btn:hover:not(:disabled) { 
 .cursor-theme .nav-item.active-item { background-color: #F0F0F0; font-weight: 500 !important; }
 .cursor-theme .nav-item.text-item { color: var(--cursor-text-secondary); font-weight: 400; }
 .cursor-theme .nav-item svg { color: inherit; opacity: 0.85; }
+.session-quick-archive-button {
+    position: absolute;
+    z-index: 10;
+    right: 10px;
+    top: 50%;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    max-width: 28px;
+    max-height: 28px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--app-divider);
+    border-radius: 8px;
+    background: var(--app-bg);
+    color: var(--app-danger, #ef4444);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.10);
+    transform: translateY(-50%);
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.session-quick-archive-button--compact {
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    max-width: 24px;
+    max-height: 24px;
+    border-radius: 7px;
+}
+.session-quick-archive-button:hover {
+    background: var(--cursor-bg-card);
+    transform: translateY(-50%);
+}
+.session-quick-archive-button.is-confirming {
+    border-color: var(--app-danger, #ef4444);
+    background: var(--app-danger, #ef4444);
+    color: #fff;
+}
+.session-quick-archive-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+.session-quick-archive-icon,
+.session-quick-archive-spinner {
+    width: 14px !important;
+    height: 14px !important;
+    flex: 0 0 14px !important;
+}
 
 /* Sidebar section labels — Title Case muted, tiny chevron, hover bolds */
 .cursor-theme .section-title {
@@ -1395,6 +1473,117 @@ html[data-theme="dark"] .cursor-theme .composer-send-btn:hover:not(:disabled) { 
     border-radius: 4px !important;
 }
 .cursor-theme .composer-icon-btn svg { width: 14px !important; height: 14px !important; }
+.cursor-theme .composer-connection-chip,
+.cursor-theme .composer-meta-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    gap: 5px !important;
+    border: none !important;
+    border-radius: 4px !important;
+    background: transparent !important;
+    color: var(--cursor-text-secondary) !important;
+    padding: 0 6px !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    font-weight: 500 !important;
+    font-variant-numeric: tabular-nums !important;
+    transition: background-color 120ms ease, color 120ms ease, max-width 160ms ease, padding 160ms ease !important;
+}
+.cursor-theme .composer-connection-chip:hover,
+.cursor-theme .composer-meta-chip:hover {
+    background: var(--cursor-bg-hover) !important;
+    color: var(--cursor-text-primary) !important;
+}
+.cursor-theme .composer-connection-chip[data-collapsed] {
+    width: 22px !important;
+    max-width: 22px !important;
+    padding: 0 !important;
+    gap: 0 !important;
+}
+.cursor-theme .composer-connection-label {
+    max-width: 52px !important;
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    transition: max-width 160ms ease, opacity 120ms ease, margin-left 160ms ease !important;
+}
+.cursor-theme .composer-connection-chip[data-collapsed] .composer-connection-label {
+    max-width: 0 !important;
+    opacity: 0 !important;
+    margin-left: 0 !important;
+}
+.cursor-theme .composer-connection-dot {
+    width: 6px !important;
+    height: 6px !important;
+    flex: 0 0 6px !important;
+    border-radius: 999px !important;
+    background: var(--success) !important;
+}
+.cursor-theme .composer-connection-chip[data-state="offline"] .composer-connection-dot {
+    background: var(--cursor-text-tertiary) !important;
+}
+.cursor-theme .composer-connection-dot.is-pulsing {
+    animation: composer-dot-halo 1.8s ease-in-out infinite !important;
+}
+.cursor-theme .composer-usage-chip[data-warning] {
+    color: var(--warn) !important;
+}
+.cursor-theme .composer-permission-chip {
+    color: var(--danger) !important;
+}
+.cursor-theme .composer-usage-popover {
+    width: max-content !important;
+}
+.cursor-theme .chat-inline-queue {
+    padding: 6px 8px !important;
+    border-bottom: 1px solid var(--cursor-stroke-tertiary, var(--border-tertiary)) !important;
+    background: color-mix(in srgb, var(--cursor-bg-soft, var(--cursor-bg-quiet)) 76%, transparent) !important;
+}
+.cursor-theme .chat-inline-queue-row {
+    min-width: 0 !important;
+    flex-wrap: nowrap !important;
+}
+.cursor-theme .chat-inline-queue-label {
+    flex: 0 0 auto !important;
+    font-size: 12px !important;
+}
+.cursor-theme .chat-inline-queue-pill {
+    flex: 0 0 auto !important;
+    padding: 1px 7px !important;
+    font-size: 11px !important;
+    line-height: 18px !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    border: 1px solid var(--cursor-stroke-tertiary) !important;
+}
+.cursor-theme .chat-inline-queue-open {
+    flex: 0 0 auto !important;
+    border: 0 !important;
+    padding: 2px 7px !important;
+    min-height: 24px !important;
+    font-size: 12px !important;
+    line-height: 18px !important;
+}
+.cursor-theme .chat-inline-queue-list {
+    margin-top: 4px !important;
+}
+.cursor-theme .chat-inline-queue-entry {
+    border: 1px solid var(--cursor-stroke-tertiary) !important;
+    padding: 3px 8px !important;
+    min-height: 24px !important;
+    gap: 6px !important;
+}
+.cursor-theme .chat-inline-queue-index {
+    min-width: 28px !important;
+}
+.cursor-theme .chat-inline-queue-index,
+.cursor-theme .chat-inline-queue-preview,
+.cursor-theme .chat-inline-queue-time {
+    font-size: 12px !important;
+    line-height: 18px !important;
+}
 
 /* ============================================================
    VERTICAL RHYTHM + WIDTH (claude-clone chat column)
@@ -1420,7 +1609,9 @@ html[data-theme="dark"] .cursor-theme .composer-send-btn:hover:not(:disabled) { 
     --chat-round-gap: 18px !important;
     --chat-round-gap-internal: 12px !important;
     --chat-message-gap: 6px !important;
+    --chat-composer-clearance: 144px;
 }
+.cursor-theme .chat-timeline-spacer { height: var(--chat-composer-clearance, 144px) !important; flex-shrink: 0 !important; }
 .cursor-theme .input-container { max-width: 900px !important; margin-left: auto !important; margin-right: auto !important; }
 .cursor-theme .input-area-wrapper {
     padding: 0 24px !important;
@@ -1662,6 +1853,12 @@ html[data-theme="dark"] .cursor-theme .tab-button { color: #A3A3A3 !important; }
 html[data-theme="dark"] .cursor-theme .tab-button.active { color: #E6E6E6 !important; }
 html[data-theme="dark"] .cursor-theme .session-item.active { background-color: rgba(255, 255, 255, 0.08) !important; }
 html[data-theme="dark"] .cursor-theme .session-item:hover { background-color: rgba(255, 255, 255, 0.05) !important; }
+html[data-theme="dark"] .cursor-theme code.aui-md-code,
+html[data-theme="dark"] .cursor-theme :not(pre) > code.aui-md-code {
+    background-color: #2A2A2A !important;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+    color: #E6E6E6 !important;
+}
 
 /* Main header controls */
 html[data-theme="dark"] .cursor-theme .btn-share {
@@ -1691,6 +1888,8 @@ html[data-theme="dark"] .cursor-theme .menu-action.highlight { background-color:
 html[data-theme="dark"] .cursor-theme .menu-action.danger { color: #F47171 !important; }
 html[data-theme="dark"] .cursor-theme .menu-action.danger:hover { background-color: rgba(244, 113, 113, 0.12) !important; }
 html[data-theme="dark"] .cursor-theme .context-menu .menu-divider { background-color: rgba(255, 255, 255, 0.08) !important; }
+html[data-theme="dark"] .cursor-theme .menu-section-label { color: #7A7A7A !important; }
+html[data-theme="dark"] .cursor-theme .menu-checkmark { color: #A3A3A3 !important; }
 html[data-theme="dark"] .cursor-theme .theme-menu-section-label { color: #7A7A7A !important; }
 html[data-theme="dark"] .cursor-theme .theme-menu .theme-option-check { color: #E6E6E6 !important; }
 
