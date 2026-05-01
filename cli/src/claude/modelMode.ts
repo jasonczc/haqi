@@ -1,7 +1,9 @@
 import type { SessionModelMode } from '@/api/types'
 import { inferClaudeModelModeFromModel, normalizeClaudeModelValue } from '@hapi/protocol'
 
-export type ClaudeThinkEffort = 'low' | 'medium' | 'high' | 'max'
+// Mirrors cc CLI `--effort` (low/medium/high/xhigh/max). `xhigh` is Opus 4.7-only;
+// cc downgrades unsupported levels server-side, so we accept the full set here.
+export type ClaudeThinkEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
 function normalizeResolvedModel(value: string | null | undefined): string | undefined {
     if (typeof value !== 'string') {
@@ -97,7 +99,13 @@ export function findClaudeThinkEffortFromArgs(args: string[] | undefined): Claud
             return undefined
         }
         const normalized = value.trim().toLowerCase()
-        if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max') {
+        if (
+            normalized === 'low'
+            || normalized === 'medium'
+            || normalized === 'high'
+            || normalized === 'xhigh'
+            || normalized === 'max'
+        ) {
             return normalized
         }
         return undefined

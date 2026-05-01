@@ -182,10 +182,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
             const currentSession = currentSessionRef.current;
             if (currentSession) {
-                currentSession.applyClaudeHookEvent({
-                    ...data,
-                    session_id: typeof data.session_id === 'string' ? data.session_id : sessionId
-                });
+                currentSession.applyClaudeHookEvent(data);
             }
         }
     });
@@ -584,7 +581,13 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (!normalized || normalized === 'auto') {
             return undefined;
         }
-        if (normalized === 'low' || normalized === 'medium' || normalized === 'high' || normalized === 'max') {
+        if (
+            normalized === 'low'
+            || normalized === 'medium'
+            || normalized === 'high'
+            || normalized === 'xhigh'
+            || normalized === 'max'
+        ) {
             return normalized;
         }
         throw new Error('Invalid think effort');

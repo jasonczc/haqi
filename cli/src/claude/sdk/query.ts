@@ -17,9 +17,11 @@ import {
     type SDKControlResponse,
     type CanCallToolCallback,
     type CanUseToolControlRequest,
-    type CanUseToolControlResponse,
+    type SDKControlResponseMessage,
     type ControlCancelRequest,
     type PermissionResult,
+    type ElicitationControlRequest,
+    type ElicitationResult,
     AbortError
 } from './types'
 import { getDefaultClaudeCodePath, logDebug, streamToStdin } from './utils'
@@ -103,7 +105,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
                             }
                             continue
                         } else if (message.type === 'control_request') {
-                            await this.handleControlRequest(message as unknown as CanUseToolControlRequest)
+                            await this.handleControlRequest(message as unknown as SDKControlRequest)
                             continue
                         } else if (message.type === 'control_cancel_request') {
                             this.handleControlCancelRequest(message as unknown as ControlCancelRequest)
@@ -176,7 +178,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
      * Handle incoming control requests for tool permissions
      * Replicates the exact logic from the SDK's handleControlRequest method
      */
-    private async handleControlRequest(request: CanUseToolControlRequest): Promise<void> {
+    private async handleControlRequest(request: SDKControlRequest): Promise<void> {
         if (!this.childStdin) {
             logDebug('Cannot handle control request - no stdin available')
             return
@@ -187,7 +189,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
 
         try {
             const response = await this.processControlRequest(request, controller.signal)
-            const controlResponse: CanUseToolControlResponse = {
+            const controlResponse: SDKControlResponseMessage = {
                 type: 'control_response',
                 response: {
                     subtype: 'success',
@@ -197,7 +199,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
             }
             this.childStdin.write(JSON.stringify(controlResponse) + '\n')
         } catch (error) {
-            const controlErrorResponse: CanUseToolControlResponse = {
+            const controlErrorResponse: SDKControlResponseMessage = {
                 type: 'control_response',
                 response: {
                     subtype: 'error',
@@ -227,16 +229,27 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
      * Process control requests based on subtype
      * Replicates the exact logic from the SDK's processControlRequest method
      */
-    private async processControlRequest(request: CanUseToolControlRequest, signal: AbortSignal): Promise<PermissionResult> {
+    private async processControlRequest(request: SDKControlRequest, signal: AbortSignal): Promise<PermissionResult | ElicitationResult> {
         if (request.request.subtype === 'can_use_tool') {
+            const canUseToolRequest = request as CanUseToolControlRequest
             if (!this.canCallTool) {
                 throw new Error('canCallTool callback is not provided.')
             }
-            return this.canCallTool(request.request.tool_name, request.request.input, {
+            return this.canCallTool(canUseToolRequest.request.tool_name, canUseToolRequest.request.input, {
                 signal
             })
         }
-        
+
+        if (request.request.subtype === 'elicitation') {
+            const elicitationRequest = request as ElicitationControlRequest
+            logger.debug(`[claude-sdk] Auto-canceling unsupported elicitation request from ${elicitationRequest.request.mcp_server_name}: ${elicitationRequest.request.message}`)
+            return { action: 'cancel' }
+        }
+
+        // Unknown subtype: warn so we notice on cc upgrades, then throw so cc receives
+        // a control_response error and the loop keeps running. Without throwing we
+        // cannot synthesize a typed reply (PermissionResult vs ElicitationResult etc.).
+        logger.debug(`[claude-sdk] Unsupported control request subtype: ${request.request.subtype}`)
         throw new Error('Unsupported control request subtype: ' + request.request.subtype)
     }
 

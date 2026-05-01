@@ -12,6 +12,7 @@ type FakeClient = {
     updateMetadata: ReturnType<typeof vi.fn>
     updateAgentState: ReturnType<typeof vi.fn>
     updateTeamState: ReturnType<typeof vi.fn>
+    sendSessionEvent: ReturnType<typeof vi.fn>
 }
 
 function createSession() {
@@ -23,7 +24,8 @@ function createSession() {
             agentState = handler(agentState)
             return agentState
         }),
-        updateTeamState: vi.fn()
+        updateTeamState: vi.fn(),
+        sendSessionEvent: vi.fn()
     }
 
     const session = new Session({
@@ -143,6 +145,147 @@ describe('Claude Session running agent state', () => {
         session.setRunningAgent('task-2', null)
         expect(getAgentState().runningAgent).toBeUndefined()
         expect(getAgentState().runningAgents).toBeUndefined()
+        session.stopKeepAlive()
+    })
+
+
+    it('turns Claude hooks into local monitor readiness and tool activity', () => {
+        const { session, client } = createSession()
+        client.keepAlive.mockClear()
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'PreToolUse',
+            session_id: 'claude-session-1',
+            tool_name: 'Bash',
+            tool_input: { command: 'echo ok' },
+            tool_use_id: 'tool-1'
+        })
+        expect(session.thinking).toBe(true)
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'PostToolUse',
+            session_id: 'claude-session-1',
+            tool_name: 'Bash',
+            tool_input: { command: 'echo ok' },
+            tool_response: 'ok',
+            tool_use_id: 'tool-1'
+        })
+        expect(session.thinking).toBe(false)
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'Notification',
+            session_id: 'claude-session-1',
+            message: 'Claude is waiting for your input',
+            notification_type: 'idle_prompt'
+        })
+        expect(client.sendSessionEvent).toHaveBeenLastCalledWith({ type: 'ready' })
+        session.stopKeepAlive()
+    })
+
+    it('emits ready on Stop and StopFailure hooks', () => {
+        const { session, client } = createSession()
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'Stop',
+            session_id: 'claude-session-1'
+        })
+        expect(client.sendSessionEvent).toHaveBeenLastCalledWith({ type: 'ready' })
+
+        client.sendSessionEvent.mockClear()
+        session.applyClaudeHookEvent({
+            hook_event_name: 'StopFailure',
+            session_id: 'claude-session-1',
+            error: 'rate_limit'
+        })
+        expect(client.sendSessionEvent).toHaveBeenLastCalledWith({ type: 'ready' })
+        session.stopKeepAlive()
+    })
+
+    it('treats permission_prompt notifications as ready', () => {
+        const { session, client } = createSession()
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'Notification',
+            session_id: 'claude-session-1',
+            message: 'Claude needs permission to run Bash',
+            notification_type: 'permission_prompt'
+        })
+        expect(client.sendSessionEvent).toHaveBeenLastCalledWith({ type: 'ready' })
+        session.stopKeepAlive()
+    })
+
+    it('ignores other Notification subtypes without emitting ready', () => {
+        const { session, client } = createSession()
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'Notification',
+            session_id: 'claude-session-1',
+            message: 'login successful',
+            notification_type: 'auth_success'
+        })
+        expect(client.sendSessionEvent).not.toHaveBeenCalled()
+        session.stopKeepAlive()
+    })
+
+    it('clears tool activity and emits ready on SessionEnd', () => {
+        const { session, client } = createSession()
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'PreToolUse',
+            session_id: 'claude-session-1',
+            tool_name: 'Bash',
+            tool_input: { command: 'echo ok' },
+            tool_use_id: 'tool-1'
+        })
+        expect(session.thinking).toBe(true)
+
+        // Simulate cc dying mid-tool: PostToolUse never arrives.
+        client.sendSessionEvent.mockClear()
+        session.applyClaudeHookEvent({
+            hook_event_name: 'SessionEnd',
+            session_id: 'claude-session-1',
+            reason: 'other'
+        })
+        expect(session.thinking).toBe(false)
+        expect(client.sendSessionEvent).toHaveBeenLastCalledWith({ type: 'ready' })
+        session.stopKeepAlive()
+    })
+
+    it('toggles thinking around PreCompact/PostCompact and emits ready when compaction completes', () => {
+        const { session, client } = createSession()
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'PreCompact',
+            session_id: 'claude-session-1',
+            trigger: 'manual',
+            custom_instructions: null
+        })
+        expect(session.thinking).toBe(true)
+
+        client.sendSessionEvent.mockClear()
+        session.applyClaudeHookEvent({
+            hook_event_name: 'PostCompact',
+            session_id: 'claude-session-1',
+            trigger: 'manual',
+            compact_summary: 'summary'
+        })
+        expect(session.thinking).toBe(false)
+        expect(client.sendSessionEvent).toHaveBeenLastCalledWith({ type: 'ready' })
+        session.stopKeepAlive()
+    })
+
+    it('forwards Elicitation as a session message and signals ready', () => {
+        const { session, client } = createSession()
+
+        session.applyClaudeHookEvent({
+            hook_event_name: 'Elicitation',
+            session_id: 'claude-session-1',
+            mcp_server_name: 'demo-server',
+            message: 'pick an option',
+            mode: 'form'
+        })
+        expect(client.sendSessionEvent).toHaveBeenNthCalledWith(1, { type: 'message', message: 'pick an option' })
+        expect(client.sendSessionEvent).toHaveBeenLastCalledWith({ type: 'ready' })
         session.stopKeepAlive()
     })
 

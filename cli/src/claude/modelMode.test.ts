@@ -73,6 +73,9 @@ describe('claude model mode detection', () => {
         expect(findClaudeThinkEffortFromArgs(['--effort', 'HIGH'])).toBe('high')
         expect(findClaudeThinkEffortFromArgs(['--effort', 'max'])).toBe('max')
         expect(findClaudeThinkEffortFromArgs(['--effort', 'MAX'])).toBe('max')
-        expect(findClaudeThinkEffortFromArgs(['--effort', 'xhigh'])).toBeUndefined()
+        // xhigh is Opus 4.7+ only, supported by cc CLI 2.1.117+.
+        expect(findClaudeThinkEffortFromArgs(['--effort', 'xhigh'])).toBe('xhigh')
+        expect(findClaudeThinkEffortFromArgs(['--effort=XHIGH'])).toBe('xhigh')
+        expect(findClaudeThinkEffortFromArgs(['--effort', 'unknown'])).toBeUndefined()
     })
 })

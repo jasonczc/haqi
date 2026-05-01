@@ -116,14 +116,35 @@ export interface CanUseToolControlRequest {
     request: CanUseToolRequest
 }
 
-export interface CanUseToolControlResponse {
+export interface SDKControlResponseMessage {
     type: 'control_response'
     response: {
         subtype: 'success' | 'error'
         request_id: string
-        response?: PermissionResult
+        response?: unknown
         error?: string
     }
+}
+
+export type CanUseToolControlResponse = SDKControlResponseMessage
+
+export interface ElicitationControlRequest {
+    type: 'control_request'
+    request_id: string
+    request: {
+        subtype: 'elicitation'
+        mcp_server_name: string
+        message: string
+        mode?: 'form' | 'url'
+        url?: string
+        elicitation_id?: string
+        requested_schema?: Record<string, unknown>
+    }
+}
+
+export type ElicitationResult = {
+    action: 'accept' | 'decline' | 'cancel'
+    content?: Record<string, unknown>
 }
 
 export interface ControlCancelRequest {

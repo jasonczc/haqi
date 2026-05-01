@@ -3,6 +3,7 @@ import { writeFileSync, mkdirSync, unlinkSync, existsSync } from 'node:fs';
 import { configuration } from '@/configuration';
 import { logger } from '@/ui/logger';
 import { getHappyCliCommand } from '@/utils/spawnHappyCLI';
+import { CLAUDE_HOOK_EVENTS, type ClaudeHookEventName } from '@/claude/hooks';
 
 type HookCommandConfig = {
     matcher: string;
@@ -16,13 +17,7 @@ type HookSettings = {
     hooksConfig?: {
         enabled?: boolean;
     };
-    hooks: {
-        SessionStart: HookCommandConfig[];
-        SubagentStart: HookCommandConfig[];
-        SubagentStop: HookCommandConfig[];
-        TeammateIdle: HookCommandConfig[];
-        TaskCompleted: HookCommandConfig[];
-    };
+    hooks: Record<ClaudeHookEventName, HookCommandConfig[]>;
 };
 
 export type HookSettingsOptions = {
@@ -60,13 +55,9 @@ function buildHookSettings(command: string, hooksEnabled?: boolean): HookSetting
         }
     ];
 
-    const hooks: HookSettings['hooks'] = {
-        SessionStart: hookConfig,
-        SubagentStart: hookConfig,
-        SubagentStop: hookConfig,
-        TeammateIdle: hookConfig,
-        TaskCompleted: hookConfig
-    };
+    const hooks = Object.fromEntries(
+        CLAUDE_HOOK_EVENTS.map((eventName) => [eventName, hookConfig])
+    ) as HookSettings['hooks'];
 
     const settings: HookSettings = { hooks };
     if (hooksEnabled !== undefined) {

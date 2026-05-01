@@ -126,6 +126,14 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
             formatClaudeMessageForInk(message, messageBuffer);
             permissionHandler.onMessage(message);
 
+            if ((message as { type?: string }).type === 'rate_limit_event') {
+                const info = (message as { rate_limit_info?: unknown }).rate_limit_info;
+                if (info && typeof info === 'object') {
+                    session.updateRateLimitSnapshot(info as Parameters<typeof session.updateRateLimitSnapshot>[0]);
+                }
+                return;
+            }
+
             if (message.type === 'assistant') {
                 let umessage = message as SDKAssistantMessage;
                 if (umessage.message.content && Array.isArray(umessage.message.content)) {

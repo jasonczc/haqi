@@ -6,8 +6,9 @@ import type { AgentStateRunningAgent, SessionModelMode, TeamMember, TeamState, T
 import type { EnhancedMode } from './loop';
 import type { PermissionMode } from './loop';
 import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
-import type { SessionHookData } from './utils/startHookServer';
+import type { ClaudeHookEvent as SessionHookData } from './hooks';
 import { readClaudeTeamSnapshotForSession } from './utils/claudeTeamSnapshot';
+import { applyRateLimitEvent, type SdkRateLimitInfo } from './utils/rateLimitSnapshot';
 
 type LocalLaunchFailure = {
     message: string;
@@ -92,6 +93,13 @@ export class Session extends AgentSessionBase<EnhancedMode> {
 
     setModelMode = (mode: SessionModelMode): void => {
         this.modelMode = mode;
+    };
+
+    updateRateLimitSnapshot = (info: SdkRateLimitInfo): void => {
+        this.client.updateMetadata((metadata) => ({
+            ...metadata,
+            rateLimitSnapshot: applyRateLimitEvent(metadata.rateLimitSnapshot, info)
+        }));
     };
 
     recordLocalLaunchFailure = (message: string, exitReason: LocalLaunchExitReason): void => {
@@ -186,17 +194,8 @@ export class Session extends AgentSessionBase<EnhancedMode> {
     };
 
     applyClaudeHookEvent = (data: SessionHookData): void => {
-        const eventName = typeof data.hook_event_name === 'string' ? data.hook_event_name.trim() : '';
-        if (!eventName) {
-            return;
-        }
-
-        if (eventName === 'SessionStart') {
-            const sessionId = typeof data.session_id === 'string'
-                ? data.session_id
-                : typeof data.sessionId === 'string'
-                    ? data.sessionId
-                    : null;
+        if (data.hook_event_name === 'SessionStart') {
+            const sessionId = data.session_id;
             if (sessionId && this.sessionId !== sessionId) {
                 this.onSessionFound(sessionId);
             }
@@ -205,26 +204,101 @@ export class Session extends AgentSessionBase<EnhancedMode> {
             return;
         }
 
+        if (data.hook_event_name === 'Notification') {
+            // Both `idle_prompt` and `permission_prompt` mean Claude is waiting on the user.
+            // Other notification types (auth_success / elicitation_*) are observability-only.
+            if (data.notification_type === 'idle_prompt' || data.notification_type === 'permission_prompt') {
+                this.client.sendSessionEvent({ type: 'ready' });
+            }
+            return;
+        }
+
+        if (data.hook_event_name === 'SessionEnd') {
+            this.clearRunningAgents();
+            this.clearAuxiliaryActivity();
+            this.client.sendSessionEvent({ type: 'ready' });
+            return;
+        }
+
+        if (data.hook_event_name === 'Stop' || data.hook_event_name === 'StopFailure') {
+            this.client.sendSessionEvent({ type: 'ready' });
+            this.refreshClaudeTeamSnapshot();
+            return;
+        }
+
+        if (data.hook_event_name === 'PreToolUse') {
+            this.setAuxiliaryActivity(`claude-tool:${data.tool_use_id}`, true);
+            return;
+        }
+
+        if (data.hook_event_name === 'PostToolUse' || data.hook_event_name === 'PostToolUseFailure' || data.hook_event_name === 'PermissionDenied') {
+            this.setAuxiliaryActivity(`claude-tool:${data.tool_use_id}`, false);
+            return;
+        }
+
+        if (data.hook_event_name === 'PreCompact') {
+            this.setAuxiliaryActivity('claude-compact', true);
+            return;
+        }
+
+        if (data.hook_event_name === 'PostCompact') {
+            this.setAuxiliaryActivity('claude-compact', false);
+            this.client.sendSessionEvent({ type: 'ready' });
+            return;
+        }
+
+        if (data.hook_event_name === 'Elicitation') {
+            this.client.sendSessionEvent({ type: 'message', message: data.message });
+            this.client.sendSessionEvent({ type: 'ready' });
+            return;
+        }
+
+        if (data.hook_event_name === 'ElicitationResult') {
+            return;
+        }
+
+        if (data.hook_event_name === 'TaskCreated') {
+            const hookAgentId = this.getHookAgentId(data);
+            if (hookAgentId) {
+                this.setRunningAgent(hookAgentId, this.buildRunningAgentFromHook(data));
+                this.applyTeamStateFromHook(data, 'active');
+                this.ensureClaudeTeamSnapshotPolling();
+            }
+            return;
+        }
+
+        if (data.hook_event_name === 'UserPromptSubmit'
+            || data.hook_event_name === 'PermissionRequest'
+            || data.hook_event_name === 'Setup'
+            || data.hook_event_name === 'ConfigChange'
+            || data.hook_event_name === 'WorktreeCreate'
+            || data.hook_event_name === 'WorktreeRemove'
+            || data.hook_event_name === 'InstructionsLoaded'
+            || data.hook_event_name === 'CwdChanged'
+            || data.hook_event_name === 'FileChanged') {
+            return;
+        }
+
         const hookAgentId = this.getHookAgentId(data);
         if (!hookAgentId) {
             return;
         }
 
-        if (eventName === 'SubagentStart') {
+        if (data.hook_event_name === 'SubagentStart') {
             this.setRunningAgent(hookAgentId, this.buildRunningAgentFromHook(data));
             this.applyTeamStateFromHook(data, 'active');
             this.ensureClaudeTeamSnapshotPolling();
             return;
         }
 
-        if (eventName === 'TeammateIdle') {
+        if (data.hook_event_name === 'TeammateIdle') {
             this.setRunningAgent(hookAgentId, null);
             this.applyTeamStateFromHook(data, 'idle');
             this.refreshClaudeTeamSnapshot();
             return;
         }
 
-        if (eventName === 'SubagentStop' || eventName === 'TaskCompleted') {
+        if (data.hook_event_name === 'SubagentStop' || data.hook_event_name === 'TaskCompleted') {
             this.setRunningAgent(hookAgentId, null);
             this.applyTeamStateFromHook(data, 'completed');
             this.refreshClaudeTeamSnapshot();

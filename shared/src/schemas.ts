@@ -19,6 +19,39 @@ export const WorktreeMetadataSchema = z.object({
 
 export type WorktreeMetadata = z.infer<typeof WorktreeMetadataSchema>
 
+// Rate-limit snapshot for Claude sessions. Mirrors a subset of cc's
+// SDKRateLimitInfoSchema; we keep only fields the UI surfaces.
+export const ClaudeRateLimitTypeSchema = z.enum([
+    'five_hour',
+    'seven_day',
+    'seven_day_opus',
+    'seven_day_sonnet',
+    'overage'
+])
+export type ClaudeRateLimitType = z.infer<typeof ClaudeRateLimitTypeSchema>
+
+export const ClaudeRateLimitStatusSchema = z.enum(['allowed', 'allowed_warning', 'rejected'])
+export type ClaudeRateLimitStatus = z.infer<typeof ClaudeRateLimitStatusSchema>
+
+export const ClaudeRateLimitEntrySchema = z.object({
+    status: ClaudeRateLimitStatusSchema,
+    utilization: z.number().min(0).max(1).optional(),
+    resetsAt: z.number().optional(),
+    observedAt: z.number(),
+    overageStatus: ClaudeRateLimitStatusSchema.optional(),
+    isUsingOverage: z.boolean().optional()
+})
+export type ClaudeRateLimitEntry = z.infer<typeof ClaudeRateLimitEntrySchema>
+
+export const ClaudeRateLimitSnapshotSchema = z.object({
+    five_hour: ClaudeRateLimitEntrySchema.optional(),
+    seven_day: ClaudeRateLimitEntrySchema.optional(),
+    seven_day_opus: ClaudeRateLimitEntrySchema.optional(),
+    seven_day_sonnet: ClaudeRateLimitEntrySchema.optional(),
+    overage: ClaudeRateLimitEntrySchema.optional()
+})
+export type ClaudeRateLimitSnapshot = z.infer<typeof ClaudeRateLimitSnapshotSchema>
+
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),
@@ -51,7 +84,8 @@ export const MetadataSchema = z.object({
     archivedBy: z.string().optional(),
     archiveReason: z.string().optional(),
     flavor: z.string().nullish(),
-    worktree: WorktreeMetadataSchema.optional()
+    worktree: WorktreeMetadataSchema.optional(),
+    rateLimitSnapshot: ClaudeRateLimitSnapshotSchema.optional()
 })
 
 export type Metadata = z.infer<typeof MetadataSchema>

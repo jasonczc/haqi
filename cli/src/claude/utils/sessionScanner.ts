@@ -14,6 +14,9 @@ const INTERNAL_CLAUDE_EVENT_TYPES = new Set([
     'file-history-snapshot',
     'change',
     'queue-operation',
+    'attribution-snapshot',
+    'context-collapse-commit-entry',
+    'content-replacement-entry',
 ]);
 
 export async function createSessionScanner(opts: {

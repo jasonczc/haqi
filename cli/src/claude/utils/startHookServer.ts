@@ -7,33 +7,14 @@
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from 'node:http';
 import { randomBytes } from 'node:crypto';
 import { logger } from '@/ui/logger';
+import { ClaudeHookEventSchema, HookResponseSchema, type ClaudeHookEvent, type HookResponse } from '@/claude/hooks';
 
-/**
- * Data received from Claude's SessionStart hook.
- */
-export interface SessionHookData {
-    session_id?: string;
-    sessionId?: string;
-    transcript_path?: string;
-    cwd?: string;
-    hook_event_name?: string;
-    agent_id?: string;
-    agent_type?: string;
-    agent_name?: string;
-    task_id?: string;
-    task_status?: string;
-    task_title?: string;
-    task_subject?: string;
-    team_name?: string;
-    teammate_name?: string;
-    agent_transcript_path?: string;
-    source?: string;
-    [key: string]: unknown;
-}
+/** @deprecated Use ClaudeHookEvent from '@/claude/hooks'. */
+export type SessionHookData = ClaudeHookEvent;
 
 export interface HookServerOptions {
     /** Called when a Claude hook is received with a valid session ID. */
-    onClaudeHook: (sessionId: string, data: SessionHookData) => void;
+    onClaudeHook: (sessionId: string, data: ClaudeHookEvent) => void | HookResponse | Promise<void | HookResponse>;
     /** Optional token to require for hook requests. */
     token?: string;
 }
@@ -53,6 +34,12 @@ function readHookToken(req: IncomingMessage): string | null {
         return header[0] ?? null;
     }
     return header ?? null;
+}
+
+function writeHookResponse(res: ServerResponse, response: HookResponse | void): void {
+    const parsed = HookResponseSchema.safeParse(response ?? { exit_code: 0 });
+    const payload = parsed.success ? parsed.data : { exit_code: 0 };
+    res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(payload));
 }
 
 /**
@@ -96,42 +83,38 @@ export async function startHookServer(options: HookServerOptions): Promise<HookS
                     }
 
                     const body = Buffer.concat(chunks).toString('utf-8');
-                    logger.debug('[hookServer] Received session hook:', body);
+                    logger.debug('[hookServer] Received Claude hook:', body);
 
-                    let data: SessionHookData = {};
+                    let parsedJson: unknown;
                     try {
-                        const parsed = JSON.parse(body);
-                        if (!parsed || typeof parsed !== 'object') {
-                            logger.debug('[hookServer] Parsed hook data is not an object');
-                            res.writeHead(400, { 'Content-Type': 'text/plain' }).end('invalid json');
-                            return;
-                        }
-                        data = parsed as SessionHookData;
+                        parsedJson = JSON.parse(body);
                     } catch (parseError) {
                         logger.debug('[hookServer] Failed to parse hook data as JSON:', parseError);
                         res.writeHead(400, { 'Content-Type': 'text/plain' }).end('invalid json');
                         return;
                     }
 
-                    const sessionId = data.session_id || data.sessionId;
-                    if (sessionId) {
-                        logger.debug(`[hookServer] Claude hook received session ID: ${sessionId}`);
-                        onClaudeHook(sessionId, data);
-                    } else {
-                        logger.debug('[hookServer] Session hook received but no session_id found in data');
-                        res.writeHead(422, { 'Content-Type': 'text/plain' }).end('missing session_id');
+                    const parseResult = ClaudeHookEventSchema.safeParse(parsedJson);
+                    if (!parseResult.success) {
+                        logger.debug('[hookServer] Invalid Claude hook payload:', parseResult.error.message);
+                        res.writeHead(422, { 'Content-Type': 'text/plain' }).end('invalid hook payload');
                         return;
                     }
 
+                    const data = parseResult.data;
+                    const sessionId = data.session_id;
+                    logger.debug(`[hookServer] Claude hook received session ID: ${sessionId}`);
+                    const hookResponse = await onClaudeHook(sessionId, data);
+
                     if (!res.headersSent && !res.writableEnded) {
-                        res.writeHead(200, { 'Content-Type': 'text/plain' }).end('ok');
+                        writeHookResponse(res, hookResponse);
                     }
                 } catch (error) {
                     clearTimeout(timeout);
                     if (timedOut) {
                         return;
                     }
-                    logger.debug('[hookServer] Error handling session hook:', error);
+                    logger.debug('[hookServer] Error handling Claude hook:', error);
                     if (!res.headersSent && !res.writableEnded) {
                         res.writeHead(500).end('error');
                     }

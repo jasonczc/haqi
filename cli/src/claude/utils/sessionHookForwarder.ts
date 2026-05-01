@@ -91,7 +91,7 @@ export async function runSessionHookForwarder(args: string[]): Promise<void> {
 
         const body = Buffer.concat(chunks);
 
-        let hadError = false;
+        let exitCode = 0;
         await new Promise<void>((resolve) => {
             const req = request({
                 host: '127.0.0.1',
@@ -104,29 +104,54 @@ export async function runSessionHookForwarder(args: string[]): Promise<void> {
                     'x-hapi-hook-token': token
                 }
             }, (res) => {
+                const responseChunks: Buffer[] = [];
                 if (res.statusCode && res.statusCode >= 400) {
-                    hadError = true;
+                    exitCode = 1;
                     logError(`Hook server responded with status ${res.statusCode}`);
                 }
+                res.on('data', (chunk) => responseChunks.push(chunk as Buffer));
                 res.on('error', (error) => {
-                    hadError = true;
+                    exitCode = 1;
                     logError('Error reading hook server response', error);
                     resolve();
                 });
-                res.on('end', () => resolve());
-                res.resume();
+                res.on('end', () => {
+                    if (!res.statusCode || res.statusCode < 400) {
+                        const responseBody = Buffer.concat(responseChunks).toString('utf-8').trim();
+                        if (responseBody) {
+                            try {
+                                const parsed = JSON.parse(responseBody) as {
+                                    exit_code?: unknown;
+                                    stdout?: unknown;
+                                    stderr?: unknown;
+                                };
+                                if (typeof parsed.stdout === 'string') {
+                                    process.stdout.write(parsed.stdout);
+                                }
+                                if (typeof parsed.stderr === 'string') {
+                                    process.stderr.write(parsed.stderr);
+                                }
+                                if (Number.isInteger(parsed.exit_code)) {
+                                    exitCode = parsed.exit_code as number;
+                                }
+                            } catch (error) {
+                                exitCode = 1;
+                                logError('Failed to parse hook server response', error);
+                            }
+                        }
+                    }
+                    resolve();
+                });
             });
 
             req.on('error', (error) => {
-                hadError = true;
+                exitCode = 1;
                 logError('Failed to send hook request', error);
                 resolve();
             });
             req.end(body);
         });
-        if (hadError) {
-            process.exitCode = 1;
-        }
+        process.exitCode = exitCode;
     } catch (error) {
         logError('Failed to forward session hook', error);
         process.exitCode = 1;
