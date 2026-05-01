@@ -1312,7 +1312,7 @@ export function HappyComposer(props: {
             const keyboardOpen = isTouch && getKeyboardInset() > 80
             const clearance = keyboardOpen
                 ? Math.max(72, height + 2)
-                : Math.max(isTouch ? 96 : 128, height + (isTouch ? 8 : 24))
+                : Math.max(isTouch ? 82 : 128, height + (isTouch ? 2 : 24))
             chatCenter.style.setProperty('--chat-composer-clearance', `${clearance}px`)
             wrapper.toggleAttribute('data-keyboard-open', keyboardOpen)
         }

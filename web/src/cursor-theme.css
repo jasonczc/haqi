@@ -4287,3 +4287,41 @@ html[data-theme="dark"] .app-container.cursor-theme:not(.sessions-index-layout) 
         display: inline-flex !important;
     }
 }
+
+/* Mobile composer density: remove excess lower-half air. */
+@media (max-width: 1023px) {
+    .app-container.cursor-theme:not(.sessions-index-layout) {
+        --chat-composer-clearance: 92px;
+    }
+    .app-container.cursor-theme:not(.sessions-index-layout) .input-area-wrapper {
+        padding-bottom: 2px !important;
+    }
+    .app-container.cursor-theme:not(.sessions-index-layout) .input-field-box {
+        padding: 3px 8px 3px 10px !important;
+        margin-bottom: 0 !important;
+    }
+    .app-container.cursor-theme:not(.sessions-index-layout) .chat-input-row {
+        padding: 0 !important;
+        min-height: 24px !important;
+    }
+    .app-container.cursor-theme:not(.sessions-index-layout) .chat-input-field,
+    .app-container.cursor-theme:not(.sessions-index-layout) .input-field-box textarea {
+        min-height: 18px !important;
+        padding: 2px 0 !important;
+        line-height: 1.35 !important;
+    }
+    .app-container.cursor-theme:not(.sessions-index-layout) .chat-inline-queue {
+        padding-bottom: 1px !important;
+    }
+    .app-container.cursor-theme:not(.sessions-index-layout) .input-footer,
+    .app-container.cursor-theme:not(.sessions-index-layout) .chat-input-footer {
+        margin-top: 2px !important;
+        padding-top: 0 !important;
+        min-height: 30px !important;
+    }
+}
+@media (max-width: 430px) {
+    .app-container.cursor-theme:not(.sessions-index-layout) {
+        --chat-composer-clearance: 88px;
+    }
+}
