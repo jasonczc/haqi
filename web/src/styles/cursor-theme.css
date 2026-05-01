@@ -1,0 +1,227 @@
+/* Cursor-identical design tokens — scoped to .cursor-theme */
+
+.cursor-theme {
+  /* ── Base palette ─────────────────────────────── */
+  --sidebar: #F3F3F3;
+  --chrome: #F7F7F7;
+  --editor: #FCFCFC;
+  --base: #141414;
+  --brand: #F54E00;
+  --accent: #3C7CAB;
+  --focus: #3C7CAB;
+  --success: #1F8A65;
+  --warn: #C08532;
+  --danger: #CF2D56;
+  --added: #1F8A65;
+  --modified: #C08532;
+  --removed: #CF2D56;
+  --untracked: #4C7F8C;
+
+  /* ── Text (4-level hierarchy) ─────────────────── */
+  --text-primary: color-mix(in oklab, var(--base) 94%, transparent);
+  --text-secondary: color-mix(in oklab, var(--base) 70%, transparent);
+  --text-tertiary: color-mix(in oklab, var(--base) 48%, transparent);
+  --text-quaternary: color-mix(in oklab, var(--base) 32%, transparent);
+
+  /* ── Backgrounds ──────────────────────────────── */
+  --bg-chrome: var(--chrome);
+  --bg-editor: var(--editor);
+  --bg-sidebar: var(--sidebar);
+  --bg-elevated: var(--editor);
+  --bg-primary: color-mix(in oklab, var(--base) 20%, transparent);
+  --bg-secondary: color-mix(in oklab, var(--base) 14%, transparent);
+  --bg-tertiary: color-mix(in oklab, var(--base) 8%, transparent);
+  --bg-quaternary: color-mix(in oklab, var(--base) 6%, transparent);
+  --bg-quinary: color-mix(in oklab, var(--base) 4%, transparent);
+
+  /* Semantic backgrounds */
+  --bg-success: var(--success);
+  --bg-success-secondary: color-mix(in oklab, var(--success) 24%, transparent);
+  --bg-success-tertiary: color-mix(in oklab, var(--success) 12%, transparent);
+  --bg-success-quaternary: color-mix(in oklab, var(--success) 8%, transparent);
+  --bg-warn: var(--warn);
+  --bg-warn-secondary: color-mix(in oklab, var(--warn) 24%, transparent);
+  --bg-warn-tertiary: color-mix(in oklab, var(--warn) 12%, transparent);
+  --bg-warn-quaternary: color-mix(in oklab, var(--warn) 8%, transparent);
+  --bg-danger: var(--danger);
+  --bg-danger-secondary: color-mix(in oklab, var(--danger) 24%, transparent);
+  --bg-danger-tertiary: color-mix(in oklab, var(--danger) 12%, transparent);
+  --bg-danger-quaternary: color-mix(in oklab, var(--danger) 8%, transparent);
+  --bg-brand: var(--brand);
+  --bg-brand-secondary: color-mix(in oklab, var(--brand) 24%, transparent);
+  --bg-brand-tertiary: color-mix(in oklab, var(--brand) 12%, transparent);
+  --bg-accent: var(--accent);
+  --bg-accent-secondary: color-mix(in oklab, var(--accent) 24%, transparent);
+  --bg-accent-tertiary: color-mix(in oklab, var(--accent) 12%, transparent);
+
+  /* Neutral button */
+  --bg-neutral: var(--base);
+  --bg-neutral-hover: color-mix(in oklab, var(--chrome) 10%, var(--base));
+
+  /* ── Borders (4-level hierarchy) ──────────────── */
+  --border-primary: color-mix(in oklab, var(--base) 20%, transparent);
+  --border-secondary: color-mix(in oklab, var(--base) 12%, transparent);
+  --border-tertiary: color-mix(in oklab, var(--base) 8%, transparent);
+  --border-quaternary: color-mix(in oklab, var(--base) 4%, transparent);
+  --border-focus: var(--focus);
+  --border-success: color-mix(in oklab, var(--success) 56%, transparent);
+  --border-danger: color-mix(in oklab, var(--danger) 56%, transparent);
+
+  /* ── Shadows ──────────────────────────────────── */
+  --shadow-primary: rgba(0,0,0,0.12);
+  --shadow-secondary: rgba(0,0,0,0.072);
+  --shadow-tertiary: rgba(0,0,0,0.036);
+
+  /* ── Typography ───────────────────────────────── */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-size-xs: 0.6875rem;  /* 11px */
+  --font-size-sm: 0.75rem;    /* 12px */
+  --font-size-base: 0.8125rem;/* 13px */
+  --font-size-lg: 1rem;       /* 16px */
+  --font-size-xl: 1.25rem;    /* 20px */
+  --line-height-xs: 0.875rem;
+  --line-height-sm: 1rem;
+  --line-height-base: 1.125rem;
+  --line-height-lg: 1.5rem;
+  --line-height-xl: 1.75rem;
+  --font-weight-normal: 400;
+  --font-weight-semibold: 600;
+
+  /* ── Layout ───────────────────────────────────── */
+  --sidebar-width: 267px;
+  --workbench-width: 420px;
+  --workbench-min-width: 320px;
+  --navbar-height: 2.75rem;
+
+  /* ── Chat layout (cursor-clone parity) ────────── */
+  --chat-timeline-padding-y: 16px;
+  --chat-timeline-padding-x: 24px;
+  --chat-round-gap: 40px;
+  --chat-round-gap-internal: 24px;
+  --chat-message-gap: 12px;
+  --chat-content-max: 720px;
+
+  /* ── User prompt card ─────────────────────────── */
+  --user-card-radius: 10px;
+  --user-card-padding-y: 8px;
+  --user-card-padding-x: 12px;
+  --user-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  --user-card-bg: color-mix(in oklab, var(--accent) 6%, var(--editor));
+
+  /* ── Composer ─────────────────────────────────── */
+  --composer-radius: 16px;
+  --composer-padding-top: 12px;
+  --composer-padding-right: 12px;
+  --composer-padding-bottom: 8px;
+  --composer-padding-left: 16px;
+  --composer-fade-height: 80px;
+
+  /* ── Secondary cards (Reasoning / Tool blocks) ─ */
+  --secondary-card-radius: 6px;
+  --secondary-card-padding: 8px 10px;
+
+  /* ── Context panel ────────────────────────────── */
+  --context-panel-width: 440px;
+  --context-tab-gap: 16px;
+
+  /* Apply base styles */
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--text-primary);
+  background: var(--bg-chrome);
+}
+
+/* ── Dark mode ────────────────────────────────── */
+[data-theme="dark"] .cursor-theme,
+.cursor-theme[data-theme="dark"] {
+  --sidebar: #1E1E1E;
+  --chrome: #252526;
+  --editor: #1E1E1E;
+  --base: #FFFFFF;
+}
+
+/* ── Scrollbars ───────────────────────────────── */
+.cursor-theme ::-webkit-scrollbar { width: 6px; height: 6px; }
+.cursor-theme ::-webkit-scrollbar-track { background: transparent; }
+.cursor-theme ::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--base) 12%, transparent);
+  border-radius: 3px;
+}
+.cursor-theme ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--base) 20%, transparent);
+}
+
+/* ── Chat round grouping (CSS-only, no DOM wrappers) ─────────────
+   Every user message starts a new round (40px top gap).
+   Agent/tool/reasoning blocks inside a round get 24px top gap. */
+.chat-timeline-inner > * {
+  margin-top: 0;
+}
+.chat-timeline-inner > .chat-message-user:not(:first-child) {
+  margin-top: var(--chat-round-gap);
+}
+.chat-timeline-inner > *:not(.chat-message-user):not(:first-child) {
+  margin-top: var(--chat-round-gap-internal);
+}
+
+/* ── Assistant prose (cursor parity) ─────────────────────── */
+.chat-message-agent {
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--text-primary);
+  padding-left: 4px;
+}
+.chat-message-agent p { margin: 0 0 16px 0; }
+.chat-message-agent h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin: 24px 0 12px 0;
+}
+.chat-message-agent strong { font-weight: var(--font-weight-semibold); }
+.chat-message-agent ul { padding-left: 20px; margin-bottom: 16px; }
+.chat-message-agent li { margin-bottom: 6px; }
+.chat-message-agent code {
+  background: var(--border-quaternary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.agent-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  font-size: var(--font-size-base);
+}
+.agent-table th,
+.agent-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-tertiary);
+  text-align: left;
+}
+.agent-table th {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+.agent-table td { vertical-align: top; }
+.agent-table td a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* Maximized workbench hides the sidebar and chat-main */
+body.layout-maximized .sidebar,
+body.layout-maximized .chat-main {
+  display: none !important;
+}
+/* Let the outer context-panel wrapper fill the viewport when maximized */
+body.layout-maximized .context-panel {
+  width: 100vw !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  flex: 1 1 100% !important;
+}
