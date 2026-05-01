@@ -46,6 +46,7 @@ export default {
   'sessions.projectOffline.section': 'Offline projects',
   'sessions.projectOffline.enable': 'Mark project offline',
   'sessions.projectOffline.disable': 'Unmark project offline',
+  'sessions.copyProjectPath': 'Copy project path',
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
   'sessions.search.placeholder': 'Search sessions…',
@@ -87,6 +88,7 @@ export default {
   'session.action.archive': 'Archive',
   'session.action.confirmArchive': 'Confirm',
   'session.action.delete': 'Delete',
+  'session.action.copyId': 'Copy session ID',
   'session.action.copy': 'Copy',
 
   // Dialogs

@@ -28,6 +28,7 @@ import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectori
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import { useSessionQuickArchive } from '@/hooks/useSessionQuickArchive'
 import { SessionQuickArchiveButton } from '@/components/SessionQuickArchiveButton'
+import { useOptionalToast } from '@/lib/toast-context'
 import {
     applySessionGroupOrder,
     loadSessionGroupOrder,
@@ -334,6 +335,7 @@ function SessionItem(props: {
     const { t } = useTranslation()
     const { session: s, onSelect, showPath = true, api, selected = false, density, forceOffline = false } = props
     const { haptic } = usePlatform()
+    const toast = useOptionalToast()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const [renameOpen, setRenameOpen] = useState(false)
@@ -341,6 +343,22 @@ function SessionItem(props: {
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [isQuickArchiveVisible, setIsQuickArchiveVisible] = useState(false)
     const itemRef = useRef<HTMLDivElement | null>(null)
+
+    const handleCopySessionId = () => {
+        if (typeof navigator === 'undefined') return
+        const finish = () => {
+            toast?.addToast({ title: t('session.action.copyId'), body: s.id, sessionId: s.id, url: '' })
+        }
+        try {
+            if (navigator.clipboard?.writeText) {
+                void navigator.clipboard.writeText(s.id).then(finish).catch(() => finish())
+                return
+            }
+        } catch {
+            /* ignore */
+        }
+        finish()
+    }
 
     const {
         archiveSession,
@@ -507,6 +525,7 @@ function SessionItem(props: {
                 onRename={() => setRenameOpen(true)}
                 onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
+                onCopySessionId={handleCopySessionId}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
@@ -559,6 +578,7 @@ function SessionGroupRow(props: {
     quickCreateInProjectEnabled: boolean
 }) {
     const { t } = useTranslation()
+    const toast = useOptionalToast()
     const {
         group,
         isProjectOffline,
@@ -572,6 +592,23 @@ function SessionGroupRow(props: {
     } = props
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+
+    const handleCopyProjectPath = () => {
+        if (typeof navigator === 'undefined') return
+        const path = group.directory
+        const finish = () => {
+            toast?.addToast({ title: t('sessions.copyProjectPath'), body: path, sessionId: '', url: '' })
+        }
+        try {
+            if (navigator.clipboard?.writeText) {
+                void navigator.clipboard.writeText(path).then(finish).catch(() => finish())
+                return
+            }
+        } catch {
+            /* ignore */
+        }
+        finish()
+    }
     const { setNodeRef, transform, transition, isDragging, isOver, listeners } = useSortable({
         id: group.directory
     })
@@ -715,6 +752,7 @@ function SessionGroupRow(props: {
                     directory: group.directory,
                     machineId: getGroupMachineId(group)
                 })}
+                onCopyProjectPath={group.directory !== 'Other' ? handleCopyProjectPath : undefined}
             />
         </div>
     )

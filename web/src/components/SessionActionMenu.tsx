@@ -17,6 +17,7 @@ type SessionActionMenuProps = {
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
     onSaveCheckpoint?: () => void
+    onCopySessionId?: () => void
     onArchive: () => void
     onDelete: () => void
     anchorPoint: { x: number; y: number }
@@ -40,6 +41,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onSpawnSameConfig,
         onDuplicate,
         onSaveCheckpoint,
+        onCopySessionId,
         onArchive,
         onDelete,
         anchorPoint,
@@ -77,6 +79,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         if (!onSaveCheckpoint) return
         onClose()
         onSaveCheckpoint()
+    }
+
+    const handleCopySessionId = () => {
+        if (!onCopySessionId) return
+        onClose()
+        onCopySessionId()
     }
 
     const handleDelete = () => {
@@ -202,6 +210,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             {onSaveCheckpoint ? (
                 <button type="button" role="menuitem" className="menu-action" onClick={handleSaveCheckpoint}>
                     Save checkpoint
+                </button>
+            ) : null}
+
+            {onCopySessionId ? (
+                <button type="button" role="menuitem" className="menu-action" onClick={handleCopySessionId}>
+                    {t('session.action.copyId')}
                 </button>
             ) : null}
 
