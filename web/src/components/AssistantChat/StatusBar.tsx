@@ -1,10 +1,12 @@
 import { getPermissionModeLabel, getPermissionModeTone, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
 import type { PermissionModeTone } from '@hapi/protocol'
-import { useMemo } from 'react'
+import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentState, ModelMode, PermissionMode } from '@/types/api'
 import type { ConversationStatus } from '@/realtime/types'
 import { getContextBudgetTokens } from '@/chat/modelConfig'
 import { useTranslation } from '@/lib/use-translation'
+import { UsagePanel } from './UsagePanel'
 
 // Vibing messages for thinking state
 const VIBING_MESSAGES = [
@@ -119,6 +121,7 @@ export function StatusBar(props: {
     agentFlavor?: string | null
     collaborationMode?: string
     voiceStatus?: ConversationStatus
+    rateLimitSnapshot?: ClaudeRateLimitSnapshot
 }) {
     const { t } = useTranslation()
     const connectionStatus = useMemo(
@@ -139,6 +142,23 @@ export function StatusBar(props: {
         },
         [props.contextSize, maxContextSize, t]
     )
+
+    const [usageOpen, setUsageOpen] = useState(false)
+    const usageRef = useRef<HTMLDivElement | null>(null)
+    useEffect(() => {
+        if (!usageOpen) return
+        const handler = (event: MouseEvent) => {
+            if (!usageRef.current) return
+            if (!usageRef.current.contains(event.target as Node)) {
+                setUsageOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handler)
+        return () => document.removeEventListener('mousedown', handler)
+    }, [usageOpen])
+
+    const showUsageButton = props.agentFlavor === 'claude'
+        && (typeof props.contextSize === 'number' || Boolean(props.rateLimitSnapshot))
 
     const permissionMode = props.permissionMode
     const runningAgents = props.agentState?.runningAgents ?? (props.agentState?.runningAgent ? [props.agentState.runningAgent] : [])
@@ -198,6 +218,27 @@ export function StatusBar(props: {
                     <span className={`text-[10px] ${contextWarning.color}`}>
                         {contextWarning.text}
                     </span>
+                ) : null}
+                {showUsageButton ? (
+                    <div className="relative" ref={usageRef}>
+                        <button
+                            type="button"
+                            onClick={() => setUsageOpen((prev) => !prev)}
+                            className="rounded-full border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] transition-colors hover:text-[var(--app-text)]"
+                            title={t('usage.tooltip')}
+                        >
+                            {t('usage.label')}
+                        </button>
+                        {usageOpen ? (
+                            <div className="absolute right-0 top-full z-30 mt-1.5">
+                                <UsagePanel
+                                    contextSize={props.contextSize}
+                                    contextWindowTokens={props.contextWindowTokens}
+                                    rateLimitSnapshot={props.rateLimitSnapshot}
+                                />
+                            </div>
+                        ) : null}
+                    </div>
                 ) : null}
                 {displayPermissionMode ? (
                     <span className={`text-xs ${permissionModeColor}`}>

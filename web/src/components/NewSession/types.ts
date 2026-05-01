@@ -7,6 +7,7 @@ export type ServiceTier = 'auto' | 'fast' | 'flex'
 
 export const CLAUDE_THINK_EFFORT_OPTIONS: { value: ThinkEffort; label: string }[] = [
     { value: 'max', label: 'Max' },
+    { value: 'xhigh', label: 'Extra high' },
     { value: 'high', label: 'High' },
     { value: 'auto', label: 'Auto' },
     { value: 'low', label: 'Low' },
@@ -51,6 +52,7 @@ export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
         { value: 'auto', label: 'Auto' },
         { value: 'gpt-5.5', label: 'GPT-5.5' },
         { value: 'gpt-5.4', label: 'GPT-5.4' },
+        { value: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
         { value: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
         { value: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
         { value: 'gpt-5.2', label: 'GPT-5.2' },

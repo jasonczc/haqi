@@ -19,6 +19,7 @@ describe('NewSession model options', () => {
         const codexValues = MODEL_OPTIONS.codex.map((option) => option.value)
         expect(codexValues).toContain('gpt-5.5')
         expect(codexValues).toContain('gpt-5.4')
+        expect(codexValues).toContain('gpt-5.4-mini')
         expect(codexValues).toContain('gpt-5.3-codex')
     })
 
@@ -29,7 +30,7 @@ describe('NewSession model options', () => {
 
     it('includes Claude think effort options', () => {
         const thinkEfforts = CLAUDE_THINK_EFFORT_OPTIONS.map((option) => option.value)
-        expect(thinkEfforts).toEqual(['max', 'high', 'auto', 'low', 'medium'])
+        expect(thinkEfforts).toEqual(['max', 'xhigh', 'high', 'auto', 'low', 'medium'])
     })
 
     it('includes codex think effort options', () => {

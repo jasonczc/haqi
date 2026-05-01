@@ -21,6 +21,7 @@ import type {
     ModelMode,
     PermissionMode
 } from '@/types/api'
+import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import type { ConversationStatus } from '@/realtime/types'
 import type { QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
@@ -279,11 +280,15 @@ function buildClaudeModelOptions(
 
 function getThinkEffortOptionsForFlavor(flavor?: string | null): ComposerThinkEffortOption[] {
     if (flavor === 'claude') {
+        // cc CLI accepts low/medium/high/xhigh/max. xhigh is Opus 4.7-only;
+        // cc downgrades unsupported levels server-side, so it's safe to expose.
         return [
             { value: 'auto', label: 'Auto' },
             { value: 'low', label: 'Low' },
             { value: 'medium', label: 'Medium' },
             { value: 'high', label: 'High' },
+            { value: 'xhigh', label: 'Extra high' },
+            { value: 'max', label: 'Max' },
         ]
     }
     if (flavor === 'codex') {
@@ -324,6 +329,7 @@ export function HappyComposer(props: {
     agentState?: AgentState | null
     contextSize?: number
     contextWindowTokens?: number
+    rateLimitSnapshot?: ClaudeRateLimitSnapshot
     controlledByUser?: boolean
     agentFlavor?: string | null
     onPermissionModeChange?: (mode: PermissionMode) => void
@@ -377,6 +383,7 @@ export function HappyComposer(props: {
         agentState,
         contextSize,
         contextWindowTokens,
+        rateLimitSnapshot,
         controlledByUser = false,
         agentFlavor,
         onPermissionModeChange,
@@ -447,7 +454,8 @@ export function HappyComposer(props: {
             || normalizedThinkEffort === 'low'
             || normalizedThinkEffort === 'medium'
             || normalizedThinkEffort === 'high'
-            || normalizedThinkEffort === 'xhigh') {
+            || normalizedThinkEffort === 'xhigh'
+            || normalizedThinkEffort === 'max') {
             return thinkEffortOptions.some((option) => option.value === normalizedThinkEffort)
                 ? normalizedThinkEffort
                 : 'auto'
@@ -1287,6 +1295,7 @@ export function HappyComposer(props: {
                         agentState={agentState}
                         contextSize={contextSize}
                         contextWindowTokens={contextWindowTokens}
+                        rateLimitSnapshot={rateLimitSnapshot}
                         modelMode={modelMode}
                         permissionMode={permissionMode}
                         agentFlavor={agentFlavor}
