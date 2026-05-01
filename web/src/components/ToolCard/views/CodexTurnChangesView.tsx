@@ -11,6 +11,12 @@ type ChangeFile = {
     unifiedDiff: string | null
 }
 
+type DisplayChangeFile = ChangeFile & {
+    displayPath: string
+    priorityLabel: string
+    parsedDiff: { oldText: string; newText: string } | null
+}
+
 type ChangeSummary = {
     status: string
     files: ChangeFile[]
@@ -250,6 +256,68 @@ function statusLabel(status: string): string {
     return 'Turn completed'
 }
 
+function getFilePriority(file: ChangeFile): { score: number; label: string } {
+    const path = normalizePath(file.path).toLowerCase()
+    const changeSize = file.additions + file.deletions
+
+    if (
+        path.includes('/dist/')
+        || path.includes('/build/')
+        || path.includes('/.vite/')
+        || path.endsWith('.map')
+        || path.endsWith('bun.lock')
+        || path.endsWith('package-lock.json')
+        || path.endsWith('pnpm-lock.yaml')
+    ) {
+        return { score: 10 + Math.min(changeSize, 50) / 100, label: 'Generated' }
+    }
+
+    if (
+        path.endsWith('.test.ts')
+        || path.endsWith('.test.tsx')
+        || path.endsWith('.spec.ts')
+        || path.endsWith('.spec.tsx')
+        || path.startsWith('docs/')
+        || path.endsWith('.md')
+    ) {
+        return { score: 30 + Math.min(changeSize, 100) / 100, label: 'Support' }
+    }
+
+    if (path.endsWith('.css') || path.endsWith('.scss') || path.endsWith('.sass')) {
+        return { score: 45 + Math.min(changeSize, 100) / 100, label: 'Style' }
+    }
+
+    if (
+        path.endsWith('package.json')
+        || path.endsWith('tsconfig.json')
+        || path.endsWith('vite.config.ts')
+        || path.endsWith('forge.config.ts')
+        || path.includes('/routes/')
+        || path.includes('/lib/')
+        || path.includes('/hooks/')
+    ) {
+        return { score: 90 + Math.min(changeSize, 200) / 100, label: 'Core' }
+    }
+
+    if (path.includes('/components/')) {
+        return { score: 70 + Math.min(changeSize, 200) / 100, label: 'UI' }
+    }
+
+    return { score: 55 + Math.min(changeSize, 150) / 100, label: 'Code' }
+}
+
+function compareChangeFiles(left: DisplayChangeFile, right: DisplayChangeFile): number {
+    const leftPriority = getFilePriority(left).score
+    const rightPriority = getFilePriority(right).score
+    if (leftPriority !== rightPriority) return rightPriority - leftPriority
+
+    const leftChanges = left.additions + left.deletions
+    const rightChanges = right.additions + right.deletions
+    if (leftChanges !== rightChanges) return rightChanges - leftChanges
+
+    return left.displayPath.localeCompare(right.displayPath)
+}
+
 function isEditableTarget(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false
     const tag = target.tagName.toLowerCase()
@@ -261,20 +329,22 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     const summary = useMemo(() => normalizeSummary(props.block.tool.input), [props.block.tool.input])
     if (!summary) return null
 
-    const files = useMemo(() => summary.files.map((file) => {
+    const files = useMemo<DisplayChangeFile[]>(() => summary.files.map((file) => {
         const displayPath = resolveDisplayPath(file.path, props.metadata)
         const unifiedDiff = typeof file.unifiedDiff === 'string' && file.unifiedDiff.length > 0
             ? file.unifiedDiff
             : null
+        const priority = getFilePriority(file)
 
         return {
             ...file,
             displayPath,
+            priorityLabel: priority.label,
             parsedDiff: unifiedDiff ? parseUnifiedDiff(unifiedDiff) : null
         }
-    }), [props.metadata, summary.files])
+    }).sort(compareChangeFiles), [props.metadata, summary.files])
 
-    const [selectedPath, setSelectedPath] = useState<string | null>(() => files[0]?.path ?? null)
+    const [selectedPath, setSelectedPath] = useState<string | null>(null)
     const [mobileView, setMobileView] = useState<'list' | 'diff'>('list')
     const [isMobileViewport, setIsMobileViewport] = useState(() => (
         typeof window !== 'undefined' && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches
@@ -291,12 +361,12 @@ export function CodexTurnChangesView(props: ToolViewProps) {
             return
         }
 
-        if (!selectedPath || !files.some((file) => file.path === selectedPath)) {
-            setSelectedPath(files[0].path)
+        if (selectedPath && !files.some((file) => file.path === selectedPath)) {
+            setSelectedPath(null)
         }
     }, [files, selectedPath])
 
-    const selectedFile = files.find((file) => file.path === selectedPath) ?? files[0] ?? null
+    const selectedFile = selectedPath ? files.find((file) => file.path === selectedPath) ?? null : null
 
     useEffect(() => {
         if (typeof window === 'undefined') {
@@ -465,16 +535,17 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [clampListWidth])
 
     const renderFileList = () => (
-        <div className="overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)]">
-            <div className="border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)] px-2 py-1.5 text-xs font-medium text-[var(--cursor-text-tertiary)]">
-                Files ({files.length})
+        <div className="turn-changes-file-list overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)]">
+            <div className="flex items-center justify-between gap-2 border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)] px-2 py-1.5 text-xs font-medium text-[var(--cursor-text-tertiary)]">
+                <span>Files ({files.length})</span>
+                <span className="font-normal">click to preview diff</span>
             </div>
             {files.length === 0 ? (
                 <div className="px-2 py-3 text-xs text-[var(--cursor-text-tertiary)]">
                     No code change in this turn.
                 </div>
             ) : (
-                <div className="max-h-72 overflow-y-auto md:max-h-[28rem]">
+                <div className="max-h-72 overflow-y-auto md:max-h-[36rem]">
                     {files.map((file) => {
                         const selected = selectedFile?.path === file.path
                         return (
@@ -491,11 +562,17 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                                 onClick={() => openFileDetails(file.path)}
                                 className={`w-full border-b border-[var(--cursor-stroke-primary)] px-2 py-2 text-left transition-colors last:border-b-0 ${selected ? 'bg-[var(--cursor-bg-hover)]' : 'hover:bg-[var(--cursor-bg-hover)]'}`}
                             >
-                                <div className="font-mono text-xs text-[var(--cursor-text-primary)] break-all">
-                                    {file.displayPath}
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span className="shrink-0 rounded bg-[var(--cursor-bg-quiet)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
+                                        {file.priorityLabel}
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate font-mono text-xs text-[var(--cursor-text-primary)]" title={file.displayPath}>
+                                        {file.displayPath}
+                                    </span>
                                 </div>
-                                <div className="mt-0.5 text-[11px] text-[var(--cursor-text-tertiary)]">
-                                    +{file.additions} / -{file.deletions}
+                                <div className="mt-1 flex items-center gap-2 text-[11px] text-[var(--cursor-text-tertiary)]">
+                                    <span>+{file.additions} / -{file.deletions}</span>
+                                    {!file.parsedDiff ? <span>snapshot unavailable</span> : null}
                                 </div>
                             </button>
                         )
@@ -506,7 +583,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     )
 
     const renderDiffPanel = (mobile: boolean) => (
-        <div className="overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)]">
+        <div className="turn-changes-diff-panel overflow-hidden rounded-md border border-[var(--cursor-stroke-primary)]">
             {selectedFile ? (
                 <>
                     <div className="border-b border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-hover)] px-2 py-1.5">
@@ -535,8 +612,8 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     </div>
                 </>
             ) : (
-                <div className="px-2 py-3 text-xs text-[var(--cursor-text-tertiary)]">
-                    No file selected.
+                <div className="flex min-h-40 items-center justify-center px-3 py-8 text-center text-xs text-[var(--cursor-text-tertiary)]">
+                    Select a file to preview its diff.
                 </div>
             )}
 
@@ -581,25 +658,29 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                 className="hidden md:flex md:items-start"
             >
                 <div
-                    className="shrink-0 pr-2"
-                    style={{ width: `${listWidth}px` }}
+                    className={selectedFile ? 'shrink-0 pr-2' : 'min-w-0 flex-1'}
+                    style={selectedFile ? { width: `${listWidth}px` } : undefined}
                 >
                     {renderFileList()}
                 </div>
 
-                <div
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label="Resize file list and diff"
-                    onPointerDown={handleResizeStart}
-                    className="flex w-3 shrink-0 cursor-col-resize touch-none select-none items-stretch justify-center"
-                >
-                    <div className={`w-px transition-colors ${isResizing ? 'bg-[var(--cursor-link)]' : 'bg-[var(--cursor-stroke-primary)] hover:bg-[var(--cursor-link)]'}`} />
-                </div>
+                {selectedFile ? (
+                    <>
+                        <div
+                            role="separator"
+                            aria-orientation="vertical"
+                            aria-label="Resize file list and diff"
+                            onPointerDown={handleResizeStart}
+                            className="flex w-3 shrink-0 cursor-col-resize touch-none select-none items-stretch justify-center"
+                        >
+                            <div className={`w-px transition-colors ${isResizing ? 'bg-[var(--cursor-link)]' : 'bg-[var(--cursor-stroke-primary)] hover:bg-[var(--cursor-link)]'}`} />
+                        </div>
 
-                <div className="min-w-0 flex-1 pl-2">
-                    {renderDiffPanel(false)}
-                </div>
+                        <div className="min-w-0 flex-1 pl-2">
+                            {renderDiffPanel(false)}
+                        </div>
+                    </>
+                ) : null}
             </div>
         </div>
     )

@@ -2135,22 +2135,35 @@ export function SessionChat(props: {
             </Dialog>
 
             <Dialog open={isCodexQueueDialogOpen} onOpenChange={setIsCodexQueueDialogOpen}>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="cc-dialog cc-queue-dialog max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>{t('queue.dialog.title')}</DialogTitle>
-                        <DialogDescription>{t('queue.dialog.description')}</DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-3 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-xs text-[var(--cursor-text-tertiary)]">
-                                {t('queue.dialog.modeLabel')}: {codexSendMode === 'queue'
-                                    ? t('queue.mode.queue')
-                                    : t('queue.mode.direct')}
+                        <div className="cc-queue-dialog-header">
+                            <div className="cc-queue-title-row">
+                                <DialogTitle className="cc-dialog-title">{t('queue.dialog.title')}</DialogTitle>
+                                <DialogDescription className="sr-only">
+                                    {t('queue.dialog.description')}
+                                </DialogDescription>
+                                <span className="cc-queue-mode-inline">
+                                    {codexSendMode === 'queue' ? t('queue.mode.queue') : t('queue.mode.direct')}
+                                </span>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="cc-queue-actions">
+                                {codexQueueStatus ? (
+                                    <div className="cc-queue-status-strip" aria-label="Queue status">
+                                        <span className="cc-queue-chip cc-queue-chip-strong">
+                                            {codexQueueStatus.pendingCount}
+                                        </span>
+                                        {codexQueueStatus.taskRunning ? (
+                                            <span className="cc-queue-chip">{t('queue.summary.taskRunning')}</span>
+                                        ) : null}
+                                        {codexQueueStatus.inQueue && !codexQueueStatus.taskRunning ? (
+                                            <span className="cc-queue-chip">{t('queue.summary.inQueue')}</span>
+                                        ) : null}
+                                    </div>
+                                ) : null}
                                 <button
                                     type="button"
-                                    className="rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="cc-btn cc-btn-ghost"
                                     onClick={() => void refreshCodexQueue()}
                                     disabled={isCodexQueueLoading || isCodexQueueMutating}
                                 >
@@ -2158,7 +2171,7 @@ export function SessionChat(props: {
                                 </button>
                                 <button
                                     type="button"
-                                    className="rounded-md border border-[var(--danger)]/40 px-2 py-1 text-xs text-[var(--danger)] transition-colors hover:bg-[var(--danger)]/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="cc-btn cc-btn-danger-ghost"
                                     onClick={handleCodexQueueClear}
                                     disabled={isCodexQueueMutating || codexQueueEntries.length === 0}
                                 >
@@ -2166,111 +2179,79 @@ export function SessionChat(props: {
                                 </button>
                             </div>
                         </div>
+                    </DialogHeader>
+
+                    <div className="cc-dialog-body cc-queue-dialog-body">
 
                         {isCodexQueueLoading ? (
-                            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 text-sm text-[var(--cursor-text-tertiary)]">
+                            <div className="cc-queue-loading">
                                 {t('queue.dialog.loading')}
                             </div>
                         ) : null}
 
                         {codexQueueError ? (
-                            <div className="rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-3 text-sm text-[var(--danger)]">
+                            <div className="cc-queue-error">
                                 {codexQueueError}
                             </div>
                         ) : null}
 
-                        {codexQueueStatus ? (
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                                <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
-                                        {t('queue.summary.pending')}
-                                    </div>
-                                    <div className="mt-1 text-lg font-semibold text-[var(--cursor-text-primary)]">
-                                        {codexQueueStatus.pendingCount}
-                                    </div>
-                                </div>
-                                <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
-                                        {t('queue.summary.inQueue')}
-                                    </div>
-                                    <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
-                                        {codexQueueStatus.inQueue ? 'yes' : 'no'}
-                                    </div>
-                                </div>
-                                <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3">
-                                    <div className="text-[10px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
-                                        {t('queue.summary.taskRunning')}
-                                    </div>
-                                    <div className="mt-1 text-sm text-[var(--cursor-text-primary)]">
-                                        {codexQueueStatus.taskRunning ? 'yes' : 'no'}
-                                    </div>
-                                </div>
-                            </div>
-                        ) : null}
-
                         {codexQueueEntries.length > 0 ? (
-                            <div className="max-h-[55vh] space-y-2 overflow-auto pr-1">
+                            <div className="cc-queue-list">
                                 {codexQueueEntries.map((entry, index) => {
                                     const previewText = entry.preview || t('queue.dialog.emptyMessage')
 
                                     return (
-                                        <div
-                                            key={entry.id}
-                                            className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3"
-                                        >
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="min-w-0 flex-1">
-                                                    <div className="text-[11px] uppercase tracking-wide text-[var(--cursor-text-tertiary)]">
-                                                        #{index + 1}
-                                                        {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
-                                                    </div>
-                                                    <div className="mt-1 break-all text-sm font-mono text-[var(--cursor-text-primary)]">
-                                                        {previewText}
-                                                    </div>
-                                                    <div className="mt-1 text-[10px] text-[var(--cursor-text-tertiary)]">
-                                                        {new Date(entry.enqueuedAt).toLocaleTimeString()}
-                                                    </div>
+                                        <div key={entry.id} className="cc-queue-entry">
+                                            <div className="cc-queue-entry-index">{index + 1}</div>
+                                            <div className="cc-queue-entry-body">
+                                                <div className="cc-queue-entry-preview">
+                                                    {previewText}
                                                 </div>
-                                                <div className="ml-2 flex items-center gap-1">
-                                                    <button
-                                                        type="button"
-                                                        aria-label={t('queue.entry.moveUp')}
-                                                        title={t('queue.entry.moveUp')}
-                                                        className="rounded border border-[var(--cursor-stroke-primary)] px-1.5 py-1 text-xs text-[var(--cursor-text-tertiary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-                                                        onClick={() => handleCodexQueueMove(entry.id, index - 1)}
-                                                        disabled={isCodexQueueMutating || index <= 0}
-                                                    >
-                                                        ↑
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        aria-label={t('queue.entry.moveDown')}
-                                                        title={t('queue.entry.moveDown')}
-                                                        className="rounded border border-[var(--cursor-stroke-primary)] px-1.5 py-1 text-xs text-[var(--cursor-text-tertiary)] transition-colors hover:bg-[var(--cursor-bg-hover)] hover:text-[var(--cursor-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
-                                                        onClick={() => handleCodexQueueMove(entry.id, index + 1)}
-                                                        disabled={isCodexQueueMutating || index >= codexQueueEntries.length - 1}
-                                                    >
-                                                        ↓
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        aria-label={t('queue.entry.remove')}
-                                                        title={t('queue.entry.remove')}
-                                                        className="rounded border border-[var(--danger)]/40 px-1.5 py-1 text-xs text-[var(--danger)] transition-colors hover:bg-[var(--danger)]/10 disabled:cursor-not-allowed disabled:opacity-50"
-                                                        onClick={() => handleCodexQueueRemove(entry.id)}
-                                                        disabled={isCodexQueueMutating}
-                                                    >
-                                                        ✕
-                                                    </button>
+                                                <div className="cc-queue-entry-meta">
+                                                    {new Date(entry.enqueuedAt).toLocaleTimeString()}
+                                                    {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
                                                 </div>
+                                            </div>
+                                            <div className="cc-queue-entry-actions">
+                                                <button
+                                                    type="button"
+                                                    aria-label={t('queue.entry.moveUp')}
+                                                    title={t('queue.entry.moveUp')}
+                                                    className="cc-icon-btn"
+                                                    onClick={() => handleCodexQueueMove(entry.id, index - 1)}
+                                                    disabled={isCodexQueueMutating || index <= 0}
+                                                >
+                                                    ↑
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-label={t('queue.entry.moveDown')}
+                                                    title={t('queue.entry.moveDown')}
+                                                    className="cc-icon-btn"
+                                                    onClick={() => handleCodexQueueMove(entry.id, index + 1)}
+                                                    disabled={isCodexQueueMutating || index >= codexQueueEntries.length - 1}
+                                                >
+                                                    ↓
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-label={t('queue.entry.remove')}
+                                                    title={t('queue.entry.remove')}
+                                                    className="cc-icon-btn cc-icon-btn-danger"
+                                                    onClick={() => handleCodexQueueRemove(entry.id)}
+                                                    disabled={isCodexQueueMutating}
+                                                >
+                                                    ✕
+                                                </button>
                                             </div>
                                         </div>
                                     )
                                 })}
                             </div>
                         ) : (
-                            <div className="rounded-md border border-[var(--cursor-stroke-primary)] bg-[var(--cursor-bg-quiet)] p-3 text-sm text-[var(--cursor-text-tertiary)]">
+                            <div className="cc-queue-empty cc-queue-empty-inline">
                                 {t('queue.dialog.empty')}
+                                {codexQueueStatus?.taskRunning ? ` · ${t('queue.summary.taskRunning')}` : ''}
                             </div>
                         )}
                     </div>

@@ -439,11 +439,6 @@ export function ComposerButtons(props: {
     const moreWrapperRef = useRef<HTMLDivElement>(null)
     const usageWrapperRef = useRef<HTMLDivElement>(null)
 
-    const moreCount = (props.showSettingsButton ? 1 : 0)
-        + (props.showTerminalButton ? 1 : 0)
-        + (props.showStatusButton ? 1 : 0)
-    const showMoreMenuButton = moreCount > 0
-
     useEffect(() => {
         if (!showMore) return
         const handleDocMouseDown = (event: MouseEvent) => {
@@ -485,6 +480,16 @@ export function ComposerButtons(props: {
     const usageTitle = contextRemainingPercent === null
         ? t('usage.tooltip')
         : t('misc.percentLeft', { percent: contextRemainingPercent })
+    const moreCount = (props.showSettingsButton ? 1 : 0)
+        + (props.showTerminalButton ? 1 : 0)
+        + (props.showStatusButton ? 1 : 0)
+        + (props.showQueueButton ? 1 : 0)
+        + (props.permissionChipLabel ? 1 : 0)
+        + (props.showPlanModeToggle ? 1 : 0)
+        + (props.showSendModeToggle ? 1 : 0)
+        + (props.modelChipLabel ? 1 : 0)
+        + (showUsageChip ? 1 : 0)
+    const showMoreMenuButton = moreCount > 0
     const connectionLabel = props.active ? t('misc.online') : t('misc.offline')
     const connectionTitle = props.active
         ? t('misc.online')
@@ -566,6 +571,71 @@ export function ComposerButtons(props: {
                                         className="composer-status-btn"
                                     />
                                 ) : null}
+                                {props.modelChipLabel ? (
+                                    <button
+                                        type="button"
+                                        className="composer-more-menu-item composer-more-mobile-only"
+                                        onClick={() => { closeMore(); props.onModelChipClick?.() }}
+                                        disabled={!props.onModelChipClick}
+                                    >
+                                        <span>Model</span>
+                                        <strong>{props.modelChipLabel}</strong>
+                                    </button>
+                                ) : null}
+                                {props.permissionChipLabel ? (
+                                    <button
+                                        type="button"
+                                        className="composer-more-menu-item composer-more-mobile-only"
+                                        onClick={() => { closeMore(); props.onPermissionChipClick?.() }}
+                                        disabled={!props.onPermissionChipClick}
+                                    >
+                                        <span>Permission</span>
+                                        <strong>{props.permissionChipLabel}</strong>
+                                    </button>
+                                ) : null}
+                                {showUsageChip ? (
+                                    <button
+                                        type="button"
+                                        className="composer-more-menu-item composer-more-mobile-only"
+                                        onClick={() => { closeMore(); setUsageOpen((prev) => !prev) }}
+                                    >
+                                        <span>{t('usage.label')}</span>
+                                        <strong>{usageLabel}</strong>
+                                    </button>
+                                ) : null}
+                                {props.showPlanModeToggle ? (
+                                    <button
+                                        type="button"
+                                        className="composer-more-menu-item composer-more-mobile-only"
+                                        onClick={() => { closeMore(); props.onPlanModeToggle() }}
+                                        disabled={props.planModeDisabled}
+                                    >
+                                        <span>{t('queue.mode.plan')}</span>
+                                        <strong>{props.planModeEnabled ? 'On' : 'Off'}</strong>
+                                    </button>
+                                ) : null}
+                                {props.showSendModeToggle ? (
+                                    <button
+                                        type="button"
+                                        className="composer-more-menu-item composer-more-mobile-only"
+                                        onClick={() => { closeMore(); props.onSendModeChange(props.sendMode === 'queue' ? 'direct' : 'queue') }}
+                                        disabled={props.sendModeDisabled}
+                                    >
+                                        <span>Send mode</span>
+                                        <strong>{props.sendMode === 'queue' ? t('queue.mode.queue') : t('queue.mode.direct')}</strong>
+                                    </button>
+                                ) : null}
+                                {props.showQueueButton ? (
+                                    <button
+                                        type="button"
+                                        className="composer-more-menu-item composer-more-mobile-only"
+                                        onClick={() => { closeMore(); props.onQueue() }}
+                                        disabled={props.queueDisabled}
+                                    >
+                                        <span>{t('composer.queue')}</span>
+                                        <strong>{props.queuePendingCount > 0 ? props.queuePendingCount : ''}</strong>
+                                    </button>
+                                ) : null}
                             </div>
                         ) : null}
                     </div>
@@ -580,7 +650,7 @@ export function ComposerButtons(props: {
                         disabled={props.queueDisabled}
                         title={t('composer.queue')}
                         aria-label={t('composer.queue')}
-                        className="composer-queue-btn"
+                        className="composer-queue-btn composer-mobile-overflow"
                         badge={props.queuePendingCount > 0 ? (
                             <span className="absolute -right-0.5 -top-0.5 inline-flex items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[length:var(--font-size-xs)] font-semibold leading-4 text-white" style={{ minWidth: '16px' }}>
                                 {props.queuePendingCount > 99 ? '99+' : props.queuePendingCount}
@@ -635,7 +705,7 @@ export function ComposerButtons(props: {
                             type="button"
                             onClick={() => setUsageOpen((prev) => !prev)}
                             data-warning={contextRemainingPercent !== null && contextRemainingPercent <= 10 ? '' : undefined}
-                            className="composer-meta-chip composer-usage-chip"
+                            className="composer-meta-chip composer-usage-chip composer-mobile-overflow"
                             title={usageTitle}
                             aria-label={usageTitle}
                         >
@@ -659,7 +729,7 @@ export function ComposerButtons(props: {
                         type="button"
                         onClick={props.onPermissionChipClick}
                         disabled={!props.onPermissionChipClick}
-                        className="composer-meta-chip composer-permission-chip"
+                        className="composer-meta-chip composer-permission-chip composer-mobile-overflow"
                         title={props.permissionChipLabel}
                         aria-label={props.permissionChipLabel}
                     >
@@ -673,7 +743,7 @@ export function ComposerButtons(props: {
                         onClick={props.onPlanModeToggle}
                         disabled={props.planModeDisabled}
                         data-active={props.planModeEnabled ? '' : undefined}
-                        className="mode-chip composer-chip hover:bg-[var(--cursor-bg-hover)]"
+                        className="mode-chip composer-chip composer-plan-chip composer-mobile-overflow hover:bg-[var(--cursor-bg-hover)]"
                         style={{
                             fontSize: 'var(--font-size-xs)',
                             color: 'var(--text-secondary)',
@@ -696,7 +766,7 @@ export function ComposerButtons(props: {
                         onClick={() => props.onSendModeChange(props.sendMode === 'queue' ? 'direct' : 'queue')}
                         disabled={props.sendModeDisabled}
                         data-active={props.sendMode === 'queue' ? '' : undefined}
-                        className="mode-chip composer-chip hover:bg-[var(--cursor-bg-hover)]"
+                        className="mode-chip composer-chip composer-send-mode-chip composer-mobile-overflow hover:bg-[var(--cursor-bg-hover)]"
                         style={{
                             fontSize: 'var(--font-size-xs)',
                             color: 'var(--text-secondary)',
@@ -726,7 +796,7 @@ export function ComposerButtons(props: {
                         type="button"
                         onClick={props.onModelChipClick}
                         disabled={!props.onModelChipClick}
-                        className="composer-model-chip flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[length:var(--font-size-xs)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-default disabled:hover:bg-transparent"
+                        className="composer-model-chip composer-mobile-overflow flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[length:var(--font-size-xs)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-default disabled:hover:bg-transparent"
                         title={props.modelChipLabel}
                         aria-label={props.modelChipLabel}
                     >

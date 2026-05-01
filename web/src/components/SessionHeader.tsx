@@ -187,10 +187,11 @@ export function SessionHeader(props: {
     return (
         <>
             <header className="main-header">
-                {props.onToggleSidebar && props.sidebarVisible === false ? (
+                {props.onToggleSidebar ? (
                     <button
                         type="button"
                         className="header-sidebar-toggle"
+                        data-sidebar-visible={props.sidebarVisible ? '' : undefined}
                         onClick={props.onToggleSidebar}
                         title={t('sessions.sidebar.showDesktop') || 'Show sidebar'}
                         aria-label="Expand sidebar"

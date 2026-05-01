@@ -495,6 +495,7 @@ export function HappyComposer(props: {
         : inlineQueueInQueue
             ? t('queue.summary.inQueue')
             : null
+    const inlineQueueCanExpand = codexQueueEntries.length > 0
     const trimmed = composerText.trim()
     const hasText = trimmed.length > 0
     const hasRuntimeAttachments = attachments.length > 0
@@ -540,6 +541,7 @@ export function HappyComposer(props: {
     const [isAborting, setIsAborting] = useState(false)
     const [isSwitching, setIsSwitching] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
+    const [inlineQueueExpanded, setInlineQueueExpanded] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const wrapperRef = useRef<HTMLDivElement | null>(null)
@@ -1299,9 +1301,20 @@ export function HappyComposer(props: {
             return
         }
 
+        const getKeyboardInset = () => {
+            if (typeof window === 'undefined' || !window.visualViewport) return 0
+            const viewport = window.visualViewport
+            return Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
+        }
+
         const updateClearance = () => {
             const height = Math.ceil(wrapper.getBoundingClientRect().height)
-            chatCenter.style.setProperty('--chat-composer-clearance', `${Math.max(128, height + 24)}px`)
+            const keyboardOpen = isTouch && getKeyboardInset() > 80
+            const clearance = keyboardOpen
+                ? Math.max(72, height + 2)
+                : Math.max(isTouch ? 96 : 128, height + (isTouch ? 8 : 24))
+            chatCenter.style.setProperty('--chat-composer-clearance', `${clearance}px`)
+            wrapper.toggleAttribute('data-keyboard-open', keyboardOpen)
         }
 
         updateClearance()
@@ -1309,13 +1322,18 @@ export function HappyComposer(props: {
         const observer = new ResizeObserver(updateClearance)
         observer.observe(wrapper)
         window.addEventListener('resize', updateClearance)
+        window.visualViewport?.addEventListener('resize', updateClearance)
+        window.visualViewport?.addEventListener('scroll', updateClearance)
 
         return () => {
             observer.disconnect()
             window.removeEventListener('resize', updateClearance)
+            window.visualViewport?.removeEventListener('resize', updateClearance)
+            window.visualViewport?.removeEventListener('scroll', updateClearance)
             chatCenter.style.removeProperty('--chat-composer-clearance')
+            wrapper.removeAttribute('data-keyboard-open')
         }
-    }, [])
+    }, [isTouch])
 
     return (
         <div
@@ -1338,9 +1356,29 @@ export function HappyComposer(props: {
                                     className="chat-inline-queue"
                                 >
                                     <div className="chat-inline-queue-row flex items-center gap-1.5">
-                                        <span className="chat-inline-queue-label text-[length:var(--font-size-sm)] font-medium text-[var(--cursor-text-primary)]">
+                                        <button
+                                            type="button"
+                                            className="chat-inline-queue-label inline-flex items-center gap-1 rounded px-1 text-[length:var(--font-size-sm)] font-medium text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:pointer-events-none"
+                                            onClick={() => setInlineQueueExpanded(prev => !prev)}
+                                            disabled={!inlineQueueCanExpand}
+                                            aria-expanded={inlineQueueExpanded}
+                                        >
+                                            <svg
+                                                className={`chat-inline-queue-chevron ${inlineQueueExpanded ? '' : 'is-collapsed'}`}
+                                                width="10"
+                                                height="10"
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                aria-hidden="true"
+                                            >
+                                                <polyline points="6 9 12 15 18 9"/>
+                                            </svg>
                                             {t('queue.dialog.title')}
-                                        </span>
+                                        </button>
                                         <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-xs text-[var(--cursor-text-secondary)]">
                                             {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                         </span>
@@ -1360,52 +1398,40 @@ export function HappyComposer(props: {
                                         </button>
                                     </div>
 
-                                    {codexQueueInlinePanelMode === 'full' ? (
+                                    {inlineQueueExpanded && inlineQueueCanExpand ? (
                                         <div className="chat-inline-queue-list mt-2 space-y-1">
-                                            {codexQueueEntries.length > 0 ? (
-                                                <>
-                                                    {codexQueueEntries.slice(0, 3).map((entry, index) => {
-                                                        const previewText = entry.preview || t('queue.dialog.emptyMessage')
-                                                        const compactPreviewText = compactQueuePreview(previewText)
+                                            {codexQueueEntries.slice(0, 3).map((entry, index) => {
+                                                const previewText = entry.preview || t('queue.dialog.emptyMessage')
+                                                const compactPreviewText = compactQueuePreview(previewText)
 
-                                                        return (
-                                                            <div
-                                                                key={entry.id}
-                                                                className="chat-inline-queue-entry flex items-center gap-2 rounded-md bg-[var(--cursor-bg-quiet)] px-2 py-1.5"
-                                                            >
-                                                                <span className="chat-inline-queue-index text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
-                                                                    {index === 0 ? t('queue.inline.next') : `#${index + 1}`}
-                                                                </span>
-                                                                <span
-                                                                    className="chat-inline-queue-preview block min-w-0 flex-1 truncate text-xs text-[var(--cursor-text-primary)]"
-                                                                    title={previewText}
-                                                                >
-                                                                    {compactPreviewText}
-                                                                </span>
-                                                                <span className="chat-inline-queue-time shrink-0 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
-                                                                    {new Date(entry.enqueuedAt).toLocaleTimeString([], {
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit'
-                                                                    })}
-                                                                </span>
-                                                            </div>
-                                                        )
-                                                    })}
-                                                    {codexQueueEntries.length > 3 ? (
-                                                        <div className="px-1 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
-                                                            +{codexQueueEntries.length - 3}
-                                                        </div>
-                                                    ) : null}
-                                                </>
-                                            ) : inlineQueuePendingCount > 0 ? (
-                                                <div className="px-1 text-xs text-[var(--cursor-text-secondary)]">
-                                                    {t('queue.inline.pending', { count: inlineQueuePendingCount })}
+                                                return (
+                                                    <div
+                                                        key={entry.id}
+                                                        className="chat-inline-queue-entry flex items-center gap-2 rounded-md bg-[var(--cursor-bg-quiet)] px-2 py-1.5"
+                                                    >
+                                                        <span className="chat-inline-queue-index text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
+                                                            {index === 0 ? t('queue.inline.next') : `#${index + 1}`}
+                                                        </span>
+                                                        <span
+                                                            className="chat-inline-queue-preview block min-w-0 flex-1 truncate text-xs text-[var(--cursor-text-primary)]"
+                                                            title={previewText}
+                                                        >
+                                                            {compactPreviewText}
+                                                        </span>
+                                                        <span className="chat-inline-queue-time shrink-0 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
+                                                            {new Date(entry.enqueuedAt).toLocaleTimeString([], {
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                )
+                                            })}
+                                            {codexQueueEntries.length > 3 ? (
+                                                <div className="px-1 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
+                                                    +{codexQueueEntries.length - 3}
                                                 </div>
-                                            ) : (
-                                                <div className="px-1 text-xs text-[var(--cursor-text-secondary)]">
-                                                    {t('queue.dialog.empty')}
-                                                </div>
-                                            )}
+                                            ) : null}
                                         </div>
                                     ) : null}
                                 </div>

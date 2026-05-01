@@ -233,6 +233,11 @@ type SidebarSessionGroup = {
     sessions: SessionSummary[]
 }
 
+type SidebarSessionPartition = {
+    onlineSessions: SessionSummary[]
+    offlineSessions: SessionSummary[]
+}
+
 type SessionsLayoutContextValue = {
     toggleSidebarFromHeader: () => void
     showDesktopSidebar: boolean
@@ -339,8 +344,31 @@ function groupSessionsByRepo(sessions: SessionSummary[]): SidebarSessionGroup[] 
         label: e.label,
         directory: e.directory,
         machineId: e.machineId,
-        sessions: e.sessions
+        sessions: [...e.sessions].sort((a, b) => {
+            const rankA = a.active ? (a.pendingRequestsCount > 0 ? 0 : 1) : 2
+            const rankB = b.active ? (b.pendingRequestsCount > 0 ? 0 : 1) : 2
+            if (rankA !== rankB) return rankA - rankB
+            return b.updatedAt - a.updatedAt
+        })
     }))
+}
+
+function getSidebarGroupKey(group: SidebarSessionGroup): string {
+    return group.directory || group.label
+}
+
+function partitionSidebarSessions(group: SidebarSessionGroup, forceOffline: boolean): SidebarSessionPartition {
+    if (forceOffline) {
+        return {
+            onlineSessions: [],
+            offlineSessions: group.sessions
+        }
+    }
+
+    return {
+        onlineSessions: group.sessions.filter(session => session.active),
+        offlineSessions: group.sessions.filter(session => !session.active)
+    }
 }
 
 function SidebarSessionItem(props: {
@@ -581,6 +609,7 @@ function SessionsPage() {
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const [sessionSearchQuery] = useState('')
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
+    const [expandedOfflineSessionGroups, setExpandedOfflineSessionGroups] = useState<Set<string>>(() => new Set())
     const [projectMenu, setProjectMenu] = useState<{ group: SidebarSessionGroup; anchorPoint: { x: number; y: number } } | null>(null)
     const [isOfflineProjectsCollapsed, setIsOfflineProjectsCollapsed] = useState(true)
     const queryClient = useQueryClient()
@@ -590,6 +619,14 @@ function SessionsPage() {
             const next = new Set(prev)
             if (next.has(label)) next.delete(label)
             else next.add(label)
+            return next
+        })
+    }, [])
+    const toggleOfflineSessions = useCallback((groupKey: string) => {
+        setExpandedOfflineSessionGroups(prev => {
+            const next = new Set(prev)
+            if (next.has(groupKey)) next.delete(groupKey)
+            else next.add(groupKey)
             return next
         })
     }, [])
@@ -819,7 +856,13 @@ function SessionsPage() {
         setMobileSidebarOpen(true)
     }, [toggleDesktopSidebar])
 
-    const renderSidebarGroup = useCallback((group: SidebarSessionGroup) => {
+    const renderSidebarGroup = useCallback((group: SidebarSessionGroup, options?: { forceOffline?: boolean }) => {
+        const forceOffline = options?.forceOffline === true
+        const groupKey = getSidebarGroupKey(group)
+        const { onlineSessions, offlineSessions } = partitionSidebarSessions(group, forceOffline)
+        const visibleSessions = onlineSessions.length > 0 ? onlineSessions : offlineSessions
+        const shouldFoldOffline = !forceOffline && onlineSessions.length > 0 && offlineSessions.length > 0
+        const offlineExpanded = expandedOfflineSessionGroups.has(groupKey)
         const collapsed = collapsedGroups.has(group.label)
         const toggleCurrentGroup = () => toggleGroup(group.label)
 
@@ -858,7 +901,7 @@ function SessionsPage() {
 
                 <div className="section-content">
                     <div className="section-content-inner">
-                        {group.sessions.map((session) => (
+                        {visibleSessions.map((session) => (
                             <SidebarSessionItem
                                 key={session.id}
                                 session={session}
@@ -868,6 +911,44 @@ function SessionsPage() {
                                 onDeleted={handleDeletedSidebarSession}
                             />
                         ))}
+                        {shouldFoldOffline ? (
+                            <>
+                                <button
+                                    type="button"
+                                    className="nav-item sidebar-offline-toggle"
+                                    onClick={() => toggleOfflineSessions(groupKey)}
+                                    aria-expanded={offlineExpanded}
+                                >
+                                    <span className="nav-text">{t('misc.offline')}</span>
+                                    <span className="section-count">{offlineSessions.length}</span>
+                                    <svg
+                                        className={`section-chevron ${offlineExpanded ? '' : 'collapsed'}`}
+                                        width="10"
+                                        height="10"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    >
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </button>
+                                {offlineExpanded ? (
+                                    offlineSessions.map((session) => (
+                                        <SidebarSessionItem
+                                            key={session.id}
+                                            session={session}
+                                            selected={selectedSessionId === session.id}
+                                            api={api}
+                                            onSelect={selectSession}
+                                            onDeleted={handleDeletedSidebarSession}
+                                        />
+                                    ))
+                                ) : null}
+                            </>
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -876,12 +957,14 @@ function SessionsPage() {
         api,
         collapsedGroups,
         createInProject,
+        expandedOfflineSessionGroups,
         handleDeletedSidebarSession,
         openProjectMenu,
         selectSession,
         selectedSessionId,
         t,
-        toggleGroup
+        toggleGroup,
+        toggleOfflineSessions
     ])
 
     const renderSidebarContent = (options?: { inDrawer?: boolean; onClose?: () => void }) => {
@@ -929,25 +1012,13 @@ function SessionsPage() {
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                             <span className="nav-text">New Agent</span>
                         </button>
-                        <button className="nav-item" onClick={() => navigate({ to: '/settings' })}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                            <span className="nav-text">Routines</span>
-                        </button>
-                        <button className="nav-item" onClick={() => navigate({ to: '/settings' })}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                            <span className="nav-text">Dashboard</span>
-                        </button>
-                        <button className="nav-item text-item">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2l1.88 1.88M14.12 3.88L16 2M9 7.13v-1a3.003 3.003 0 116 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 014-4h4a4 4 0 014 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/></svg>
-                            <span className="nav-text">Bugbot</span>
-                        </button>
                     </nav>
 
                     {error ? (
                         <div className="empty-state" style={{ color: '#EF4444' }}>{error}</div>
                     ) : null}
 
-                    {activeSidebarGroups.map(renderSidebarGroup)}
+                    {activeSidebarGroups.map(group => renderSidebarGroup(group))}
 
                     {offlineSidebarGroups.length > 0 ? (
                         <div className={`sidebar-section ${isOfflineProjectsCollapsed ? 'collapsed' : ''}`}>
@@ -981,7 +1052,7 @@ function SessionsPage() {
                             </div>
                             <div className="section-content">
                                 <div className="section-content-inner">
-                                    {offlineSidebarGroups.map(renderSidebarGroup)}
+                                    {offlineSidebarGroups.map(group => renderSidebarGroup(group, { forceOffline: true }))}
                                 </div>
                             </div>
                         </div>
@@ -1005,7 +1076,7 @@ function SessionsPage() {
 
     return (
         <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
-            <div className="app-container cursor-theme">
+            <div className={`app-container cursor-theme ${isSessionsIndex ? 'sessions-index-layout' : ''}`}>
                 <div
                     className={`sidebar flex ${showDesktopSidebar ? '' : 'sidebar-collapsed'}`}
                     style={sidebarStyle}
@@ -1026,18 +1097,6 @@ function SessionsPage() {
                     </button>
                 ) : null}
 
-                {!isSessionsIndex && !isSessionChatRoute ? (
-                    <button
-                        type="button"
-                        onClick={openSidebarOnMobile}
-                        className="fixed left-3 top-[calc(4rem+env(safe-area-inset-top))] z-30 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-app)] text-[var(--cursor-text-secondary)] shadow-sm transition-colors hover:text-[var(--cursor-text-primary)] hover:bg-[var(--cursor-bg-secondary)] lg:hidden"
-                        title={t('sessions.sidebar.open')}
-                        aria-label={t('sessions.sidebar.open')}
-                    >
-                        <SidebarIcon className="h-5 w-5" />
-                    </button>
-                ) : null}
-
                 {mobileSidebarOpen ? (
                     <div className="fixed inset-0 z-40 flex lg:hidden">
                         <button
@@ -1046,7 +1105,7 @@ function SessionsPage() {
                             className="absolute inset-0 bg-black/35"
                             aria-label={t('sessions.sidebar.close')}
                         />
-                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cc-bg-sidebar)] shadow-xl">
+                        <div className="mobile-sidebar-drawer relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--cursor-stroke-secondary)] bg-[var(--cc-bg-sidebar)] shadow-xl">
                             {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
                         </div>
                     </div>

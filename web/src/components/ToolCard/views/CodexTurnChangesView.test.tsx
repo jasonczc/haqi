@@ -72,6 +72,10 @@ describe('CodexTurnChangesView', () => {
             />
         )
 
+        expect(screen.queryByTestId('diff-view')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getAllByRole('button', { name: /src\/a\.ts/i })[0]!)
+
         for (const node of screen.getAllByTestId('diff-view')) {
             expect(node).toHaveAttribute('data-file-path', 'src/a.ts')
             expect(node).toHaveAttribute('data-old', 'before-a')
@@ -85,5 +89,35 @@ describe('CodexTurnChangesView', () => {
             expect(node).toHaveAttribute('data-old', 'before-b')
             expect(node).toHaveAttribute('data-new', 'after-b')
         }
+    })
+
+    it('prioritizes source files ahead of style-only changes', () => {
+        render(
+            <CodexTurnChangesView
+                {...buildProps({
+                    status: 'completed',
+                    files: [
+                        {
+                            path: 'web/src/cursor-theme.css',
+                            additions: 50,
+                            deletions: 10,
+                            unified_diff: 'diff --git a/web/src/cursor-theme.css b/web/src/cursor-theme.css\n--- a/web/src/cursor-theme.css\n+++ b/web/src/cursor-theme.css\n@@ -1 +1 @@\n-a\n+b'
+                        },
+                        {
+                            path: 'web/src/lib/session.ts',
+                            additions: 2,
+                            deletions: 1,
+                            unified_diff: 'diff --git a/web/src/lib/session.ts b/web/src/lib/session.ts\n--- a/web/src/lib/session.ts\n+++ b/web/src/lib/session.ts\n@@ -1 +1 @@\n-a\n+b'
+                        }
+                    ],
+                    patch_apply: { total: 2, success: 2, failed: 0 },
+                    diff_stats: { additions: 52, deletions: 11, available: true }
+                })}
+            />
+        )
+
+        const fileButtons = screen.getAllByRole('button', { name: /web\/src\//i })
+        expect(fileButtons[0]).toHaveTextContent('web/src/lib/session.ts')
+        expect(fileButtons[1]).toHaveTextContent('web/src/cursor-theme.css')
     })
 })
