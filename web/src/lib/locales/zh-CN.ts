@@ -46,6 +46,7 @@ export default {
   'sessions.projectOffline.section': '离线项目',
   'sessions.projectOffline.enable': '标记项目离线',
   'sessions.projectOffline.disable': '取消项目离线',
+  'sessions.projectOffline.bringAllOnline': '全部项目恢复在线',
   'sessions.copyProjectPath': '复制项目路径',
   'sessions.display.toggleToCompact': '切换到紧凑视图',
   'sessions.display.toggleToComfortable': '切换到舒适视图',

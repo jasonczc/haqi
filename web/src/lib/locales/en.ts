@@ -46,6 +46,7 @@ export default {
   'sessions.projectOffline.section': 'Offline projects',
   'sessions.projectOffline.enable': 'Mark project offline',
   'sessions.projectOffline.disable': 'Unmark project offline',
+  'sessions.projectOffline.bringAllOnline': 'Bring all projects online',
   'sessions.copyProjectPath': 'Copy project path',
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
