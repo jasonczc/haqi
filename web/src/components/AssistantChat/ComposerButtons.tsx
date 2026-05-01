@@ -1,6 +1,28 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
 import { useTranslation } from '@/lib/use-translation'
+import { ComposerIconButton } from '@/components/AssistantChat/ComposerIconButton'
+
+function MoreDotsIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <circle cx="5" cy="12" r="1.4" fill="currentColor" />
+            <circle cx="12" cy="12" r="1.4" fill="currentColor" />
+            <circle cx="19" cy="12" r="1.4" fill="currentColor" />
+        </svg>
+    )
+}
 
 function VoiceAssistantIcon() {
     return (
@@ -317,7 +339,7 @@ function UnifiedButton(props: {
         ariaLabel = t('composer.voice')
     } else {
         icon = <SendIcon />
-        className = 'bg-[#C0C0C0] text-white'
+        className = 'bg-[var(--cursor-bg-quaternary)] text-[var(--cursor-text-secondary)]'
         ariaLabel = t('composer.send')
     }
 
@@ -330,7 +352,7 @@ function UnifiedButton(props: {
             disabled={isDisabled}
             aria-label={ariaLabel}
             title={ariaLabel}
-            className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+            className={`composer-send-btn flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         >
             {icon}
         </button>
@@ -375,128 +397,154 @@ export function ComposerButtons(props: {
     onVoiceToggle: () => void
     onVoiceMicToggle?: () => void
     onSend: () => void
+    modelChipLabel?: string
+    modelChipActive?: boolean
+    onModelChipClick?: () => void
 }) {
     const { t } = useTranslation()
     const isVoiceConnected = props.voiceStatus === 'connected'
+    const [showMore, setShowMore] = useState(false)
+    const moreWrapperRef = useRef<HTMLDivElement>(null)
+
+    const moreCount = (props.showSettingsButton ? 1 : 0)
+        + (props.showTerminalButton ? 1 : 0)
+        + (props.showStatusButton ? 1 : 0)
+    const showMoreMenuButton = moreCount > 0
+
+    useEffect(() => {
+        if (!showMore) return
+        const handleDocMouseDown = (event: MouseEvent) => {
+            const el = moreWrapperRef.current
+            if (!el) return
+            if (el.contains(event.target as Node)) return
+            setShowMore(false)
+        }
+        document.addEventListener('mousedown', handleDocMouseDown)
+        return () => document.removeEventListener('mousedown', handleDocMouseDown)
+    }, [showMore])
+
+    const closeMore = useCallback(() => setShowMore(false), [])
 
     return (
-        <div className="flex items-center justify-between px-2 pb-2">
-            <div className="flex items-center gap-1">
+        <div className="input-footer chat-input-footer flex items-center justify-between gap-2">
+            <div className="left-actions footer-left chat-input-tools flex items-center gap-1">
                 <ComposerPrimitive.AddAttachment
                     aria-label={t('composer.attach')}
                     title={t('composer.attach')}
                     disabled={props.controlsDisabled}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="composer-icon-btn composer-attachment-btn flex h-8 w-8 items-center justify-center rounded-full text-[var(--cursor-text-secondary)] transition-colors hover:bg-[var(--cursor-bg-card)] hover:text-[var(--cursor-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <AttachmentIcon />
                 </ComposerPrimitive.AddAttachment>
 
-                {props.showSettingsButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.settings')}
-                        title={t('composer.settings')}
-                        className="settings-button flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]"
-                        onClick={props.onSettingsToggle}
-                        disabled={props.controlsDisabled}
-                    >
-                        <SettingsIcon />
-                    </button>
-                ) : null}
-
-                {props.showTerminalButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.terminal')}
-                        title={t('composer.terminal')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onTerminal}
-                        disabled={props.terminalDisabled}
-                    >
-                        <TerminalIcon />
-                    </button>
-                ) : null}
-
-                {props.showStatusButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.status')}
-                        title={t('composer.status')}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-cyan-600 disabled:cursor-not-allowed disabled:opacity-50"
-                        onClick={props.onStatus}
-                        disabled={props.statusDisabled}
-                    >
-                        <StatusIcon />
-                    </button>
+                {showMoreMenuButton ? (
+                    <div ref={moreWrapperRef} className="composer-more-wrapper relative">
+                        <ComposerIconButton
+                            icon={<MoreDotsIcon />}
+                            onClick={() => setShowMore((prev) => !prev)}
+                            disabled={props.controlsDisabled}
+                            title={t('composer.more') || 'More'}
+                            aria-label={t('composer.more') || 'More'}
+                            className="composer-more-btn"
+                            active={showMore}
+                        />
+                        {showMore ? (
+                            <div
+                                className="composer-more-menu absolute bottom-[calc(100%+6px)] left-0 z-20 flex items-center gap-1 rounded-full border border-[var(--border-tertiary)] bg-[var(--bg-elevated,var(--editor))] px-1.5 py-1 shadow-md"
+                            >
+                                {props.showSettingsButton ? (
+                                    <ComposerIconButton
+                                        icon={<SettingsIcon />}
+                                        onClick={() => { closeMore(); props.onSettingsToggle() }}
+                                        disabled={props.controlsDisabled}
+                                        title={t('composer.settings')}
+                                        aria-label={t('composer.settings')}
+                                        className="settings-button composer-settings-btn"
+                                    />
+                                ) : null}
+                                {props.showTerminalButton ? (
+                                    <ComposerIconButton
+                                        icon={<TerminalIcon />}
+                                        tone="success"
+                                        onClick={() => { closeMore(); props.onTerminal() }}
+                                        disabled={props.terminalDisabled}
+                                        title={t('composer.terminal')}
+                                        aria-label={t('composer.terminal')}
+                                        className="composer-terminal-btn"
+                                    />
+                                ) : null}
+                                {props.showStatusButton ? (
+                                    <ComposerIconButton
+                                        icon={<StatusIcon />}
+                                        tone="accent"
+                                        onClick={() => { closeMore(); props.onStatus() }}
+                                        disabled={props.statusDisabled}
+                                        title={t('composer.status')}
+                                        aria-label={t('composer.status')}
+                                        className="composer-status-btn"
+                                    />
+                                ) : null}
+                            </div>
+                        ) : null}
+                    </div>
                 ) : null}
 
                 {props.showQueueButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.queue')}
-                        title={t('composer.queue')}
-                        className={`relative flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                            props.queueActive
-                                ? 'bg-violet-500/10 text-violet-600'
-                                : 'text-[var(--app-fg)]/60 hover:bg-[var(--app-bg)] hover:text-violet-600'
-                        }`}
+                    <ComposerIconButton
+                        icon={<QueueIcon />}
+                        tone="accent"
+                        active={props.queueActive}
                         onClick={props.onQueue}
                         disabled={props.queueDisabled}
-                    >
-                        <QueueIcon />
-                        {props.queuePendingCount > 0 ? (
-                            <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-[16px] items-center justify-center rounded-full bg-violet-500 px-1 text-[10px] font-semibold leading-4 text-white">
+                        title={t('composer.queue')}
+                        aria-label={t('composer.queue')}
+                        className="composer-queue-btn"
+                        badge={props.queuePendingCount > 0 ? (
+                            <span className="absolute -right-0.5 -top-0.5 inline-flex items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[length:var(--font-size-xs)] font-semibold leading-4 text-white" style={{ minWidth: '16px' }}>
                                 {props.queuePendingCount > 99 ? '99+' : props.queuePendingCount}
                             </span>
                         ) : null}
-                    </button>
+                    />
                 ) : null}
 
                 {props.showAbortButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.abort')}
-                        title={t('composer.abort')}
-                        disabled={props.abortDisabled}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    <ComposerIconButton
+                        icon={<AbortIcon spinning={props.isAborting} />}
+                        tone="danger"
                         onClick={props.onAbort}
-                    >
-                        <AbortIcon spinning={props.isAborting} />
-                    </button>
+                        disabled={props.abortDisabled}
+                        title={t('composer.abort')}
+                        aria-label={t('composer.abort')}
+                        className="composer-abort-btn"
+                    />
                 ) : null}
 
                 {props.showSwitchButton ? (
-                    <button
-                        type="button"
-                        aria-label={t('composer.switchRemote')}
-                        title={t('composer.switchRemote')}
-                        disabled={props.switchDisabled}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    <ComposerIconButton
+                        icon={<SwitchToRemoteIcon />}
+                        tone="accent"
                         onClick={props.onSwitch}
-                    >
-                        <SwitchToRemoteIcon />
-                    </button>
+                        disabled={props.switchDisabled}
+                        title={t('composer.switchRemote')}
+                        aria-label={t('composer.switchRemote')}
+                        className="composer-switch-btn"
+                    />
                 ) : null}
 
                 {isVoiceConnected && props.onVoiceMicToggle ? (
-                    <button
-                        type="button"
-                        aria-label={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
-                        title={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
-                        className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-                            props.voiceMicMuted
-                                ? 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                                : 'text-[var(--app-fg)]/60 hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)]'
-                        }`}
+                    <ComposerIconButton
+                        icon={<SpeakerIcon muted={props.voiceMicMuted} />}
+                        active={props.voiceMicMuted}
                         onClick={props.onVoiceMicToggle}
-                    >
-                        <SpeakerIcon muted={props.voiceMicMuted} />
-                    </button>
+                        title={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
+                        aria-label={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
+                        className="composer-voice-btn"
+                    />
                 ) : null}
             </div>
 
             <div
-                className="flex items-center gap-2"
+                className="right-info footer-right chat-input-actions flex items-center gap-1.5"
                 title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
             >
                 {props.showPlanModeToggle ? (
@@ -504,13 +552,19 @@ export function ComposerButtons(props: {
                         type="button"
                         onClick={props.onPlanModeToggle}
                         disabled={props.planModeDisabled}
-                        className={`rounded-full border px-2 py-1 text-[10px] font-medium transition-colors ${
-                            props.planModeEnabled
-                                ? 'border-blue-500/50 bg-blue-500/10 text-blue-600'
-                                : 'border-[var(--app-border)] bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
-                        } disabled:cursor-not-allowed disabled:opacity-50`}
+                        data-active={props.planModeEnabled ? '' : undefined}
+                        className="mode-chip composer-chip hover:bg-[var(--cursor-bg-hover)]"
+                        style={{
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--text-secondary)',
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                        }}
                         title={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
                         aria-label={props.planModeEnabled ? t('queue.mode.planEnabledHint') : t('queue.mode.planDisabledHint')}
+                        aria-pressed={props.planModeEnabled}
                     >
                         {t('queue.mode.plan')}
                     </button>
@@ -521,11 +575,16 @@ export function ComposerButtons(props: {
                         type="button"
                         onClick={() => props.onSendModeChange(props.sendMode === 'queue' ? 'direct' : 'queue')}
                         disabled={props.sendModeDisabled}
-                        className={`rounded-full border px-2 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                            props.sendMode === 'queue'
-                                ? 'border-violet-500/50 bg-violet-500/10 text-violet-600'
-                                : 'border-[var(--app-border)] bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
-                        }`}
+                        data-active={props.sendMode === 'queue' ? '' : undefined}
+                        className="mode-chip composer-chip hover:bg-[var(--cursor-bg-hover)]"
+                        style={{
+                            fontSize: 'var(--font-size-xs)',
+                            color: 'var(--text-secondary)',
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                        }}
                         title={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
                         aria-label={props.sendMode === 'queue' ? t('queue.mode.queueHint') : t('queue.mode.directHint')}
                     >
@@ -541,6 +600,25 @@ export function ComposerButtons(props: {
                     onSend={props.onSend}
                     onVoiceToggle={props.onVoiceToggle}
                 />
+
+                {props.modelChipLabel ? (
+                    <button
+                        type="button"
+                        onClick={props.onModelChipClick}
+                        disabled={!props.onModelChipClick}
+                        className="composer-model-chip flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[length:var(--font-size-xs)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-default disabled:hover:bg-transparent"
+                        title={props.modelChipLabel}
+                        aria-label={props.modelChipLabel}
+                    >
+                        <span className="composer-model-chip-label truncate">
+                            {props.modelChipLabel}
+                        </span>
+                        <span
+                            className="composer-model-chip-dot inline-block h-1.5 w-1.5 rounded-full border border-[var(--text-tertiary)]"
+                            aria-hidden="true"
+                        />
+                    </button>
+                ) : null}
             </div>
         </div>
     )

@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState } from 'react'
 import type { Session } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
@@ -7,7 +7,13 @@ import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useToast } from '@/lib/toast-context'
 import { useTranslation } from '@/lib/use-translation'
+
+export function extractRepoShortName(url: string): string {
+    const match = url.match(/([^/]+\/[^/.]+?)(?:\.git)?$/)
+    return match ? match[1] : url
+}
 
 function getSessionTitle(session: Session): string {
     if (session.metadata?.name) {
@@ -23,12 +29,12 @@ function getSessionTitle(session: Session): string {
     return session.id.slice(0, 8)
 }
 
-function FilesIcon(props: { className?: string }) {
+function CloudBranchIcon(props: { className?: string }) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
+            width="14"
+            height="14"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -36,19 +42,20 @@ function FilesIcon(props: { className?: string }) {
             strokeLinecap="round"
             strokeLinejoin="round"
             className={props.className}
+            aria-hidden="true"
         >
-            <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-            <path d="M14 2v6h6" />
+            <path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.78A6 6 0 0 0 4.5 12.5" />
+            <path d="M8 19h9" />
         </svg>
     )
 }
 
-function BrowserIcon(props: { className?: string }) {
+function ChevronDownIcon(props: { className?: string }) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
+            width="12"
+            height="12"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -56,70 +63,9 @@ function BrowserIcon(props: { className?: string }) {
             strokeLinecap="round"
             strokeLinejoin="round"
             className={props.className}
+            aria-hidden="true"
         >
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M3 9h18" />
-            <path d="M7 6.5h.01" />
-            <path d="M10 6.5h.01" />
-        </svg>
-    )
-}
-
-function SidebarIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M9 3v18" />
-        </svg>
-    )
-}
-
-function PlugIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M12 2v7" />
-            <path d="M9 5h6" />
-            <path d="M6 9h12v2a6 6 0 0 1-6 6 6 6 0 0 1-6-6z" />
-            <path d="M12 17v5" />
-        </svg>
-    )
-}
-
-function MoreVerticalIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className={props.className}
-        >
-            <circle cx="12" cy="5" r="2" />
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="12" cy="19" r="2" />
+            <polyline points="6 9 12 15 18 9" />
         </svg>
     )
 }
@@ -131,21 +77,18 @@ export function SessionHeader(props: {
     onToggleSidebar?: () => void
     sidebarVisible?: boolean
     onViewPreview?: () => void
+    onViewDesktop?: () => void
+    onViewTerminal?: () => void
     onViewFiles?: () => void
     onViewMcpStatus?: () => void
+    onToggleWorkbench?: () => void
+    workbenchOpen?: boolean
     api: ApiClient | null
     onSessionDeleted?: () => void
 }) {
     const { t } = useTranslation()
     const { session, api, onSessionDeleted } = props
     const title = useMemo(() => getSessionTitle(session), [session])
-    const worktreeBranch = session.metadata?.worktree?.branch
-    const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
-    const displayThinkEffort = session.metadata?.thinkEffort?.trim()
-    const displayServiceTier = session.metadata?.serviceTier?.trim()
-    const sidebarToggleLabel = props.sidebarVisible
-        ? t('sessions.sidebar.hideDesktop')
-        : t('sessions.sidebar.showDesktop')
 
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -154,6 +97,7 @@ export function SessionHeader(props: {
     const [renameOpen, setRenameOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
+    const { addToast } = useToast()
 
     const {
         archiveSession,
@@ -193,6 +137,25 @@ export function SessionHeader(props: {
         })
     }
 
+    const handleShare = useCallback(() => {
+        if (typeof window === 'undefined') return
+        const url = window.location.href
+        const finish = () => {
+            addToast({ title: 'Link copied', body: url, sessionId: session.id, url })
+        }
+        try {
+            if (navigator.clipboard?.writeText) {
+                void navigator.clipboard.writeText(url).then(finish).catch(() => {
+                    addToast({ title: 'Share', body: url, sessionId: session.id, url })
+                })
+                return
+            }
+        } catch {
+            /* ignore */
+        }
+        addToast({ title: 'Share', body: url, sessionId: session.id, url })
+    }, [addToast, session.id])
+
     const handleSpawnSameConfig = () => {
         void spawnSameConfigSession()
             .then((newSessionId) => {
@@ -220,114 +183,79 @@ export function SessionHeader(props: {
 
     return (
         <>
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3">
-                    <div className="flex items-center gap-1">
-                        {/* Back button */}
-                        <button
-                            type="button"
-                            onClick={props.onBack}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <polyline points="15 18 9 12 15 6" />
-                            </svg>
-                        </button>
-
-                        {props.onToggleSidebar ? (
-                            <button
-                                type="button"
-                                onClick={props.onToggleSidebar}
-                                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                title={sidebarToggleLabel}
-                                aria-label={sidebarToggleLabel}
-                            >
-                                <SidebarIcon />
-                            </button>
-                        ) : null}
-                    </div>
-
-                    {/* Session info - two lines: title and path */}
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">
-                            {title}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-[var(--app-hint)]">
-                            <span className="inline-flex items-center gap-1">
-                                <span aria-hidden="true">❖</span>
-                                {session.metadata?.flavor?.trim() || 'unknown'}
-                            </span>
-                            <span>
-                                {t('session.item.model')}: {displayModel}
-                                {displayThinkEffort ? ` · ${t('session.item.thinkLevel')}: ${displayThinkEffort}` : ''}
-                                {displayServiceTier ? ` · ${t('newSession.serviceTier')}: ${displayServiceTier}` : ''}
-                            </span>
-                            {worktreeBranch ? (
-                                <span>{t('session.item.worktree')}: {worktreeBranch}</span>
-                            ) : null}
-                        </div>
-                    </div>
-
-                    {props.onViewPreview ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewPreview}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title="Preview"
-                            aria-label="Preview"
-                        >
-                            <BrowserIcon />
-                        </button>
-                    ) : null}
-
-                    {props.onViewFiles ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewFiles}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('session.title')}
-                        >
-                            <FilesIcon />
-                        </button>
-                    ) : null}
-
-                    {props.onViewMcpStatus ? (
-                        <button
-                            type="button"
-                            onClick={props.onViewMcpStatus}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('session.mcpStatus')}
-                            aria-label={t('session.mcpStatus')}
-                        >
-                            <PlugIcon />
-                        </button>
-                    ) : null}
-
+            <header className="main-header">
+                {props.onToggleSidebar && props.sidebarVisible === false ? (
                     <button
                         type="button"
+                        className="header-sidebar-toggle"
+                        onClick={props.onToggleSidebar}
+                        title={t('sessions.sidebar.showDesktop') || 'Show sidebar'}
+                        aria-label="Expand sidebar"
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                    </button>
+                ) : null}
+                <div className="breadcrumb">
+                    <span className="breadcrumb-icon text-[var(--cursor-text-secondary)]">
+                        <CloudBranchIcon />
+                    </span>
+                    <button
+                        type="button"
+                        onClick={props.onBack}
+                        className="breadcrumb-repo min-w-0 truncate hover:text-[var(--cursor-text-primary)] transition-colors"
+                    >
+                        Sessions
+                    </button>
+                    <span className="breadcrumb-sep shrink-0">/</span>
+                    <span className="breadcrumb-title min-w-0 truncate text-[var(--cursor-text-primary)]" style={{ fontWeight: 600 }}>
+                        &ldquo;{title}&rdquo;
+                    </span>
+                    <span className="shrink-0 opacity-60" style={{ marginLeft: '2px' }}>
+                        <ChevronDownIcon />
+                    </span>
+                </div>
+
+                <div className="header-actions">
+                    <button type="button" onClick={handleShare} className="btn-share">
+                        Share
+                    </button>
+
+                    <button
+                        ref={menuAnchorRef}
+                        type="button"
+                        className="icon-action-btn header-more-btn"
                         onClick={handleMenuToggle}
                         onPointerDown={(e) => e.stopPropagation()}
-                        ref={menuAnchorRef}
                         aria-haspopup="menu"
                         aria-expanded={menuOpen}
                         aria-controls={menuOpen ? menuId : undefined}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
                         title={t('session.more')}
                     >
-                        <MoreVerticalIcon />
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                            <circle cx="5" cy="12" r="1.6" />
+                            <circle cx="12" cy="12" r="1.6" />
+                            <circle cx="19" cy="12" r="1.6" />
+                        </svg>
                     </button>
+
+                    {props.onToggleWorkbench ? (
+                        <button
+                            type="button"
+                            className="icon-action-btn header-workbench-toggle"
+                            onClick={props.onToggleWorkbench}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            aria-pressed={Boolean(props.workbenchOpen)}
+                            title={props.workbenchOpen ? 'Hide workbench' : 'Show workbench'}
+                            aria-label={props.workbenchOpen ? 'Hide workbench' : 'Show workbench'}
+                        >
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <line x1="15" y1="3" x2="15" y2="21" />
+                            </svg>
+                        </button>
+                    ) : null}
                 </div>
-            </div>
+            </header>
 
             <SessionActionMenu
                 isOpen={menuOpen}
@@ -339,6 +267,7 @@ export function SessionHeader(props: {
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}
                 anchorPoint={menuAnchorPoint}
+                align="end"
                 menuId={menuId}
             />
 
@@ -373,6 +302,7 @@ export function SessionHeader(props: {
                 isPending={isPending}
                 destructive
             />
+
         </>
     )
 }

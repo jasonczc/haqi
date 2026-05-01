@@ -1,18 +1,8 @@
 import {
     forwardRef,
-    useRef,
-    useEffect,
     useMemo,
     useState,
-    type KeyboardEvent as ReactKeyboardEvent,
-    type MouseEvent as ReactMouseEvent,
-    type PointerEvent as ReactPointerEvent,
-    type TouchEvent as ReactTouchEvent
 } from 'react'
-import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
-import type { DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { Virtuoso } from 'react-virtuoso'
 import type { SessionSummary } from '@/types/api'
 import type { ApiClient } from '@/api/client'
@@ -20,50 +10,18 @@ import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
-import { ProjectActionMenu } from '@/components/ProjectActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
-import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
-import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
-import { useSessionQuickArchive } from '@/hooks/useSessionQuickArchive'
-import { SessionQuickArchiveButton } from '@/components/SessionQuickArchiveButton'
-import {
-    applySessionGroupOrder,
-    loadSessionGroupOrder,
-    moveSessionGroup,
-    persistSessionGroupOrder,
-    reconcileSessionGroupOrder
-} from '@/components/sessionGroupOrder'
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 
-type SessionGroup = {
-    directory: string
-    displayName: string
-    sessions: SessionSummary[]
-    latestUpdatedAt: number
-    hasActiveSession: boolean
-}
-
 type SessionListRow =
     | {
-        type: 'group'
-        group: SessionGroup
-        isProjectOffline: boolean
-        isCollapsed: boolean
-    }
-    | {
-        type: 'projects-offline-section'
-        count: number
-        isCollapsed: boolean
-    }
-    | {
-        type: 'offline-section'
-        group: SessionGroup
-        offlineCount: number
-        isCollapsed: boolean
+        type: 'date-header'
+        label: string
+        isFirst: boolean
     }
     | {
         type: 'session'
@@ -76,148 +34,115 @@ export type NewSessionPreset = {
     machineId?: string
 }
 
-function getGroupDisplayName(directory: string): string {
-    if (directory === 'Other') return directory
-    const parts = directory.split(/[\\/]+/).filter(Boolean)
-    if (parts.length === 0) return directory
-    if (parts.length === 1) return parts[0]
-    return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`
+function getDateGroup(updatedAt: number): string {
+    const now = Date.now()
+    const ms = updatedAt < 1_000_000_000_000 ? updatedAt * 1000 : updatedAt
+    const delta = now - ms
+    const days = delta / (1000 * 60 * 60 * 24)
+    if (days < 1) return 'Today'
+    if (days < 2) return 'Yesterday'
+    if (days < 7) return 'This Week'
+    if (days < 14) return 'Last Week'
+    if (days < 30) return 'This Month'
+    return 'Earlier'
 }
 
-function groupSessionsByDirectory(sessions: SessionSummary[]): SessionGroup[] {
-    const groups = new Map<string, SessionSummary[]>()
-
-    sessions.forEach(session => {
-        const path = session.metadata?.worktree?.basePath ?? session.metadata?.path ?? 'Other'
-        if (!groups.has(path)) {
-            groups.set(path, [])
-        }
-        groups.get(path)!.push(session)
+export function buildDateRows(sessions: SessionSummary[]): SessionListRow[] {
+    // Sort all sessions by updatedAt descending (newest first)
+    const sorted = [...sessions].sort((a, b) => {
+        // Active thinking sessions first, then active, then by time
+        const rankA = a.active ? (a.pendingRequestsCount > 0 ? 0 : 1) : 2
+        const rankB = b.active ? (b.pendingRequestsCount > 0 ? 0 : 1) : 2
+        if (rankA !== rankB) return rankA - rankB
+        return b.updatedAt - a.updatedAt
     })
 
-    return Array.from(groups.entries())
-        .map(([directory, groupSessions]) => {
-            const sortedSessions = [...groupSessions].sort((a, b) => {
-                const rankA = a.active ? (a.pendingRequestsCount > 0 ? 0 : 1) : 2
-                const rankB = b.active ? (b.pendingRequestsCount > 0 ? 0 : 1) : 2
-                if (rankA !== rankB) return rankA - rankB
-                return b.updatedAt - a.updatedAt
-            })
-            const latestUpdatedAt = groupSessions.reduce(
-                (max, s) => (s.updatedAt > max ? s.updatedAt : max),
-                -Infinity
-            )
-            const hasActiveSession = groupSessions.some(s => s.active)
-            const displayName = getGroupDisplayName(directory)
-
-            return { directory, displayName, sessions: sortedSessions, latestUpdatedAt, hasActiveSession }
-        })
-        .sort((a, b) => {
-            if (a.hasActiveSession !== b.hasActiveSession) {
-                return a.hasActiveSession ? -1 : 1
-            }
-            return b.latestUpdatedAt - a.latestUpdatedAt
-        })
-}
-
-function getGroupMachineId(group: SessionGroup): string | undefined {
-    return group.sessions.find((session) => session.metadata?.machineId)?.metadata?.machineId
-}
-
-function pruneCollapseOverrides(
-    overrides: Map<string, boolean>,
-    knownGroups: Set<string>
-): Map<string, boolean> {
-    if (overrides.size === 0) return overrides
-    const next = new Map(overrides)
-    let changed = false
-    for (const directory of next.keys()) {
-        if (!knownGroups.has(directory)) {
-            next.delete(directory)
-            changed = true
-        }
-    }
-    return changed ? next : overrides
-}
-
-function flattenSessionRows(
-    groups: SessionGroup[],
-    isGroupCollapsed: (group: SessionGroup) => boolean,
-    isOfflineCollapsed: (directory: string) => boolean,
-    isProjectForcedOffline: (group: SessionGroup) => boolean,
-    areOfflineProjectsCollapsed: boolean
-): SessionListRow[] {
     const rows: SessionListRow[] = []
-    const activeGroups = groups.filter((group) => !isProjectForcedOffline(group))
-    const offlineGroups = groups.filter((group) => isProjectForcedOffline(group))
+    let currentGroup = ''
+    let isFirstGroup = true
 
-    const appendGroupRows = (groupList: SessionGroup[], forcedOffline: boolean) => {
-        for (const group of groupList) {
-            const collapsed = isGroupCollapsed(group)
-            rows.push({ type: 'group', group, isProjectOffline: forcedOffline, isCollapsed: collapsed })
-            if (collapsed) continue
+    for (const session of sorted) {
+        const group = getDateGroup(session.updatedAt)
+        if (group !== currentGroup) {
+            currentGroup = group
+            rows.push({ type: 'date-header', label: group, isFirst: isFirstGroup })
+            isFirstGroup = false
+        }
+        rows.push({ type: 'session', session, forceOffline: false })
+    }
 
-            const onlineSessions = forcedOffline ? [] : group.sessions.filter((session) => session.active)
-            const offlineSessions = forcedOffline ? group.sessions : group.sessions.filter((session) => !session.active)
+    return rows
+}
 
-            for (const session of onlineSessions) {
-                rows.push({
-                    type: 'session',
-                    session,
-                    forceOffline: false
-                })
-            }
+const REPO_OTHER_LABEL = 'Other'
 
-            if (offlineSessions.length === 0) {
-                continue
-            }
+function getSessionRepoSection(session: SessionSummary): string {
+    // repositoryUrl exists only in cloud sessions; fall back to local path basename.
+    const path = session.metadata?.path
+    if (typeof path === 'string' && path.trim().length > 0) {
+        const parts = path.trim().split('/').filter(Boolean)
+        const shortName = parts.length > 0 ? parts[parts.length - 1] : ''
+        if (shortName.length > 0) {
+            return shortName
+        }
+    }
+    return REPO_OTHER_LABEL
+}
 
-            // If this group has no online sessions, show offline sessions directly
-            // instead of requiring an extra "OFFLINE" expand step.
-            if (onlineSessions.length === 0) {
-                for (const session of offlineSessions) {
-                    rows.push({
-                        type: 'session',
-                        session,
-                        forceOffline: forcedOffline
-                    })
-                }
-                continue
-            }
-
-            const offlineCollapsed = isOfflineCollapsed(group.directory)
-            rows.push({
-                type: 'offline-section',
-                group,
-                offlineCount: offlineSessions.length,
-                isCollapsed: offlineCollapsed
-            })
-
-            if (offlineCollapsed) {
-                continue
-            }
-
-            for (const session of offlineSessions) {
-                rows.push({
-                    type: 'session',
-                    session,
-                    forceOffline: forcedOffline
-                })
-            }
+export function buildRepoRows(sessions: SessionSummary[]): SessionListRow[] {
+    // Bucket sessions by repo section
+    const buckets = new Map<string, SessionSummary[]>()
+    for (const session of sessions) {
+        const section = getSessionRepoSection(session)
+        const existing = buckets.get(section)
+        if (existing) {
+            existing.push(session)
+        } else {
+            buckets.set(section, [session])
         }
     }
 
-    appendGroupRows(activeGroups, false)
-
-    if (offlineGroups.length > 0) {
-        rows.push({
-            type: 'projects-offline-section',
-            count: offlineGroups.length,
-            isCollapsed: areOfflineProjectsCollapsed
+    // Per-section sort: active-thinking first, then active, then by updatedAt desc
+    const sectionRank = (list: SessionSummary[]): SessionSummary[] => {
+        return [...list].sort((a, b) => {
+            const rankA = a.active ? (a.pendingRequestsCount > 0 ? 0 : 1) : 2
+            const rankB = b.active ? (b.pendingRequestsCount > 0 ? 0 : 1) : 2
+            if (rankA !== rankB) return rankA - rankB
+            return b.updatedAt - a.updatedAt
         })
+    }
 
-        if (!areOfflineProjectsCollapsed) {
-            appendGroupRows(offlineGroups, true)
+    // Sort sections: those containing active sessions first, then by most-recent
+    // updatedAt within section. 'Other' always last.
+    type SectionEntry = {
+        label: string
+        sessions: SessionSummary[]
+        hasActive: boolean
+        mostRecent: number
+    }
+    const entries: SectionEntry[] = []
+    for (const [label, list] of buckets.entries()) {
+        const sorted = sectionRank(list)
+        const hasActive = sorted.some((s) => s.active)
+        const mostRecent = sorted.reduce((acc, s) => (s.updatedAt > acc ? s.updatedAt : acc), 0)
+        entries.push({ label, sessions: sorted, hasActive, mostRecent })
+    }
+
+    entries.sort((a, b) => {
+        if (a.label === REPO_OTHER_LABEL && b.label !== REPO_OTHER_LABEL) return 1
+        if (b.label === REPO_OTHER_LABEL && a.label !== REPO_OTHER_LABEL) return -1
+        if (a.hasActive !== b.hasActive) return a.hasActive ? -1 : 1
+        return b.mostRecent - a.mostRecent
+    })
+
+    const rows: SessionListRow[] = []
+    let isFirstGroup = true
+    for (const entry of entries) {
+        if (entry.sessions.length === 0) continue
+        rows.push({ type: 'date-header', label: entry.label, isFirst: isFirstGroup })
+        isFirstGroup = false
+        for (const session of entry.sessions) {
+            rows.push({ type: 'session', session, forceOffline: false })
         }
     }
 
@@ -256,57 +181,7 @@ const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div
     }
 )
 
-function BulbIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M9 18h6" />
-            <path d="M10 22h4" />
-            <path d="M12 2a7 7 0 0 0-4 12c.6.6 1 1.2 1 2h6c0-.8.4-1.4 1-2a7 7 0 0 0-4-12Z" />
-        </svg>
-    )
-}
 
-function ChevronIcon(props: { className?: string; collapsed?: boolean }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`${props.className ?? ''} transition-transform duration-200 ${props.collapsed ? '' : 'rotate-90'}`}
-        >
-            <polyline points="9 18 15 12 9 6" />
-        </svg>
-    )
-}
-
-function getTodoProgress(session: SessionSummary): { completed: number; total: number } | null {
-    if (!session.todoProgress) return null
-    if (session.todoProgress.completed === session.todoProgress.total) return null
-    return session.todoProgress
-}
-
-function getAgentLabel(session: SessionSummary): string {
-    const flavor = session.metadata?.flavor?.trim()
-    if (flavor) return flavor
-    return 'unknown'
-}
 
 function formatRelativeTime(value: number, t: (key: string, params?: Record<string, string | number>) => string): string | null {
     const ms = value < 1_000_000_000_000 ? value * 1000 : value
@@ -319,7 +194,75 @@ function formatRelativeTime(value: number, t: (key: string, params?: Record<stri
     if (hours < 24) return t('session.time.hoursAgo', { n: hours })
     const days = Math.floor(hours / 24)
     if (days < 7) return t('session.time.daysAgo', { n: days })
+    const weeks = Math.floor(days / 7)
+    if (weeks < 52) return t('session.time.weeksAgo', { n: weeks })
     return new Date(ms).toLocaleDateString()
+}
+
+function SessionGitIcon(props: { status: 'branch' | 'merge' | 'pr' }) {
+    const color =
+        props.status === 'merge'
+            ? 'var(--accent)'
+            : props.status === 'pr'
+                ? 'var(--success)'
+                : 'var(--text-tertiary)'
+    if (props.status === 'merge') {
+        return (
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                <circle cx="18" cy="18" r="3" />
+                <circle cx="6" cy="6" r="3" />
+                <path d="M6 21V9a9 9 0 0 0 9 9" />
+            </svg>
+        )
+    }
+    if (props.status === 'pr') {
+        return (
+            <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+            >
+                <circle cx="18" cy="18" r="3" />
+                <circle cx="6" cy="6" r="3" />
+                <path d="M13 6h3a2 2 0 0 1 2 2v7" />
+                <line x1="6" y1="9" x2="6" y2="21" />
+            </svg>
+        )
+    }
+    return (
+        <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={color}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <line x1="6" y1="3" x2="6" y2="15" />
+            <circle cx="18" cy="6" r="3" />
+            <circle cx="6" cy="18" r="3" />
+            <path d="M18 9a9 9 0 0 1-9 9" />
+        </svg>
+    )
 }
 
 function SessionItem(props: {
@@ -332,15 +275,13 @@ function SessionItem(props: {
     forceOffline?: boolean
 }) {
     const { t } = useTranslation()
-    const { session: s, onSelect, showPath = true, api, selected = false, density, forceOffline = false } = props
+    const { session: s, onSelect, api, selected = false } = props
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const [renameOpen, setRenameOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
-    const [isQuickArchiveVisible, setIsQuickArchiveVisible] = useState(false)
-    const itemRef = useRef<HTMLDivElement | null>(null)
 
     const {
         archiveSession,
@@ -355,7 +296,6 @@ function SessionItem(props: {
         s.metadata?.flavor ?? null
     )
     const { skipArchiveConfirmation } = useArchiveConfirmation()
-    const { sessionQuickArchiveEnabled } = useSessionQuickArchive()
 
     const longPressHandlers = useLongPress({
         onLongPress: (point) => {
@@ -372,12 +312,6 @@ function SessionItem(props: {
     })
 
     const sessionName = getSessionTitle(s)
-    const effectiveActive = forceOffline ? false : s.active
-    const effectiveThinking = forceOffline ? false : s.thinking
-    const statusDotClass = effectiveActive
-        ? (effectiveThinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
-        : 'bg-[var(--app-hint)]'
-    const isCompact = density === 'compact'
 
     const handleArchive = () => {
         if (!skipArchiveConfirmation) {
@@ -408,97 +342,77 @@ function SessionItem(props: {
 
     return (
         <>
-            <div
-                ref={itemRef}
-                className="group/session-item relative"
-                onMouseEnter={() => setIsQuickArchiveVisible(true)}
-                onMouseLeave={() => setIsQuickArchiveVisible(false)}
-                onFocusCapture={() => setIsQuickArchiveVisible(true)}
-                onBlurCapture={(event) => {
-                    const nextTarget = event.relatedTarget
-                    if (nextTarget instanceof Node && itemRef.current?.contains(nextTarget)) {
-                        return
-                    }
-                    setIsQuickArchiveVisible(false)
-                }}
+            <button
+                type="button"
+                {...longPressHandlers}
+                className={`group relative flex w-full items-center rounded-md text-left transition-colors select-none h-8 px-1.5 ${
+                    selected ? 'bg-[var(--bg-tertiary)]' : 'hover:bg-[var(--bg-quaternary)]'
+                }`}
+                style={{ WebkitTouchCallout: 'none' }}
+                aria-current={selected ? 'page' : undefined}
             >
-                <button
-                    type="button"
-                    {...longPressHandlers}
-                    className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
-                    style={{ WebkitTouchCallout: 'none' }}
-                    aria-current={selected ? 'page' : undefined}
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                    {/* Git icon — 16px container (hardcoded to 'branch'; no PR status field on Session yet) */}
+                    <div className="session-git-slot flex w-4 shrink-0 items-center justify-center">
+                        <SessionGitIcon status="branch" />
+                    </div>
+                    {/* Title */}
+                    <div className="min-w-0 flex-1 truncate text-[var(--font-size-base)] text-[var(--text-primary)]">
+                        {sessionName}
+                    </div>
+                    {/* Diff-stats placeholder (reserved for aggregated linesAdded/linesRemoved when API provides it) */}
+                    {(() => {
+                        const meta = s.metadata as { prAdditions?: number; prDeletions?: number } | null | undefined
+                        const additions = meta?.prAdditions
+                        const deletions = meta?.prDeletions
+                        if (!additions && !deletions) {
+                            return (
                                 <span
-                                    className={`h-2 w-2 rounded-full ${statusDotClass}`}
+                                    className="history-stats shrink-0"
+                                    style={{
+                                        fontSize: 'var(--font-size-sm)',
+                                        color: 'var(--text-secondary)',
+                                    }}
+                                    aria-hidden="true"
                                 />
-                            </span>
-                            <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
-                                {sessionName}
+                            )
+                        }
+                        return (
+                            <div className="flex shrink-0 items-center gap-1 text-[var(--text-tertiary)] tabular-nums">
+                                {additions ? <span className="text-[var(--added)]">+{additions}</span> : null}
+                                {deletions ? <span className="text-[var(--removed)]">-{deletions}</span> : null}
                             </div>
-                        </div>
-                        <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-                            {effectiveThinking ? (
-                                <span className="text-[#007AFF] animate-pulse">
-                                    {t('session.item.thinking')}
-                                </span>
-                            ) : null}
-                            {(() => {
-                                const progress = getTodoProgress(s)
-                                if (!progress) return null
-                                return (
-                                    <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                        <BulbIcon className="h-3 w-3" />
-                                        {progress.completed}/{progress.total}
-                                    </span>
-                                )
-                            })()}
-                            {s.pendingRequestsCount > 0 ? (
-                                <span className="text-[var(--app-badge-warning-text)]">
-                                    {t('session.item.pending')} {s.pendingRequestsCount}
-                                </span>
-                            ) : null}
-                            <span
-                                className={`text-[var(--app-hint)] transition-opacity ${sessionQuickArchiveEnabled && isQuickArchiveVisible ? 'opacity-0 pointer-events-none' : ''}`}
-                            >
+                        )
+                    })()}
+                    {/* Hover overlay: time + archive + delete */}
+                    <div className="absolute right-0 inset-y-0 z-10 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="h-full w-4 shrink-0" style={{ background: 'linear-gradient(to right, transparent, var(--bg-chrome))' }} />
+                        <div className="flex h-full items-center gap-0.5 bg-[var(--bg-chrome)] pr-1">
+                            <span className="mr-1 text-[var(--font-size-base)] text-[var(--text-tertiary)] tabular-nums">
                                 {formatRelativeTime(s.updatedAt, t)}
                             </span>
+                            <button
+                                type="button"
+                                className="session-hover-action session-hover-action-archive flex h-6 w-6 items-center justify-center rounded-md"
+                                onClick={(e) => { e.stopPropagation(); handleArchive(); }}
+                                title="Archive"
+                                aria-label="Archive session"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 002 2h12a2 2 0 002-2V8"/><path d="M10 12h4"/></svg>
+                            </button>
+                            <button
+                                type="button"
+                                className="session-hover-action session-hover-action-delete flex h-6 w-6 items-center justify-center rounded-md"
+                                onClick={(e) => { e.stopPropagation(); setDeleteOpen(true); }}
+                                title="Delete"
+                                aria-label="Delete session"
+                            >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                            </button>
                         </div>
                     </div>
-                    {showPath ? (
-                        <div className="truncate text-xs text-[var(--app-hint)]">
-                            {s.metadata?.path ?? s.id}
-                        </div>
-                    ) : null}
-                    {!isCompact ? (
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
-                            <span className="inline-flex items-center gap-2">
-                                <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
-                                    ❖
-                                </span>
-                                {getAgentLabel(s)}
-                            </span>
-                            <span>{t('session.item.model')}: {s.metadata?.model?.trim() || s.modelMode || 'default'}</span>
-                            {s.metadata?.worktree?.branch ? (
-                                <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
-                            ) : null}
-                        </div>
-                    ) : null}
-                </button>
-
-                <SessionQuickArchiveButton
-                    enabled={sessionQuickArchiveEnabled}
-                    visible={isQuickArchiveVisible}
-                    isPending={isPending}
-                    compact={isCompact}
-                    onArchive={async () => {
-                        await archiveSession()
-                    }}
-                />
-            </div>
+                </div>
+            </button>
 
             <SessionActionMenu
                 isOpen={menuOpen}
@@ -547,209 +461,6 @@ function SessionItem(props: {
     )
 }
 
-function SessionGroupRow(props: {
-    group: SessionGroup
-    isProjectOffline: boolean
-    isCollapsed: boolean
-    density: SessionListDensity
-    onToggleGroup: (directory: string, isCollapsed: boolean) => void
-    onToggleProjectOffline: (directory: string, isOffline: boolean) => void
-    onCreateInGroup: (preset?: NewSessionPreset) => void
-    onQuickCreateInGroup?: (preset?: NewSessionPreset) => void
-    quickCreateInProjectEnabled: boolean
-}) {
-    const { t } = useTranslation()
-    const {
-        group,
-        isProjectOffline,
-        isCollapsed,
-        density,
-        onToggleGroup,
-        onToggleProjectOffline,
-        onCreateInGroup,
-        onQuickCreateInGroup,
-        quickCreateInProjectEnabled
-    } = props
-    const [menuOpen, setMenuOpen] = useState(false)
-    const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
-    const { setNodeRef, transform, transition, isDragging, isOver, listeners } = useSortable({
-        id: group.directory
-    })
-
-    const dragStyle = {
-        transform: CSS.Transform.toString(transform),
-        transition
-    }
-    const isDropTarget = isOver && !isDragging
-    const canQuickCreate = quickCreateInProjectEnabled && Boolean(onQuickCreateInGroup)
-    const createPreset: NewSessionPreset = {
-        directory: group.directory,
-        machineId: getGroupMachineId(group)
-    }
-    const openDetailedCreate = () => {
-        onCreateInGroup(createPreset)
-    }
-    const plusButtonLongPressHandlers = useLongPress({
-        onLongPress: () => {
-            openDetailedCreate()
-        },
-        onClick: () => {
-            if (canQuickCreate) {
-                onQuickCreateInGroup?.(createPreset)
-                return
-            }
-            openDetailedCreate()
-        },
-        threshold: 500,
-        disabled: !canQuickCreate
-    })
-    const plusButtonHandlers = canQuickCreate
-        ? {
-            onMouseDown: (event: ReactMouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                plusButtonLongPressHandlers.onMouseDown(event)
-            },
-            onMouseUp: (event: ReactMouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                plusButtonLongPressHandlers.onMouseUp(event)
-            },
-            onMouseLeave: (event: ReactMouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                plusButtonLongPressHandlers.onMouseLeave(event)
-            },
-            onTouchStart: (event: ReactTouchEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                plusButtonLongPressHandlers.onTouchStart(event)
-            },
-            onTouchEnd: (event: ReactTouchEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                plusButtonLongPressHandlers.onTouchEnd(event)
-            },
-            onTouchMove: (event: ReactTouchEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                plusButtonLongPressHandlers.onTouchMove(event)
-            },
-            onContextMenu: (event: ReactMouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                plusButtonLongPressHandlers.onContextMenu(event)
-            },
-            onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                plusButtonLongPressHandlers.onKeyDown(event)
-            },
-            onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-            }
-        }
-        : {
-            onMouseDown: (event: ReactMouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-            },
-            onTouchStart: (event: ReactTouchEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-            },
-            onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-            },
-            onClick: (event: ReactMouseEvent<HTMLButtonElement>) => {
-                event.stopPropagation()
-                openDetailedCreate()
-            }
-        }
-
-    return (
-        <div
-            ref={setNodeRef}
-            style={dragStyle}
-            className={`z-10 flex w-full items-center gap-1 border-b border-[var(--app-divider)] cursor-grab active:cursor-grabbing select-none ${isDropTarget ? 'bg-[var(--app-secondary-bg)]' : 'bg-[var(--app-bg)]'} ${isDragging ? 'opacity-70' : ''} ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}
-            onContextMenu={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                setMenuAnchorPoint({ x: event.clientX, y: event.clientY })
-                setMenuOpen(true)
-            }}
-            {...listeners}
-        >
-            <button
-                type="button"
-                onClick={() => onToggleGroup(group.directory, isCollapsed)}
-                className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-[var(--app-secondary-bg)]"
-            >
-                <ChevronIcon
-                    className="h-4 w-4 text-[var(--app-hint)]"
-                    collapsed={isCollapsed}
-                />
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className={`font-medium break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`} title={group.directory}>
-                        {group.displayName}
-                    </span>
-                    {isProjectOffline ? (
-                        <span className="shrink-0 rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
-                            {t('misc.offline')}
-                        </span>
-                    ) : null}
-                    <span className="shrink-0 text-xs text-[var(--app-hint)]">
-                        ({group.sessions.length})
-                    </span>
-                </div>
-            </button>
-            {group.directory !== 'Other' ? (
-                <button
-                    type="button"
-                    {...plusButtonHandlers}
-                    className="shrink-0 rounded p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-secondary-bg)]"
-                    title={t('sessions.newInProject')}
-                    aria-label={t('sessions.newInProject')}
-                >
-                    <PlusIcon className="h-4 w-4" />
-                </button>
-            ) : null}
-            <ProjectActionMenu
-                isOpen={menuOpen}
-                onClose={() => setMenuOpen(false)}
-                anchorPoint={menuAnchorPoint}
-                isProjectOffline={isProjectOffline}
-                canCreateInProject={group.directory !== 'Other'}
-                onToggleProjectOffline={() => onToggleProjectOffline(group.directory, isProjectOffline)}
-                onCreateInProject={() => onCreateInGroup({
-                    directory: group.directory,
-                    machineId: getGroupMachineId(group)
-                })}
-            />
-        </div>
-    )
-}
-
-function OfflineSectionRow(props: {
-    directory: string
-    count: number
-    isCollapsed: boolean
-    density: SessionListDensity
-    label?: string
-    onToggleGroup: (directory: string, isCollapsed: boolean) => void
-}) {
-    const { t } = useTranslation()
-    const { directory, count, isCollapsed, density, label, onToggleGroup } = props
-
-    return (
-        <button
-            type="button"
-            onClick={() => onToggleGroup(directory, isCollapsed)}
-            aria-expanded={!isCollapsed}
-            className={`flex w-full items-center gap-2 border-b border-[var(--app-divider)] text-left text-xs text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}
-        >
-            <ChevronIcon
-                className="h-3.5 w-3.5 text-[var(--app-hint)]"
-                collapsed={isCollapsed}
-            />
-            <span className="uppercase tracking-wide">{label ?? t('misc.offline')}</span>
-            <span className="text-[var(--app-hint)]">
-                ({count})
-            </span>
-        </button>
-    )
-}
-
 export function SessionList(props: {
     sessions: SessionSummary[]
     onSelect: (sessionId: string) => void
@@ -764,147 +475,23 @@ export function SessionList(props: {
 }) {
     const { t } = useTranslation()
     const { renderHeader = true, api, selectedSessionId, density = 'comfortable' } = props
-    const { projectQuickCreateEnabled } = useProjectQuickCreate()
-    const baseGroups = useMemo(
-        () => groupSessionsByDirectory(props.sessions),
-        [props.sessions]
-    )
-    const baseDirectories = useMemo(
-        () => baseGroups.map((group) => group.directory),
-        [baseGroups]
-    )
-    const [groupOrder, setGroupOrder] = useState<string[]>(() => loadSessionGroupOrder())
-    const {
-        projectOfflineDirectories,
-        setProjectOfflineDirectories
-    } = useProjectOfflineDirectories(api)
-    const [collapseOverrides, setCollapseOverrides] = useState<Map<string, boolean>>(
-        () => new Map()
-    )
-    const [offlineCollapseOverrides, setOfflineCollapseOverrides] = useState<Map<string, boolean>>(
-        () => new Map()
-    )
-    const [isOfflineProjectsCollapsed, setIsOfflineProjectsCollapsed] = useState(true)
-    const groups = useMemo(
-        () => applySessionGroupOrder(baseGroups, groupOrder),
-        [baseGroups, groupOrder]
-    )
-    const sortableGroupDirectories = useMemo(
-        () => groups.map((group) => group.directory),
-        [groups]
-    )
-    const sensors = useSensors(
-        useSensor(MouseSensor, {
-            activationConstraint: {
-                distance: 4
-            }
-        }),
-        useSensor(TouchSensor, {
-            activationConstraint: {
-                delay: 220,
-                tolerance: 8
-            }
-        })
-    )
-
-    useEffect(() => {
-        setGroupOrder((prev) => {
-            const next = reconcileSessionGroupOrder(prev, baseDirectories)
-            if (prev.length === next.length && prev.every((value, index) => value === next[index])) {
-                return prev
-            }
-            return next
-        })
-    }, [baseDirectories])
-
-    useEffect(() => {
-        persistSessionGroupOrder(groupOrder)
-    }, [groupOrder])
-
-    const isProjectForcedOffline = (directory: string): boolean => projectOfflineDirectories.has(directory)
-    const isProjectForcedOfflineGroup = (group: SessionGroup): boolean => isProjectForcedOffline(group.directory)
-
-    const isGroupCollapsed = (group: SessionGroup): boolean => {
-        const override = collapseOverrides.get(group.directory)
-        if (override !== undefined) return override
-        return isProjectForcedOfflineGroup(group) || !group.hasActiveSession
-    }
-    const isOfflineCollapsed = (directory: string): boolean => {
-        const override = offlineCollapseOverrides.get(directory)
-        if (override !== undefined) return override
-        return true
-    }
-
-    const toggleGroup = (directory: string, isCollapsed: boolean) => {
-        setCollapseOverrides(prev => {
-            const next = new Map(prev)
-            next.set(directory, !isCollapsed)
-            return next
-        })
-    }
-    const toggleOfflineGroup = (directory: string, isCollapsed: boolean) => {
-        setOfflineCollapseOverrides((prev) => {
-            const next = new Map(prev)
-            next.set(directory, !isCollapsed)
-            return next
-        })
-    }
-    const toggleProjectOffline = (directory: string, isOffline: boolean) => {
-        if (!isOffline) {
-            setIsOfflineProjectsCollapsed(false)
-        }
-        setProjectOfflineDirectories((prev) => {
-            const next = new Set(prev)
-            if (isOffline) {
-                next.delete(directory)
-            } else {
-                next.add(directory)
-            }
-            return next
-        })
-    }
-    const toggleOfflineProjectsSection = (_directory: string, isCollapsed: boolean) => {
-        setIsOfflineProjectsCollapsed(!isCollapsed)
-    }
-
-    useEffect(() => {
-        const knownGroups = new Set(groups.map(group => group.directory))
-        setCollapseOverrides((prev) => pruneCollapseOverrides(prev, knownGroups))
-        setOfflineCollapseOverrides((prev) => pruneCollapseOverrides(prev, knownGroups))
-    }, [groups])
-
-    const handleGroupDragEnd = ({ active, over }: DragEndEvent) => {
-        if (!over || active.id === over.id) return
-        const sourceDirectory = String(active.id)
-        const targetDirectory = String(over.id)
-        setGroupOrder((prev) => {
-            const reconciled = reconcileSessionGroupOrder(prev, baseDirectories)
-            return moveSessionGroup(reconciled, sourceDirectory, targetDirectory)
-        })
-    }
 
     const rows = useMemo(
-        () => flattenSessionRows(
-            groups,
-            isGroupCollapsed,
-            isOfflineCollapsed,
-            isProjectForcedOfflineGroup,
-            isOfflineProjectsCollapsed
-        ),
-        [groups, collapseOverrides, offlineCollapseOverrides, projectOfflineDirectories, isOfflineProjectsCollapsed]
+        () => buildRepoRows(props.sessions),
+        [props.sessions]
     )
 
     return (
         <div className="mx-auto flex h-full w-full max-w-content min-h-0 flex-col">
             {renderHeader ? (
                 <div className="flex items-center justify-between px-3 py-1">
-                    <div className="text-xs text-[var(--app-hint)]">
-                        {t('sessions.count', { n: props.sessions.length, m: groups.length })}
+                    <div className="text-xs text-[var(--text-tertiary)]">
+                        {t('sessions.count', { n: props.sessions.length, m: 0 })}
                     </div>
                     <button
                         type="button"
                         onClick={() => props.onNewSession()}
-                        className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
+                        className="session-list-new-button rounded-full p-1.5 text-[var(--accent)] transition-colors"
                         title={t('sessions.new')}
                     >
                         <PlusIcon className="h-5 w-5" />
@@ -913,102 +500,54 @@ export function SessionList(props: {
             ) : null}
 
             <div className="flex-1 min-h-0">
-                <DndContext
-                    sensors={sensors}
-                    onDragEnd={handleGroupDragEnd}
-                >
-                    <SortableContext
-                        items={sortableGroupDirectories}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        <Virtuoso
-                            data={rows}
-                            style={{ height: '100%' }}
-                            defaultItemHeight={density === 'compact' ? 64 : 108}
-                            increaseViewportBy={360}
-                            initialItemCount={Math.min(rows.length, 24)}
-                            components={{
-                                Scroller: SessionListScroller
-                            }}
-                            computeItemKey={(_, row) => (
-                                row.type === 'group'
-                                    ? `group:${row.group.directory}`
-                                    : row.type === 'projects-offline-section'
-                                        ? 'projects-offline'
-                                    : row.type === 'offline-section'
-                                        ? `offline:${row.group.directory}`
-                                    : `session:${row.session.id}`
-                            )}
-                            itemContent={(_, row) => {
-                                if (row.type === 'group') {
-                                    return (
-                                        <SessionGroupRow
-                                            group={row.group}
-                                            isProjectOffline={row.isProjectOffline}
-                                            isCollapsed={row.isCollapsed}
-                                            density={density}
-                                            quickCreateInProjectEnabled={projectQuickCreateEnabled}
-                                            onToggleGroup={toggleGroup}
-                                            onToggleProjectOffline={toggleProjectOffline}
-                                            onQuickCreateInGroup={props.onQuickCreateInProject}
-                                            onCreateInGroup={(preset) => {
-                                                if (row.isProjectOffline) {
-                                                    setProjectOfflineDirectories((prev) => {
-                                                        if (!prev.has(row.group.directory)) return prev
-                                                        const next = new Set(prev)
-                                                        next.delete(row.group.directory)
-                                                        return next
-                                                    })
-                                                    setIsOfflineProjectsCollapsed(false)
-                                                }
-                                                props.onNewSession(preset)
-                                            }}
-                                        />
-                                    )
-                                }
+                <Virtuoso
+                    data={rows}
+                    style={{ height: '100%' }}
+                    defaultItemHeight={32}
+                    increaseViewportBy={360}
+                    initialItemCount={Math.min(rows.length, 24)}
+                    components={{
+                        Scroller: SessionListScroller
+                    }}
+                    computeItemKey={(_, row) => (
+                        row.type === 'date-header'
+                            ? `date:${row.label}`
+                            : `session:${row.session.id}`
+                    )}
+                    itemContent={(_, row) => {
+                        if (row.type === 'date-header') {
+                            return (
+                                <div
+                                    className={`session-list-date-header section-title ${
+                                        row.isFirst ? 'session-list-date-header-first' : ''
+                                    }`}
+                                    style={{
+                                        padding: '12px 8px 4px',
+                                        fontSize: 'var(--font-size-sm)',
+                                        fontWeight: 'var(--font-weight-semibold)',
+                                        color: 'var(--text-tertiary)',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.02em',
+                                    }}
+                                >
+                                    {row.label}
+                                </div>
+                            )
+                        }
 
-                                if (row.type === 'projects-offline-section') {
-                                    return (
-                                        <OfflineSectionRow
-                                            directory="__projects_offline__"
-                                            count={row.count}
-                                            isCollapsed={row.isCollapsed}
-                                            density={density}
-                                            label={t('sessions.projectOffline.section')}
-                                            onToggleGroup={toggleOfflineProjectsSection}
-                                        />
-                                    )
-                                }
-
-                                if (row.type === 'offline-section') {
-                                    return (
-                                        <OfflineSectionRow
-                                            directory={row.group.directory}
-                                            count={row.offlineCount}
-                                            isCollapsed={row.isCollapsed}
-                                            density={density}
-                                            onToggleGroup={toggleOfflineGroup}
-                                        />
-                                    )
-                                }
-
-                                return (
-                                    <div className="border-b border-[var(--app-divider)]">
-                                        <SessionItem
-                                            session={row.session}
-                                            onSelect={props.onSelect}
-                                            showPath={false}
-                                            api={api}
-                                            selected={row.session.id === selectedSessionId}
-                                            density={density}
-                                            forceOffline={row.forceOffline}
-                                        />
-                                    </div>
-                                )
-                            }}
-                        />
-                    </SortableContext>
-                </DndContext>
+                        return (
+                            <SessionItem
+                                session={row.session}
+                                onSelect={props.onSelect}
+                                showPath={false}
+                                api={api}
+                                selected={row.session.id === selectedSessionId}
+                                density={density}
+                                forceOffline={row.forceOffline}
+                            />
+                        )
+                    }}
+                />
             </div>
         </div>
     )

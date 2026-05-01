@@ -28,10 +28,10 @@ const VIBING_MESSAGES = [
 ]
 
 const PERMISSION_TONE_CLASSES: Record<PermissionModeTone, string> = {
-    neutral: 'text-[var(--app-hint)]',
-    info: 'text-blue-500',
-    warning: 'text-amber-500',
-    danger: 'text-red-500'
+    neutral: 'text-[var(--cursor-text-secondary)]',
+    info: 'text-[var(--accent)]',
+    warning: 'text-[var(--warn)]',
+    danger: 'text-[var(--danger)]'
 }
 
 function getConnectionStatus(
@@ -49,8 +49,8 @@ function getConnectionStatus(
     if (voiceStatus === 'connecting') {
         return {
             text: t('voice.connecting'),
-            color: 'text-[#007AFF]',
-            dotColor: 'bg-[#007AFF]',
+            color: 'text-[var(--accent)]',
+            dotColor: 'bg-[var(--accent)]',
             isPulsing: true
         }
     }
@@ -58,8 +58,8 @@ function getConnectionStatus(
     if (!active) {
         return {
             text: t('misc.offline'),
-            color: 'text-[#999]',
-            dotColor: 'bg-[#999]',
+            color: 'text-[var(--cursor-text-secondary)]',
+            dotColor: 'bg-[var(--cursor-text-secondary)]',
             isPulsing: false
         }
     }
@@ -67,8 +67,8 @@ function getConnectionStatus(
     if (hasPermissions) {
         return {
             text: t('misc.permissionRequired'),
-            color: 'text-[#FF9500]',
-            dotColor: 'bg-[#FF9500]',
+            color: 'text-[var(--warn)]',
+            dotColor: 'bg-[var(--warn)]',
             isPulsing: true
         }
     }
@@ -82,16 +82,16 @@ function getConnectionStatus(
                 : VIBING_MESSAGES[Math.floor(Math.random() * VIBING_MESSAGES.length)].toLowerCase() + '…'
         return {
             text: vibingMessage,
-            color: 'text-[#007AFF]',
-            dotColor: 'bg-[#007AFF]',
+            color: 'text-[var(--accent)]',
+            dotColor: 'bg-[var(--accent)]',
             isPulsing: true
         }
     }
 
     return {
         text: t('misc.online'),
-        color: 'text-[#34C759]',
-        dotColor: 'bg-[#34C759]',
+        color: 'text-[var(--success)]',
+        dotColor: 'bg-[var(--success)]',
         isPulsing: false
     }
 }
@@ -102,11 +102,11 @@ function getContextWarning(contextSize: number, maxContextSize: number, t: (key:
 
     const percent = Math.round(percentageRemaining)
     if (percentageRemaining <= 5) {
-        return { text: t('misc.percentLeft', { percent }), color: 'text-red-500' }
+        return { text: t('misc.percentLeft', { percent }), color: 'text-[var(--danger)]' }
     } else if (percentageRemaining <= 10) {
-        return { text: t('misc.percentLeft', { percent }), color: 'text-amber-500' }
+        return { text: t('misc.percentLeft', { percent }), color: 'text-[var(--warn)]' }
     } else {
-        return { text: t('misc.percentLeft', { percent }), color: 'text-[var(--app-hint)]' }
+        return { text: t('misc.percentLeft', { percent }), color: 'text-[var(--cursor-text-secondary)]' }
     }
 }
 
@@ -116,12 +116,12 @@ export function StatusBar(props: {
     agentState: AgentState | null | undefined
     contextSize?: number
     contextWindowTokens?: number
+    rateLimitSnapshot?: ClaudeRateLimitSnapshot
     modelMode?: ModelMode
     permissionMode?: PermissionMode
     agentFlavor?: string | null
     collaborationMode?: string
     voiceStatus?: ConversationStatus
-    rateLimitSnapshot?: ClaudeRateLimitSnapshot
 }) {
     const { t } = useTranslation()
     const connectionStatus = useMemo(
@@ -143,6 +143,25 @@ export function StatusBar(props: {
         [props.contextSize, maxContextSize, t]
     )
 
+    const permissionMode = props.permissionMode
+    const runningAgents = props.agentState?.runningAgents ?? (props.agentState?.runningAgent ? [props.agentState.runningAgent] : [])
+    const displayPermissionMode = permissionMode
+        && permissionMode !== 'default'
+        && isPermissionModeAllowedForFlavor(permissionMode, props.agentFlavor)
+        ? permissionMode
+        : null
+
+    const permissionModeLabel = displayPermissionMode ? getPermissionModeLabel(displayPermissionMode) : null
+    const permissionModeTone = displayPermissionMode ? getPermissionModeTone(displayPermissionMode) : null
+    const permissionModeColor = permissionModeTone ? PERMISSION_TONE_CLASSES[permissionModeTone] : 'text-[var(--cursor-text-secondary)]'
+    const normalizedCollaborationMode = typeof props.collaborationMode === 'string'
+        ? props.collaborationMode.trim().toLowerCase()
+        : ''
+    const isCodexPlanMode = props.agentFlavor === 'codex' && normalizedCollaborationMode === 'plan'
+    const codexModeLabel = props.agentFlavor === 'codex'
+        ? (isCodexPlanMode ? t('codex.mode.plan') : t('codex.mode.normal'))
+        : null
+
     const [usageOpen, setUsageOpen] = useState(false)
     const usageRef = useRef<HTMLDivElement | null>(null)
     useEffect(() => {
@@ -160,49 +179,67 @@ export function StatusBar(props: {
     const showUsageButton = props.agentFlavor === 'claude'
         && (typeof props.contextSize === 'number' || Boolean(props.rateLimitSnapshot))
 
-    const permissionMode = props.permissionMode
-    const runningAgents = props.agentState?.runningAgents ?? (props.agentState?.runningAgent ? [props.agentState.runningAgent] : [])
-    const displayPermissionMode = permissionMode
-        && permissionMode !== 'default'
-        && isPermissionModeAllowedForFlavor(permissionMode, props.agentFlavor)
-        ? permissionMode
-        : null
+    // When session is inactive, let the standalone 'Session is inactive' banner
+    // own that communication — don't duplicate it inside the composer.
+    if (!props.active) {
+        return null
+    }
 
-    const permissionModeLabel = displayPermissionMode ? getPermissionModeLabel(displayPermissionMode) : null
-    const permissionModeTone = displayPermissionMode ? getPermissionModeTone(displayPermissionMode) : null
-    const permissionModeColor = permissionModeTone ? PERMISSION_TONE_CLASSES[permissionModeTone] : 'text-[var(--app-hint)]'
-    const normalizedCollaborationMode = typeof props.collaborationMode === 'string'
-        ? props.collaborationMode.trim().toLowerCase()
-        : ''
-    const isCodexPlanMode = props.agentFlavor === 'codex' && normalizedCollaborationMode === 'plan'
-    const codexModeLabel = props.agentFlavor === 'codex'
-        ? (isCodexPlanMode ? t('codex.mode.plan') : t('codex.mode.normal'))
-        : null
+    // Only render when there's real state to surface. Idle = null (cursor-parity).
+    const hasPermissionRequests = Boolean(
+        props.agentState?.requests && Object.keys(props.agentState.requests).length > 0
+    )
+    const hasVoiceActivity = Boolean(props.voiceStatus) && props.voiceStatus !== 'disconnected'
+    const hasContextWarning = Boolean(contextWarning)
+        && typeof props.contextSize === 'number'
+        && Boolean(maxContextSize)
+        && (props.contextSize / (maxContextSize || 1)) >= 0.5
+    const hasMultipleAgents = runningAgents.length > 1
+    // Idle = null. The permission-mode / plan-mode badges are not "content";
+    // they're quiet preferences. Don't keep a status bar resident just to show them.
+    const hasContent = Boolean(props.thinking)
+        || hasPermissionRequests
+        || hasVoiceActivity
+        || hasContextWarning
+        || hasMultipleAgents
+        || showUsageButton
+
+    if (!hasContent) {
+        return null
+    }
 
     return (
-        <div className="flex items-start justify-between gap-3 px-2 pb-1">
-            <div className="flex min-w-0 flex-col gap-1">
-                <div className="flex items-center gap-1.5">
+        <div
+            className="composer-status-bar composer-statusbar flex items-start justify-between gap-3 overflow-x-auto"
+            style={{
+                fontSize: 'var(--font-size-xs)',
+                color: 'var(--text-secondary)',
+                marginBottom: '6px',
+            }}
+        >
+            <div className="composer-status-main flex min-w-0 flex-col gap-1">
+                <div className="composer-status-row flex items-center gap-1.5">
                     <span
-                        className={`h-2 w-2 rounded-full ${connectionStatus.dotColor} ${connectionStatus.isPulsing ? 'animate-pulse' : ''}`}
+                        className={`composer-status-dot h-2 w-2 rounded-full ${connectionStatus.dotColor} ${connectionStatus.isPulsing ? 'animate-pulse' : ''}`}
                     />
-                    <span className={`text-xs ${connectionStatus.color}`}>
+                    <span className={`composer-status-text text-xs ${connectionStatus.color}`}>
                         {connectionStatus.text}
                     </span>
                     {codexModeLabel ? (
-                        <span className={`text-[10px] ${isCodexPlanMode ? 'text-blue-500' : 'text-[var(--app-hint)]'}`}>
+                        <span className={`composer-status-mode text-[length:var(--font-size-xs)] ${isCodexPlanMode ? 'text-[var(--accent)]' : 'text-[var(--cursor-text-secondary)]'}`}>
                             {codexModeLabel}
                         </span>
                     ) : null}
                 </div>
                 {runningAgents.length > 1 ? (
-                    <div className="flex flex-wrap gap-1 pl-3.5">
+                    <div className="composer-status-chips flex flex-wrap gap-1 pl-3.5">
                         {runningAgents.map((agent, index) => {
                             const label = agent.task ? `${agent.name}: ${agent.task}` : agent.name
                             return (
                                 <span
                                     key={`${agent.name}:${agent.startedAt ?? index}`}
-                                    className="max-w-[220px] truncate rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                    className="composer-status-chip truncate rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]"
+                                    style={{ maxWidth: '220px' }}
                                     title={label}
                                 >
                                     {label}
@@ -213,37 +250,41 @@ export function StatusBar(props: {
                 ) : null}
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
-                {contextWarning ? (
-                    <span className={`text-[10px] ${contextWarning.color}`}>
+            <div className="composer-status-meta flex shrink-0 items-center gap-2">
+                {hasContextWarning && contextWarning ? (
+                    <span className={`composer-status-context text-[10px] ${contextWarning.color}`}>
                         {contextWarning.text}
                     </span>
                 ) : null}
+                {displayPermissionMode ? (
+                    <span className={`composer-status-permission text-xs ${permissionModeColor}`}>
+                        {permissionModeLabel}
+                    </span>
+                ) : null}
                 {showUsageButton ? (
-                    <div className="relative" ref={usageRef}>
+                    <div ref={usageRef} className="relative">
                         <button
                             type="button"
                             onClick={() => setUsageOpen((prev) => !prev)}
-                            className="rounded-full border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] transition-colors hover:text-[var(--app-text)]"
-                            title={t('usage.tooltip')}
+                            aria-label="Show usage"
+                            className="composer-status-usage flex h-5 w-5 items-center justify-center rounded text-[var(--cursor-text-secondary)] hover:bg-[var(--cursor-bg-soft)] hover:text-[var(--cursor-text-primary)]"
                         >
-                            {t('usage.label')}
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <line x1="18" y1="20" x2="18" y2="10" />
+                                <line x1="12" y1="20" x2="12" y2="4" />
+                                <line x1="6" y1="20" x2="6" y2="14" />
+                            </svg>
                         </button>
                         {usageOpen ? (
-                            <div className="absolute right-0 top-full z-30 mt-1.5">
+                            <div className="absolute right-0 bottom-full z-50 mb-2">
                                 <UsagePanel
                                     contextSize={props.contextSize}
-                                    contextWindowTokens={props.contextWindowTokens}
+                                    contextWindowTokens={maxContextSize ?? undefined}
                                     rateLimitSnapshot={props.rateLimitSnapshot}
                                 />
                             </div>
                         ) : null}
                     </div>
-                ) : null}
-                {displayPermissionMode ? (
-                    <span className={`text-xs ${permissionModeColor}`}>
-                        {permissionModeLabel}
-                    </span>
                 ) : null}
             </div>
         </div>

@@ -20,9 +20,11 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className="new-messages-indicator absolute left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--cursor-button)] px-3.5 py-1.5 text-sm font-medium text-[var(--cursor-button-text)]"
+            style={{ bottom: '160px' }}
         >
-            {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
+            {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')}
+            <span aria-hidden className="ml-1 inline-block">↓</span>
         </button>
     )
 }
@@ -30,19 +32,19 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
 function MessageSkeleton() {
     const { t } = useTranslation()
     const rows = [
-        { align: 'end', width: 'w-2/3', height: 'h-10' },
-        { align: 'start', width: 'w-3/4', height: 'h-12' },
-        { align: 'end', width: 'w-1/2', height: 'h-9' },
-        { align: 'start', width: 'w-5/6', height: 'h-14' }
+        { align: 'end', width: 'w-2/3', height: 'h-7' },
+        { align: 'start', width: 'w-3/4', height: 'h-8' },
+        { align: 'end', width: 'w-1/2', height: 'h-6' },
+        { align: 'start', width: 'w-5/6', height: 'h-9' }
     ]
 
     return (
         <div role="status" aria-live="polite">
             <span className="sr-only">{t('misc.loadingMessages')}</span>
-            <div className="space-y-3 animate-pulse">
+            <div className="space-y-3">
                 {rows.map((row, index) => (
                     <div key={`skeleton-${index}`} className={row.align === 'end' ? 'flex justify-end' : 'flex justify-start'}>
-                        <div className={`${row.height} ${row.width} rounded-xl bg-[var(--app-subtle-bg)]`} />
+                        <div className={`skeleton ${row.height} ${row.width} rounded-[10px]`} />
                     </div>
                 ))}
             </div>
@@ -65,7 +67,7 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
                 <div
                     role="status"
                     aria-live="polite"
-                    className={`${controlClass} border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)]`}
+                    className={`${controlClass} border border-transparent bg-[var(--cursor-button)] text-[var(--cursor-button-text)]`}
                 >
                     <Spinner size="sm" label={null} className="text-current" />
                     {t('misc.loadingHistory')}
@@ -79,7 +81,7 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
             <button
                 type="button"
                 onClick={props.onLoadMore}
-                className={`${controlClass} border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]`}
+                className={`${controlClass} border border-[var(--cursor-stroke-secondary)] bg-[var(--cursor-bg-quiet)] text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)]`}
             >
                 {t('misc.loadOlder')}
             </button>
@@ -144,7 +146,6 @@ export function HappyThread(props: {
     }, [isNearBottom, props.onAtBottomChange])
 
     const showSkeleton = props.isLoadingMessages && props.messagesVersion === 0 && props.pendingCount === 0
-    const isCompact = props.density === 'compact'
 
     return (
         <HappyChatProvider value={{
@@ -158,12 +159,21 @@ export function HappyThread(props: {
             onRefresh: props.onRefresh,
             onRetryMessage: props.onRetryMessage
         }}>
-            <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
+            <ThreadPrimitive.Root
+                className="chat-timeline relative flex min-h-0 min-w-0 w-full flex-1 flex-col"
+                style={{ background: 'var(--chrome)' }}
+            >
                 <ThreadPrimitive.Viewport
                     ref={viewportRef}
-                    className="app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
+                    className="chat-timeline-viewport app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
                 >
-                    <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
+                    <div
+                        className="chat-timeline-inner mx-auto w-full min-w-0"
+                        style={{
+                            maxWidth: 'var(--chat-content-max)',
+                            padding: `var(--chat-timeline-padding-y) var(--chat-timeline-padding-x)`,
+                        }}
+                    >
                         {showSkeleton ? (
                             <MessageSkeleton />
                         ) : (
@@ -175,15 +185,42 @@ export function HappyThread(props: {
                                 />
 
                                 {props.messagesWarning ? (
-                                    <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs">
+                                    <div className="mb-3 rounded-md border border-[var(--warn)]/20 bg-[var(--warn)]/10 p-2 text-xs text-[var(--warn)]">
                                         {props.messagesWarning}
                                     </div>
                                 ) : null}
                             </>
                         )}
-                        <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
-                            <ThreadMessagesList />
-                        </div>
+                        <ThreadMessagesList />
+                        {(() => {
+                            const agents = props.agentState?.runningAgents ?? []
+                            const running = agents.length > 0 || Boolean(props.agentState?.runningAgent)
+                            if (!running) return null
+                            const label = props.agentState?.runningAgent?.task
+                                || props.agentState?.runningAgent?.name
+                                || agents[0]?.task
+                                || agents[0]?.name
+                                || 'Thinking…'
+                            return (
+                                <div className="generating-indicator" role="status" aria-live="polite">
+                                    <svg
+                                        className="sparkle-icon"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="1.6"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        aria-hidden
+                                    >
+                                        <path d="M12 3l1.9 4.8L18.8 10 13.9 12l-1.9 4.8L10 12 5.2 10l4.8-2.2z" />
+                                        <path d="M19 15l.8 2 2 .8-2 .8L19 21l-.8-2-2-.8 2-.8z" />
+                                    </svg>
+                                    <span>{label}</span>
+                                </div>
+                            )
+                        })()}
+                        <div className="chat-timeline-spacer" style={{ height: '120px' }} />
                     </div>
                 </ThreadPrimitive.Viewport>
                 <NewMessagesIndicator

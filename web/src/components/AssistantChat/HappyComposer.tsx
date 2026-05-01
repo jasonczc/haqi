@@ -1,4 +1,5 @@
 import { getPermissionModeOptionsForFlavor } from '@hapi/protocol'
+import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
 import { ComposerPrimitive, useAssistantApi, useAssistantState } from '@assistant-ui/react'
 import type { Attachment } from '@assistant-ui/react'
 import {
@@ -21,7 +22,6 @@ import type {
     ModelMode,
     PermissionMode
 } from '@/types/api'
-import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import type { ConversationStatus } from '@/realtime/types'
 import type { QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
@@ -32,7 +32,6 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useEnterBehavior } from '@/hooks/useEnterBehavior'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { isClaudeFlavor, supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
-import { useMobileQueueEmptyStatePreference } from '@/hooks/useMobileQueueEmptyStatePreference'
 import { markSkillUsed } from '@/lib/recent-skills'
 import { preserveUploadPathsForQueue } from '@/lib/attachmentAdapter'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
@@ -263,12 +262,13 @@ function buildClaudeModelOptions(
 ): ComposerModelOption[] {
     const options: ComposerModelOption[] = [
         { value: 'auto', label: 'Default (recommended)' },
-        { value: 'sonnet', label: 'Sonnet (latest)' },
-        { value: 'opus', label: 'Opus (latest)' },
-        { value: 'haiku', label: 'Haiku (latest)' },
-        { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-        { value: 'claude-opus-4-6', label: 'Opus 4.6' },
-        { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
+        { value: 'global.anthropic.claude-opus-4-7-v1', label: 'Opus 4.7' },
+        { value: 'global.anthropic.claude-opus-4-7-v1[1m]', label: 'Opus 4.7 (1M context)' },
+        { value: 'us.anthropic.claude-sonnet-4-6', label: 'Sonnet 4.6' },
+        { value: 'us.anthropic.claude-sonnet-4-6[1m]', label: 'Sonnet 4.6 (1M context)' },
+        { value: 'global.anthropic.claude-opus-4-6-v1', label: 'Opus 4.6' },
+        { value: 'global.anthropic.claude-opus-4-6-v1[1m]', label: 'Opus 4.6 (1M context)' },
+        { value: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', label: 'Haiku' },
     ]
 
     if (currentModel && !options.some((option) => option.value === currentModel)) {
@@ -280,15 +280,13 @@ function buildClaudeModelOptions(
 
 function getThinkEffortOptionsForFlavor(flavor?: string | null): ComposerThinkEffortOption[] {
     if (flavor === 'claude') {
-        // cc CLI accepts low/medium/high/xhigh/max. xhigh is Opus 4.7-only;
-        // cc downgrades unsupported levels server-side, so it's safe to expose.
         return [
             { value: 'auto', label: 'Auto' },
             { value: 'low', label: 'Low' },
             { value: 'medium', label: 'Medium' },
             { value: 'high', label: 'High' },
-            { value: 'xhigh', label: 'Extra high' },
             { value: 'max', label: 'Max' },
+            { value: 'xhigh', label: 'XHigh' },
         ]
     }
     if (flavor === 'codex') {
@@ -454,8 +452,8 @@ export function HappyComposer(props: {
             || normalizedThinkEffort === 'low'
             || normalizedThinkEffort === 'medium'
             || normalizedThinkEffort === 'high'
-            || normalizedThinkEffort === 'xhigh'
-            || normalizedThinkEffort === 'max') {
+            || normalizedThinkEffort === 'max'
+            || normalizedThinkEffort === 'xhigh') {
             return thinkEffortOptions.some((option) => option.value === normalizedThinkEffort)
                 ? normalizedThinkEffort
                 : 'auto'
@@ -474,7 +472,6 @@ export function HappyComposer(props: {
     }, [rawServiceTier])
 
     const api = useAssistantApi()
-    const { mobileQueueEmptyStatePreference } = useMobileQueueEmptyStatePreference()
     const composerText = useAssistantState(({ composer }) => composer.text)
     const attachments = useAssistantState(({ composer }) => composer.attachments)
     const threadIsRunning = useAssistantState(({ thread }) => thread.isRunning)
@@ -487,14 +484,15 @@ export function HappyComposer(props: {
         : ''
     const isCodexPlanMode = normalizedCollaborationMode === 'plan'
     const queueSendEnabled = supportsQueueControls && codexSendMode === 'queue'
+    const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
+    const inlineQueueInQueue = codexQueueSummary?.inQueue ?? false
+    const inlineQueueTaskRunning = codexQueueSummary?.taskRunning ?? false
+    const hasQueueContent = inlineQueuePendingCount > 0 || inlineQueueTaskRunning || inlineQueueInQueue
     const showInlineQueuePanel = supportsQueueControls
         && codexSendMode === 'queue'
         && codexQueueInlinePanelMode !== 'off'
-    const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
+        && hasQueueContent
     const inlineQueueNextPreview = codexQueueSummary?.nextPreview?.trim() ?? ''
-    const hideEmptyInlineQueuePanelOnMobile = mobileQueueEmptyStatePreference === 'hide'
-        && inlineQueuePendingCount <= 0
-        && codexQueueEntries.length <= 0
     const inlineQueueHeadline = useMemo(() => {
         if (inlineQueueNextPreview.length > 0) {
             return `${t('queue.inline.next')}: ${inlineQueueNextPreview}`
@@ -662,7 +660,7 @@ export function HappyComposer(props: {
     const { enterBehavior } = useEnterBehavior()
     const { isStandalone, isIOS } = usePWAInstall()
     const isIOSPWA = isIOS && isStandalone
-    const bottomPaddingClass = isIOSPWA ? 'pb-0' : 'pb-3'
+    const bottomPaddingClass = isIOSPWA ? 'pb-0' : 'pb-0'
     const activeWord = useActiveWord(inputState.text, inputState.selection, autocompletePrefixes)
     const [suggestions, selectedIndex, moveUp, moveDown, clearSuggestions] = useActiveSuggestions(
         activeWord,
@@ -754,7 +752,7 @@ export function HappyComposer(props: {
         haptic('light')
         setIsSwitching(true)
         try {
-            await onSwitchToRemote()
+            onSwitchToRemote()
         } catch {
             setIsSwitching(false)
         }
@@ -1064,6 +1062,14 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onServiceTierChange, controlsDisabled, haptic])
 
+    const modelChipLabel = useMemo(() => {
+        if (agentFlavor !== 'claude') return undefined
+        const match = modelOptions.find((option) => option.value === currentModelValue)
+        if (match) return match.label
+        if (typeof model === 'string' && model.trim().length > 0) return model.trim()
+        return 'Default'
+    }, [agentFlavor, modelOptions, currentModelValue, model])
+
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
     const showModelSettings = Boolean(onModelChange && isClaudeFlavor(agentFlavor) && modelOptions.length > 0)
     const showThinkEffortSettings = Boolean(onThinkEffortChange && thinkEffortOptions.length > 0)
@@ -1082,7 +1088,7 @@ export function HappyComposer(props: {
                     <FloatingOverlay maxHeight={320}>
                         {showPermissionSettings ? (
                             <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--cursor-text-secondary)]">
                                     {t('misc.permissionMode')}
                                 </div>
                                 {permissionModeOptions.map((option) => (
@@ -1093,7 +1099,7 @@ export function HappyComposer(props: {
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                                             controlsDisabled
                                                 ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                                : 'cursor-pointer hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         onClick={() => handlePermissionChange(option.mode)}
                                         onMouseDown={(e) => e.preventDefault()}
@@ -1101,15 +1107,15 @@ export function HappyComposer(props: {
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
                                                 permissionMode === option.mode
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
+                                                    ? 'border-[var(--cursor-link)]'
+                                                    : 'border-[var(--cursor-text-secondary)]'
                                             }`}
                                         >
                                             {permissionMode === option.mode && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                                <div className="h-2 w-2 rounded-full bg-[var(--cursor-link)]" />
                                             )}
                                         </div>
-                                        <span className={permissionMode === option.mode ? 'text-[var(--app-link)]' : ''}>
+                                        <span className={permissionMode === option.mode ? 'text-[var(--cursor-link)]' : ''}>
                                             {option.label}
                                         </span>
                                     </button>
@@ -1118,12 +1124,12 @@ export function HappyComposer(props: {
                         ) : null}
 
                         {showPermissionDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                            <div className="mx-3 h-px bg-[var(--cursor-stroke-secondary)]" />
                         ) : null}
 
                         {showModelSettings ? (
                             <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--cursor-text-secondary)]">
                                     {t('misc.model')}
                                 </div>
                                 {modelOptions.map((option) => (
@@ -1134,7 +1140,7 @@ export function HappyComposer(props: {
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                                             controlsDisabled
                                                 ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                                : 'cursor-pointer hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         onClick={() => handleModelChange(option.value)}
                                         onMouseDown={(e) => e.preventDefault()}
@@ -1142,15 +1148,15 @@ export function HappyComposer(props: {
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
                                                 currentModelValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
+                                                    ? 'border-[var(--cursor-link)]'
+                                                    : 'border-[var(--cursor-text-secondary)]'
                                             }`}
                                         >
                                             {currentModelValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                                <div className="h-2 w-2 rounded-full bg-[var(--cursor-link)]" />
                                             )}
                                         </div>
-                                        <span className={currentModelValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                        <span className={currentModelValue === option.value ? 'text-[var(--cursor-link)]' : ''}>
                                             {option.label}
                                         </span>
                                     </button>
@@ -1159,12 +1165,12 @@ export function HappyComposer(props: {
                         ) : null}
 
                         {showModelDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                            <div className="mx-3 h-px bg-[var(--cursor-stroke-secondary)]" />
                         ) : null}
 
                         {showThinkEffortSettings ? (
                             <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--cursor-text-secondary)]">
                                     {t('newSession.think')}
                                 </div>
                                 {thinkEffortOptions.map((option) => (
@@ -1175,7 +1181,7 @@ export function HappyComposer(props: {
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                                             controlsDisabled
                                                 ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                                : 'cursor-pointer hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         onClick={() => handleThinkEffortChange(option.value)}
                                         onMouseDown={(e) => e.preventDefault()}
@@ -1183,15 +1189,15 @@ export function HappyComposer(props: {
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
                                                 currentThinkEffortValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
+                                                    ? 'border-[var(--cursor-link)]'
+                                                    : 'border-[var(--cursor-text-secondary)]'
                                             }`}
                                         >
                                             {currentThinkEffortValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                                <div className="h-2 w-2 rounded-full bg-[var(--cursor-link)]" />
                                             )}
                                         </div>
-                                        <span className={currentThinkEffortValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                        <span className={currentThinkEffortValue === option.value ? 'text-[var(--cursor-link)]' : ''}>
                                             {option.label}
                                         </span>
                                     </button>
@@ -1200,12 +1206,12 @@ export function HappyComposer(props: {
                         ) : null}
 
                         {showThinkEffortDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
+                            <div className="mx-3 h-px bg-[var(--cursor-stroke-secondary)]" />
                         ) : null}
 
                         {showServiceTierSettings ? (
                             <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
+                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--cursor-text-secondary)]">
                                     {t('newSession.serviceTier')}
                                 </div>
                                 {serviceTierOptions.map((option) => (
@@ -1216,7 +1222,7 @@ export function HappyComposer(props: {
                                         className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
                                             controlsDisabled
                                                 ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
+                                                : 'cursor-pointer hover:bg-[var(--cursor-bg-hover)]'
                                         }`}
                                         onClick={() => handleServiceTierChange(option.value)}
                                         onMouseDown={(e) => e.preventDefault()}
@@ -1224,15 +1230,15 @@ export function HappyComposer(props: {
                                         <div
                                             className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
                                                 currentServiceTierValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
+                                                    ? 'border-[var(--cursor-link)]'
+                                                    : 'border-[var(--cursor-text-secondary)]'
                                             }`}
                                         >
                                             {currentServiceTierValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
+                                                <div className="h-2 w-2 rounded-full bg-[var(--cursor-link)]" />
                                             )}
                                         </div>
-                                        <span className={currentServiceTierValue === option.value ? 'text-[var(--app-link)]' : ''}>
+                                        <span className={currentServiceTierValue === option.value ? 'text-[var(--cursor-link)]' : ''}>
                                             {option.label}
                                         </span>
                                     </button>
@@ -1284,39 +1290,29 @@ export function HappyComposer(props: {
     ])
 
     return (
-        <div className={`px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)] ${cliMode ? 'cli-composer' : ''}`}>
-            <div className="mx-auto w-full max-w-content">
+        <div
+            className={`input-area-wrapper ${isIOSPWA ? 'chat-input-wrapper-ios-pwa' : ''} ${cliMode ? 'cli-composer' : ''}`}
+        >
+            <div className={`input-container mx-auto w-full ${bottomPaddingClass}`}>
                 <ComposerPrimitive.Root className="relative" onSubmit={handleSubmit}>
                     {overlays}
-
-                    <StatusBar
-                        active={active}
-                        thinking={thinking}
-                        agentState={agentState}
-                        contextSize={contextSize}
-                        contextWindowTokens={contextWindowTokens}
-                        rateLimitSnapshot={rateLimitSnapshot}
-                        modelMode={modelMode}
-                        permissionMode={permissionMode}
-                        agentFlavor={agentFlavor}
-                        collaborationMode={codexCollaborationMode}
-                        voiceStatus={voiceStatus}
-                    />
 
                     <ComposerPrimitive.AttachmentDropzone
                         asChild
                         disabled={controlsDisabled}
                     >
-                        <div className={`relative overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
+                        <div
+                            className="input-field-box relative transition-[border-color,box-shadow] data-[dragging=true]:border-[var(--focus)] data-[dragging=true]:ring-1 data-[dragging=true]:ring-[var(--focus)]"
+                        >
                             {!active ? (
-                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--app-secondary-bg)]/95 px-4 py-3 backdrop-blur-[1px]">
-                                    <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--app-bg)]/80 px-3 py-2 text-sm text-[var(--app-hint)] shadow-sm ring-1 ring-[var(--app-border)]">
+                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--cursor-bg-secondary)]/95 px-4 py-3 backdrop-blur-[1px]">
+                                    <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--cursor-bg-app)]/80 px-3 py-2 text-sm text-[var(--cursor-text-secondary)] shadow-sm ring-1 ring-[var(--cursor-stroke-primary)]">
                                         <span>{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
                                         <button
                                             type="button"
                                             onClick={onOfflineWake}
                                             disabled={!onOfflineWake || offlineWakePending}
-                                            className="rounded-full bg-[var(--app-button)] px-3 py-1.5 text-xs font-semibold text-[var(--app-button-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="rounded-full bg-[var(--cursor-button)] px-3 py-1.5 text-xs font-semibold text-[var(--cursor-button-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             {offlineWakePending
                                                 ? (offlineWakingLabel ?? t('session.waking'))
@@ -1325,25 +1321,49 @@ export function HappyComposer(props: {
                                     </div>
                                 </div>
                             ) : null}
-
+                            <StatusBar
+                                active={active}
+                                thinking={thinking}
+                                agentState={agentState}
+                                contextSize={contextSize}
+                                contextWindowTokens={contextWindowTokens}
+                                rateLimitSnapshot={rateLimitSnapshot}
+                                modelMode={modelMode}
+                                permissionMode={permissionMode}
+                                agentFlavor={agentFlavor}
+                                collaborationMode={codexCollaborationMode}
+                                voiceStatus={voiceStatus}
+                            />
                             {showInlineQueuePanel ? (
-                                <div className={`border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2 ${hideEmptyInlineQueuePanelOnMobile ? 'hidden sm:block' : ''}`}>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                                <div
+                                    className="chat-inline-queue"
+                                    style={{ borderBottom: '1px solid var(--border-tertiary)', padding: '8px 12px' }}
+                                >
+                                    <div className="chat-inline-queue-row flex flex-wrap items-center gap-2">
+                                        <span className="chat-inline-queue-label text-[length:var(--font-size-sm)] font-medium text-[var(--cursor-text-secondary)]">
                                             {t('queue.dialog.title')}
                                         </span>
-                                        <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
+                                        <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--cursor-bg-quiet)] px-2 py-0.5 text-xs text-[var(--cursor-text-primary)]">
                                             {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                         </span>
+                                        {inlineQueueTaskRunning ? (
+                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--accent)]/10 px-2 py-0.5 text-xs text-[var(--accent)]">
+                                                {t('queue.inline.running')}
+                                            </span>
+                                        ) : null}
+                                        {inlineQueueInQueue ? (
+                                            <span className="chat-inline-queue-pill inline-flex rounded-full bg-[var(--success)]/10 px-2 py-0.5 text-xs text-[var(--success)]">
+                                                {t('queue.summary.inQueue')}
+                                            </span>
+                                        ) : null}
                                         <span
-                                            className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-[var(--app-hint)]"
-                                            title={inlineQueueHeadline}
+                                            className="chat-inline-queue-headline min-w-0 flex-1 break-all text-xs text-[var(--cursor-text-secondary)]"
                                         >
                                             {inlineQueueHeadline}
                                         </span>
                                         <button
                                             type="button"
-                                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="chat-inline-queue-open rounded-md border border-[var(--cursor-stroke-primary)] px-2 py-1 text-xs text-[var(--cursor-text-primary)] transition-colors hover:bg-[var(--cursor-bg-hover)] disabled:cursor-not-allowed disabled:opacity-50"
                                             onClick={handleCodexQueueOpen}
                                             disabled={controlsDisabled || !onCodexQueueOpen}
                                         >
@@ -1352,7 +1372,7 @@ export function HappyComposer(props: {
                                     </div>
 
                                     {codexQueueInlinePanelMode === 'full' ? (
-                                        <div className="mt-2 space-y-1">
+                                        <div className="chat-inline-queue-list mt-2 space-y-1">
                                             {codexQueueEntries.length > 0 ? (
                                                 <>
                                                     {codexQueueEntries.slice(0, 5).map((entry, index) => {
@@ -1361,17 +1381,17 @@ export function HappyComposer(props: {
                                                         return (
                                                             <div
                                                                 key={entry.id}
-                                                                className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
+                                                                className="chat-inline-queue-entry flex items-center gap-2 rounded-md bg-[var(--cursor-bg-quiet)] px-2 py-1.5"
                                                             >
-                                                                <span className="text-[10px] text-[var(--app-hint)]">
+                                                                <span className="chat-inline-queue-index text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                                                     #{index + 1}
                                                                 </span>
                                                                 <span
-                                                                    className="block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
+                                                                    className="chat-inline-queue-preview block min-w-0 flex-1 truncate text-xs text-[var(--cursor-text-primary)]"
                                                                 >
                                                                     {previewText}
                                                                 </span>
-                                                                <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
+                                                                <span className="chat-inline-queue-time shrink-0 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                                                     {new Date(entry.enqueuedAt).toLocaleTimeString([], {
                                                                         hour: '2-digit',
                                                                         minute: '2-digit'
@@ -1381,17 +1401,17 @@ export function HappyComposer(props: {
                                                         )
                                                     })}
                                                     {codexQueueEntries.length > 5 ? (
-                                                        <div className="px-1 text-[11px] text-[var(--app-hint)]">
+                                                        <div className="px-1 text-[length:var(--font-size-xs)] text-[var(--cursor-text-secondary)]">
                                                             +{codexQueueEntries.length - 5}
                                                         </div>
                                                     ) : null}
                                                 </>
                                             ) : inlineQueuePendingCount > 0 ? (
-                                                <div className="px-1 text-xs text-[var(--app-hint)]">
+                                                <div className="px-1 text-xs text-[var(--cursor-text-secondary)]">
                                                     {t('queue.inline.pending', { count: inlineQueuePendingCount })}
                                                 </div>
                                             ) : (
-                                                <div className="px-1 text-xs text-[var(--app-hint)]">
+                                                <div className="px-1 text-xs text-[var(--cursor-text-secondary)]">
                                                     {t('queue.dialog.empty')}
                                                 </div>
                                             )}
@@ -1401,35 +1421,51 @@ export function HappyComposer(props: {
                             ) : null}
 
                             {attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
-                                <div className="flex flex-wrap gap-2 px-4 pt-3">
-                                    {restoredDraftAttachments.map((attachment) => (
-                                        <div
-                                            key={`draft:${attachment.path}`}
-                                            className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
-                                            title={attachment.path}
-                                        >
-                                            <span className="max-w-[180px] truncate">
-                                                {attachment.filename}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                className="rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                                onClick={() => {
-                                                    handleRemoveDraftAttachment(attachment)
-                                                }}
-                                                aria-label={`Remove ${attachment.filename}`}
+                                <div className="chat-input-attachments flex flex-wrap gap-2 px-4 pt-3">
+                                    {restoredDraftAttachments.map((attachment) => {
+                                        const ext = (() => {
+                                            const idx = attachment.filename.lastIndexOf('.')
+                                            if (idx < 0 || idx >= attachment.filename.length - 1) return ''
+                                            return attachment.filename.slice(idx + 1).toUpperCase().slice(0, 4)
+                                        })()
+                                        return (
+                                            <div
+                                                key={`draft:${attachment.path}`}
+                                                className="composer-attachment-thumb"
+                                                title={attachment.path}
+                                                aria-label={attachment.filename}
                                             >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
+                                                <div className="composer-attachment-fallback">
+                                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                        <polyline points="14 2 14 8 20 8" />
+                                                    </svg>
+                                                    {ext ? <span className="composer-attachment-ext">{ext}</span> : null}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="composer-attachment-remove"
+                                                    onClick={() => {
+                                                        handleRemoveDraftAttachment(attachment)
+                                                    }}
+                                                    aria-label={`Remove ${attachment.filename}`}
+                                                    title="Remove attachment"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                        <line x1="3" y1="3" x2="9" y2="9" />
+                                                        <line x1="9" y1="3" x2="3" y2="9" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
                                     <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
                                 </div>
                             ) : null}
 
-                            <div className={`flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
+                            <div className={`chat-input-row flex items-center w-full ${cliMode ? 'px-2 py-1.5' : 'py-1'}`}>
                                 {cliMode && (
-                                    <span className="mr-1.5 shrink-0 select-none text-[var(--cli-prompt-color,#3b82f6)] font-semibold text-sm">{'❯'}</span>
+                                    <span className="chat-cli-prompt mr-1.5 shrink-0 select-none text-[var(--accent)] font-semibold text-sm">{'❯'}</span>
                                 )}
                                 <ComposerPrimitive.Input
                                     ref={textareaRef}
@@ -1443,51 +1479,66 @@ export function HappyComposer(props: {
                                     onSelect={handleSelect}
                                     onKeyDown={handleKeyDown}
                                     onPaste={handlePaste}
-                                    className={`flex-1 resize-none bg-transparent leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[0.8125rem]' : 'text-base'}`}
+                                    className={`chat-input-field flex-1 resize-none bg-transparent leading-snug text-[var(--cursor-text-primary)] placeholder-[var(--cursor-text-secondary)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[length:var(--font-size-base)]' : 'text-base'}`}
                                 />
+                                {!cliMode ? (
+                                    <button
+                                        type="button"
+                                        className="submit-btn"
+                                        onClick={() => { void sendComposerNow() }}
+                                        disabled={!canSend || controlsDisabled}
+                                        aria-label={t('composer.send') || 'Send'}
+                                        title={t('composer.send') || 'Send'}
+                                    >
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 10l-5 5 5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+                                    </button>
+                                ) : null}
                             </div>
-
-                            <ComposerButtons
-                                canSend={canSend}
-                                controlsDisabled={controlsDisabled}
-                                showSettingsButton={showSettingsButton}
-                                onSettingsToggle={handleSettingsToggle}
-                                showTerminalButton={showTerminalButton}
-                                terminalDisabled={controlsDisabled}
-                                onTerminal={onTerminal ?? (() => {})}
-                                showStatusButton={showStatusButton}
-                                statusDisabled={controlsDisabled || threadIsRunning}
-                                onStatus={handleCodexStatus}
-                                showQueueButton={showQueueButton}
-                                queueActive={codexQueueDialogOpen}
-                                queueDisabled={controlsDisabled}
-                                queuePendingCount={Math.max(0, codexQueuePendingCount)}
-                                onQueue={handleCodexQueueOpen}
-                                showPlanModeToggle={supportsQueueControls && Boolean(onCodexPlanModeChange)}
-                                planModeEnabled={isCodexPlanMode}
-                                planModeDisabled={controlsDisabled || !onCodexPlanModeChange}
-                                onPlanModeToggle={handleCodexPlanModeToggle}
-                                showSendModeToggle={supportsQueueControls}
-                                sendMode={codexSendMode}
-                                sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
-                                onSendModeChange={handleCodexSendModeChange}
-                                showAbortButton={showAbortButton}
-                                abortDisabled={abortDisabled}
-                                isAborting={isAborting}
-                                onAbort={handleAbort}
-                                showSwitchButton={showSwitchButton}
-                                switchDisabled={switchDisabled}
-                                isSwitching={isSwitching}
-                                onSwitch={handleSwitch}
-                                voiceEnabled={voiceEnabled}
-                                voiceStatus={voiceStatus}
-                                voiceMicMuted={voiceMicMuted}
-                                onVoiceToggle={onVoiceToggle ?? (() => {})}
-                                onVoiceMicToggle={onVoiceMicToggle}
-                                onSend={() => { void sendComposerNow() }}
-                            />
                         </div>
                     </ComposerPrimitive.AttachmentDropzone>
+
+                    <ComposerButtons
+                        canSend={canSend}
+                        controlsDisabled={controlsDisabled}
+                        showSettingsButton={showSettingsButton}
+                        onSettingsToggle={handleSettingsToggle}
+                        showTerminalButton={showTerminalButton}
+                        terminalDisabled={controlsDisabled}
+                        onTerminal={onTerminal ?? (() => {})}
+                        showStatusButton={showStatusButton}
+                        statusDisabled={controlsDisabled || threadIsRunning}
+                        onStatus={handleCodexStatus}
+                        showQueueButton={showQueueButton}
+                        queueActive={codexQueueDialogOpen}
+                        queueDisabled={controlsDisabled}
+                        queuePendingCount={Math.max(0, codexQueuePendingCount)}
+                        onQueue={handleCodexQueueOpen}
+                        showPlanModeToggle={supportsQueueControls && Boolean(onCodexPlanModeChange)}
+                        planModeEnabled={isCodexPlanMode}
+                        planModeDisabled={controlsDisabled || !onCodexPlanModeChange}
+                        onPlanModeToggle={handleCodexPlanModeToggle}
+                        showSendModeToggle={supportsQueueControls}
+                        sendMode={codexSendMode}
+                        sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
+                        onSendModeChange={handleCodexSendModeChange}
+                        showAbortButton={showAbortButton}
+                        abortDisabled={abortDisabled}
+                        isAborting={isAborting}
+                        onAbort={handleAbort}
+                        showSwitchButton={showSwitchButton}
+                        switchDisabled={switchDisabled}
+                        isSwitching={isSwitching}
+                        onSwitch={handleSwitch}
+                        voiceEnabled={voiceEnabled}
+                        voiceStatus={voiceStatus}
+                        voiceMicMuted={voiceMicMuted}
+                        onVoiceToggle={onVoiceToggle ?? (() => {})}
+                        onVoiceMicToggle={onVoiceMicToggle}
+                        onSend={() => { void sendComposerNow() }}
+                        modelChipLabel={modelChipLabel}
+                        modelChipActive={active || thinking}
+                        onModelChipClick={showModelSettings ? handleSettingsToggle : undefined}
+                    />
                 </ComposerPrimitive.Root>
             </div>
         </div>
