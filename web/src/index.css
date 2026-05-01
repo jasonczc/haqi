@@ -53,56 +53,45 @@
     --bg-danger-secondary: #ffeef0;
     --removed: #24292e;
 
-    /* Legacy --app-* tokens — kept for backward compatibility with existing components */
-    --app-bg: var(--tg-theme-bg-color, #ffffff);
-    --app-fg: var(--tg-theme-text-color, #111827);
-    --app-hint: var(--tg-theme-hint-color, #6b7280);
-    --app-link: var(--tg-theme-link-color, #111827);
-    --app-button: var(--tg-theme-button-color, #111827);
-    --app-button-text: var(--tg-theme-button-text-color, #ffffff);
-    --app-banner-bg: var(--tg-theme-button-color, #111827);
-    --app-banner-text: var(--tg-theme-button-text-color, #ffffff);
-    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #f3f4f6);
-
-    /* Theme-aware colors (light mode defaults) */
-    --app-border: rgba(0, 0, 0, 0.1);
-    --app-divider: rgba(0, 0, 0, 0.08);
-    --app-subtle-bg: rgba(0, 0, 0, 0.05);
-    --app-code-bg: #f6f8fa;
-    --app-inline-code-bg: rgba(0, 0, 0, 0.08);
-
-    /* Diff colors (light) - from hapi-app */
-    --app-diff-added-bg: #e6ffed;
-    --app-diff-added-text: #24292e;
-    --app-diff-removed-bg: #ffeef0;
-    --app-diff-removed-text: #24292e;
-
-    /* Git status colors (light) */
-    --app-git-staged-color: #34C759;
-    --app-git-unstaged-color: #FF9500;
-    --app-git-deleted-color: #FF3B30;
-    --app-git-renamed-color: #2563eb;
-    --app-git-untracked-color: #8E8E93;
-
-    /* Badge colors (light) */
-    --app-badge-info-bg: rgba(37, 99, 235, 0.12);
-    --app-badge-info-text: #2563eb;
-    --app-badge-info-border: rgba(37, 99, 235, 0.25);
-    --app-badge-warning-bg: rgba(245, 158, 11, 0.2);
-    --app-badge-warning-text: #b45309;
-    --app-badge-warning-border: rgba(245, 158, 11, 0.3);
-    --app-badge-success-bg: rgba(34, 197, 94, 0.2);
-    --app-badge-success-text: #15803d;
-    --app-badge-success-border: rgba(34, 197, 94, 0.3);
-    --app-badge-error-bg: rgba(239, 68, 68, 0.18);
-    --app-badge-error-text: #b91c1c;
-    --app-badge-error-border: rgba(239, 68, 68, 0.3);
-
-    /* Scrollbar (light) */
-    --app-scrollbar-thumb: rgba(17, 24, 39, 0.22);
-    --app-scrollbar-thumb-hover: rgba(17, 24, 39, 0.34);
-
-    --app-font-scale: 1;
+    /* Legacy --app-* tokens aliased to cursor values so existing components adopt the cursor look */
+    --app-bg: var(--cursor-bg-app);
+    --app-fg: var(--cursor-text-primary);
+    --app-hint: var(--cursor-text-secondary);
+    --app-link: var(--cursor-link);
+    --app-button: var(--cursor-button);
+    --app-button-text: var(--cursor-button-text);
+    --app-banner-bg: var(--cursor-banner-bg);
+    --app-banner-text: var(--cursor-banner-text);
+    --app-secondary-bg: var(--cursor-bg-secondary);
+    --app-border: var(--cursor-stroke-primary);
+    --app-divider: var(--cursor-stroke-secondary);
+    --app-subtle-bg: var(--cursor-bg-soft);
+    --app-code-bg: var(--cursor-code-bg);
+    --app-inline-code-bg: var(--cursor-inline-code-bg);
+    --app-diff-added-bg: var(--bg-success-secondary);
+    --app-diff-added-text: var(--added);
+    --app-diff-removed-bg: var(--bg-danger-secondary);
+    --app-diff-removed-text: var(--removed);
+    --app-git-staged-color: var(--cursor-git-staged);
+    --app-git-unstaged-color: var(--cursor-git-unstaged);
+    --app-git-deleted-color: var(--cursor-git-deleted);
+    --app-git-renamed-color: var(--cursor-git-renamed);
+    --app-git-untracked-color: var(--cursor-git-untracked);
+    --app-badge-info-bg: var(--cursor-badge-info-bg);
+    --app-badge-info-text: var(--cursor-badge-info-text);
+    --app-badge-info-border: var(--cursor-badge-info-border);
+    --app-badge-warning-bg: var(--cursor-badge-warning-bg);
+    --app-badge-warning-text: var(--cursor-badge-warning-text);
+    --app-badge-warning-border: var(--cursor-badge-warning-border);
+    --app-badge-success-bg: var(--cursor-badge-success-bg);
+    --app-badge-success-text: var(--cursor-badge-success-text);
+    --app-badge-success-border: var(--cursor-badge-success-border);
+    --app-badge-error-bg: var(--cursor-badge-error-bg);
+    --app-badge-error-text: var(--cursor-badge-error-text);
+    --app-badge-error-border: var(--cursor-badge-error-border);
+    --app-scrollbar-thumb: var(--scrollbar-thumb);
+    --app-scrollbar-thumb-hover: var(--scrollbar-thumb-hover);
+    --app-font-scale: var(--cursor-font-scale);
 }
 
 [data-theme="dark"] {
@@ -148,53 +137,7 @@
     --bg-danger-secondary: #3f1b23;
     --removed: #c9d1d9;
 
-    /* Legacy --app-* tokens (dark) */
-    --app-bg: var(--tg-theme-bg-color, #1c1c1e);
-    --app-fg: var(--tg-theme-text-color, #ffffff);
-    --app-hint: var(--tg-theme-hint-color, #8e8e93);
-    --app-link: var(--tg-theme-link-color, #ffffff);
-    --app-button: var(--tg-theme-button-color, #ffffff);
-    --app-button-text: var(--tg-theme-button-text-color, #111827);
-    --app-banner-bg: var(--tg-theme-button-color, #3A3A3C);
-    --app-banner-text: var(--tg-theme-button-text-color, #ffffff);
-    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #2C2C2E);
-
-    --app-border: rgba(255, 255, 255, 0.1);
-    --app-divider: rgba(255, 255, 255, 0.08);
-    --app-subtle-bg: rgba(255, 255, 255, 0.05);
-    --app-code-bg: #282c34;
-    --app-inline-code-bg: rgba(255, 255, 255, 0.1);
-
-    /* Diff colors (dark) - from hapi-app */
-    --app-diff-added-bg: #0d2e1f;
-    --app-diff-added-text: #c9d1d9;
-    --app-diff-removed-bg: #3f1b23;
-    --app-diff-removed-text: #c9d1d9;
-
-    /* Git status colors (dark) */
-    --app-git-staged-color: #4ade80;
-    --app-git-unstaged-color: #f59e0b;
-    --app-git-deleted-color: #f87171;
-    --app-git-renamed-color: #60a5fa;
-    --app-git-untracked-color: #9ca3af;
-
-    /* Badge colors (dark) */
-    --app-badge-info-bg: rgba(96, 165, 250, 0.2);
-    --app-badge-info-text: #60a5fa;
-    --app-badge-info-border: rgba(96, 165, 250, 0.3);
-    --app-badge-warning-bg: rgba(251, 191, 36, 0.2);
-    --app-badge-warning-text: #fbbf24;
-    --app-badge-warning-border: rgba(251, 191, 36, 0.3);
-    --app-badge-success-bg: rgba(74, 222, 128, 0.2);
-    --app-badge-success-text: #4ade80;
-    --app-badge-success-border: rgba(74, 222, 128, 0.3);
-    --app-badge-error-bg: rgba(248, 113, 113, 0.2);
-    --app-badge-error-text: #fca5a5;
-    --app-badge-error-border: rgba(248, 113, 113, 0.35);
-
-    /* Scrollbar (dark) */
-    --app-scrollbar-thumb: rgba(255, 255, 255, 0.24);
-    --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+    /* Legacy --app-* tokens auto-resolve via :root aliases pointing to dark --cursor-* values */
 }
 
 html {
