@@ -3,6 +3,7 @@ import type { ChatBlock } from '@/chat/types'
 import type { ToolCallBlock } from '@/chat/types'
 import { isObject, safeStringify } from '@hapi/protocol'
 import { getEventPresentation } from '@/chat/presentation'
+import { groupReadOnlyToolCalls, summarizeToolGroup } from '@/chat/groupReadOnlyToolCalls'
 import { CodeBlock } from '@/components/CodeBlock'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { LazyRainbowText } from '@/components/LazyRainbowText'
@@ -53,9 +54,73 @@ function HappyNestedBlockList(props: {
     const ctx = useHappyChatContext()
     const isCompact = props.density === 'compact'
 
+    const renderToolCallBlock = (block: ToolCallBlock) => {
+        const isTask = block.tool.name === 'Task'
+        const isReasoningTool = block.tool.name === 'CodexReasoning'
+        const taskChildren = isTask ? splitTaskChildren(block) : null
+
+        return (
+            <div key={`tool:${block.id}`} className={isReasoningTool ? 'py-0' : (isCompact ? 'py-0.5' : 'py-1')}>
+                <ToolCard
+                    api={ctx.api}
+                    sessionId={ctx.sessionId}
+                    metadata={ctx.metadata}
+                    disabled={ctx.disabled}
+                    onDone={ctx.onRefresh}
+                    block={block}
+                    density={props.density}
+                />
+                {block.children.length > 0 ? (
+                    isTask ? (
+                        <>
+                            {taskChildren && taskChildren.pending.length > 0 ? (
+                                <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                                    <HappyNestedBlockList blocks={taskChildren.pending} density={props.density} />
+                                </div>
+                            ) : null}
+                            {taskChildren && taskChildren.rest.length > 0 ? (
+                                <details className={`chat-task-details ${isCompact ? 'mt-1.5' : 'mt-2'}`}>
+                                    <summary className="chat-task-details-summary cursor-pointer text-[length:var(--font-size-sm)] text-[var(--text-secondary)]">
+                                        Task details ({taskChildren.rest.length})
+                                    </summary>
+                                    <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                                        <HappyNestedBlockList blocks={taskChildren.rest} density={props.density} />
+                                    </div>
+                                </details>
+                            ) : null}
+                        </>
+                    ) : (
+                        <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
+                            <HappyNestedBlockList blocks={block.children} density={props.density} />
+                        </div>
+                    )
+                ) : null}
+            </div>
+        )
+    }
+
+    const items = groupReadOnlyToolCalls(props.blocks)
+
     return (
         <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
-            {props.blocks.map((block) => {
+            {items.map((item) => {
+                if (item.kind === 'tool-call-group') {
+                    return (
+                        <details
+                            key={item.id}
+                            className={`chat-tool-group ${isCompact ? 'py-0.5' : 'py-1'}`}
+                        >
+                            <summary className="chat-task-details-summary cursor-pointer select-none text-[length:var(--font-size-sm)] text-[var(--text-secondary)]">
+                                {summarizeToolGroup(item.tools)}
+                            </summary>
+                            <div className={`flex flex-col ${isCompact ? 'mt-1.5 gap-2' : 'mt-2 gap-3'}`}>
+                                {item.tools.map((tool) => renderToolCallBlock(tool))}
+                            </div>
+                        </details>
+                    )
+                }
+
+                const block = item
                 if (block.kind === 'user-text') {
                     const userBubbleClass = 'chat-message-user chat-user-bubble ml-auto w-fit min-w-0 max-w-[88%] rounded-[10px] bg-[var(--cursor-bg-quiet)] px-3 py-2 text-[var(--text-primary)] sm:max-w-[84%] lg:max-w-[76%]'
                     const status = block.status
@@ -114,48 +179,7 @@ function HappyNestedBlockList(props: {
                 }
 
                 if (block.kind === 'tool-call') {
-                    const isTask = block.tool.name === 'Task'
-                    const isReasoningTool = block.tool.name === 'CodexReasoning'
-                    const taskChildren = isTask ? splitTaskChildren(block) : null
-
-                    return (
-                        <div key={`tool:${block.id}`} className={isReasoningTool ? 'py-0' : (isCompact ? 'py-0.5' : 'py-1')}>
-                            <ToolCard
-                                api={ctx.api}
-                                sessionId={ctx.sessionId}
-                                metadata={ctx.metadata}
-                                disabled={ctx.disabled}
-                                onDone={ctx.onRefresh}
-                                block={block}
-                                density={props.density}
-                            />
-                            {block.children.length > 0 ? (
-                                isTask ? (
-                                    <>
-                                        {taskChildren && taskChildren.pending.length > 0 ? (
-                                            <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
-                                                <HappyNestedBlockList blocks={taskChildren.pending} density={props.density} />
-                                            </div>
-                                        ) : null}
-                                        {taskChildren && taskChildren.rest.length > 0 ? (
-                                            <details className={`chat-task-details ${isCompact ? 'mt-1.5' : 'mt-2'}`}>
-                                                <summary className="chat-task-details-summary cursor-pointer text-[length:var(--font-size-sm)] text-[var(--text-secondary)]">
-                                                    Task details ({taskChildren.rest.length})
-                                                </summary>
-                                                <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
-                                                    <HappyNestedBlockList blocks={taskChildren.rest} density={props.density} />
-                                                </div>
-                                            </details>
-                                        ) : null}
-                                    </>
-                                ) : (
-                                    <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
-                                        <HappyNestedBlockList blocks={block.children} density={props.density} />
-                                    </div>
-                                )
-                            ) : null}
-                        </div>
-                    )
+                    return renderToolCallBlock(block)
                 }
 
                 return null
