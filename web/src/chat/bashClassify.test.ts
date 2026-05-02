@@ -73,4 +73,32 @@ describe('classifyBashCommand', () => {
         expect(classifyBashCommand('')).toEqual({ isSearch: false, isRead: false, isList: false })
         expect(classifyBashCommand('   ')).toEqual({ isSearch: false, isRead: false, isList: false })
     })
+
+    it('classifies read-only git subcommands as read', () => {
+        expect(classifyBashCommand('git status --short')).toEqual({ isSearch: false, isRead: true, isList: false })
+        expect(classifyBashCommand('git log --oneline -10')).toEqual({ isSearch: false, isRead: true, isList: false })
+        expect(classifyBashCommand('git diff -- web/src')).toEqual({ isSearch: false, isRead: true, isList: false })
+        expect(classifyBashCommand('git show HEAD')).toEqual({ isSearch: false, isRead: true, isList: false })
+        expect(classifyBashCommand('git blame README.md')).toEqual({ isSearch: false, isRead: true, isList: false })
+        expect(classifyBashCommand('git rev-parse HEAD')).toEqual({ isSearch: false, isRead: true, isList: false })
+    })
+
+    it('handles git pre-subcommand flags (`git -C path log`, `git --no-pager diff`)', () => {
+        expect(classifyBashCommand('git -C /tmp/repo log')).toEqual({ isSearch: false, isRead: true, isList: false })
+        expect(classifyBashCommand('git --no-pager diff')).toEqual({ isSearch: false, isRead: true, isList: false })
+        expect(classifyBashCommand('LANG=C git log')).toEqual({ isSearch: false, isRead: true, isList: false })
+    })
+
+    it('refuses to merge mutating git subcommands', () => {
+        expect(classifyBashCommand('git push')).toEqual({ isSearch: false, isRead: false, isList: false })
+        expect(classifyBashCommand('git commit -m "msg"')).toEqual({ isSearch: false, isRead: false, isList: false })
+        expect(classifyBashCommand('git add file')).toEqual({ isSearch: false, isRead: false, isList: false })
+        expect(classifyBashCommand('git checkout main')).toEqual({ isSearch: false, isRead: false, isList: false })
+        expect(classifyBashCommand('git reset --hard')).toEqual({ isSearch: false, isRead: false, isList: false })
+    })
+
+    it('mixes git reads with other read/search/list commands in a pipeline', () => {
+        expect(classifyBashCommand('git log | grep fix')).toEqual({ isSearch: true, isRead: true, isList: false })
+        expect(classifyBashCommand('git status && ls')).toEqual({ isSearch: false, isRead: true, isList: true })
+    })
 })

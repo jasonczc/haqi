@@ -36,9 +36,64 @@ const BASH_READ_COMMANDS = new Set([
     'tr',
 ])
 
-const BASH_LIST_COMMANDS = new Set(['ls', 'tree', 'du'])
+const BASH_LIST_COMMANDS = new Set(['ls', 'tree', 'du', 'pwd'])
 
 const BASH_NEUTRAL_COMMANDS = new Set(['echo', 'printf', 'true', 'false', ':'])
+
+/**
+ * `git` is the most common compound command in chat output and lumping it as
+ * non-collapsible (its base word `git` isn't in any whitelist) leaves visible
+ * stacks of `git status` / `git diff` / `git log` calls that obviously belong
+ * together. Whitelist the verbs that are unambiguously read-only — anything
+ * else (add / commit / push / reset / checkout) keeps its own row so the user
+ * still sees state-changing operations.
+ */
+const GIT_READ_SUBCOMMANDS = new Set([
+    'status',
+    'log',
+    'diff',
+    'show',
+    'blame',
+    'describe',
+    'rev-parse',
+    'rev-list',
+    'ls-files',
+    'ls-tree',
+    'ls-remote',
+    'shortlog',
+    'reflog',
+    'cat-file',
+    'merge-base',
+    'name-rev',
+    'whatchanged',
+    'symbolic-ref',
+    'check-ignore',
+    'check-ref-format',
+])
+
+const GIT_PRE_SUBCOMMAND_VALUE_FLAGS = new Set(['-C', '--git-dir', '--work-tree'])
+
+function isReadOnlyGitInvocation(segment: string): boolean {
+    const tokens = segment.trim().split(/\s+/)
+    let i = 0
+    // Skip leading env-var assignments (`LANG=C git log`).
+    while (i < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[i]!)) i++
+    if (tokens[i] !== 'git') return false
+    i++
+    while (i < tokens.length) {
+        const t = tokens[i]!
+        if (!t.startsWith('-')) break
+        // Skip flags that take a value as the next token (`git -C path log`).
+        if (GIT_PRE_SUBCOMMAND_VALUE_FLAGS.has(t)) {
+            i += 2
+            continue
+        }
+        i++
+    }
+    const sub = tokens[i]
+    if (!sub) return false
+    return GIT_READ_SUBCOMMANDS.has(sub)
+}
 
 export type BashClassification = {
     isSearch: boolean
@@ -176,6 +231,11 @@ export function classifyBashCommand(command: string): BashClassification {
         if (!base) continue
         if (BASH_NEUTRAL_COMMANDS.has(base)) continue
         hasNonNeutral = true
+        if (base === 'git') {
+            if (!isReadOnlyGitInvocation(seg)) return NOT_COLLAPSIBLE
+            hasRead = true
+            continue
+        }
         const isSearch = BASH_SEARCH_COMMANDS.has(base)
         const isRead = BASH_READ_COMMANDS.has(base)
         const isList = BASH_LIST_COMMANDS.has(base)
