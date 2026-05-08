@@ -5,6 +5,24 @@ import { clampAliveTime } from './aliveTime'
 import { EventPublisher } from './eventPublisher'
 import { extractTodoWriteTodosFromMessageContent, TodosSchema } from './todos'
 
+const HAPI_BLOBS_METADATA_PATH_PATTERN = /@([^\s"'`<>()]*[/\\]hapi-blobs[/\\][^\s"'`<>()]+)/g
+
+function sanitizeMetadataDisplayText(value: string): string {
+    return value
+        .replace(HAPI_BLOBS_METADATA_PATH_PATTERN, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
+function sanitizeSummary(value: unknown): unknown | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+    const summary = value as Record<string, unknown>
+    if (typeof summary.text !== 'string') return value
+    const text = sanitizeMetadataDisplayText(summary.text)
+    if (!text) return undefined
+    return text === summary.text ? value : { ...summary, text }
+}
+
 export class SessionCache {
     private readonly sessions: Map<string, Session> = new Map()
     private readonly lastBroadcastAtBySessionId: Map<string, number> = new Map()
@@ -478,8 +496,11 @@ export class SessionCache {
         let changed = false
 
         if (typeof oldObj.name === 'string' && typeof newObj.name !== 'string') {
-            merged.name = oldObj.name
-            changed = true
+            const name = sanitizeMetadataDisplayText(oldObj.name)
+            if (name) {
+                merged.name = name
+                changed = true
+            }
         }
 
         const oldSummary = oldObj.summary as { text?: unknown; updatedAt?: unknown } | undefined
@@ -487,8 +508,11 @@ export class SessionCache {
         const oldUpdatedAt = typeof oldSummary?.updatedAt === 'number' ? oldSummary.updatedAt : null
         const newUpdatedAt = typeof newSummary?.updatedAt === 'number' ? newSummary.updatedAt : null
         if (oldUpdatedAt !== null && (newUpdatedAt === null || oldUpdatedAt > newUpdatedAt)) {
-            merged.summary = oldSummary
-            changed = true
+            const summary = sanitizeSummary(oldSummary)
+            if (summary) {
+                merged.summary = summary
+                changed = true
+            }
         }
 
         if (oldObj.worktree && !newObj.worktree) {

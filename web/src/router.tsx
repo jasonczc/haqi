@@ -53,6 +53,7 @@ import { Button } from '@/components/ui/button'
 import type { GroupDetail, SessionSummary } from '@/types/api'
 import { ThemeFooterButton } from '@/components/ThemeFooterButton'
 import { filterSessionsBySearch } from '@/lib/session-search'
+import { sanitizeSessionDisplayText } from '@/lib/session-title'
 import {
     loadLastSessionConfig,
     loadPreferredAgent,
@@ -265,9 +266,15 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
 
 function getSessionDisplayTitle(session: SessionSummary): string {
     const name = session.metadata?.name?.trim()
-    if (name) return name
+    if (name) {
+        const title = sanitizeSessionDisplayText(name)
+        if (title) return title
+    }
     const summary = session.metadata?.summary?.text?.trim()
-    if (summary) return summary
+    if (summary) {
+        const title = sanitizeSessionDisplayText(summary)
+        if (title) return title
+    }
     const pathParts = (session.metadata?.path ?? '').split('/').filter(Boolean)
     const leaf = pathParts[pathParts.length - 1]
     if (leaf && leaf !== 'repo' && leaf !== 'workspace') return leaf
@@ -390,10 +397,6 @@ function SidebarSessionItem(props: {
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [quickArchiveVisible, setQuickArchiveVisible] = useState(false)
     const title = getSessionDisplayTitle(session)
-    const meta = session.metadata as { summary?: { text?: string } } | undefined
-    const childTitle = typeof meta?.summary?.text === 'string' && meta.summary.text !== title
-        ? meta.summary.text
-        : undefined
     const {
         archiveSession,
         renameSession,
@@ -526,17 +529,6 @@ function SidebarSessionItem(props: {
                     compact
                     onArchive={archiveSession}
                 />
-
-                {childTitle ? (
-                    <button
-                        type="button"
-                        onClick={() => onSelect(session.id)}
-                        className="nav-item text-item"
-                        style={{ paddingLeft: '22px' }}
-                    >
-                        <span className="nav-text">{childTitle}</span>
-                    </button>
-                ) : null}
             </div>
 
             <SessionActionMenu

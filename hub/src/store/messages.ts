@@ -14,6 +14,105 @@ type DbMessageRow = {
     local_id: string | null
 }
 
+
+type JsonRecord = Record<string, unknown>
+
+function isRecord(value: unknown): value is JsonRecord {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function getUserMessageText(content: unknown): string | null {
+    if (!isRecord(content)) return null
+    if (content.role !== 'user') return null
+    const inner = content.content
+    if (!isRecord(inner)) return null
+    if (inner.type !== 'text') return null
+    return typeof inner.text === 'string' ? inner.text : null
+}
+
+function getSentFrom(content: unknown): string | null {
+    if (!isRecord(content)) return null
+    const meta = content.meta
+    if (!isRecord(meta)) return null
+    return typeof meta.sentFrom === 'string' ? meta.sentFrom : null
+}
+
+function getAttachmentPaths(content: unknown): string[] {
+    if (!isRecord(content)) return []
+    if (content.role !== 'user') return []
+    const inner = content.content
+    if (!isRecord(inner) || !Array.isArray(inner.attachments)) return []
+
+    const paths: string[] = []
+    for (const item of inner.attachments) {
+        if (isRecord(item) && typeof item.path === 'string' && item.path.length > 0) {
+            paths.push(item.path)
+        }
+    }
+    return paths
+}
+
+const HAPI_BLOBS_PATH_PATTERN = /@([^\s"'`<>()]*[/\\]hapi-blobs[/\\][^\s"'`<>()]+)/g
+
+function extractHapiBlobReferences(text: string): string[] {
+    return Array.from(text.matchAll(HAPI_BLOBS_PATH_PATTERN), (match) => match[1] ?? '')
+        .filter((path) => path.length > 0)
+}
+
+function basename(path: string): string {
+    return path.split(/[/\\]/).filter(Boolean).pop() ?? 'upload'
+}
+
+function sanitizeHapiBlobReferences(text: string): string {
+    return text.replace(HAPI_BLOBS_PATH_PATTERN, (_match, path: string) => `@[${basename(path)}]`)
+}
+
+function withUserMessageText(content: unknown, text: string): unknown {
+    if (!isRecord(content)) return content
+    const inner = content.content
+    if (!isRecord(inner)) return content
+    return {
+        ...content,
+        content: {
+            ...inner,
+            text
+        }
+    }
+}
+
+function buildCopiedMessageRows(rows: DbMessageRow[]): Array<{ row: DbMessageRow; content: string }> {
+    const canonicalAttachmentPaths = new Set<string>()
+    for (const row of rows) {
+        const parsed = safeJsonParse(row.content)
+        for (const path of getAttachmentPaths(parsed)) {
+            canonicalAttachmentPaths.add(path)
+        }
+    }
+
+    const copied: Array<{ row: DbMessageRow; content: string }> = []
+    for (const row of rows) {
+        const parsed = safeJsonParse(row.content)
+        const text = getUserMessageText(parsed)
+        const hapiBlobRefs = text ? extractHapiBlobReferences(text) : []
+
+        if (text && getSentFrom(parsed) === 'cli' && hapiBlobRefs.length > 0) {
+            if (hapiBlobRefs.some((path) => canonicalAttachmentPaths.has(path))) {
+                continue
+            }
+
+            copied.push({
+                row,
+                content: JSON.stringify(withUserMessageText(parsed, sanitizeHapiBlobReferences(text)))
+            })
+            continue
+        }
+
+        copied.push({ row, content: row.content })
+    }
+
+    return copied
+}
+
 function toStoredMessage(row: DbMessageRow): StoredMessage {
     return {
         id: row.id,
@@ -203,27 +302,28 @@ export function copySessionMessages(
             ).run(oldMaxSeq, toSessionId)
         }
 
-        const result = db.prepare(`
+        const sourceRows = db.prepare(
+            'SELECT * FROM messages WHERE session_id = ? ORDER BY seq ASC'
+        ).all(fromSessionId) as DbMessageRow[]
+        const copiedRows = buildCopiedMessageRows(sourceRows)
+        const insert = db.prepare(`
             INSERT INTO messages (id, session_id, content, created_at, seq, local_id)
-            SELECT
-                lower(hex(randomblob(16))),
-                @to_session_id,
-                content,
-                created_at,
-                seq,
-                NULL
-            FROM messages
-            WHERE session_id = @from_session_id
-            ORDER BY seq ASC
-        `).run({
-            to_session_id: toSessionId,
-            from_session_id: fromSessionId
-        })
+            VALUES (lower(hex(randomblob(16))), @session_id, @content, @created_at, @seq, NULL)
+        `)
+
+        for (const item of copiedRows) {
+            insert.run({
+                session_id: toSessionId,
+                content: item.content,
+                created_at: item.row.created_at,
+                seq: item.row.seq
+            })
+        }
 
         rebuildSessionConversationTurns(db, toSessionId)
 
         db.exec('COMMIT')
-        return { copied: result.changes, oldMaxSeq, newMaxSeq }
+        return { copied: copiedRows.length, oldMaxSeq, newMaxSeq }
     } catch (error) {
         db.exec('ROLLBACK')
         throw error

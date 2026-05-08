@@ -2,6 +2,22 @@ import type { Session, SessionSummary } from '@/types/api'
 
 type SessionLike = Pick<SessionSummary, 'id' | 'metadata'> | Pick<Session, 'id' | 'metadata'>
 
+const HAPI_BLOBS_TITLE_PATH_PATTERN = /@([^\s"'`<>()]*[/\\]hapi-blobs[/\\][^\s"'`<>()]+)/g
+
+export function sanitizeSessionDisplayText(value: string): string {
+    return value
+        .replace(HAPI_BLOBS_TITLE_PATH_PATTERN, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
+
+function cleanTitleCandidate(value: string | undefined): string | undefined {
+    const trimmed = value?.trim() ?? ''
+    if (!trimmed) return undefined
+    const sanitized = sanitizeSessionDisplayText(trimmed)
+    return sanitized || undefined
+}
+
 export function getSessionTitle(
     session: SessionLike | null | undefined,
     options?: {
@@ -10,12 +26,12 @@ export function getSessionTitle(
     }
 ): string {
     const fallbackIdLength = options?.fallbackIdLength ?? 8
-    const name = session?.metadata?.name?.trim()
+    const name = cleanTitleCandidate(session?.metadata?.name)
     if (name) {
         return name
     }
 
-    const summaryText = session?.metadata?.summary?.text?.trim()
+    const summaryText = cleanTitleCandidate(session?.metadata?.summary?.text)
     if (summaryText) {
         return summaryText
     }

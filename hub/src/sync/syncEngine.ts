@@ -98,6 +98,15 @@ const NOTE_REFRESH_TASK_PREFIX = 'note-refresh:'
 const MAX_NOTE_REFRESH_CONTENT_LENGTH = 20_000
 const MAX_GROUP_MIRROR_TEXT_LENGTH = 8_000
 const GROUP_NOTE_FILE_SYNC_INTERVAL_MS = 3 * 60 * 1000
+
+const HAPI_BLOBS_DISPLAY_PATH_PATTERN = /@([^\s"'`<>()]*[/\\]hapi-blobs[/\\][^\s"'`<>()]+)/g
+
+function sanitizeSessionDisplayText(value: string): string {
+    return value
+        .replace(HAPI_BLOBS_DISPLAY_PATH_PATTERN, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+}
 const CODEX_TOOL_PROCESS_EVENT_TYPES = new Set([
     'tool-call',
     'tool-call-result',
@@ -2054,12 +2063,14 @@ ${note.content}
 
         const name = metadata.name?.trim()
         if (name) {
-            return name
+            const title = sanitizeSessionDisplayText(name)
+            if (title) return title
         }
 
         const summary = metadata.summary?.text?.trim()
         if (summary) {
-            return summary
+            const title = sanitizeSessionDisplayText(summary)
+            if (title) return title
         }
 
         const path = metadata.path?.trim()
