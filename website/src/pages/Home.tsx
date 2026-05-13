@@ -3,12 +3,13 @@ import AppShowcase from "@/components/AppShowcase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Check, Code2, Copy, Globe, Laptop, Lock, MessageSquare, Smartphone, Terminal, Zap, GitBranch, ShieldAlert, Coffee, Mountain, Footprints } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { SEO } from "@/components/SEO";
 import { useLatestVersion } from "@/hooks/useLatestVersion";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Home() {
   const [copied, setCopied] = useState("");
@@ -21,6 +22,30 @@ export default function Home() {
     setCopied(key);
     setTimeout(() => setCopied(""), 2000);
   };
+
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+
+      const actionable = target.closest("a, button, [role='button']");
+      const label = actionable?.textContent?.replace(/\s+/g, " ").trim().toLowerCase();
+      if (label !== "explore all tools") {
+        return;
+      }
+
+      trackEvent("home_explore_all_tools_click", {
+        label: "Explore All Tools",
+        href: actionable instanceof HTMLAnchorElement ? actionable.href : undefined,
+        path: window.location.pathname,
+      });
+    };
+
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
 
   return (
     <Layout>
