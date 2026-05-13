@@ -12,6 +12,12 @@ import type {
     TurnStartResponse,
     TurnInterruptParams,
     TurnInterruptResponse,
+    ThreadGoalSetParams,
+    ThreadGoalSetResponse,
+    ThreadGoalGetParams,
+    ThreadGoalGetResponse,
+    ThreadGoalClearParams,
+    ThreadGoalClearResponse,
     AccountReadResponse,
     AuthStatusResponse,
     RateLimitsReadResponse,
@@ -166,6 +172,27 @@ export class CodexAppServerClient {
             timeoutMs: 30_000
         });
         return response as TurnInterruptResponse;
+    }
+
+    async setThreadGoal(params: ThreadGoalSetParams): Promise<ThreadGoalSetResponse> {
+        const response = await this.sendRequest('thread/goal/set', params, {
+            timeoutMs: 30_000
+        });
+        return response as ThreadGoalSetResponse;
+    }
+
+    async getThreadGoal(params: ThreadGoalGetParams): Promise<ThreadGoalGetResponse> {
+        const response = await this.sendRequest('thread/goal/get', params, {
+            timeoutMs: 30_000
+        });
+        return response as ThreadGoalGetResponse;
+    }
+
+    async clearThreadGoal(params: ThreadGoalClearParams): Promise<ThreadGoalClearResponse> {
+        const response = await this.sendRequest('thread/goal/clear', params, {
+            timeoutMs: 30_000
+        });
+        return response as ThreadGoalClearResponse;
     }
 
     async readAccount(): Promise<AccountReadResponse> {

@@ -42,6 +42,7 @@ const BUILTIN_COMMANDS: Record<string, SlashCommand[]> = {
         { name: 'compat', description: 'Summarize conversation to prevent hitting the context limit', source: 'builtin' },
         { name: 'undo', description: 'Ask Codex to undo a turn', source: 'builtin' },
         { name: 'diff', description: 'Show git diff including untracked files', source: 'builtin' },
+        { name: 'goal', description: 'Set or view the goal for a long-running task', source: 'builtin' },
         { name: 'status', description: 'Show current session configuration and token usage', source: 'builtin' },
     ],
     gemini: [

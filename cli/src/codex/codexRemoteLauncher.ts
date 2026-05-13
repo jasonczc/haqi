@@ -24,6 +24,7 @@ import { registerAppServerPermissionHandlers } from './utils/appServerPermission
 import { buildThreadStartParams, buildTurnStartParams } from './utils/appServerConfig';
 import { TurnChangeTracker } from './utils/turnChangeTracker';
 import { buildCodexSystemPrompt } from './utils/systemPrompt';
+import { parseGoal, type GoalCommandResult } from '@/parsers/specialCommands';
 import {
     LIVE_ACTIVITY_EVENT_TYPES,
     LIVE_ACTIVITY_GRACE_MS,
@@ -59,6 +60,27 @@ function extractPlanText(input: unknown): string | null {
     }
     const trimmed = text.trim();
     return trimmed.length > 0 ? trimmed : null;
+}
+
+function formatGoalSummary(goal: unknown): string | null {
+    if (!goal || typeof goal !== 'object') {
+        return null;
+    }
+
+    const record = goal as Record<string, unknown>;
+    const objective = typeof record.objective === 'string' ? record.objective.trim() : '';
+    if (objective.length === 0) {
+        return null;
+    }
+
+    const status = typeof record.status === 'string' ? record.status : undefined;
+    const tokensUsed = typeof record.tokensUsed === 'number' ? record.tokensUsed : undefined;
+    const tokenBudget = typeof record.tokenBudget === 'number' ? record.tokenBudget : undefined;
+    const budget = tokenBudget !== undefined
+        ? ` (${tokensUsed ?? 0}/${tokenBudget} tokens)`
+        : '';
+
+    return status ? `${objective} [${status}]${budget}` : `${objective}${budget}`;
 }
 
 class CodexRemoteLauncher extends RemoteLauncherBase {
@@ -1121,6 +1143,144 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             collaborationMode: resolveTurnCollaborationMode(mode.collaborationMode)
         });
 
+        const ensureAppServerThread = async (mode: EnhancedMode): Promise<string> => {
+            if (wasCreated && this.currentThreadId) {
+                return this.currentThreadId;
+            }
+
+            if (!appServerClient) {
+                throw new Error('Codex app-server is not available');
+            }
+
+            const threadParams = buildThreadStartParams({
+                mode,
+                mcpServers,
+                cliOverrides: session.codexCliOverrides,
+                baseInstructions,
+                cwd: session.path
+            });
+
+            const resumeCandidate = session.sessionId;
+            let threadId: string | null = null;
+
+            if (resumeCandidate) {
+                try {
+                    const resumeResponse = await appServerClient.resumeThread({
+                        threadId: resumeCandidate,
+                        ...threadParams
+                    }, {
+                        signal: this.abortController.signal
+                    });
+                    const resumeRecord = asRecord(resumeResponse);
+                    const resumeThread = resumeRecord ? asRecord(resumeRecord.thread) : null;
+                    threadId = asString(resumeThread?.id) ?? resumeCandidate;
+                    currentThreadModel = asString(resumeRecord?.model) ?? currentThreadModel;
+                    logger.debug(`[Codex] Resumed app-server thread ${threadId}`);
+                } catch (error) {
+                    logger.warn(`[Codex] Failed to resume app-server thread ${resumeCandidate}, starting new thread`, error);
+                }
+            }
+
+            if (!threadId) {
+                const threadResponse = await appServerClient.startThread(threadParams, {
+                    signal: this.abortController.signal
+                });
+                const threadRecord = asRecord(threadResponse);
+                const thread = threadRecord ? asRecord(threadRecord.thread) : null;
+                threadId = asString(thread?.id);
+                currentThreadModel = asString(threadRecord?.model) ?? currentThreadModel;
+                if (!threadId) {
+                    throw new Error('app-server thread/start did not return thread.id');
+                }
+            }
+
+            this.currentThreadId = threadId;
+            session.onSessionFound(threadId);
+            wasCreated = true;
+            first = false;
+            return threadId;
+        };
+
+        const handleGoalCommand = async (
+            command: GoalCommandResult,
+            mode: EnhancedMode,
+            deferUserMessageUntilDequeue: boolean
+        ): Promise<boolean> => {
+            if (!command.isGoal || !command.action) {
+                return false;
+            }
+
+            messageBuffer.addMessage(command.originalMessage, 'user');
+            if (deferUserMessageUntilDequeue) {
+                session.sendUserMessage(command.originalMessage, mode.routeContext
+                    ? { routeContext: mode.routeContext }
+                    : undefined);
+            }
+
+            if (!useAppServer || !appServerClient) {
+                const message = 'Codex /goal is only supported by the app-server backend.';
+                messageBuffer.addMessage(message, 'status');
+                session.sendSessionEvent({ type: 'message', message });
+                sendReady();
+                return true;
+            }
+
+            try {
+                const threadId = await ensureAppServerThread(mode);
+                if (command.action === 'get') {
+                    const response = await appServerClient.getThreadGoal({
+                        threadId
+                    });
+                    const summary = formatGoalSummary(response.goal);
+                    const message = summary ? `Goal: ${summary}` : 'No goal set.';
+                    messageBuffer.addMessage(message, 'status');
+                    session.sendSessionEvent({ type: 'message', message });
+                    sendReady();
+                    return true;
+                }
+
+                if (command.action === 'clear') {
+                    const response = await appServerClient.clearThreadGoal({
+                        threadId
+                    });
+                    const message = response.cleared ? 'Goal cleared.' : 'No goal set.';
+                    messageBuffer.addMessage(message, 'status');
+                    session.sendSessionEvent({ type: 'message', message });
+                    sendReady();
+                    return true;
+                }
+
+                const objective = command.objective?.trim() ?? '';
+                if (objective.length === 0) {
+                    const message = 'Goal objective must not be empty.';
+                    messageBuffer.addMessage(message, 'status');
+                    session.sendSessionEvent({ type: 'message', message });
+                    sendReady();
+                    return true;
+                }
+
+                const response = await appServerClient.setThreadGoal({
+                    threadId,
+                    objective
+                });
+                const summary = formatGoalSummary(response.goal) ?? objective;
+                const message = `Goal set: ${summary}`;
+                messageBuffer.addMessage(message, 'status');
+                session.sendSessionEvent({ type: 'message', message });
+                sendReady();
+                return true;
+            } catch (error) {
+                const message = error instanceof Error
+                    ? `Failed to run /goal: ${error.message}`
+                    : 'Failed to run /goal.';
+                logger.warn('[Codex] Failed to run /goal command:', error);
+                messageBuffer.addMessage(message, 'status');
+                session.sendSessionEvent({ type: 'message', message });
+                sendReady();
+                return true;
+            }
+        };
+
         while (!this.shouldExit) {
             logActiveHandles('loop-top');
 
@@ -1180,6 +1340,18 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 await ensureAppServerCapabilities(message.mode.collaborationMode);
             }
 
+            const goalCommand = parseGoal(message.message);
+            if (goalCommand.isGoal) {
+                const handled = await handleGoalCommand(
+                    goalCommand,
+                    message.mode,
+                    message.deferUserMessageUntilDequeue
+                );
+                if (handled) {
+                    continue;
+                }
+            }
+
             messageBuffer.addMessage(message.message, 'user');
             if (message.deferUserMessageUntilDequeue) {
                 session.sendUserMessage(message.message, message.mode.routeContext
@@ -1192,54 +1364,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 activeTurnMode = message.mode;
                 if (!wasCreated) {
                     if (useAppServer && appServerClient) {
-                        const threadParams = buildThreadStartParams({
-                            mode: message.mode,
-                            mcpServers,
-                            cliOverrides: session.codexCliOverrides,
-                            baseInstructions,
-                            cwd: session.path
-                        });
-
-                        const resumeCandidate = session.sessionId;
-                        let threadId: string | null = null;
-
-                        if (resumeCandidate) {
-                            try {
-                                const resumeResponse = await appServerClient.resumeThread({
-                                    threadId: resumeCandidate,
-                                    ...threadParams
-                                }, {
-                                    signal: this.abortController.signal
-                                });
-                                const resumeRecord = asRecord(resumeResponse);
-                                const resumeThread = resumeRecord ? asRecord(resumeRecord.thread) : null;
-                                threadId = asString(resumeThread?.id) ?? resumeCandidate;
-                                currentThreadModel = asString(resumeRecord?.model) ?? currentThreadModel;
-                                logger.debug(`[Codex] Resumed app-server thread ${threadId}`);
-                            } catch (error) {
-                                logger.warn(`[Codex] Failed to resume app-server thread ${resumeCandidate}, starting new thread`, error);
-                            }
-                        }
-
-                        if (!threadId) {
-                            const threadResponse = await appServerClient.startThread(threadParams, {
-                                signal: this.abortController.signal
-                            });
-                            const threadRecord = asRecord(threadResponse);
-                            const thread = threadRecord ? asRecord(threadRecord.thread) : null;
-                            threadId = asString(thread?.id);
-                            currentThreadModel = asString(threadRecord?.model) ?? currentThreadModel;
-                            if (!threadId) {
-                                throw new Error('app-server thread/start did not return thread.id');
-                            }
-                        }
-
-                        if (!threadId) {
-                            throw new Error('app-server resume did not return thread.id');
-                        }
-
-                        this.currentThreadId = threadId;
-                        session.onSessionFound(threadId);
+                        const threadId = await ensureAppServerThread(message.mode);
 
                         const turnParams = buildTurnStartParams({
                             threadId,
@@ -1274,7 +1399,6 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                         syncSessionId();
                     }
 
-                    wasCreated = true;
                     first = false;
                 } else if (useAppServer && appServerClient) {
                     if (!this.currentThreadId) {

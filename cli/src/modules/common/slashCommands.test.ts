@@ -98,4 +98,13 @@ describe('listSlashCommands', () => {
 
         await expect(listSlashCommands('claude', nonExistentProjectDir)).resolves.toBeDefined()
     })
+
+    it('includes Codex goal as a built-in command', async () => {
+        const commands = await listSlashCommands('codex')
+
+        expect(commands).toContainEqual(expect.objectContaining({
+            name: 'goal',
+            source: 'builtin'
+        }))
+    })
 })

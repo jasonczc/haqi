@@ -8,7 +8,11 @@ const harness = vi.hoisted(() => ({
     initializeCalls: [] as Array<{ capabilities?: { experimentalApi?: boolean; optOutRequestMethods?: string[] | null } }>,
     disconnectCalls: 0,
     startTurnNotifications: null as Array<{ method: string; params: unknown }> | null,
-    interruptTurnCalls: [] as Array<{ threadId?: string; turnId?: string }>
+    interruptTurnCalls: [] as Array<{ threadId?: string; turnId?: string }>,
+    startTurnCalls: 0,
+    setGoalCalls: [] as Array<{ threadId: string; objective: string }>,
+    getGoalCalls: [] as Array<{ threadId: string }>,
+    clearGoalCalls: [] as Array<{ threadId: string }>
 }));
 
 vi.mock('./codexAppServerClient', () => {
@@ -39,6 +43,7 @@ vi.mock('./codexAppServerClient', () => {
         }
 
         async startTurn(): Promise<{ turn: Record<string, never> }> {
+            harness.startTurnCalls += 1;
             const notifications = harness.startTurnNotifications ?? [
                 { method: 'turn/started', params: { turn: {} } },
                 { method: 'turn/completed', params: { status: 'Completed', turn: {} } }
@@ -55,6 +60,21 @@ vi.mock('./codexAppServerClient', () => {
         async interruptTurn(params?: { threadId?: string; turnId?: string }): Promise<Record<string, never>> {
             harness.interruptTurnCalls.push(params ?? {});
             return {};
+        }
+
+        async setThreadGoal(params: { threadId: string; objective: string }): Promise<{ goal: { objective: string; status: string } }> {
+            harness.setGoalCalls.push(params);
+            return { goal: { objective: params.objective, status: 'active' } };
+        }
+
+        async getThreadGoal(params: { threadId: string }): Promise<{ goal: { objective: string; status: string } | null }> {
+            harness.getGoalCalls.push(params);
+            return { goal: { objective: 'existing goal', status: 'active' } };
+        }
+
+        async clearThreadGoal(params: { threadId: string }): Promise<{ cleared: boolean }> {
+            harness.clearGoalCalls.push(params);
+            return { cleared: true };
         }
 
         async disconnect(): Promise<void> {
@@ -157,6 +177,8 @@ function createSessionStub() {
         },
         getPermissionMode() {
             return session.permissionMode;
+        },
+        setStopCurrentTurnHandler(_handler: (() => void) | null) {
         }
     };
 
@@ -179,6 +201,10 @@ describe('codexRemoteLauncher', () => {
         harness.disconnectCalls = 0;
         harness.startTurnNotifications = null;
         harness.interruptTurnCalls = [];
+        harness.startTurnCalls = 0;
+        harness.setGoalCalls = [];
+        harness.getGoalCalls = [];
+        harness.clearGoalCalls = [];
         delete process.env.CODEX_USE_MCP_SERVER;
     });
 
@@ -505,6 +531,54 @@ describe('codexRemoteLauncher', () => {
             type: 'tool-call',
             name: 'CodexPermission',
             callId: 'plan-3'
+        }));
+    });
+
+    it('sets a Codex goal on an existing app-server thread without starting a model turn', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        const { session, sessionEvents } = createSessionStub();
+        session.queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify(mode));
+        session.queue.push('start thread first', createMode());
+        session.queue.push('/goal improve benchmark coverage', createMode(), { isolate: true });
+        session.queue.close();
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(harness.startTurnCalls).toBe(1);
+        expect(harness.setGoalCalls).toEqual([
+            {
+                threadId: 'thread-anonymous',
+                objective: 'improve benchmark coverage'
+            }
+        ]);
+        expect(sessionEvents).toContainEqual(expect.objectContaining({
+            type: 'message',
+            message: 'Goal set: improve benchmark coverage [active]'
+        }));
+    });
+
+    it('creates a thread and sets a Codex goal when /goal is sent before the first turn', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        const { session, sessionEvents, foundSessionIds } = createSessionStub();
+        session.queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify(mode));
+        session.queue.push('/goal improve benchmark coverage', createMode());
+        session.queue.close();
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(harness.startTurnCalls).toBe(0);
+        expect(foundSessionIds).toContain('thread-anonymous');
+        expect(harness.setGoalCalls).toEqual([
+            {
+                threadId: 'thread-anonymous',
+                objective: 'improve benchmark coverage'
+            }
+        ]);
+        expect(sessionEvents).toContainEqual(expect.objectContaining({
+            type: 'message',
+            message: 'Goal set: improve benchmark coverage [active]'
         }));
     });
 });

@@ -14,6 +14,7 @@ import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import type { ReasoningEffort, ServiceTier } from './appServerTypes';
 import { buildCodexStatusMessage, isCodexStatusCommand, type CodexQueueSnapshot } from './utils/codexStatusCommand';
 import { MessageRouteContextSchema } from '@/api/types';
+import { parseGoal } from '@/parsers/specialCommands';
 
 export { emitReadyIfIdle } from './utils/emitReadyIfIdle';
 
@@ -260,7 +261,7 @@ export async function runCodex(opts: {
         };
         const formattedText = formatMessageWithAttachments(message.content.text, message.content.attachments);
         messageQueue.push(formattedText, enhancedMode, {
-            isolate: Boolean(message.meta?.routeContext)
+            isolate: Boolean(message.meta?.routeContext) || parseGoal(formattedText).isGoal
         });
     });
 

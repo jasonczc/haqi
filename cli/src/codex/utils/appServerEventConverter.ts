@@ -951,6 +951,8 @@ export class AppServerEventConverter {
             || method === 'thread/archived'
             || method === 'thread/unarchived'
             || method === 'thread/name/updated'
+            || method === 'thread/goal/updated'
+            || method === 'thread/goal/cleared'
         ) {
             return events;
         }

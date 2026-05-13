@@ -143,6 +143,49 @@ export interface TurnInterruptResponse {
     [key: string]: unknown;
 }
 
+export type ThreadGoalStatus = 'active' | 'paused' | 'budgetLimited';
+
+export interface ThreadGoal {
+    objective: string;
+    status?: ThreadGoalStatus;
+    tokenBudget?: number | null;
+    tokensUsed?: number;
+    timeUsedSeconds?: number;
+    createdAt?: number;
+    updatedAt?: number;
+    [key: string]: unknown;
+}
+
+export interface ThreadGoalSetParams {
+    threadId: string;
+    objective: string;
+    status?: ThreadGoalStatus;
+    tokenBudget?: number | null;
+}
+
+export interface ThreadGoalSetResponse {
+    goal: ThreadGoal;
+    [key: string]: unknown;
+}
+
+export interface ThreadGoalGetParams {
+    threadId: string;
+}
+
+export interface ThreadGoalGetResponse {
+    goal?: ThreadGoal | null;
+    [key: string]: unknown;
+}
+
+export interface ThreadGoalClearParams {
+    threadId: string;
+}
+
+export interface ThreadGoalClearResponse {
+    cleared: boolean;
+    [key: string]: unknown;
+}
+
 export interface AccountReadResponse {
     account?: {
         type?: string;

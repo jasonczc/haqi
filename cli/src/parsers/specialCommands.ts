@@ -11,9 +11,22 @@ export interface ClearCommandResult {
     isClear: boolean;
 }
 
+export type GoalCommandAction = 'get' | 'set' | 'clear';
+
+export interface GoalCommandResult {
+    isGoal: boolean;
+    action?: GoalCommandAction;
+    objective?: string;
+    originalMessage: string;
+}
+
 export interface SpecialCommandResult {
-    type: 'compact' | 'clear' | null;
+    type: 'compact' | 'clear' | 'goal' | null;
     originalMessage?: string;
+    goal?: {
+        action: GoalCommandAction;
+        objective?: string;
+    };
 }
 
 /**
@@ -56,6 +69,45 @@ export function parseClear(message: string): ClearCommandResult {
 }
 
 /**
+ * Parse Codex /goal command.
+ * Matches exactly "/goal", "/goal clear", or "/goal <objective>".
+ */
+export function parseGoal(message: string): GoalCommandResult {
+    const trimmed = message.trim();
+
+    if (trimmed === '/goal') {
+        return {
+            isGoal: true,
+            action: 'get',
+            originalMessage: trimmed
+        };
+    }
+
+    if (!trimmed.startsWith('/goal ')) {
+        return {
+            isGoal: false,
+            originalMessage: message
+        };
+    }
+
+    const argument = trimmed.slice('/goal '.length).trim();
+    if (argument === 'clear') {
+        return {
+            isGoal: true,
+            action: 'clear',
+            originalMessage: trimmed
+        };
+    }
+
+    return {
+        isGoal: true,
+        action: 'set',
+        objective: argument,
+        originalMessage: trimmed
+    };
+}
+
+/**
  * Unified parser for special commands
  * Returns the type of command and original message if applicable
  */
@@ -72,6 +124,18 @@ export function parseSpecialCommand(message: string): SpecialCommandResult {
     if (clearResult.isClear) {
         return {
             type: 'clear'
+        };
+    }
+
+    const goalResult = parseGoal(message);
+    if (goalResult.isGoal && goalResult.action) {
+        return {
+            type: 'goal',
+            originalMessage: goalResult.originalMessage,
+            goal: {
+                action: goalResult.action,
+                ...(goalResult.objective ? { objective: goalResult.objective } : {})
+            }
         };
     }
     

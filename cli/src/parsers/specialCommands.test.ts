@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCompact, parseClear, parseSpecialCommand } from './specialCommands';
+import { parseCompact, parseClear, parseGoal, parseSpecialCommand } from './specialCommands';
 
 describe('parseCompact', () => {
     it('should parse /compact command with argument', () => {
@@ -49,6 +49,35 @@ describe('parseClear', () => {
     });
 });
 
+describe('parseGoal', () => {
+    it('should parse /goal without arguments as get', () => {
+        const result = parseGoal('/goal');
+        expect(result.isGoal).toBe(true);
+        expect(result.action).toBe('get');
+        expect(result.originalMessage).toBe('/goal');
+    });
+
+    it('should parse /goal clear', () => {
+        const result = parseGoal('  /goal clear  ');
+        expect(result.isGoal).toBe(true);
+        expect(result.action).toBe('clear');
+        expect(result.originalMessage).toBe('/goal clear');
+    });
+
+    it('should parse /goal with objective', () => {
+        const result = parseGoal('/goal improve benchmark coverage');
+        expect(result.isGoal).toBe(true);
+        expect(result.action).toBe('set');
+        expect(result.objective).toBe('improve benchmark coverage');
+        expect(result.originalMessage).toBe('/goal improve benchmark coverage');
+    });
+
+    it('should not parse partial /goal matches', () => {
+        expect(parseGoal('/goals improve coverage').isGoal).toBe(false);
+        expect(parseGoal('please /goal improve coverage').isGoal).toBe(false);
+    });
+});
+
 describe('parseSpecialCommand', () => {
     it('should detect compact command', () => {
         const result = parseSpecialCommand('/compact optimize');
@@ -60,6 +89,16 @@ describe('parseSpecialCommand', () => {
         const result = parseSpecialCommand('/clear');
         expect(result.type).toBe('clear');
         expect(result.originalMessage).toBeUndefined();
+    });
+
+    it('should detect goal command', () => {
+        const result = parseSpecialCommand('/goal improve benchmark coverage');
+        expect(result.type).toBe('goal');
+        expect(result.originalMessage).toBe('/goal improve benchmark coverage');
+        expect(result.goal).toEqual({
+            action: 'set',
+            objective: 'improve benchmark coverage'
+        });
     });
 
     it('should return null for regular messages', () => {
@@ -77,5 +116,6 @@ describe('parseSpecialCommand', () => {
         expect(parseSpecialCommand('some /compact text').type).toBeNull();
         expect(parseSpecialCommand('/compactor').type).toBeNull();
         expect(parseSpecialCommand('/clearing').type).toBeNull();
+        expect(parseSpecialCommand('/goals').type).toBeNull();
     });
 });

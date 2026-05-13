@@ -33,6 +33,7 @@ const BUILTIN_COMMANDS: Record<string, SlashCommand[]> = {
         { name: 'plan', description: 'Toggle plan mode', source: 'builtin' },
     ],
     codex: [
+        { name: 'goal', description: 'Set or view the goal for a long-running task', source: 'builtin' },
         { name: 'status', description: 'Show Codex session and login status', source: 'builtin' },
     ],
     gemini: [
