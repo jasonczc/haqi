@@ -78,6 +78,7 @@ type ComposerInjectedPrompt = {
 }
 
 const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
+const SEND_DEBOUNCE_MS = 600
 const COMPOSER_DRAFT_STORAGE_PREFIX = 'hapi:sessionComposerDraft:'
 
 type ComposerDraft = {
@@ -555,6 +556,7 @@ export function HappyComposer(props: {
     const [showContinueHint, setShowContinueHint] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const lastSendAtRef = useRef(0)
     const prevControlledByUser = useRef(controlledByUser)
     const pendingDraftRestoreRef = useRef<{
         sessionId: string
@@ -792,8 +794,17 @@ export function HappyComposer(props: {
         && Boolean(onCodexQueueEnqueue)
         && (trimmed.length > 0 || mergedDraftAttachments.length > 0)
 
+    const claimSendSlot = useCallback(() => {
+        const now = Date.now()
+        if (now - lastSendAtRef.current < SEND_DEBOUNCE_MS) {
+            return false
+        }
+        lastSendAtRef.current = now
+        return true
+    }, [])
+
     const sendComposerNow = useCallback(async () => {
-        if (!canSend) {
+        if (!canSend || !claimSendSlot()) {
             return
         }
 
@@ -840,6 +851,7 @@ export function HappyComposer(props: {
         }
     }, [
         canSend,
+        claimSendSlot,
         api,
         queueSendEnabled,
         threadIsRunning,
@@ -896,7 +908,7 @@ export function HappyComposer(props: {
         if (key === 'Enter' && e.shiftKey && !enterSends) {
             e.preventDefault()
             if (!canSend) return
-            api.composer().send()
+            void sendComposerNow()
             setShowContinueHint(false)
             return
         }
@@ -1022,19 +1034,14 @@ export function HappyComposer(props: {
     }, [haptic])
 
     const handleSubmit = useCallback((event?: ReactFormEvent<HTMLFormElement>) => {
-        if (event && queueSendEnabled && canSend) {
+        if (event) {
             event.preventDefault()
-            void sendComposerNow()
-            setShowContinueHint(false)
-            return
-        }
-
-        if (event && !attachmentsReady) {
-            event.preventDefault()
-            return
+            if (canSend) {
+                void sendComposerNow()
+            }
         }
         setShowContinueHint(false)
-    }, [attachmentsReady, queueSendEnabled, canSend, sendComposerNow])
+    }, [canSend, sendComposerNow])
 
     const handlePermissionChange = useCallback((mode: PermissionMode) => {
         if (!onPermissionModeChange || controlsDisabled) return
