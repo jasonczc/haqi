@@ -172,7 +172,7 @@ export function useHappyRuntime(props: {
     session: Session
     blocks: readonly ChatBlock[]
     isSending: boolean
-    onSendMessage: (text: string, attachments?: AttachmentMetadata[]) => void
+    onSendMessage: (text: string, attachments?: AttachmentMetadata[]) => Promise<boolean> | boolean
     onAbort: () => Promise<void>
     attachmentAdapter?: AttachmentAdapter
     allowSendWhenInactive?: boolean
@@ -188,7 +188,7 @@ export function useHappyRuntime(props: {
     const onNew = useCallback(async (message: AppendMessage) => {
         const { text, attachments } = extractMessageContent(message)
         if (!text && attachments.length === 0) return
-        props.onSendMessage(text, attachments.length > 0 ? attachments : undefined)
+        await Promise.resolve(props.onSendMessage(text, attachments.length > 0 ? attachments : undefined))
     }, [props.onSendMessage])
 
     const onCancel = useCallback(async () => {

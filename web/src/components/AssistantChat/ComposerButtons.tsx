@@ -269,6 +269,7 @@ function LoadingIcon() {
 
 function UnifiedButton(props: {
     canSend: boolean
+    isSending: boolean
     voiceStatus: ConversationStatus
     voiceEnabled: boolean
     controlsDisabled: boolean
@@ -282,6 +283,7 @@ function UnifiedButton(props: {
     const isConnected = props.voiceStatus === 'connected'
     const isVoiceActive = isConnecting || isConnected
     const hasText = props.canSend
+    const isSending = props.isSending
 
     // Determine button behavior
     const handleClick = () => {
@@ -299,7 +301,11 @@ function UnifiedButton(props: {
     let className: string
     let ariaLabel: string
 
-    if (isConnecting) {
+    if (isSending) {
+        icon = <LoadingIcon />
+        className = 'bg-black text-white'
+        ariaLabel = t('composer.send')
+    } else if (isConnecting) {
         icon = <LoadingIcon />
         className = 'bg-black text-white'
         ariaLabel = t('voice.connecting')
@@ -321,7 +327,7 @@ function UnifiedButton(props: {
         ariaLabel = t('composer.send')
     }
 
-    const isDisabled = props.controlsDisabled || (!hasText && !props.voiceEnabled && !isVoiceActive)
+    const isDisabled = props.controlsDisabled || isSending || (!hasText && !props.voiceEnabled && !isVoiceActive)
 
     return (
         <button
@@ -339,6 +345,7 @@ function UnifiedButton(props: {
 
 export function ComposerButtons(props: {
     canSend: boolean
+    isSending: boolean
     controlsDisabled: boolean
     showSettingsButton: boolean
     onSettingsToggle: () => void
@@ -535,6 +542,7 @@ export function ComposerButtons(props: {
 
                 <UnifiedButton
                     canSend={props.canSend}
+                    isSending={props.isSending}
                     voiceStatus={props.voiceStatus}
                     voiceEnabled={props.voiceEnabled}
                     controlsDisabled={props.controlsDisabled}

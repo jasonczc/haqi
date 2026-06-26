@@ -45,7 +45,7 @@ export function useSendMessage(
     sessionId: string | null,
     options?: UseSendMessageOptions
 ): {
-    sendMessage: (text: string, attachments?: AttachmentMetadata[]) => void
+    sendMessage: (text: string, attachments?: AttachmentMetadata[]) => Promise<boolean>
     retryMessage: (localId: string) => void
     isSending: boolean
 } {
@@ -90,51 +90,54 @@ export function useSendMessage(
         },
     })
 
-    const sendMessage = (text: string, attachments?: AttachmentMetadata[]) => {
+    const sendMessage = async (text: string, attachments?: AttachmentMetadata[]): Promise<boolean> => {
         if (!api) {
             options?.onBlocked?.('no-api')
             haptic.notification('error')
-            return
+            return false
         }
         if (!sessionId) {
             options?.onBlocked?.('no-session')
             haptic.notification('error')
-            return
+            return false
         }
         if (mutation.isPending || resolveGuardRef.current) {
             options?.onBlocked?.('pending')
-            return
+            return false
         }
         const localId = makeClientSideId('local')
         const createdAt = Date.now()
-        void (async () => {
-            let targetSessionId = sessionId
-            if (options?.resolveSessionId) {
-                resolveGuardRef.current = true
-                setIsResolving(true)
-                try {
-                    const resolved = await options.resolveSessionId(sessionId)
-                    if (resolved && resolved !== sessionId) {
-                        options.onSessionResolved?.(resolved)
-                        targetSessionId = resolved
-                    }
-                } catch (error) {
-                    haptic.notification('error')
-                    console.error('Failed to resolve session before send:', error)
-                    return
-                } finally {
-                    resolveGuardRef.current = false
-                    setIsResolving(false)
+        let targetSessionId = sessionId
+        if (options?.resolveSessionId) {
+            resolveGuardRef.current = true
+            setIsResolving(true)
+            try {
+                const resolved = await options.resolveSessionId(sessionId)
+                if (resolved && resolved !== sessionId) {
+                    options.onSessionResolved?.(resolved)
+                    targetSessionId = resolved
                 }
+            } catch (error) {
+                haptic.notification('error')
+                console.error('Failed to resolve session before send:', error)
+                return false
+            } finally {
+                resolveGuardRef.current = false
+                setIsResolving(false)
             }
-            mutation.mutate({
+        }
+        try {
+            await mutation.mutateAsync({
                 sessionId: targetSessionId,
                 text,
                 localId,
                 createdAt,
                 attachments,
             })
-        })()
+            return true
+        } catch {
+            return false
+        }
     }
 
     const retryMessage = (localId: string) => {

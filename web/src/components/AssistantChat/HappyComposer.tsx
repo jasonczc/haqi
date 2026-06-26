@@ -352,7 +352,8 @@ export function HappyComposer(props: {
     onCodexQueueOpen?: () => void
     onCodexQueueUpdated?: () => void
     onCodexQueueEnqueue?: (payload: QueueEnqueuePayload) => Promise<void>
-    onSendMessage?: (text: string, attachments?: AttachmentMetadata[]) => void
+    isSendingMessage?: boolean
+    onSendMessage?: (text: string, attachments?: AttachmentMetadata[]) => Promise<boolean> | boolean
     onRemoveDraftAttachment?: (path: string) => Promise<void> | void
     autocompletePrefixes?: string[]
     autocompleteSuggestions?: (query: string) => Promise<Suggestion[]>
@@ -406,6 +407,7 @@ export function HappyComposer(props: {
         onCodexQueueOpen,
         onCodexQueueUpdated,
         onCodexQueueEnqueue,
+        isSendingMessage = false,
         onSendMessage,
         onRemoveDraftAttachment,
         autocompletePrefixes = ['@', '/', '$'],
@@ -543,7 +545,8 @@ export function HappyComposer(props: {
         [draftAttachments, runtimeAttachmentPathSet]
     )
     const hasAnyAttachments = mergedDraftAttachments.length > 0
-    const canSendBase = (hasText || hasAnyAttachments) && attachmentsReady && !controlsDisabled
+    const sendBusy = isSendingMessage
+    const canSendBase = (hasText || hasAnyAttachments) && attachmentsReady && !controlsDisabled && !sendBusy
     const canSend = canSendBase && (!threadIsRunning || queueSendEnabled)
 
     const [inputState, setInputState] = useState<TextInputState>({
@@ -554,6 +557,7 @@ export function HappyComposer(props: {
     const [isAborting, setIsAborting] = useState(false)
     const [isSwitching, setIsSwitching] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
+    const [isComposerSending, setIsComposerSending] = useState(false)
 
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const lastSendAtRef = useRef(0)
@@ -790,6 +794,8 @@ export function HappyComposer(props: {
         haptic('light')
     }, [onCodexPlanModeChange, controlsDisabled, isCodexPlanMode, haptic])
 
+    const isSendButtonLoading = isSendingMessage || isComposerSending
+
     const shouldEnqueueWithoutImmediateChat = queueSendEnabled
         && Boolean(onCodexQueueEnqueue)
         && (trimmed.length > 0 || mergedDraftAttachments.length > 0)
@@ -804,20 +810,45 @@ export function HappyComposer(props: {
     }, [])
 
     const sendComposerNow = useCallback(async () => {
-        if (!canSend || !claimSendSlot()) {
+        if (!canSend || isComposerSending || !claimSendSlot()) {
             return
         }
 
-        if (shouldEnqueueWithoutImmediateChat && onCodexQueueEnqueue) {
-            if (hasRuntimeAttachments && queueAttachments.length < attachments.length) {
-                haptic('error')
-                return
+        setIsComposerSending(true)
+        try {
+            if (shouldEnqueueWithoutImmediateChat && onCodexQueueEnqueue) {
+                if (hasRuntimeAttachments && queueAttachments.length < attachments.length) {
+                    haptic('error')
+                    return
+                }
+                try {
+                    await onCodexQueueEnqueue({
+                        text: trimmed,
+                        attachments: mergedDraftAttachments.length > 0 ? mergedDraftAttachments : undefined
+                    })
+                    preserveUploadPathsForQueue(
+                        sessionId,
+                        mergedDraftAttachments.map((attachment) => attachment.path)
+                    )
+                    await api.composer().clearAttachments()
+                    api.composer().setText('')
+                    setDraftAttachments([])
+                    onCodexQueueUpdated?.()
+                    return
+                } catch {
+                    haptic('error')
+                    return
+                }
             }
-            try {
-                await onCodexQueueEnqueue({
-                    text: trimmed,
-                    attachments: mergedDraftAttachments.length > 0 ? mergedDraftAttachments : undefined
-                })
+
+            if (onSendMessage) {
+                const sent = await Promise.resolve(onSendMessage(
+                    trimmed,
+                    mergedDraftAttachments.length > 0 ? mergedDraftAttachments : undefined
+                ))
+                if (!sent) {
+                    return
+                }
                 preserveUploadPathsForQueue(
                     sessionId,
                     mergedDraftAttachments.map((attachment) => attachment.path)
@@ -825,29 +856,18 @@ export function HappyComposer(props: {
                 await api.composer().clearAttachments()
                 api.composer().setText('')
                 setDraftAttachments([])
-                onCodexQueueUpdated?.()
-                return
-            } catch {
-                haptic('error')
+                if (queueSendEnabled && threadIsRunning) {
+                    onCodexQueueUpdated?.()
+                }
                 return
             }
-        }
 
-        if (!queueSendEnabled && restoredDraftAttachments.length > 0 && onSendMessage) {
-            onSendMessage(trimmed, mergedDraftAttachments.length > 0 ? mergedDraftAttachments : undefined)
-            preserveUploadPathsForQueue(
-                sessionId,
-                mergedDraftAttachments.map((attachment) => attachment.path)
-            )
-            await api.composer().clearAttachments()
-            api.composer().setText('')
-            setDraftAttachments([])
-            return
-        }
-
-        api.composer().send()
-        if (queueSendEnabled && threadIsRunning) {
-            onCodexQueueUpdated?.()
+            api.composer().send()
+            if (queueSendEnabled && threadIsRunning) {
+                onCodexQueueUpdated?.()
+            }
+        } finally {
+            setIsComposerSending(false)
         }
     }, [
         canSend,
@@ -866,7 +886,7 @@ export function HappyComposer(props: {
         mergedDraftAttachments,
         sessionId,
         queueSendEnabled,
-        restoredDraftAttachments.length,
+        isComposerSending,
         onSendMessage
     ])
 
@@ -1442,7 +1462,7 @@ export function HappyComposer(props: {
                                     ref={textareaRef}
                                     autoFocus={!controlsDisabled && !isTouch}
                                     placeholder={showContinueHint ? t('misc.typeMessage') : t('misc.typeAMessage')}
-                                    disabled={controlsDisabled}
+                                    disabled={controlsDisabled || isSendButtonLoading}
                                     maxRows={5}
                                     submitOnEnter={!isTouch && enterBehavior === 'send'}
                                     cancelOnEscape={false}
@@ -1456,6 +1476,7 @@ export function HappyComposer(props: {
 
                             <ComposerButtons
                                 canSend={canSend}
+                                isSending={isSendButtonLoading}
                                 controlsDisabled={controlsDisabled}
                                 showSettingsButton={showSettingsButton}
                                 onSettingsToggle={handleSettingsToggle}

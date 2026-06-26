@@ -433,7 +433,7 @@ function TurnDetailThread(props: {
         session: runtimeSession,
         blocks: reconciled.blocks,
         isSending: true,
-        onSendMessage: () => {},
+        onSendMessage: () => false,
         onAbort: async () => {},
         allowSendWhenInactive: true
     })

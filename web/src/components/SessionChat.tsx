@@ -410,7 +410,7 @@ export function SessionChat(props: {
     onRefresh: () => void
     onLoadMore: () => Promise<unknown>
     onLoadMoreTurns: () => Promise<void>
-    onSend: (text: string, attachments?: AttachmentMetadata[]) => void
+    onSend: (text: string, attachments?: AttachmentMetadata[]) => Promise<boolean> | boolean
     onFlushPending: () => void
     onAtBottomChange: (atBottom: boolean) => void
     onRetryMessage?: (localId: string) => void
@@ -807,9 +807,12 @@ export function SessionChat(props: {
         })
     }, [navigate, props.session.id])
 
-    const handleSend = useCallback((text: string, attachments?: AttachmentMetadata[]) => {
-        props.onSend(text, attachments)
-        setForceScrollToken((token) => token + 1)
+    const handleSend = useCallback(async (text: string, attachments?: AttachmentMetadata[]): Promise<boolean> => {
+        const sent = await Promise.resolve(props.onSend(text, attachments))
+        if (sent) {
+            setForceScrollToken((token) => token + 1)
+        }
+        return sent
     }, [props.onSend])
 
     const normalizeQueueText = useCallback((value: string | undefined): string | undefined => {
@@ -1559,6 +1562,7 @@ export function SessionChat(props: {
                         onCodexQueueOpen={supportsQueueControls ? handleCodexQueueOpen : undefined}
                         onCodexQueueUpdated={supportsQueueControls ? handleCodexQueueRefreshAfterSend : undefined}
                         onCodexQueueEnqueue={supportsQueueControls ? handleCodexQueueEnqueue : undefined}
+                        isSendingMessage={props.isSending}
                         onSendMessage={handleSend}
                         onRemoveDraftAttachment={async (path) => {
                             await props.api.deleteUploadFile(props.session.id, path)
