@@ -3,7 +3,7 @@ import type { ApiClient } from '@/api/client'
 import type { ChatToolCall } from '@/chat/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { isAskUserQuestionToolName, parseAskUserQuestionInput, type AskUserQuestionQuestion } from '@/components/ToolCard/askUserQuestion'
+import { getAskUserQuestionAnswerKey, isAskUserQuestionToolName, parseAskUserQuestionInput, type AskUserQuestionQuestion } from '@/components/ToolCard/askUserQuestion'
 import { cn } from '@/lib/utils'
 import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
@@ -163,7 +163,7 @@ export function AskUserQuestionFooter(props: {
                     setStep(i)
                     return
                 }
-                answers[String(i)] = a
+                answers[getAskUserQuestionAnswerKey(questions[i], i)] = a
             }
         }
 

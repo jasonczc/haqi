@@ -41,7 +41,7 @@ describe('extractPermissionQuestionTarget', () => {
                 }
             ]
         }, false)).toEqual({
-            '0': ['No']
+            'Allow the playwright MCP server to run tool "browser_navigate"?': ['No']
         });
     });
 

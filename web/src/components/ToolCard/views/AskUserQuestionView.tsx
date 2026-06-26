@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ToolViewProps } from '@/components/ToolCard/views/_all'
-import { parseAskUserQuestionInput } from '@/components/ToolCard/askUserQuestion'
+import { getAskUserQuestionAnswerKey, parseAskUserQuestionInput } from '@/components/ToolCard/askUserQuestion'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -112,7 +112,8 @@ export function AskUserQuestionView(props: ToolViewProps) {
         <div className="flex flex-col gap-3">
             {questions.map((q, idx) => {
                 const isMulti = q.multiSelect
-                const questionAnswers = answers?.[q.id] ?? answers?.[String(idx)] ?? []
+                const questionAnswerKey = getAskUserQuestionAnswerKey(q, idx)
+                const questionAnswers = answers?.[questionAnswerKey] ?? answers?.[q.id] ?? answers?.[String(idx)] ?? []
                 const trimmedAnswers = questionAnswers.map((answer) => answer.trim()).filter((answer) => answer.length > 0)
                 const optionLabels = new Set(q.options.map((opt) => opt.label.trim()))
                 const isSkipped = trimmedAnswers.includes('skipped')

@@ -2,7 +2,7 @@ import { memo, useMemo, useState } from 'react'
 import type { ChatToolCall } from '@/chat/types'
 import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { Spinner } from '@/components/Spinner'
-import { isAskUserQuestionToolName, parseAskUserQuestionInput } from '@/components/ToolCard/askUserQuestion'
+import { getAskUserQuestionAnswerKey, isAskUserQuestionToolName, parseAskUserQuestionInput } from '@/components/ToolCard/askUserQuestion'
 import {
     isRequestUserInputToolName,
     parseRequestUserInputInput,
@@ -209,7 +209,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                 }
                 if (otherSelectedByQ[i] && otherTextByQ[i]?.trim()) parts.push(otherTextByQ[i].trim())
                 if (parts.length === 0) { setError('Please select an option'); return }
-                answers[String(i)] = parts
+                answers[getAskUserQuestionAnswerKey(q, i)] = parts
             }
         }
 

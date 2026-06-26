@@ -19,6 +19,16 @@ export type AskUserQuestionQuestionInfo = {
     question: string | null
 }
 
+export function getAskUserQuestionAnswerKey(question: Pick<AskUserQuestionQuestion, 'question' | 'id'>, index: number): string {
+    const normalizedQuestion = question.question.trim()
+    if (normalizedQuestion.length > 0) return normalizedQuestion
+
+    const normalizedId = question.id.trim()
+    if (normalizedId.length > 0) return normalizedId
+
+    return String(index)
+}
+
 export function isAskUserQuestionToolName(toolName: string): boolean {
     return toolName === 'AskUserQuestion' || toolName === 'ask_user_question'
 }

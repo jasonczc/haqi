@@ -1,5 +1,6 @@
 import type { ChatBlock, ChatToolCall } from '@/chat/types'
 import {
+    getAskUserQuestionAnswerKey,
     isAskUserQuestionToolName,
     parseAskUserQuestionInput,
     type AskUserQuestionQuestion
@@ -119,7 +120,7 @@ function buildAskQuestion(question: AskUserQuestionQuestion, index: number): Que
 
     return {
         id: question.id,
-        answerKey: String(index),
+        answerKey: getAskUserQuestionAnswerKey(question, index),
         toolKind: 'ask_user_question',
         header: question.header,
         question: question.question.trim().length > 0 ? question.question : null,

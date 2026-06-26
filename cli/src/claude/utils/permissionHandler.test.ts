@@ -112,7 +112,7 @@ describe('Claude PermissionHandler', () => {
             updatedInput: {
                 ...input,
                 answers: {
-                    '0': ['No']
+                    'Allow the playwright MCP server to run tool "browser_navigate"?': ['No']
                 }
             }
         });

@@ -9,6 +9,7 @@ type QuestionToolPermissionTarget = {
 type QuestionToolPermissionQuestion = {
     index: number;
     id: string;
+    question: string;
     optionLabels: string[];
 };
 
@@ -68,6 +69,7 @@ function findPermissionQuestion(input: unknown): (QuestionToolPermissionQuestion
             id: typeof questionRecord?.id === 'string' && questionRecord.id.trim().length > 0
                 ? questionRecord.id.trim()
                 : String(index),
+            question,
             input: {
                 server,
                 tool
@@ -113,7 +115,7 @@ export function buildPermissionQuestionAnswers(
 
     if (toolName === 'AskUserQuestion' || toolName === 'ask_user_question') {
         return {
-            [String(matchedQuestion.index)]: [answerLabel]
+            [matchedQuestion.question]: [answerLabel]
         };
     }
 

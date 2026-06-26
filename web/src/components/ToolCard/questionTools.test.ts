@@ -151,7 +151,7 @@ describe('questionTools', () => {
 
         expect(payload).toEqual({
             answers: {
-                '0': ['Need more logs']
+                'Why?': ['Need more logs']
             }
         })
     })
