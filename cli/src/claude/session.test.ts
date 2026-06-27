@@ -55,6 +55,22 @@ afterEach(() => {
 })
 
 describe('Claude Session running agent state', () => {
+    it('notifies permission mode listeners when the mode changes', () => {
+        const { session } = createSession()
+        const listener = vi.fn()
+        const unsubscribe = session.addPermissionModeChangeListener(listener)
+
+        session.setPermissionMode('acceptEdits')
+        session.setPermissionMode('acceptEdits')
+        expect(listener).toHaveBeenCalledTimes(1)
+        expect(listener).toHaveBeenLastCalledWith('acceptEdits')
+
+        unsubscribe()
+        session.setPermissionMode('bypassPermissions')
+        expect(listener).toHaveBeenCalledTimes(1)
+        session.stopKeepAlive()
+    })
+
     it('keeps the session thinking while a background task agent is running', () => {
         vi.useFakeTimers()
         const { session, client } = createSession()

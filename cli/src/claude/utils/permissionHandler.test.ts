@@ -15,6 +15,8 @@ type PermissionRpcPayload = {
 function createHarness() {
     let state: Record<string, unknown> = {};
     let permissionHandlerRpc: ((payload: PermissionRpcPayload) => Promise<void> | void) | null = null;
+    let permissionMode: PermissionMode | undefined;
+    const permissionModeListeners = new Set<(mode: PermissionMode) => void>();
 
     const session = {
         client: {
@@ -32,12 +34,30 @@ function createHarness() {
         queue: {
             unshift: () => undefined
         },
-        setPermissionMode: () => undefined
+        setPermissionMode: (mode: PermissionMode) => {
+            const previousMode = permissionMode;
+            permissionMode = mode;
+            if (previousMode === mode) {
+                return;
+            }
+            for (const listener of permissionModeListeners) {
+                listener(mode);
+            }
+        },
+        getPermissionMode: () => permissionMode,
+        addPermissionModeChangeListener: (listener: (mode: PermissionMode) => void) => {
+            permissionModeListeners.add(listener);
+            return () => {
+                permissionModeListeners.delete(listener);
+            };
+        }
     } as any;
 
     return {
         session,
         getState: () => state,
+        setPermissionMode: (mode: PermissionMode) => session.setPermissionMode(mode),
+        listenerCount: () => permissionModeListeners.size,
         respond: async (payload: PermissionRpcPayload) => {
             if (!permissionHandlerRpc) {
                 throw new Error('Permission RPC handler is not registered');
@@ -116,5 +136,46 @@ describe('Claude PermissionHandler', () => {
                 }
             }
         });
+    });
+
+    it('uses live session permission mode changes for later tool checks', async () => {
+        const harness = createHarness();
+        const handler = new PermissionHandler(harness.session);
+        const input = { command: 'echo live-mode' };
+
+        harness.setPermissionMode('bypassPermissions');
+
+        await expect(handler.handleToolCall(
+            'Bash',
+            input,
+            { permissionMode: 'default' },
+            { signal: new AbortController().signal }
+        )).resolves.toEqual({
+            behavior: 'allow',
+            updatedInput: input
+        });
+
+        handler.dispose();
+        expect(harness.listenerCount()).toBe(0);
+    });
+
+    it('applies live acceptEdits mode to edit tools without waiting for a new message', async () => {
+        const harness = createHarness();
+        const handler = new PermissionHandler(harness.session);
+        const input = { file_path: '/tmp/example.txt', content: 'updated' };
+
+        harness.setPermissionMode('acceptEdits');
+
+        await expect(handler.handleToolCall(
+            'Write',
+            input,
+            { permissionMode: 'default' },
+            { signal: new AbortController().signal }
+        )).resolves.toEqual({
+            behavior: 'allow',
+            updatedInput: input
+        });
+
+        handler.dispose();
     });
 });

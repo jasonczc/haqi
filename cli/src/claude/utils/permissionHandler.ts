@@ -146,10 +146,18 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     private allowedBashPrefixes = new Set<string>();
     private permissionMode: PermissionMode = 'default';
     private onPermissionRequestCallback?: (toolCallId: string) => void;
+    private unsubscribePermissionModeChange: (() => void) | null = null;
 
     constructor(session: Session) {
         super(session.client);
         this.session = session;
+        const currentMode = session.getPermissionMode();
+        if (currentMode) {
+            this.applyPermissionMode(currentMode as PermissionMode);
+        }
+        this.unsubscribePermissionModeChange = session.addPermissionModeChangeListener((mode) => {
+            this.applyPermissionMode(mode);
+        });
     }
     
     /**
@@ -160,8 +168,12 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
     }
 
     handleModeChange(mode: PermissionMode) {
-        this.permissionMode = mode;
+        this.applyPermissionMode(mode);
         this.session.setPermissionMode(mode);
+    }
+
+    private applyPermissionMode(mode: PermissionMode): void {
+        this.permissionMode = mode;
     }
 
     /**
@@ -507,6 +519,11 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             completedReason: 'Session switched to local mode',
             rejectMessage: 'Session reset'
         });
+    }
+
+    dispose(): void {
+        this.unsubscribePermissionModeChange?.();
+        this.unsubscribePermissionModeChange = null;
     }
 
     /**

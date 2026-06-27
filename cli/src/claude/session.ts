@@ -29,6 +29,7 @@ export class Session extends AgentSessionBase<EnhancedMode> {
     private teamTasks = new Map<string, TeamTask>();
     private teamSnapshotActivityKeys = new Set<string>();
     private teamSnapshotPoller: NodeJS.Timeout | null = null;
+    private permissionModeChangeListeners = new Set<(mode: PermissionMode) => void>();
 
     constructor(opts: {
         api: ApiClient;
@@ -88,7 +89,21 @@ export class Session extends AgentSessionBase<EnhancedMode> {
     };
 
     setPermissionMode = (mode: PermissionMode): void => {
+        const previousMode = this.permissionMode;
         this.permissionMode = mode;
+        if (previousMode === mode) {
+            return;
+        }
+        for (const listener of this.permissionModeChangeListeners) {
+            listener(mode);
+        }
+    };
+
+    addPermissionModeChangeListener = (listener: (mode: PermissionMode) => void): (() => void) => {
+        this.permissionModeChangeListeners.add(listener);
+        return () => {
+            this.permissionModeChangeListeners.delete(listener);
+        };
     };
 
     setModelMode = (mode: SessionModelMode): void => {

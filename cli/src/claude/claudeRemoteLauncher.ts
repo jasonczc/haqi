@@ -454,6 +454,8 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
         } finally {
             if (this.permissionHandler) {
                 this.permissionHandler.reset();
+                this.permissionHandler.dispose();
+                this.permissionHandler = null;
             }
         }
     }
@@ -468,6 +470,8 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
 
         if (this.permissionHandler) {
             this.permissionHandler.reset();
+            this.permissionHandler.dispose();
+            this.permissionHandler = null;
         }
 
         if (this.abortFuture) {
