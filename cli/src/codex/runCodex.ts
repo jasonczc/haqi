@@ -434,6 +434,7 @@ export async function runCodex(opts: {
 
         if (config.thinkEffort !== undefined) {
             currentEffort = resolveThinkEffort(config.thinkEffort);
+            sessionWrapperRef.current?.setEffort(currentEffort);
             syncRuntimeMetadata();
         }
         if (config.serviceTier !== undefined) {
@@ -581,6 +582,7 @@ export async function runCodex(opts: {
             codexCliOverrides,
             startedBy,
             permissionMode: currentPermissionMode,
+            effort: currentEffort,
             resumeSessionId: opts.resumeSessionId,
             onModeChange: createModeChangeHandler(session),
             onSessionReady: (instance) => {

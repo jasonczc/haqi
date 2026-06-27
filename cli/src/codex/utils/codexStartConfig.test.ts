@@ -83,10 +83,10 @@ describe('buildCodexStartConfig', () => {
         expect(config['include-plan-tool']).toBe(true);
     });
 
-    it('passes model when provided', () => {
+    it('passes model, service tier, and effort when provided', () => {
         const config = buildCodexStartConfig({
             message: 'hello',
-            mode: { permissionMode: 'default', model: 'o3', serviceTier: 'fast' },
+            mode: { permissionMode: 'default', model: 'o3', serviceTier: 'fast', effort: 'high' },
             first: false,
             mcpServers
         });
@@ -95,8 +95,20 @@ describe('buildCodexStartConfig', () => {
         expect(config.config).toEqual({
             mcp_servers: mcpServers,
             service_tier: 'fast',
+            model_reasoning_effort: 'high',
             developer_instructions: getCodexSystemPrompt()
         });
+    });
+
+    it('omits auto effort from config', () => {
+        const config = buildCodexStartConfig({
+            message: 'hello',
+            mode: { permissionMode: 'default', effort: 'auto' },
+            first: false,
+            mcpServers
+        });
+
+        expect(config.config).not.toHaveProperty('model_reasoning_effort');
     });
 
     it('enables plan tool when collaboration mode is plan', () => {

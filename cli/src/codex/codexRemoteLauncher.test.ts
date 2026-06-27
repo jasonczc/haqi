@@ -9,6 +9,7 @@ const harness = vi.hoisted(() => ({
     disconnectCalls: 0,
     startTurnNotifications: null as Array<{ method: string; params: unknown }> | null,
     interruptTurnCalls: [] as Array<{ threadId?: string; turnId?: string }>,
+    startTurnParams: [] as unknown[],
     startTurnCalls: 0,
     setGoalCalls: [] as Array<{ threadId: string; objective: string }>,
     getGoalCalls: [] as Array<{ threadId: string }>,
@@ -42,7 +43,8 @@ vi.mock('./codexAppServerClient', () => {
             return { thread: { id: 'thread-anonymous' } };
         }
 
-        async startTurn(): Promise<{ turn: Record<string, never> }> {
+        async startTurn(params: unknown): Promise<{ turn: Record<string, never> }> {
+            harness.startTurnParams.push(params);
             harness.startTurnCalls += 1;
             const notifications = harness.startTurnNotifications ?? [
                 { method: 'turn/started', params: { turn: {} } },
@@ -201,6 +203,7 @@ describe('codexRemoteLauncher', () => {
         harness.disconnectCalls = 0;
         harness.startTurnNotifications = null;
         harness.interruptTurnCalls = [];
+        harness.startTurnParams = [];
         harness.startTurnCalls = 0;
         harness.setGoalCalls = [];
         harness.getGoalCalls = [];
@@ -245,6 +248,21 @@ describe('codexRemoteLauncher', () => {
             { experimentalApi: true }
         ]);
         expect(harness.disconnectCalls).toBeGreaterThanOrEqual(1);
+    });
+
+    it('passes reasoning effort to app-server turn/start params', async () => {
+        delete process.env.CODEX_USE_MCP_SERVER;
+        const { session } = createSessionStub();
+        session.queue = new MessageQueue2<EnhancedMode>((mode) => JSON.stringify(mode));
+        session.queue.push('use high effort', createMode({ effort: 'high' }));
+        session.queue.close();
+
+        const exitReason = await codexRemoteLauncher(session as never);
+
+        expect(exitReason).toBe('exit');
+        expect(harness.startTurnParams).toContainEqual(expect.objectContaining({
+            effort: 'high'
+        }));
     });
 
     it('shows completed plan proposals as assistant messages instead of ExitPlanMode tool calls', async () => {

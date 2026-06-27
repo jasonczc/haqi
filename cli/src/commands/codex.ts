@@ -58,7 +58,6 @@ export const codexCommand: CommandDefinition = {
                         throw new Error('Invalid --effort value (expected auto, low, medium, high, or xhigh)')
                     }
                     options.effort = effort
-                    unknownArgs.push('--effort', effort)
                 } else if (arg === '--service-tier') {
                     const serviceTier = commandArgs[++i]
                     if (!serviceTier) {

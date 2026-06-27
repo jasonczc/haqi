@@ -5,6 +5,7 @@ import type { EnhancedMode, PermissionMode } from './loop';
 import type { CodexCliOverrides } from './utils/codexCliOverrides';
 import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
 import type { MessageMeta } from '@/api/types';
+import type { ReasoningEffort } from './appServerTypes';
 
 type LocalLaunchFailure = {
     message: string;
@@ -18,6 +19,7 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
     readonly startingMode: 'local' | 'remote';
     localLaunchFailure: LocalLaunchFailure | null = null;
     private collaborationMode: EnhancedMode['collaborationMode'];
+    private effort: ReasoningEffort | undefined;
     private stopCurrentTurnHandler: (() => Promise<void>) | null = null;
 
     constructor(opts: {
@@ -35,6 +37,7 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
         codexCliOverrides?: CodexCliOverrides;
         permissionMode?: PermissionMode;
         collaborationMode?: EnhancedMode['collaborationMode'];
+        effort?: ReasoningEffort;
     }) {
         super({
             api: opts.api,
@@ -58,6 +61,7 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
         this.codexCliOverrides = opts.codexCliOverrides;
         this.startedBy = opts.startedBy;
         this.startingMode = opts.startingMode;
+        this.effort = opts.effort;
         this.permissionMode = opts.permissionMode;
         this.collaborationMode = opts.collaborationMode;
     }
@@ -87,6 +91,14 @@ export class CodexSession extends AgentSessionBase<EnhancedMode> {
 
     getCollaborationMode = (): EnhancedMode['collaborationMode'] => {
         return this.collaborationMode;
+    };
+
+    setEffort = (effort: ReasoningEffort | undefined): void => {
+        this.effort = effort;
+    };
+
+    getEffort = (): ReasoningEffort | undefined => {
+        return this.effort;
     };
 
     setStopCurrentTurnHandler = (handler: (() => Promise<void>) | null): void => {

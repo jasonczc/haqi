@@ -59,6 +59,9 @@ export function buildCodexStartConfig(args: {
     if (args.mode.serviceTier) {
         config.service_tier = args.mode.serviceTier;
     }
+    if (args.mode.effort && args.mode.effort !== 'auto') {
+        config.model_reasoning_effort = args.mode.effort;
+    }
     if (combinedInstructions.trim()) {
         config.developer_instructions = combinedInstructions;
     }

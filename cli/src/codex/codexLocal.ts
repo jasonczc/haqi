@@ -3,6 +3,7 @@ import { restoreTerminalState } from '@/ui/terminalState';
 import { spawnWithAbort } from '@/utils/spawnWithAbort';
 import { buildMcpServerConfigArgs, buildDeveloperInstructionsArg } from './utils/codexMcpConfig';
 import { buildCodexSystemPrompt } from './utils/systemPrompt';
+import type { ReasoningEffort } from './appServerTypes';
 
 /**
  * Filter out 'resume' subcommand which is managed internally by hapi.
@@ -23,21 +24,26 @@ export function filterResumeSubcommand(args: string[]): string[] {
     return args.slice(1);
 }
 
-export async function codexLocal(opts: {
-    abort: AbortSignal;
+export function buildReasoningEffortConfigArgs(effort: ReasoningEffort | undefined): string[] {
+    if (!effort || effort === 'auto') {
+        return [];
+    }
+    return ['-c', `model_reasoning_effort="${effort}"`];
+}
+
+export function buildCodexLocalArgs(opts: {
     sessionId: string | null;
     path: string;
     model?: string;
     sandbox?: 'read-only' | 'workspace-write' | 'danger-full-access';
-    onSessionFound: (id: string) => void;
     codexArgs?: string[];
+    effort?: ReasoningEffort;
     mcpServers?: Record<string, { command: string; args: string[] }>;
-}): Promise<void> {
+}): string[] {
     const args: string[] = [];
 
     if (opts.sessionId) {
         args.push('resume', opts.sessionId);
-        opts.onSessionFound(opts.sessionId);
     }
 
     if (opts.model) {
@@ -48,12 +54,12 @@ export async function codexLocal(opts: {
         args.push('--sandbox', opts.sandbox);
     }
 
-    // Add MCP server configuration
+    args.push(...buildReasoningEffortConfigArgs(opts.effort));
+
     if (opts.mcpServers && Object.keys(opts.mcpServers).length > 0) {
         args.push(...buildMcpServerConfigArgs(opts.mcpServers));
     }
 
-    // Add developer instructions (system prompt)
     const resolvedSystemPrompt = buildCodexSystemPrompt(opts.path);
     args.push(...buildDeveloperInstructionsArg(resolvedSystemPrompt));
 
@@ -61,6 +67,25 @@ export async function codexLocal(opts: {
         const safeArgs = filterResumeSubcommand(opts.codexArgs);
         args.push(...safeArgs);
     }
+
+    return args;
+}
+
+export async function codexLocal(opts: {
+    abort: AbortSignal;
+    sessionId: string | null;
+    path: string;
+    model?: string;
+    sandbox?: 'read-only' | 'workspace-write' | 'danger-full-access';
+    onSessionFound: (id: string) => void;
+    codexArgs?: string[];
+    effort?: ReasoningEffort;
+    mcpServers?: Record<string, { command: string; args: string[] }>;
+}): Promise<void> {
+    if (opts.sessionId) {
+        opts.onSessionFound(opts.sessionId);
+    }
+    const args = buildCodexLocalArgs(opts);
 
     logger.debug(`[CodexLocal] Spawning codex with args: ${JSON.stringify(args)}`);
 

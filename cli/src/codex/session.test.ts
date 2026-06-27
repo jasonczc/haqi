@@ -22,6 +22,16 @@ function createSession() {
 }
 
 describe('CodexSession stopCurrentTurn', () => {
+    it('tracks mutable reasoning effort for local launcher handoff', () => {
+        const session = createSession();
+
+        expect(session.getEffort()).toBeUndefined();
+        session.setEffort('high');
+        expect(session.getEffort()).toBe('high');
+        session.setEffort(undefined);
+        expect(session.getEffort()).toBeUndefined();
+    });
+
     it('invokes the registered stop handler', async () => {
         const session = createSession();
         const handler = vi.fn(async () => {});
