@@ -55,7 +55,7 @@ describe('appServerConfig', () => {
         });
 
         expect(params.sandbox).toBe('danger-full-access');
-        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.approvalPolicy).toBe('never');
     });
 
     it('uses yolo-style approval in auto-approve mode for thread start', () => {
@@ -66,7 +66,7 @@ describe('appServerConfig', () => {
         });
 
         expect(params.sandbox).toBe('danger-full-access');
-        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.approvalPolicy).toBe('never');
     });
 
     it('omits base instructions when empty', () => {
@@ -136,8 +136,34 @@ Only respond in Chinese.`
             mode: { permissionMode: 'default', model: 'o3', collaborationMode: 'plan' }
         });
 
-        expect(params.collaborationMode).toEqual({ mode: 'plan', settings: { model: 'o3' } });
+        expect(params.collaborationMode).toEqual({
+            mode: 'plan',
+            settings: {
+                model: 'o3',
+                reasoning_effort: null,
+                developer_instructions: null
+            }
+        });
         expect(params.model).toBeUndefined();
+    });
+
+    it('folds reasoning effort into collaboration settings', () => {
+        const params = buildTurnStartParams({
+            threadId: 'thread-1',
+            message: 'hello',
+            mode: { permissionMode: 'default', model: 'gpt-5.6-sol', effort: 'xhigh', collaborationMode: 'code' }
+        });
+
+        expect(params.collaborationMode).toEqual({
+            mode: 'default',
+            settings: {
+                model: 'gpt-5.6-sol',
+                reasoning_effort: 'xhigh',
+                developer_instructions: null
+            }
+        });
+        expect(params.model).toBeUndefined();
+        expect(params.effort).toBeUndefined();
     });
 
     it('throws when collaboration mode is set but model is absent', () => {
@@ -148,7 +174,7 @@ Only respond in Chinese.`
         })).toThrowError('Collaboration mode requires model');
     });
 
-    it('allows non-plan collaboration mode without model', () => {
+    it('omits non-plan collaboration mode without model', () => {
         const params = buildTurnStartParams({
             threadId: 'thread-1',
             message: 'hello',
@@ -156,7 +182,7 @@ Only respond in Chinese.`
             overrides: { collaborationMode: 'code' }
         });
 
-        expect(params.collaborationMode).toEqual({ mode: 'code' });
+        expect(params.collaborationMode).toBeUndefined();
         expect(params.model).toBeUndefined();
     });
 
@@ -180,7 +206,7 @@ Only respond in Chinese.`
             cliOverrides: { sandbox: 'read-only', approvalPolicy: 'never' }
         });
 
-        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.approvalPolicy).toBe('never');
         expect(params.sandboxPolicy).toEqual({ type: 'workspaceWrite' });
     });
 
@@ -192,7 +218,7 @@ Only respond in Chinese.`
             cliOverrides: { sandbox: 'read-only', approvalPolicy: 'on-request' }
         });
 
-        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.approvalPolicy).toBe('never');
         expect(params.sandboxPolicy).toEqual({ type: 'dangerFullAccess' });
     });
 
@@ -202,7 +228,7 @@ Only respond in Chinese.`
             mcpServers
         });
 
-        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.approvalPolicy).toBe('never');
         expect(params.sandbox).toBe('danger-full-access');
     });
 
@@ -213,9 +239,16 @@ Only respond in Chinese.`
             mode: { permissionMode: 'auto-approve', collaborationMode: 'plan', model: 'o3' }
         });
 
-        expect(params.approvalPolicy).toBe('on-failure');
+        expect(params.approvalPolicy).toBe('never');
         expect(params.sandboxPolicy).toEqual({ type: 'dangerFullAccess' });
-        expect(params.collaborationMode).toEqual({ mode: 'plan', settings: { model: 'o3' } });
+        expect(params.collaborationMode).toEqual({
+            mode: 'plan',
+            settings: {
+                model: 'o3',
+                reasoning_effort: null,
+                developer_instructions: null
+            }
+        });
     });
 
     it('prefers turn overrides', () => {
@@ -233,7 +266,7 @@ Only respond in Chinese.`
     });
 
     describe('collaboration mode resolution in auto-execute flow', () => {
-        it('sets code collaboration mode without model via overrides', () => {
+        it('omits code collaboration mode without model via overrides', () => {
             const params = buildTurnStartParams({
                 threadId: 'thread-1',
                 message: 'execute approved plan',
@@ -241,7 +274,7 @@ Only respond in Chinese.`
                 overrides: { collaborationMode: 'code' }
             });
 
-            expect(params.collaborationMode).toEqual({ mode: 'code' });
+            expect(params.collaborationMode).toBeUndefined();
             expect(params.model).toBeUndefined();
         });
 
@@ -273,7 +306,14 @@ Only respond in Chinese.`
             overrides: { collaborationMode: 'code' }
         });
 
-        expect(params.collaborationMode).toEqual({ mode: 'code', settings: { model: 'o3' } });
+        expect(params.collaborationMode).toEqual({
+            mode: 'default',
+            settings: {
+                model: 'o3',
+                reasoning_effort: null,
+                developer_instructions: null
+            }
+        });
         expect(params.model).toBeUndefined();
     });
 });

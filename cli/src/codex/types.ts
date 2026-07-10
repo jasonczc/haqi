@@ -4,7 +4,7 @@
 
 export interface CodexSessionConfig {
     prompt: string;
-    'approval-policy'?: 'untrusted' | 'on-failure' | 'on-request' | 'never';
+    'approval-policy'?: 'untrusted' | 'on-request' | 'never';
     'base-instructions'?: string;
     config?: Record<string, any>;
     cwd?: string;

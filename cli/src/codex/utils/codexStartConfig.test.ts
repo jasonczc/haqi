@@ -54,7 +54,7 @@ describe('buildCodexStartConfig', () => {
         });
 
         expect(config.sandbox).toBe('danger-full-access');
-        expect(config['approval-policy']).toBe('on-failure');
+        expect(config['approval-policy']).toBe('never');
     });
 
     it('uses yolo-style approval for auto-approve mode', () => {
@@ -67,7 +67,7 @@ describe('buildCodexStartConfig', () => {
         });
 
         expect(config.sandbox).toBe('danger-full-access');
-        expect(config['approval-policy']).toBe('on-failure');
+        expect(config['approval-policy']).toBe('never');
     });
 
     it('uses yolo-style approval for auto-approve plan mode', () => {
@@ -79,7 +79,7 @@ describe('buildCodexStartConfig', () => {
         });
 
         expect(config.sandbox).toBe('danger-full-access');
-        expect(config['approval-policy']).toBe('on-failure');
+        expect(config['approval-policy']).toBe('never');
         expect(config['include-plan-tool']).toBe(true);
     });
 

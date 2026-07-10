@@ -8,13 +8,19 @@ function resolveApprovalPolicy(mode: EnhancedMode): CodexSessionConfig['approval
     switch (mode.permissionMode) {
         case 'default': return 'untrusted';
         case 'read-only': return 'never';
-        case 'safe-yolo': return 'on-failure';
-        case 'yolo': return 'on-failure';
-        case 'auto-approve': return 'on-failure';
+        case 'safe-yolo': return 'never';
+        case 'yolo': return 'never';
+        case 'auto-approve': return 'never';
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }
     }
+}
+
+function normalizeApprovalPolicy(
+    value: CodexCliOverrides['approvalPolicy'] | CodexSessionConfig['approval-policy'] | undefined
+): CodexSessionConfig['approval-policy'] | undefined {
+    return value === 'on-failure' ? 'never' : value;
 }
 
 function resolveSandbox(mode: EnhancedMode): CodexSessionConfig['sandbox'] {
@@ -44,7 +50,7 @@ export function buildCodexStartConfig(args: {
     const sandbox = resolveSandbox(args.mode);
     const allowCliOverrides = args.mode.permissionMode === 'default';
     const cliOverrides = allowCliOverrides ? args.cliOverrides : undefined;
-    const resolvedApprovalPolicy = cliOverrides?.approvalPolicy ?? approvalPolicy;
+    const resolvedApprovalPolicy = normalizeApprovalPolicy(cliOverrides?.approvalPolicy) ?? approvalPolicy;
     const resolvedSandbox = cliOverrides?.sandbox ?? sandbox;
 
     const prompt = args.message;
