@@ -78,6 +78,11 @@ const MOCK_LITELLM_PRICING = {
         input_cost_per_token: 15e-6,
         output_cost_per_token: 75e-6
     },
+    'openai/gpt-5.6-sol': {
+        input_cost_per_token: 13e-6,
+        output_cost_per_token: 39e-6,
+        cache_read_input_token_cost: 1.3e-6
+    },
     'openai/gpt-5.5': {
         input_cost_per_token: 12e-6,
         output_cost_per_token: 36e-6,
@@ -122,7 +127,7 @@ describe('usageCostEstimate', () => {
         expect(estimate.rateSource).toBe('env')
     })
 
-    it('prefers gpt-5.5 as codex fallback model when pricing exists', async () => {
+    it('prefers gpt-5.6-sol as codex fallback model when pricing exists', async () => {
         mockLiteLLMPricingFetch()
         const provider = createProvider('codex', 1_000_000, 250_000)
         provider.models = []
@@ -130,7 +135,7 @@ describe('usageCostEstimate', () => {
         const estimate = await estimateProviderCost(provider)
 
         expect(estimate.rateSource).toBe('litelm')
-        expect(estimate.pricingModel).toBe('openai/gpt-5.5')
+        expect(estimate.pricingModel).toBe('openai/gpt-5.6-sol')
     })
 
     it('attaches estimate to both providers', async () => {

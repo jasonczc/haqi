@@ -17,6 +17,8 @@ describe('NewSession model options', () => {
 
     it('includes latest Codex model presets', () => {
         const codexValues = MODEL_OPTIONS.codex.map((option) => option.value)
+        expect(codexValues.slice(0, 4)).toEqual(['auto', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'])
+        expect(codexValues).toContain('gpt-5.6-sol')
         expect(codexValues).toContain('gpt-5.5')
         expect(codexValues).toContain('gpt-5.4')
         expect(codexValues).toContain('gpt-5.4-mini')
@@ -51,5 +53,6 @@ it('filters model options by agent flavor', () => {
 
     expect(claudeValues.every((value) => value === 'auto' || value === 'sonnet' || value === 'opus' || value === 'haiku' || value.startsWith('claude-') || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.'))).toBe(true)
     expect(claudeValues).not.toContain('gpt-5.5')
+    expect(codexValues.filter((value) => value === 'gpt-5.6-sol')).toHaveLength(1)
     expect(codexValues.filter((value) => value === 'gpt-5.5')).toHaveLength(1)
 })
