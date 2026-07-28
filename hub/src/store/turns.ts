@@ -186,29 +186,86 @@ function extractSnippetFromMessageContent(content: unknown): string | null {
     return extractTextSnippet(content)
 }
 
-function extractCodexFinalAssistantSnippet(content: unknown): string | null | undefined {
+function extractClaudeAssistantText(message: unknown): string | null {
+    const envelope = unwrapRoleWrappedRecordEnvelope(message)
+    const content = envelope ? envelope.content : message
+
+    if (typeof content === 'string') {
+        return normalizePreviewText(content)
+    }
+
+    if (!Array.isArray(content)) {
+        return null
+    }
+
+    const texts: string[] = []
+    for (const block of content) {
+        if (!block || typeof block !== 'object' || Array.isArray(block)) {
+            continue
+        }
+        const record = block as Record<string, unknown>
+        if (record.type !== 'text' || typeof record.text !== 'string') {
+            continue
+        }
+        const normalized = normalizePreviewText(record.text)
+        if (normalized) {
+            texts.push(normalized)
+        }
+    }
+
+    if (texts.length === 0) {
+        return null
+    }
+
+    return texts.join('\n')
+}
+
+// Returns the snippet that should REPLACE the turn's assistant preview for this
+// agent message, or:
+//   - `null`  → the message carries no final assistant text (tool call, thinking,
+//               intermediate event); keep the previous preview.
+//   - `undefined` → the message is not a recognized final-output envelope; fall
+//               back to the rolling preview builder.
+// Both Claude (`type: 'output'`) and Codex (`type: 'codex'`) emit several agent
+// messages per turn, so brief mode must surface only the latest text segment
+// rather than concatenating intermediate narration.
+function extractFinalAssistantSnippet(content: unknown): string | null | undefined {
     const envelope = unwrapRoleWrappedRecordEnvelope(content)
     const value = envelope ? envelope.content : content
     if (!value || typeof value !== 'object') {
         return undefined
     }
     const record = value as Record<string, unknown>
-    if (record.type !== 'codex') {
-        return undefined
+
+    if (record.type === 'codex') {
+        const dataValue = record.data
+        if (!dataValue || typeof dataValue !== 'object') {
+            return null
+        }
+        const data = dataValue as Record<string, unknown>
+        if (data.type !== 'message') {
+            return null
+        }
+        return typeof data.message === 'string'
+            ? normalizePreviewText(data.message)
+            : null
     }
 
-    const dataValue = record.data
-    if (!dataValue || typeof dataValue !== 'object') {
-        return null
-    }
-    const data = dataValue as Record<string, unknown>
-    if (data.type !== 'message') {
-        return null
+    if (record.type === 'output') {
+        const dataValue = record.data
+        if (!dataValue || typeof dataValue !== 'object') {
+            return null
+        }
+        const data = dataValue as Record<string, unknown>
+        // Sidechain (sub-agent) messages are internal to the turn and must not
+        // surface as the turn's assistant preview.
+        if (data.type !== 'assistant' || data.isSidechain === true) {
+            return null
+        }
+        return extractClaudeAssistantText(data.message)
     }
 
-    return typeof data.message === 'string'
-        ? normalizePreviewText(data.message)
-        : null
+    return undefined
 }
 
 function classifyMessageRole(content: unknown): 'user' | 'agent' {
@@ -329,8 +386,8 @@ export function createConversationTurnsSchema(db: Database): void {
 export function appendMessageToConversationTurns(db: Database, message: StoredMessage): StoredConversationTurn {
     const role = classifyMessageRole(message.content)
     const snippet = extractSnippetFromMessageContent(message.content)
-    const codexFinalAssistantSnippet = role === 'agent'
-        ? extractCodexFinalAssistantSnippet(message.content)
+    const finalAssistantSnippet = role === 'agent'
+        ? extractFinalAssistantSnippet(message.content)
         : undefined
     const openTurn = getOpenTurnRow(db, message.sessionId)
 
@@ -395,9 +452,9 @@ export function appendMessageToConversationTurns(db: Database, message: StoredMe
 
     if (openTurn) {
         const agentStartSeq = openTurn.agent_start_seq ?? message.seq
-        const assistantPreview = codexFinalAssistantSnippet === undefined
+        const assistantPreview = finalAssistantSnippet === undefined
             ? buildRollingAssistantPreview(openTurn.assistant_preview, snippet)
-            : codexFinalAssistantSnippet ?? openTurn.assistant_preview
+            : finalAssistantSnippet ?? openTurn.assistant_preview
 
         db.prepare(`
             UPDATE conversation_turns
@@ -464,7 +521,7 @@ export function appendMessageToConversationTurns(db: Database, message: StoredMe
         agent_start_seq: message.seq,
         agent_end_seq: message.seq,
         message_count: 1,
-        assistant_preview: codexFinalAssistantSnippet === undefined ? snippet : codexFinalAssistantSnippet,
+        assistant_preview: finalAssistantSnippet === undefined ? snippet : finalAssistantSnippet,
         created_at: message.createdAt,
         updated_at: message.createdAt
     })
@@ -612,8 +669,8 @@ export function rebuildSessionConversationTurns(db: Database, sessionId: string)
         const message = toStoredMessage(row)
         const role = classifyMessageRole(message.content)
         const snippet = extractSnippetFromMessageContent(message.content)
-        const codexFinalAssistantSnippet = role === 'agent'
-            ? extractCodexFinalAssistantSnippet(message.content)
+        const finalAssistantSnippet = role === 'agent'
+            ? extractFinalAssistantSnippet(message.content)
             : undefined
 
         if (role === 'user') {
@@ -656,7 +713,7 @@ export function rebuildSessionConversationTurns(db: Database, sessionId: string)
                 agentEndSeq: message.seq,
                 messageCount: 1,
                 userPreview: null,
-                assistantPreview: codexFinalAssistantSnippet === undefined ? snippet : codexFinalAssistantSnippet,
+                assistantPreview: finalAssistantSnippet === undefined ? snippet : finalAssistantSnippet,
                 createdAt: message.createdAt,
                 updatedAt: message.createdAt
             }
@@ -672,9 +729,9 @@ export function rebuildSessionConversationTurns(db: Database, sessionId: string)
             openTurn.agentStartSeq = message.seq
         }
         openTurn.agentEndSeq = message.seq
-        openTurn.assistantPreview = codexFinalAssistantSnippet === undefined
+        openTurn.assistantPreview = finalAssistantSnippet === undefined
             ? buildRollingAssistantPreview(openTurn.assistantPreview, snippet)
-            : codexFinalAssistantSnippet ?? openTurn.assistantPreview
+            : finalAssistantSnippet ?? openTurn.assistantPreview
         openTurn.updatedAt = message.createdAt
     }
 

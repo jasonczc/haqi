@@ -70,6 +70,70 @@ function makeAgentThinkingOnlyMessage(thinking: string): unknown {
     }
 }
 
+function makeAgentToolUseMessage(name: string, input: Record<string, unknown>): unknown {
+    return {
+        role: 'agent',
+        content: {
+            type: 'output',
+            data: {
+                type: 'assistant',
+                message: {
+                    role: 'assistant',
+                    content: [
+                        { type: 'tool_use', id: 'tool_1', name, input }
+                    ]
+                }
+            }
+        }
+    }
+}
+
+// Claude tool results arrive as raw JSONL `type: 'user'` records that the CLI
+// wraps in an agent `output` envelope; their content is tool output, not
+// assistant text.
+function makeToolResultMessage(text: string): unknown {
+    return {
+        role: 'agent',
+        content: {
+            type: 'output',
+            data: {
+                type: 'user',
+                message: {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'tool_result',
+                            tool_use_id: 'tool_1',
+                            content: text
+                        }
+                    ]
+                },
+                toolUseResult: text,
+                isSidechain: false
+            }
+        }
+    }
+}
+
+function makeSidechainAgentTextMessage(text: string): unknown {
+    return {
+        role: 'agent',
+        content: {
+            type: 'output',
+            data: {
+                type: 'assistant',
+                isSidechain: true,
+                message: {
+                    role: 'assistant',
+                    content: [
+                        { type: 'text', text }
+                    ]
+                }
+            }
+        }
+    }
+}
+
 function makeCodexMessage(data: Record<string, unknown>): unknown {
     return {
         role: 'agent',
@@ -103,10 +167,9 @@ describe('TurnStore projection', () => {
         expect(first.agentEndSeq).toBe(5)
         expect(first.messageCount).toBe(5)
         expect(first.userPreview).toContain('user prompt #1')
-        expect(first.assistantPreview).toContain('assistant chunk #1')
-        expect(first.assistantPreview).toContain('assistant chunk #2')
-        expect(first.assistantPreview).toContain('assistant chunk #3')
-        expect(first.assistantPreview).toContain('assistant chunk #4')
+        // Each assistant message is a complete final response; brief preview keeps
+        // only the latest segment instead of concatenating intermediate narration.
+        expect(first.assistantPreview).toBe('assistant chunk #4')
 
         const second = turns[1]
         expect(second.turnIndex).toBe(2)
@@ -194,6 +257,99 @@ describe('TurnStore projection', () => {
         expect(turns[0]?.assistantPreview).not.toContain('First draft response')
     })
 
+    it('keeps brief preview on the latest claude text message instead of intermediate narration', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-claude-preview', {}, null, 'default')
+
+        // Real Claude turn shape: narration text, a tool call, then the final answer
+        // are each stored as their own complete assistant message.
+        store.messages.addMessage(session.id, makeUserMessage('list the files'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Let me check the directory.'))
+        store.messages.addMessage(session.id, makeAgentToolUseMessage('LS', { path: '.' }))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Here are the files:\nreadme.md'))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Here are the files:\nreadme.md')
+        expect(turns[0]?.assistantPreview).not.toContain('Let me check the directory.')
+    })
+
+    it('rebuild keeps brief preview on the latest claude text message', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-claude-rebuild', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('list the files'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Let me check the directory.'))
+        store.messages.addMessage(session.id, makeAgentToolUseMessage('LS', { path: '.' }))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Here are the files:\nreadme.md'))
+
+        store.turns.rebuildSessionTurns(session.id)
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Here are the files:\nreadme.md')
+    })
+
+    it('does not leak claude tool_result content into assistant preview', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-claude-tool-result', {}, null, 'default')
+
+        const toolOutput = "351 message: 'execute approved plan',\n>>>>>>> Stashed changes"
+        store.messages.addMessage(session.id, makeUserMessage('fix the test'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Let me read the file.'))
+        store.messages.addMessage(session.id, makeToolResultMessage(toolOutput))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Let me read the file.')
+        expect(turns[0]?.assistantPreview).not.toContain('Stashed changes')
+    })
+
+    it('rebuild does not leak claude tool_result content into assistant preview', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-claude-tool-result-rebuild', {}, null, 'default')
+
+        const toolOutput = "351 message: 'execute approved plan',\n>>>>>>> Stashed changes"
+        store.messages.addMessage(session.id, makeUserMessage('fix the test'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Let me read the file.'))
+        store.messages.addMessage(session.id, makeToolResultMessage(toolOutput))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Done, fixed the test.'))
+
+        store.turns.rebuildSessionTurns(session.id)
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Done, fixed the test.')
+        expect(turns[0]?.assistantPreview).not.toContain('Stashed changes')
+    })
+
+    it('does not surface sidechain assistant text as the turn preview', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-claude-sidechain', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('research this'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Spawning a sub-agent.'))
+        store.messages.addMessage(session.id, makeSidechainAgentTextMessage('Sub-agent internal result dump'))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Spawning a sub-agent.')
+        expect(turns[0]?.assistantPreview).not.toContain('Sub-agent internal')
+    })
+
+    it('keeps previous claude preview when the final message is a tool call only', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-claude-trailing-tool', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('do work'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('Final summary of the work.'))
+        store.messages.addMessage(session.id, makeAgentToolUseMessage('LS', { path: '.' }))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.assistantPreview).toBe('Final summary of the work.')
+    })
+
     it('rebuild preserves latest codex final preview behavior', () => {
         const store = new Store(':memory:')
         const session = store.sessions.getOrCreateSession('turn-codex-rebuild', {}, null, 'default')
@@ -228,28 +384,24 @@ describe('TurnStore projection', () => {
         expect(turns[0]?.assistantPreview).toContain('answer-1\nanswer-2')
     })
 
-    it('preserves nested markdown list indentation across multiple assistant chunks', () => {
+    it('preserves nested markdown list indentation within the final assistant message', () => {
         const store = new Store(':memory:')
         const session = store.sessions.getOrCreateSession('turn-preserve-list-indent', {}, null, 'default')
 
         store.messages.addMessage(session.id, makeUserMessage('show steps'))
-        store.messages.addMessage(session.id, makeAgentTextMessage('1. Parent'))
-        store.messages.addMessage(session.id, makeAgentTextMessage('   - Child'))
-        store.messages.addMessage(session.id, makeAgentTextMessage('2. Next'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('1. Parent\n   - Child\n2. Next'))
 
         const turns = store.turns.getTurns(session.id, 20)
         expect(turns).toHaveLength(1)
         expect(turns[0]?.assistantPreview).toBe('1. Parent\n   - Child\n2. Next')
     })
 
-    it('rebuild preserves nested markdown list indentation', () => {
+    it('rebuild preserves nested markdown list indentation within the final assistant message', () => {
         const store = new Store(':memory:')
         const session = store.sessions.getOrCreateSession('turn-rebuild-list-indent', {}, null, 'default')
 
         store.messages.addMessage(session.id, makeUserMessage('show steps'))
-        store.messages.addMessage(session.id, makeAgentTextMessage('1. Parent'))
-        store.messages.addMessage(session.id, makeAgentTextMessage('   - Child'))
-        store.messages.addMessage(session.id, makeAgentTextMessage('2. Next'))
+        store.messages.addMessage(session.id, makeAgentTextMessage('1. Parent\n   - Child\n2. Next'))
 
         store.turns.rebuildAllTurns()
 
