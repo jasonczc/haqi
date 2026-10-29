@@ -180,4 +180,17 @@ describe('public report markdown rendering', () => {
 
         closeStore(store)
     })
+
+    it('floats a back button for standalone PWA windows', async () => {
+        const store = new Store(':memory:')
+        const report = store.reports.createReport({ namespace: 'default', title: 'Daily', markdown: '# Summary' })
+        const share = store.reports.createShare({ reportId: report.id, namespace: 'default' })
+        const app = createPublicReportsRoutes({ store, reportsStorageDir: tmpdir() })
+
+        const html = await (await app.request(`/share/r/${share.token}`)).text()
+        expect(html).toContain('haqi-pwa-back')
+        // Injected inside the document, not appended after it.
+        expect(html.toLowerCase().indexOf('</body>')).toBeGreaterThan(html.indexOf('haqi-pwa-back'))
+        closeStore(store)
+    })
 })

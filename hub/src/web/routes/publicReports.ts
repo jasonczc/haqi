@@ -215,6 +215,26 @@ function buildAssetPageHtml(options: {
 </html>`
 }
 
+/**
+ * The share link is same-origin and inside the PWA scope, so in an installed app the window itself can
+ * navigate here — and standalone mode has no browser back button. This floats one, only in that case.
+ */
+const PWA_BACK_SNIPPET = `<script>(function () {
+    if (!window.matchMedia('(display-mode: standalone)').matches || history.length <= 1) return
+    var button = document.createElement('button')
+    button.id = 'haqi-pwa-back'
+    button.type = 'button'
+    button.textContent = '\\u2039 返回'
+    button.style.cssText = 'position:fixed;top:12px;left:12px;z-index:2147483647;padding:8px 14px;border:1px solid rgba(128,128,128,.4);border-radius:999px;background:rgba(250,250,250,.92);color:#333;font:14px -apple-system,system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:pointer;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)'
+    button.addEventListener('click', function () { history.back() })
+    document.body.appendChild(button)
+})()</script>`
+
+function withPwaBackButton(html: string): string {
+    const index = html.toLowerCase().lastIndexOf('</body>')
+    return index === -1 ? html + PWA_BACK_SNIPPET : html.slice(0, index) + PWA_BACK_SNIPPET + html.slice(index)
+}
+
 function buildSharePageHtml(options: {
     token: string
     title: string
@@ -334,7 +354,7 @@ export function createPublicReportsRoutes(options: {
             assets
         })
 
-        return c.html(html)
+        return c.html(withPwaBackButton(html))
     })
 
     app.get('/share/r/:token/assets/:assetId/view', async (c) => {

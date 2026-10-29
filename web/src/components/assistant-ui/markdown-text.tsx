@@ -83,14 +83,18 @@ function A(props: ComponentPropsWithoutRef<'a'>) {
         return <PathActionLink path={path} className={props.className} />
     }
 
-    const rel = props.target === '_blank' ? (props.rel ?? 'noreferrer') : props.rel
-
     const href = props.href
-    const previewable = Boolean(openInPreview && href && /^https?:\/\//i.test(href))
+    const external = Boolean(href && /^https?:\/\//i.test(href))
+    // External links open a new context: in a standalone PWA an in-place navigation has no way back.
+    const target = props.target ?? (external ? '_blank' : undefined)
+    const rel = target === '_blank' ? (props.rel ?? 'noreferrer') : props.rel
+
+    const previewable = Boolean(openInPreview && external)
 
     return (
         <a
             {...props}
+            target={target}
             rel={rel}
             onClick={(event) => {
                 props.onClick?.(event)
